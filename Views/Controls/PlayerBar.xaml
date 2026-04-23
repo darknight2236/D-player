@@ -1,0 +1,67 @@
+<UserControl x:Class="UmaPlayer.Views.Controls.PlayerBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:UmaPlayer.Converters">
+    <UserControl.Resources>
+        <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
+        <converters:PlayStateToIconConverter x:Key="PlayStateToIcon"/>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Track info -->
+        <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Text="{Binding CurrentTrack.Title, FallbackValue='No track loaded'}"
+                       Style="{StaticResource HeaderText}" HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding CurrentTrack.Artist, FallbackValue=''}"
+                       Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Seek bar -->
+        <Grid Grid.Row="1" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="45"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="45"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="{Binding Position, Converter={StaticResource TimeSpanToString}}"
+                       Style="{StaticResource CaptionText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+
+            <Slider x:Name="SeekBar" Grid.Column="1" Margin="8,0"
+                    Minimum="0" Maximum="1"
+                    Value="{Binding PositionNormalized, Mode=OneWay}"
+                    Thumb.DragStarted="SeekBar_DragStarted"
+                    Thumb.DragCompleted="SeekBar_DragCompleted"/>
+
+            <TextBlock Grid.Column="2" Text="{Binding Duration, Converter={StaticResource TimeSpanToString}}"
+                       Style="{StaticResource CaptionText}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+        </Grid>
+
+        <!-- Controls -->
+        <Grid Grid.Row="2" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Command="{Binding PlayPauseCommand}" Width="48" Height="48">
+                    <TextBlock Text="{Binding PlayState, Converter={StaticResource PlayStateToIcon}}"
+                               FontSize="20" Foreground="{StaticResource ForegroundPrimary}"/>
+                </Button>
+                <Button Command="{Binding StopCommand}" Width="48" Height="48" Margin="8,0">
+                    <TextBlock Text="&#x23F9;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
+                </Button>
+                <Button Command="{Binding OpenFilesCommand}" Width="48" Height="48">
+                    <TextBlock Text="&#x1F4C2;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
+                </Button>
+            </StackPanel>
+
+            <!-- Volume slider -->
+            <Slider Width="100" HorizontalAlignment="Right" VerticalAlignment="Center"
+                    Minimum="0" Maximum="1"
+                    Value="{Binding Volume, Mode=TwoWay}"/>
+        </Grid>
+    </Grid>
+</UserControl>

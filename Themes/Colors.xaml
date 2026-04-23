@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Background -->
+    <SolidColorBrush x:Key="BackgroundPrimary" Color="#1E1E2E"/>
+    <SolidColorBrush x:Key="BackgroundSecondary" Color="#2A2A3C"/>
+    <SolidColorBrush x:Key="BackgroundTertiary" Color="#363649"/>
+
+    <!-- Foreground -->
+    <SolidColorBrush x:Key="ForegroundPrimary" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="ForegroundSecondary" Color="#A0A0B0"/>
+    <SolidColorBrush x:Key="ForegroundDisabled" Color="#606070"/>
+
+    <!-- Accent -->
+    <SolidColorBrush x:Key="AccentPrimary" Color="#7C4DFF"/>
+    <SolidColorBrush x:Key="AccentHover" Color="#9E7CFF"/>
+    <SolidColorBrush x:Key="AccentPressed" Color="#5C2DCF"/>
+
+    <!-- Slider -->
+    <SolidColorBrush x:Key="SliderTrack" Color="#363649"/>
+    <SolidColorBrush x:Key="SliderThumb" Color="#7C4DFF"/>
+</ResourceDictionary>

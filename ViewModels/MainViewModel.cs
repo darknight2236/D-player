@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -105,6 +106,121 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>当前是否有正在播放的曲（用于 Next/Prev 按钮 CanExecute）。</summary>
     public bool HasCurrentTrack => CurrentIndex >= 0 && CurrentIndex < Queue.Count;
+
+    /// <summary>
+    /// 计算下一首曲目的索引。
+    /// </summary>
+    /// <param name="failedIndex">本轮已确认播放失败的索引，候选集合需排除它（防止无限循环）。</param>
+    /// <returns>下一首索引；-1 表示无下一首（队列空或循环关闭已到底）。</returns>
+    /// <remarks>
+    /// 注意：RepeatOne 的"重播当前"逻辑不在本方法处理，由调用方
+    /// (HandleTrackEnded) 直接返回 CurrentIndex。本方法只处理 Shuffle/顺序 × Repeat 组合。
+    /// </remarks>
+    private int CalculateNextIndex(int? failedIndex = null)
+    {
+        if (Queue.Count == 0) return -1;
+
+        if (ShuffleEnabled)
+        {
+            // 候选 = 所有索引 - 已播过 - 失败过
+            var candidates = Enumerable.Range(0, Queue.Count)
+                .Where(i => !_shuffleHistory.Contains(i) && i != failedIndex)
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                // 全部播过 → 视循环模式决定
+                if (RepeatMode == RepeatMode.List)
+                {
+                    _shuffleHistory.Clear();
+                    candidates = Enumerable.Range(0, Queue.Count)
+                        .Where(i => i != failedIndex)
+                        .ToList();
+                    if (candidates.Count == 0) return -1;
+                }
+                else
+                {
+                    return -1; // RepeatOff/One 且 Shuffle 已耗尽 → 停
+                }
+            }
+
+            return candidates[_random.Next(candidates.Count)];
+        }
+        else
+        {
+            // 顺序模式
+            var next = CurrentIndex + 1;
+            if (next < Queue.Count) return next;
+            return RepeatMode == RepeatMode.List ? 0 : -1;
+        }
+    }
+
+    /// <summary>
+    /// 计算上一首索引。Shuffle 模式下不维护历史栈（MVP 简化）, 直接退到 0 或 Count-1。
+    /// </summary>
+    private int CalculatePrevIndex()
+    {
+        if (Queue.Count == 0) return -1;
+
+        if (ShuffleEnabled)
+        {
+            // MVP: Shuffle 下 Prev 不回溯历史, 简单退到 0；后续可加历史栈
+            return CurrentIndex > 0 ? CurrentIndex - 1 : 0;
+        }
+        else
+        {
+            var prev = CurrentIndex - 1;
+            if (prev >= 0) return prev;
+            return RepeatMode == RepeatMode.List ? Queue.Count - 1 : -1;
+        }
+    }
+
+    /// <summary>
+    /// 播放指定索引的曲目。失败时尝试跳过到下一首，最多连跳 3 次防无限循环。
+    /// </summary>
+    private async Task PlayTrackAtAsync(int index, int skipCount = 0)
+    {
+        if (index < 0 || index >= Queue.Count)
+        {
+            _player.Stop();
+            CurrentIndex = -1;
+            return;
+        }
+
+        if (skipCount >= 3)
+        {
+            // 连续 3 个文件失败 → 停止，避免无限错误循环
+            _player.Stop();
+            CurrentIndex = -1;
+            return;
+        }
+
+        CurrentIndex = index;
+        _shuffleHistory.Add(index); // 不管是否 Shuffle 都登记，便于切换时无缝
+
+        try
+        {
+            // 读元数据并回写到 Queue[index]（占位 Track → 完整 Track）
+            var meta = await ReadTrackMetadataAsync(Queue[index].FilePath);
+            Queue[index] = meta; // ObservableCollection.set[i] 触发 Replace, UI 自动刷新
+
+            await _player.LoadAsync(meta);
+            _player.Play();
+        }
+        catch
+        {
+            // 文件损坏 / 不存在 → 跳过到下一首
+            var failed = index;
+            var next = CalculateNextIndex(failedIndex: failed);
+            if (next == -1 || next == failed)
+            {
+                _player.Stop();
+                CurrentIndex = -1;
+                return;
+            }
+            await PlayTrackAtAsync(next, skipCount + 1);
+        }
+    }
 
     #endregion
 

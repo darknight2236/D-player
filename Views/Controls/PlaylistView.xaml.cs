@@ -24,19 +24,32 @@ public partial class PlaylistView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        // ListBox 虚拟化下, 滚动会重建 container; 当生成器完成一批新容器时重画 ▶
+        Loaded += (_, _) =>
+        {
+            QueueList.ItemContainerGenerator.StatusChanged += (_, _) =>
+            {
+                if (QueueList.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+                    RefreshCurrentIndicator();
+            };
+        };
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         // 取消旧订阅
         if (_vm != null)
+        {
             _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.Queue.CollectionChanged -= OnQueueChanged;
+        }
 
         _vm = e.NewValue as MainViewModel;
 
         if (_vm != null)
         {
             _vm.PropertyChanged += OnVmPropertyChanged;
+            _vm.Queue.CollectionChanged += OnQueueChanged;
             // 初次绑定时刷新一次
             RefreshCurrentIndicator();
         }
@@ -46,6 +59,17 @@ public partial class PlaylistView : UserControl
     {
         if (e.PropertyName == nameof(MainViewModel.CurrentIndex))
             RefreshCurrentIndicator();
+    }
+
+    /// <summary>
+    /// 队列变化（增删/替换）后刷新 ▶ 标记。
+    /// 必要原因：PlayTrackAtAsync 会做 Queue[index]=meta 触发 Replace, ListBox 重建该容器,
+    /// 默认 Foreground/marker 文字会回到 ForegroundPrimary/空, 必须重画。
+    /// </summary>
+    private void OnQueueChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        // 延迟到布局完成后刷新, 避免在 container 尚未生成时读取 ItemContainerGenerator
+        Dispatcher.BeginInvoke(new Action(RefreshCurrentIndicator), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     /// <summary>

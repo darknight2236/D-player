@@ -96,6 +96,12 @@ public partial class MainViewModel : ObservableObject
     /// <summary>用于 Shuffle 模式随机选曲；构造一次复用。</summary>
     private readonly Random _random = new();
 
+    /// <summary>
+    /// PlayTrackAtAsync 重入哨兵：每次入口自增；await 完成后若 token 不匹配，则丢弃本次结果。
+    /// 防止用户连续 Next 时多个 LoadAsync 互相覆盖 NAudio 资源。
+    /// </summary>
+    private int _playToken;
+
     // —— 派生属性 ——
 
     /// <summary>循环按钮是否处于"激活"状态（List 或 One 都算）。</summary>
@@ -177,6 +183,7 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>
     /// 播放指定索引的曲目。失败时尝试跳过到下一首，最多连跳 3 次防无限循环。
+    /// 使用 _playToken 哨兵防止重入：若 await 期间用户触发了新一轮播放，旧调用会静默退出。
     /// </summary>
     private async Task PlayTrackAtAsync(int index, int skipCount = 0)
     {
@@ -195,6 +202,9 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        // 抢占 token：之后任何 await 若发现 token 已变，说明被新调用顶替，立即放弃
+        int myToken = ++_playToken;
+
         CurrentIndex = index;
         _shuffleHistory.Add(index); // 不管是否 Shuffle 都登记，便于切换时无缝
 
@@ -202,13 +212,16 @@ public partial class MainViewModel : ObservableObject
         {
             // 读元数据并回写到 Queue[index]（占位 Track → 完整 Track）
             var meta = await ReadTrackMetadataAsync(Queue[index].FilePath);
+            if (myToken != _playToken) return; // 被顶替, 静默退出
             Queue[index] = meta; // ObservableCollection.set[i] 触发 Replace, UI 自动刷新
 
             await _player.LoadAsync(meta);
+            if (myToken != _playToken) return; // 被顶替, 不再 Play
             _player.Play();
         }
         catch
         {
+            if (myToken != _playToken) return; // 被顶替, 不再 fallback
             // 文件损坏 / 不存在 → 跳过到下一首
             var failed = index;
             var next = CalculateNextIndex(failedIndex: failed);

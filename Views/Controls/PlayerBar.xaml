@@ -74,16 +74,24 @@
 
         <!-- Row 2：控制按钮组（居中） + 音量区域（右对齐） -->
         <Grid Grid.Row="2" Margin="0,8,0,0">
-            <!-- 居中：播放/暂停 (动态图标)、停止、打开文件 -->
+            <!-- 居中：上一首、播放/暂停 (动态图标)、停止、下一首、打开文件 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Command="{Binding PlayPauseCommand}" Width="48" Height="48">
+                <Button Command="{Binding PrevTrackCommand}" Width="48" Height="48"
+                        ToolTip="上一首">
+                    <TextBlock Text="&#x23EE;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
+                </Button>
+                <Button Command="{Binding PlayPauseCommand}" Width="48" Height="48" Margin="8,0,0,0">
                     <TextBlock Text="{Binding PlayState, Converter={StaticResource PlayStateToIcon}}"
                                FontSize="20" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
-                <Button Command="{Binding StopCommand}" Width="48" Height="48" Margin="8,0">
+                <Button Command="{Binding StopCommand}" Width="48" Height="48" Margin="8,0,0,0">
                     <TextBlock Text="&#x23F9;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
-                <Button Command="{Binding OpenFilesCommand}" Width="48" Height="48">
+                <Button Command="{Binding NextTrackCommand}" Width="48" Height="48" Margin="8,0,0,0"
+                        ToolTip="下一首">
+                    <TextBlock Text="&#x23ED;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
+                </Button>
+                <Button Command="{Binding OpenFilesCommand}" Width="48" Height="48" Margin="8,0,0,0">
                     <TextBlock Text="&#x1F4C2;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
             </StackPanel>

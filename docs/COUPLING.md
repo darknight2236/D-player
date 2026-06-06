@@ -70,7 +70,7 @@
 
 ---
 
-### 债 #2 — `IPlaybackService` 缺"自然播完"信号 🔥
+### 债 #2 — `IPlaybackService` 缺"自然播完"信号 ✅ 已偿
 
 **位置：** `Services/NAudioPlaybackService.cs:OnPlaybackStopped`
 
@@ -87,6 +87,9 @@ private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
 **触发时机：** Phase 2 加播放列表的**第一天**就会撞上。
 
 **预修方案（约 30 分钟）：** 给 `IPlaybackService` 加 `event Action TrackEnded`，仅在"非用户主动停止 + 无异常 + 播放头已到 Duration" 时触发。
+
+**✅ Phase 2 已偿还**（commit: 见 `git log --grep TrackEnded`）—— 加入 `event Action? TrackEnded`，
+通过 200ms 容差判定"自然播完"。
 
 ---
 
@@ -171,24 +174,21 @@ public sealed class AtlMetadataReader : ITrackMetadataReader { ... }
 
 ---
 
-## 6. Phase 2 启动检查清单
+## 6. Phase 3 启动检查清单
 
-> 等需求"加播放列表"真的落地时，**按这个顺序**做：
+> Phase 2（播放队列）已完成。下一阶段（如多命名播放列表 / 队列持久化）启动时按以下顺序：
 
-1. ☐ 先做**债 #2**（加 `TrackEnded` 事件）—— 否则播完不会自动下一首
-2. ☐ 再做**债 #4**（抽 `ITrackMetadataReader`）—— 批量元数据要用
-3. ☐ 把 `Win32FileDialogService.Multiselect = false` 改成参数
-4. ☐ 拆 VM：
-   - `PlayerViewModel`（仅 transport：play/pause/stop/seek/volume）
-   - `PlaylistViewModel`（仅队列：tracks/currentIndex/next/prev/shuffle/repeat）
-   - `MainViewModel` 持有两者，作为 facade
-5. ☐ 修 `PlayerBar.xaml.cs` 的 `as MainViewModel` 硬转型 →
-   - 把 seek 相关命令通过 `DependencyProperty` 暴露
-   - 或者拆出 `SeekBar` UserControl 直接绑 `PlayerViewModel`
-6. ☐ 视情况做**债 #1**（`BitmapImage` → `byte[]`）—— 如果想给 VM 加单测
-7. ☐ 视情况做**债 #3**（settings 合并纪律）—— 如果 settings 字段持续增长
+1. ☐ **VM 拆分**（债 #1 关联）—— `MainViewModel` 已达 ~400 行，到拆分阈值
+   - 拆 `PlayerViewModel`（仅 transport）+ `PlaylistViewModel`（队列 + 模式）
+   - `MainViewModel` 作为 facade 持有两者
+2. ☐ **`PlayerBar` / `PlaylistView` 去硬转型** —— 配合 VM 拆分；命令通过 `DependencyProperty` 或 XAML `{Binding}` 暴露
+3. ☐ **抽 `ITrackMetadataReader`**（债 #4）—— 多列表 / 文件夹扫描需要批量元数据
+4. ☐ **解决 settings 合并纪律**（债 #3）—— 加入队列持久化前必做
+5. ☐ **队列持久化** —— `%LocalAppData%\UmaPlayer\queue.json`
+6. ☐ **多命名播放列表（L3）** —— 真正的"播放列表管理"
+7. ☐ **拖拽支持** —— 入队 + 重排序
 
-**预估总工作量：** 4~6 小时（不含播放列表本身的功能开发）
+**预估总工作量：** 10~14 小时（不含 L3 多命名列表本身的功能开发）
 
 ---
 

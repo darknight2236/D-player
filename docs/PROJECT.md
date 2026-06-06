@@ -22,11 +22,14 @@
 | 元数据  | 标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 内嵌封面（z440.atl.core）            |
 | 主题   | 内置深色主题（深紫强调色）                                                  |
 | 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\UmaPlayer\settings.json`       |
+| 播放列表 | 内存队列：多选入队、单项删除、上/下一首、自动推进、随机/循环模式（关闭即丢） |
 
 ### 1.2 后续增量（未实现）
 
-- 播放列表管理（创建 / 保存 / 加载 / 编辑）
-- 上一首 / 下一首、播放模式（顺序 / 随机 / 单曲循环）—— 依赖播放列表
+- 多个命名播放列表（创建 / 保存 / 加载 / 切换）—— 当前仅支持单个内存队列
+- 播放队列持久化（关闭即丢）
+- 拖拽入队 / 队列内拖拽重排序
+- M3U / PLS 等播放列表格式导入导出
 - 音频可视化（频谱 / 波形）
 - 音乐库扫描（文件夹扫描、按艺术家/专辑组织）
 - OGG/Vorbis 支持（MF 不原生支持，需额外解码器）
@@ -65,6 +68,7 @@ UmaPlayer/
 ├── Models/
 │   ├── Track.cs                 # 不可变 record：音轨信息（含封面字节数组）
 │   ├── PlayState.cs             # enum: Stopped / Playing / Paused
+│   ├── RepeatMode.cs            # enum: Off / List / One  (Phase 2)
 │   └── AudioDeviceInfo.cs       # 预留：设备信息
 │
 ├── Services/                    # 业务/基础设施服务（全部基于接口）
@@ -85,11 +89,14 @@ UmaPlayer/
 ├── Views/
 │   ├── MainWindow.xaml(.cs)     # 主窗口；窗口位置恢复 + 关闭时清理
 │   └── Controls/
-│       └── PlayerBar.xaml(.cs)  # 全功能播放栏（封面/信息/进度/控制/音量）
+│       ├── PlayerBar.xaml(.cs)  # 全功能播放栏（封面/信息/进度/控制/音量）
+│       └── PlaylistView.xaml(.cs)  # 播放队列（Phase 2）
 │
 ├── Converters/
-│   ├── PlayStateToIconConverter.cs   # ▶/⏸ 图标
-│   └── TimeSpanToStringConverter.cs  # 0:00 / 0:00:00
+│   ├── PlayStateToIconConverter.cs       # ▶/⏸ 图标
+│   ├── TimeSpanToStringConverter.cs      # 0:00 / 0:00:00
+│   ├── RepeatModeToIconConverter.cs      # ⇄ / 🔁 / 🔂 (Phase 2)
+│   └── BoolToAccentBrushConverter.cs     # 强调色/次要色画刷 (Phase 2)
 │
 ├── Themes/                      # 深色主题资源字典（App.xaml 合并加载）
 │   ├── Colors.xaml              # #1E1E2E 背景 + #7C4DFF 紫色强调

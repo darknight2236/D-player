@@ -1,22 +1,28 @@
 <!--
-    主窗口布局 —— 极简：单个 PlayerBar 控件占满。
-    Background/Foreground 显式设置以便预览器（设计时无 Window 隐式样式）显示正确颜色；
-    运行时也会被 Themes/Controls.xaml 中 Window 样式覆盖（结果相同）。
-    Closing 事件由 code-behind 处理：保存窗口几何 + 触发 VM 清理。
+    主窗口布局 —— Phase 2 改为两行:
+      Row 0 (Auto): PlayerBar (现有, 不动)
+      Row 1 (*)   : PlaylistView (新)
+    默认 Height 从 450 提升至 650 以容纳队列。
+    Closing 事件由 code-behind 处理: 保存窗口几何 + 触发 VM 清理。
 -->
 <Window x:Class="UmaPlayer.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:UmaPlayer.Views.Controls"
         Title="UmaPlayer"
-        Width="800" Height="450"
+        Width="800" Height="650"
+        MinWidth="600" MinHeight="500"
         Background="{StaticResource BackgroundPrimary}"
         Foreground="{StaticResource ForegroundPrimary}"
         WindowStartupLocation="Manual"
         Closing="Window_Closing">
     <Grid>
-        <!-- DataContext 显式绑定到 Window.DataContext (=MainViewModel)，
-             PlayerBar 内部所有 {Binding ...} 都解析到 VM -->
-        <controls:PlayerBar DataContext="{Binding}"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <controls:PlayerBar    Grid.Row="0" DataContext="{Binding}"/>
+        <controls:PlaylistView Grid.Row="1" DataContext="{Binding}"/>
     </Grid>
 </Window>

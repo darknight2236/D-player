@@ -13,6 +13,7 @@ public interface IFileDialogService
     /// 弹出文件选择对话框。
     /// </summary>
     /// <param name="filter">WPF 格式过滤器，如 "Audio Files|*.mp3;*.wav"。</param>
+    /// <param name="multiselect">是否允许多选；默认 false 保持原行为。</param>
     /// <returns>用户选中的文件路径列表；取消则返回空集合。</returns>
-    IReadOnlyList<string> OpenFiles(string filter);
+    IReadOnlyList<string> OpenFiles(string filter, bool multiselect = false);
 }

@@ -1,4 +1,6 @@
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -66,6 +68,317 @@ public partial class MainViewModel : ObservableObject
     /// <summary>静音前的音量快照，用于"取消静音"时恢复。</summary>
     private float _volumeBeforeMute;
 
+    #region Phase 2 — Playlist Queue
+
+    /// <summary>当前播放队列。ObservableCollection 自动通知 UI 增删改。</summary>
+    public ObservableCollection<Track> Queue { get; } = new();
+
+    /// <summary>当前播放曲在 Queue 中的索引；-1 表示未选/队列空。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCurrentTrack))]
+    private int _currentIndex = -1;
+
+    /// <summary>UI 列表选中项（与"当前播放曲"无关，仅供 Delete 键定位）。</summary>
+    [ObservableProperty]
+    private Track? _selectedTrack;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShuffleBrushKey))]
+    private bool _shuffleEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RepeatActive))]
+    private RepeatMode _repeatMode = RepeatMode.Off;
+
+    /// <summary>随机模式下"已播过"的索引集合。切换 ShuffleEnabled 或清空队列时重置。</summary>
+    private readonly HashSet<int> _shuffleHistory = new();
+
+    /// <summary>用于 Shuffle 模式随机选曲；构造一次复用。</summary>
+    private readonly Random _random = new();
+
+    /// <summary>
+    /// PlayTrackAtAsync 重入哨兵：每次入口自增；await 完成后若 token 不匹配，则丢弃本次结果。
+    /// 防止用户连续 Next 时多个 LoadAsync 互相覆盖 NAudio 资源。
+    /// </summary>
+    private int _playToken;
+
+    // —— 派生属性 ——
+
+    /// <summary>循环按钮是否处于"激活"状态（List 或 One 都算）。</summary>
+    public bool RepeatActive => RepeatMode != RepeatMode.Off;
+
+    /// <summary>暴露给 XAML 的 Shuffle 高亮指示（直接绑 ShuffleEnabled 即可，留作语义清晰）。</summary>
+    public bool ShuffleBrushKey => ShuffleEnabled;
+
+    /// <summary>当前是否有正在播放的曲（用于 Next/Prev 按钮 CanExecute）。</summary>
+    public bool HasCurrentTrack => CurrentIndex >= 0 && CurrentIndex < Queue.Count;
+
+    /// <summary>
+    /// 计算下一首曲目的索引。
+    /// </summary>
+    /// <param name="failedIndex">本轮已确认播放失败的索引，候选集合需排除它（防止无限循环）。</param>
+    /// <returns>下一首索引；-1 表示无下一首（队列空或循环关闭已到底）。</returns>
+    /// <remarks>
+    /// 注意：RepeatOne 的"重播当前"逻辑不在本方法处理，由调用方
+    /// (HandleTrackEnded) 直接返回 CurrentIndex。本方法只处理 Shuffle/顺序 × Repeat 组合。
+    /// </remarks>
+    private int CalculateNextIndex(int? failedIndex = null)
+    {
+        if (Queue.Count == 0) return -1;
+
+        if (ShuffleEnabled)
+        {
+            // 候选 = 所有索引 - 已播过 - 失败过
+            var candidates = Enumerable.Range(0, Queue.Count)
+                .Where(i => !_shuffleHistory.Contains(i) && i != failedIndex)
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                // 全部播过 → 视循环模式决定
+                if (RepeatMode == RepeatMode.List)
+                {
+                    _shuffleHistory.Clear();
+                    candidates = Enumerable.Range(0, Queue.Count)
+                        .Where(i => i != failedIndex)
+                        .ToList();
+                    if (candidates.Count == 0) return -1;
+                }
+                else
+                {
+                    return -1; // RepeatOff/One 且 Shuffle 已耗尽 → 停
+                }
+            }
+
+            return candidates[_random.Next(candidates.Count)];
+        }
+        else
+        {
+            // 顺序模式
+            var next = CurrentIndex + 1;
+            if (next < Queue.Count) return next;
+            return RepeatMode == RepeatMode.List ? 0 : -1;
+        }
+    }
+
+    /// <summary>
+    /// 计算上一首索引。Shuffle 模式下不维护历史栈（MVP 简化）, 直接退到 0 或 Count-1。
+    /// </summary>
+    private int CalculatePrevIndex()
+    {
+        if (Queue.Count == 0) return -1;
+
+        if (ShuffleEnabled)
+        {
+            // MVP: Shuffle 下 Prev 不回溯历史, 简单退到 0；后续可加历史栈
+            return CurrentIndex > 0 ? CurrentIndex - 1 : 0;
+        }
+        else
+        {
+            var prev = CurrentIndex - 1;
+            if (prev >= 0) return prev;
+            return RepeatMode == RepeatMode.List ? Queue.Count - 1 : -1;
+        }
+    }
+
+    /// <summary>
+    /// 播放指定索引的曲目。失败时尝试跳过到下一首，最多连跳 3 次防无限循环。
+    /// 使用 _playToken 哨兵防止重入：若 await 期间用户触发了新一轮播放，旧调用会静默退出。
+    /// </summary>
+    private async Task PlayTrackAtAsync(int index, int skipCount = 0)
+    {
+        if (index < 0 || index >= Queue.Count)
+        {
+            _player.Stop();
+            CurrentIndex = -1;
+            return;
+        }
+
+        if (skipCount >= 3)
+        {
+            // 连续 3 个文件失败 → 停止，避免无限错误循环
+            _player.Stop();
+            CurrentIndex = -1;
+            return;
+        }
+
+        // 抢占 token：之后任何 await 若发现 token 已变，说明被新调用顶替，立即放弃
+        int myToken = ++_playToken;
+
+        CurrentIndex = index;
+        _shuffleHistory.Add(index); // 不管是否 Shuffle 都登记，便于切换时无缝
+
+        try
+        {
+            // 读元数据并回写到 Queue[index]（占位 Track → 完整 Track）
+            var meta = await ReadTrackMetadataAsync(Queue[index].FilePath);
+            if (myToken != _playToken) return; // 被顶替, 静默退出
+            Queue[index] = meta; // ObservableCollection.set[i] 触发 Replace, UI 自动刷新
+
+            await _player.LoadAsync(meta);
+            if (myToken != _playToken) return; // 被顶替, 不再 Play
+            _player.Play();
+        }
+        catch
+        {
+            if (myToken != _playToken) return; // 被顶替, 不再 fallback
+            // 文件损坏 / 不存在 → 跳过到下一首
+            var failed = index;
+            var next = CalculateNextIndex(failedIndex: failed);
+            if (next == -1 || next == failed)
+            {
+                _player.Stop();
+                CurrentIndex = -1;
+                return;
+            }
+            await PlayTrackAtAsync(next, skipCount + 1);
+        }
+    }
+
+    // —— Phase 2 命令 ——
+
+    /// <summary>文件对话框多选 → 入队（不读元数据，仅占位）。</summary>
+    [RelayCommand]
+    private void AddToQueue()
+    {
+        var files = _fileDialog.OpenFiles(
+            "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
+            multiselect: true);
+        if (files.Count == 0) return;
+
+        foreach (var path in files)
+        {
+            // 轻量占位 Track：仅文件名作为 Title，其他字段为空
+            Queue.Add(CreateFallbackTrack(path));
+        }
+    }
+
+    /// <summary>按索引移除单项；若是当前播放曲则停止播放并同步索引。</summary>
+    [RelayCommand]
+    private void RemoveTrack(int index)
+    {
+        if (index < 0 || index >= Queue.Count) return;
+
+        bool isCurrent = (index == CurrentIndex);
+        Queue.RemoveAt(index);
+
+        // 修正 CurrentIndex
+        if (isCurrent)
+        {
+            UnloadCurrentTrack();
+        }
+        else if (index < CurrentIndex)
+        {
+            CurrentIndex--; // 当前曲位置前的项被删，当前曲索引下移 1
+        }
+
+        // 修正 _shuffleHistory：
+        // 1) 删除该索引本身  2) 大于该索引的全部 -1
+        var rebuilt = new HashSet<int>();
+        foreach (var i in _shuffleHistory)
+        {
+            if (i == index) continue;
+            rebuilt.Add(i > index ? i - 1 : i);
+        }
+        _shuffleHistory.Clear();
+        foreach (var i in rebuilt) _shuffleHistory.Add(i);
+    }
+
+    /// <summary>清空整个队列 → 停止播放，重置索引和历史。</summary>
+    [RelayCommand]
+    private void ClearQueue()
+    {
+        UnloadCurrentTrack();
+        Queue.Clear();
+        _shuffleHistory.Clear();
+    }
+
+    /// <summary>
+    /// 停止播放并清空 PlayerBar 上与"当前曲"相关的所有 VM 状态。
+    /// 必须用 _player.Unload() 而不是 Stop() —— 后者保留底层 reader, 用户再点 Play 会重播刚才那首。
+    /// 同时令 _playToken 自增，使任何 in-flight 的 PlayTrackAtAsync 被顶替丢弃。
+    /// </summary>
+    private void UnloadCurrentTrack()
+    {
+        _playToken++; // 顶替任何 in-flight 的播放调用
+        _player.Unload();
+        CurrentIndex = -1;
+        CurrentTrack = null;
+        AlbumArtImage = null;
+        Position = TimeSpan.Zero;
+        Duration = TimeSpan.Zero;
+    }
+
+    /// <summary>双击列表项 → 播放该索引曲目。重置 shuffleHistory（视为新会话）。</summary>
+    [RelayCommand]
+    private async Task PlayTrackAt(int index)
+    {
+        _shuffleHistory.Clear();
+        await PlayTrackAtAsync(index);
+    }
+
+    /// <summary>下一首按钮（用户手动）。RepeatOne 下也跳走，不重播当前。</summary>
+    [RelayCommand(CanExecute = nameof(HasCurrentTrack))]
+    private async Task NextTrack()
+    {
+        var next = CalculateNextIndex();
+        if (next == -1) return;
+        await PlayTrackAtAsync(next);
+    }
+
+    /// <summary>上一首按钮。</summary>
+    [RelayCommand(CanExecute = nameof(HasCurrentTrack))]
+    private async Task PrevTrack()
+    {
+        var prev = CalculatePrevIndex();
+        if (prev == -1) return;
+        await PlayTrackAtAsync(prev);
+    }
+
+    /// <summary>切换 Shuffle 开关。同时清空已播过历史（避免状态语义混乱）。</summary>
+    [RelayCommand]
+    private void ToggleShuffle()
+    {
+        ShuffleEnabled = !ShuffleEnabled;
+        _shuffleHistory.Clear();
+        if (CurrentIndex >= 0) _shuffleHistory.Add(CurrentIndex); // 当前曲不应再被随机选中
+    }
+
+    /// <summary>循环模式三态循环：Off → List → One → Off。</summary>
+    [RelayCommand]
+    private void CycleRepeat()
+    {
+        RepeatMode = RepeatMode switch
+        {
+            RepeatMode.Off  => RepeatMode.List,
+            RepeatMode.List => RepeatMode.One,
+            _               => RepeatMode.Off,
+        };
+    }
+
+    /// <summary>
+    /// IPlaybackService.TrackEnded 订阅：根据循环/随机模式自动推进。
+    /// </summary>
+    private async void HandleTrackEnded()
+    {
+        // 单曲循环：仅在自动播完时重播当前
+        if (RepeatMode == RepeatMode.One && CurrentIndex >= 0)
+        {
+            await PlayTrackAtAsync(CurrentIndex);
+            return;
+        }
+
+        var next = CalculateNextIndex();
+        if (next == -1)
+        {
+            // 列表播完且不循环 → 维持 Stopped, 当前索引保留以便用户重新点击 Play
+            return;
+        }
+        await PlayTrackAtAsync(next);
+    }
+
+    #endregion
+
     // —— 派生只读属性，供 XAML 绑定 ——
 
     public string VolumeIcon => IsMuted ? "\U0001F507" : "\U0001F50A"; // 🔇 / 🔊
@@ -95,6 +408,15 @@ public partial class MainViewModel : ObservableObject
         _player.DurationChanged += HandleDurationChanged;
         _player.TrackChanged += HandleTrackChanged;
         _player.PlaybackError += HandlePlaybackError;
+        _player.TrackEnded += HandleTrackEnded;
+
+        // 队列变化时强制刷新 Next/Prev 命令可用性
+        Queue.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasCurrentTrack));
+            NextTrackCommand.NotifyCanExecuteChanged();
+            PrevTrackCommand.NotifyCanExecuteChanged();
+        };
 
         Initialize();
     }
@@ -186,20 +508,25 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 打开文件 → 读元数据 → 加载到播放器 → 自动播放。
-    /// 取消选择不做任何事。
+    /// PlayerBar 上的 📂 按钮：选文件 → 全部入队 → 从第一首新加入的开始播。
+    /// 与 PlaylistView 的 [+ 添加] 区别：本命令会立即触发播放。
     /// </summary>
     [RelayCommand]
     private async Task OpenFilesAsync()
     {
-        var files = _fileDialog.OpenFiles("Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav");
-        if (files.Count > 0)
+        var files = _fileDialog.OpenFiles(
+            "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
+            multiselect: true);
+        if (files.Count == 0) return;
+
+        int firstNewIndex = Queue.Count;
+        foreach (var path in files)
         {
-            var file = files[0];
-            var track = await ReadTrackMetadataAsync(file);
-            await _player.LoadAsync(track);
-            _player.Play();
+            Queue.Add(CreateFallbackTrack(path));
         }
+
+        _shuffleHistory.Clear();
+        await PlayTrackAtAsync(firstNewIndex);
     }
 
     /// <summary>
@@ -309,6 +636,7 @@ public partial class MainViewModel : ObservableObject
         _player.DurationChanged -= HandleDurationChanged;
         _player.TrackChanged -= HandleTrackChanged;
         _player.PlaybackError -= HandlePlaybackError;
+        _player.TrackEnded -= HandleTrackEnded;
         _player.Dispose();
         await _persistence.SaveAsync(_settings);
     }

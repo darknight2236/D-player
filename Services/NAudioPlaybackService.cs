@@ -28,6 +28,8 @@ public sealed class NAudioPlaybackService : IPlaybackService
 
     // 位置事件节流：33ms ≈ 30Hz，刚好覆盖 60Hz 屏的"每两帧一次"，再高对感知无帮助
     private static readonly TimeSpan PositionThrottle = TimeSpan.FromMilliseconds(33);
+    /// <summary>「自然播完」判定容差：播放头距 TotalTime 在此范围内视为正常播完，区别于用户 Stop。</summary>
+    private static readonly TimeSpan NaturalEndTolerance = TimeSpan.FromMilliseconds(200);
     private DateTime _lastPositionEvent = DateTime.MinValue;
 
     public PlayState State => _state;
@@ -51,6 +53,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
     public event Action<TimeSpan>? DurationChanged;
     public event Action<Track>? TrackChanged;
     public event Action<string>? PlaybackError;
+    public event Action? TrackEnded;
 
     public NAudioPlaybackService()
     {
@@ -140,13 +143,31 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// <summary>
     /// NAudio 在以下情况触发 PlaybackStopped：
     /// (1) 播放到曲尾  (2) 用户调用 Stop()  (3) 设备出错
-    /// 仅 (3) 携带 Exception，作为错误上报通道。
+    /// 区分逻辑:
+    ///   - 有异常 → 上报 PlaybackError + Stopped 状态
+    ///   - 无异常 + 播放位置接近 TotalTime (200ms 容差) → 自然播完 → 触发 TrackEnded
+    ///     (注：用户 Stop() 已先把 CurrentTime 归零，差值 = TotalTime，不会误判)
+    ///   - 其他 → 仅 Stopped 状态（如:从中段 Pause 后再 Stop 的边缘场景）
     /// </summary>
     private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
     {
         if (e.Exception != null)
         {
             RaiseOnUIThread(PlaybackError, e.Exception.Message);
+            SetState(PlayState.Stopped);
+            return;
+        }
+
+        // 自然播完判定：播放头距 TotalTime 不超过容差，且时长大于 0（避免空 reader 误判）
+        var reader = _reader;
+        bool naturalEnd = reader != null
+            && reader.TotalTime > TimeSpan.Zero
+            && (reader.TotalTime - reader.CurrentTime) <= NaturalEndTolerance;
+
+        if (naturalEnd)
+        {
+            RaiseOnUIThread(TrackEnded);
+            // 状态仍设为 Stopped；VM 的 TrackEnded handler 决定是否随即 Play 下一首
         }
 
         SetState(PlayState.Stopped);
@@ -177,6 +198,13 @@ public sealed class NAudioPlaybackService : IPlaybackService
     {
         if (handler == null) return;
         _syncContext.Post(_ => handler(value), null);
+    }
+
+    /// <summary>将无参事件回调封送到 UI 线程。</summary>
+    private void RaiseOnUIThread(Action? handler)
+    {
+        if (handler == null) return;
+        _syncContext.Post(_ => handler(), null);
     }
 
     /// <summary>释放当前播放链；切歌前与 Dispose 都会调用。顺序：解订阅 → 停止 → 释放。</summary>

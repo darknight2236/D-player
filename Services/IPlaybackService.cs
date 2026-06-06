@@ -36,4 +36,10 @@ public interface IPlaybackService : IDisposable
     event Action<TimeSpan> DurationChanged;
     event Action<Track> TrackChanged;
     event Action<string>? PlaybackError;
+
+    /// <summary>
+    /// 曲目「自然播完」时触发（区别于用户 Stop 或异常）。
+    /// 用于实现自动下一首：VM 订阅此事件计算并播放下一首。
+    /// </summary>
+    event Action? TrackEnded;
 }

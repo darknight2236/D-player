@@ -2,32 +2,32 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/06 · 对应分支：`master`
+> 文档日期：2026/06/06 · 对应分支：`master` · 当前阶段：**Phase 2 完成**（播放队列）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。当前为首期 (Phase 1) 实现，定位为"能流畅地播放一首本地音乐文件"，刻意避免过度工程化；播放列表、上一曲/下一曲、可视化等功能放在后续增量。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。可视化、库扫描、多命名播放列表等放在 Phase 3+。
 
 ### 1.1 关键特性（已实现）
 
 | 类别   | 能力                                                             |
 |------|----------------------------------------------------------------|
-| 文件导入 | Win32 OpenFileDialog 单文件选择                                     |
+| 文件导入 | Win32 OpenFileDialog 多文件选择                                     |
 | 支持格式 | MP3 / WMA / FLAC / AAC / WAV（基于 Windows Media Foundation 原生解码） |
-| 播放控制 | 播放 / 暂停 / 停止                                                   |
+| 播放控制 | 播放 / 暂停 / 停止 / 上一首 / 下一首                                       |
 | 进度控制 | 拖拽 + 单击跳转的进度条；位置实时更新（≈30 Hz，节流）                                |
 | 音量控制 | 0~1 线性滑块、一键静音/取消静音；通过 `VolumeSampleProvider` 实现                |
 | 元数据  | 标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 内嵌封面（z440.atl.core）            |
 | 主题   | 内置深色主题（深紫强调色）                                                  |
 | 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\UmaPlayer\settings.json`       |
-| 播放列表 | 内存队列：多选入队、单项删除、上/下一首、自动推进、随机/循环模式（关闭即丢） |
+| 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、随机/3 态循环（Off/List/One） |
 
 ### 1.2 后续增量（未实现）
 
+- 队列持久化（关闭即丢；Phase 3 计划项）
 - 多个命名播放列表（创建 / 保存 / 加载 / 切换）—— 当前仅支持单个内存队列
-- 播放队列持久化（关闭即丢）
 - 拖拽入队 / 队列内拖拽重排序
 - M3U / PLS 等播放列表格式导入导出
 - 音频可视化（频谱 / 波形）
@@ -108,9 +108,14 @@ UmaPlayer/
 │
 └── docs/
     ├── PROJECT.md               # 本文档
+    ├── COUPLING.md              # 耦合分析 / 风险登记册
     └── superpowers/             # 设计稿 & 实现计划（历史归档）
-        ├── specs/2026-04-23-uma-player-design.md
-        └── plans/2026-04-24-uma-player-implementation.md
+        ├── specs/
+        │   ├── 2026-04-23-uma-player-design.md             # Phase 1 设计
+        │   └── 2026-06-06-uma-player-playlist-design.md    # Phase 2 设计
+        └── plans/
+            ├── 2026-04-24-uma-player-implementation.md           # Phase 1 计划
+            └── 2026-06-06-uma-player-playlist-implementation.md  # Phase 2 计划
 ```
 
 ---
@@ -134,6 +139,7 @@ UmaPlayer/
    │  (View, code-behind) │◀──▶│ (ObservableObject + cmds)│
    │ - 窗口位置恢复/保存   │    │ - 订阅 IPlaybackService   │
    │ - PlayerBar 容器     │    │ - RelayCommand: Play/... │
+   │ - PlaylistView 容器  │    │ - Queue / 模式 / 推进算法 │
    └──────────────────────┘    └─────────┬────────────────┘
                                          │ 依赖 (接口)
               ┌──────────────────────────┼──────────────────────────┐
@@ -189,10 +195,12 @@ UmaPlayer/
 | 成员 | 说明 |
 |------|------|
 | `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `VolumeSampleProvider` → `WasapiOut(Shared, 100ms)`；触发 `DurationChanged` / `TrackChanged` |
-| `Play / Pause / Stop` | 委派给 `IWavePlayer`；`Stop` 同时将 `CurrentTime` 归零 |
+| `Play / Pause / Stop` | 委派给 `IWavePlayer`；`Stop` 同时将 `CurrentTime` 归零（保留底层资源，再 `Play()` 会重播同一首） |
+| `Unload()` | **完全释放**底层 reader/wavePlayer，清掉 `_currentTrack`；之后 `Play()` 是 no-op。`VM.UnloadCurrentTrack` 在清空队列/删当前曲时调用 |
 | `Seek(TimeSpan)` | 直接写 `reader.CurrentTime` |
 | `Volume { get; set; }` | `Math.Clamp(0..1)`；运行时写入 `VolumeSampleProvider.Volume` |
 | `PollPositionAsync` | 仅在 `PlaybackState==Playing` 时循环；每 33ms 派发一次 `PositionChanged` |
+| `OnPlaybackStopped` | 区分 (1) 异常 → `PlaybackError`；(2) 自然播完（距 `TotalTime` ≤ 200ms） → `TrackEnded`；(3) 用户 `Stop` → 仅 `Stopped` |
 | `Dispose()` | 拆事件、停止、释放 reader/wavePlayer |
 
 ### 5.3 `Services/JsonSettingsPersistence`
@@ -206,31 +214,56 @@ UmaPlayer/
 CommunityToolkit 源生成器属性：
 
 ```
-[ObservableProperty] _isSeeking, _position, _duration, _playState,
-                    _currentTrack, _albumArtImage, _volume, _isMuted
+Phase 1: _isSeeking, _position, _duration, _playState,
+         _currentTrack, _albumArtImage, _volume, _isMuted
+Phase 2: _currentIndex, _selectedTrack, _shuffleEnabled, _repeatMode
 ```
 
-派生属性：`VolumeIcon`（🔇/🔊）、`SampleRateText`（"44,100 Hz"）、`PositionNormalized`（0..1）。
+Phase 2 集合 & 字段：
+- `ObservableCollection<Track> Queue`（公开）
+- `HashSet<int> _shuffleHistory` —— 随机模式下"已播过"索引，避免重复
+- `Random _random`、`int _playToken` —— `PlayTrackAtAsync` 重入哨兵
+
+派生属性：`VolumeIcon`（🔇/🔊）、`SampleRateText`（"44,100 Hz"）、`PositionNormalized`（0..1）、`RepeatActive`、`ShuffleBrushKey`、`HasCurrentTrack`。
 
 `[RelayCommand]` 命令：
 
 | 命令 | 行为 |
 |------|------|
-| `OpenFilesAsync` | 弹文件对话框 → `ATL.Track` 读元数据 → `player.LoadAsync` → `player.Play()` |
+| `OpenFilesAsync` | 弹文件对话框（多选）→ 全部入队 → 从首项新加入开始播 |
 | `PlayPause` | 根据当前状态切换 |
 | `Stop` | 调用底层 Stop |
 | `SeekStarted / SeekCompleted(normalized)` | 由 `PlayerBar` 滑块的拖拽/单击事件转发 |
 | `ToggleMute` | 静音 / 恢复音量 |
+| **Phase 2** | |
+| `AddToQueue` | 多选文件 → 仅追加占位 Track，不自动播放 |
+| `RemoveTrack(int)` | 删除单项；若是当前曲则 `UnloadCurrentTrack()` |
+| `ClearQueue` | `UnloadCurrentTrack()` + `Queue.Clear()` + 历史重置 |
+| `PlayTrackAt(int)` | 双击列表项触发；重置 shuffle 历史后调 `PlayTrackAtAsync` |
+| `NextTrack` / `PrevTrack` | `CalculateNextIndex` / `CalculatePrevIndex` 决定目标索引；CanExecute 绑 `HasCurrentTrack` |
+| `ToggleShuffle` | 翻转 `ShuffleEnabled`，清历史并把当前曲登记为已播 |
+| `CycleRepeat` | Off → List → One → Off 三态循环 |
 
 `partial void OnVolumeChanged(value)`：体积变化 → 写到播放器 → 持久化 `DefaultVolume`（初始化阶段 `_isInitializing` 跳过磁盘写入）。
+
+**关键私有方法：**
+- `PlayTrackAtAsync(int, int skipCount=0)`：抢占 `_playToken` → 读元数据 → `Queue[i] = meta` → `LoadAsync` → `Play`；每个 `await` 后校验 token，被顶替则静默退出；失败连续 3 次自动停止
+- `CalculateNextIndex(int? failedIndex)`：纯算法，按 (Shuffle × RepeatMode) 4 种组合返回下一索引；Shuffle 用 `_shuffleHistory` 排除已播
+- `HandleTrackEnded()`：订阅 `IPlaybackService.TrackEnded`；RepeatOne 重播当前，否则走 `CalculateNextIndex`
+- `UnloadCurrentTrack()`：`_playToken++` 顶替 in-flight → `_player.Unload()` → 清 VM 状态（CurrentTrack/封面/进度/时长全置零）。**必须用 `Unload()` 而非 `Stop()`**，否则用户再按 Play 会重播刚才那首
 
 `CleanupAsync()`：窗口关闭时由 `MainWindow.Window_Closing` 调用，解绑事件、释放播放器、保存设置。
 
 ### 5.5 `Views`
 
-- **`MainWindow`**：仅作为 `PlayerBar` 容器；构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受），关闭时异步保存。
-- **`PlayerBar`** *(UserControl)*：唯一可视化组件。三行 Grid：①封面+元数据；②`Position | Slider | Duration`；③播放控制按钮 + 音量。
-  - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）。
+- **`MainWindow`**：两行 Grid 容器 —— `PlayerBar`（顶部，自适应高度）+ `PlaylistView`（底部填充）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时异步保存。
+- **`PlayerBar`** *(UserControl)*：播放栏。三行 Grid：①封面+元数据；②`Position | Slider | Duration`；③⏮ ▶/⏸ ⏹ ⏭ 📂 + 音量。
+  - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）
+  - `⏮` / `⏭` 绑 `PrevTrackCommand` / `NextTrackCommand`，`HasCurrentTrack` 守卫；队列空时按钮自动禁用
+- **`PlaylistView`** *(UserControl, Phase 2)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空]` 左对齐、`🔀` `⇄/🔁/🔂` 右对齐；②`ListBox` 绑 `Queue`，每项含 ▶ 当前曲标记 + 标题 + `×` 删除按钮
+  - 当前曲 ▶ 标记由 code-behind 维护：订阅 `CurrentIndex` / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）
+  - 交互：双击播放、Delete 键删除、右上角按钮触发命令
+  - Shuffle / Repeat 图标用 `Segoe UI Emoji` 字体（默认 `Segoe UI` 不含 U+1F500 完整字形）
 
 ### 5.6 `Themes`
 
@@ -252,7 +285,7 @@ CommunityToolkit 源生成器属性：
     "WindowLeft": 100,
     "WindowTop": 100,
     "WindowWidth": 800,
-    "WindowHeight": 450
+    "WindowHeight": 650
   }
 }
 ```
@@ -331,7 +364,7 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
 ## 9. 已知约束与陷阱
 
 - **格式限制**：仅支持 Windows Media Foundation 原生解码的格式；OGG/Vorbis 需用户系统安装第三方编解码器或后续切换 reader。
-- **单曲播放**：当前仅维护一个"当前曲目"；点击打开新文件会停止并释放上一首。
+- **内存队列**：播放列表关闭即丢（当前仅内存 `ObservableCollection` 存在）；Phase 3 计划加入队列持久化。
 - **静默错误**：`HandlePlaybackError` 仅 TODO，未弹窗或写日志；调试期可通过断点检视。
 - **启动时同步 IO**：`MainViewModel.Initialize()` 与 `MainWindow` 构造函数中均使用 `LoadAsync().GetAwaiter().GetResult()`；settings.json 极小，可接受，未来若数据膨胀需重构。
 - **DI 解析跨线程**：`IPlaybackService` 必须由 UI 线程首次构造（依赖 `SynchronizationContext.Current` 捕获），目前由 `App.OnStartup` 保证。
@@ -340,12 +373,23 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
 
 ## 10. 历史与参考
 
-- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + Phase 2 启动检查清单
-- 设计稿：[`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — 完整设计推演（含取舍）
-- 实现计划：[`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — 分步任务清单
-- 最近提交：
-  - `e2d9d7b` feat: add PlayerBar, MainWindow, and wire App.xaml with DI and dark theme
-  - `07f7957` feat: implement MainViewModel with playback commands and seek handling
-  - `56830d1` feat: add value converters and dark theme ResourceDictionaries
-  - `ce5e823` feat: add file dialog service and DI registration
-  - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
+- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + Phase 3 启动检查清单
+- 设计稿：
+  - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
+  - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
+- 实现计划：
+  - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
+  - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
+- 主要里程碑提交：
+  - **Phase 1**
+    - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
+    - `07f7957` feat: implement MainViewModel with playback commands and seek handling
+    - `e2d9d7b` feat: add PlayerBar, MainWindow, and wire App.xaml with DI and dark theme
+  - **Phase 2**（feature/playlist-queue → master `8efc109`）
+    - `1efa70c` feat(playback): add TrackEnded event for natural-end detection
+    - `c0f39d6` feat(vm): add Phase 2 commands and TrackEnded auto-advance
+    - `3a6d8c9` feat(view): add PlaylistView UserControl (queue UI)
+    - `7d23b2b` feat(view): integrate PlaylistView and migrate window height
+    - `7a10674` feat(player-bar): add Prev/Next buttons
+    - `3ee16a2` fix(playback): add IPlaybackService.Unload() and use it for queue clear
+    - `8efc109` merge: Phase 2 playlist queue feature

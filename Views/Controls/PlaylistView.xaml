@@ -39,7 +39,7 @@
                         Background="Transparent" BorderThickness="0"
                         ToolTip="随机播放">
                     <TextBlock Text="&#x1F500;" FontSize="14"
-                               FontFamily="Segoe UI Symbol"
+                               FontFamily="Segoe UI Emoji"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                TextAlignment="Center"
                                Foreground="{Binding ShuffleEnabled, Converter={StaticResource BoolToAccentBrush}}"/>

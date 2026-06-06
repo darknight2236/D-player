@@ -265,8 +265,7 @@ public partial class MainViewModel : ObservableObject
         // 修正 CurrentIndex
         if (isCurrent)
         {
-            _player.Stop();
-            CurrentIndex = -1;
+            UnloadCurrentTrack();
         }
         else if (index < CurrentIndex)
         {
@@ -289,10 +288,25 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ClearQueue()
     {
-        _player.Stop();
+        UnloadCurrentTrack();
         Queue.Clear();
-        CurrentIndex = -1;
         _shuffleHistory.Clear();
+    }
+
+    /// <summary>
+    /// 停止播放并清空 PlayerBar 上与"当前曲"相关的所有 VM 状态。
+    /// _player.Stop() 不触发新的 TrackChanged 事件，所以必须手动清 CurrentTrack/封面/时间。
+    /// 同时令 _playToken 自增，使任何 in-flight 的 PlayTrackAtAsync 被顶替丢弃。
+    /// </summary>
+    private void UnloadCurrentTrack()
+    {
+        _playToken++; // 顶替任何 in-flight 的播放调用
+        _player.Stop();
+        CurrentIndex = -1;
+        CurrentTrack = null;
+        AlbumArtImage = null;
+        Position = TimeSpan.Zero;
+        Duration = TimeSpan.Zero;
     }
 
     /// <summary>双击列表项 → 播放该索引曲目。重置 shuffleHistory（视为新会话）。</summary>

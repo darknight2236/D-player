@@ -481,20 +481,25 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 打开文件 → 读元数据 → 加载到播放器 → 自动播放。
-    /// 取消选择不做任何事。
+    /// PlayerBar 上的 📂 按钮：选文件 → 全部入队 → 从第一首新加入的开始播。
+    /// 与 PlaylistView 的 [+ 添加] 区别：本命令会立即触发播放。
     /// </summary>
     [RelayCommand]
     private async Task OpenFilesAsync()
     {
-        var files = _fileDialog.OpenFiles("Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav");
-        if (files.Count > 0)
+        var files = _fileDialog.OpenFiles(
+            "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
+            multiselect: true);
+        if (files.Count == 0) return;
+
+        int firstNewIndex = Queue.Count;
+        foreach (var path in files)
         {
-            var file = files[0];
-            var track = await ReadTrackMetadataAsync(file);
-            await _player.LoadAsync(track);
-            _player.Play();
+            Queue.Add(CreateFallbackTrack(path));
         }
+
+        _shuffleHistory.Clear();
+        await PlayTrackAtAsync(firstNewIndex);
     }
 
     /// <summary>

@@ -3,6 +3,12 @@ using System.Windows.Data;
 
 namespace UmaPlayer.Converters;
 
+/// <summary>
+/// 将 TimeSpan 格式化为播放时间显示：
+///   - &gt;=1 小时：h:mm:ss   (如 "1:02:03")
+///   - &lt; 1 小时：m:ss      (如 "3:45")
+/// 默认/异常值显示 "0:00"。
+/// </summary>
 [ValueConversion(typeof(TimeSpan), typeof(string))]
 public sealed class TimeSpanToStringConverter : IValueConverter
 {

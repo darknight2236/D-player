@@ -4,6 +4,12 @@ using UmaPlayer.Models;
 
 namespace UmaPlayer.Converters;
 
+/// <summary>
+/// 将 PlayState 转换为播放按钮图标：
+///   - Playing → ⏸ (暂停图标，提示点击可暂停)
+///   - 其他    → ▶ (播放图标)
+/// 仅单向转换，ConvertBack 不被调用。
+/// </summary>
 [ValueConversion(typeof(PlayState), typeof(string))]
 public sealed class PlayStateToIconConverter : IValueConverter
 {

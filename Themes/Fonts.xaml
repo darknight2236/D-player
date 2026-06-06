@@ -1,7 +1,12 @@
+<!--
+    字体与文字样式 —— 三档层级：Header（标题）、Body（正文）、Caption（说明）。
+    PrimaryFont 抽离为资源，未来支持自定义字体只需改一处。
+-->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <FontFamily x:Key="PrimaryFont">Segoe UI</FontFamily>
 
+    <!-- 标题：歌曲名等显眼信息 -->
     <Style x:Key="HeaderText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource PrimaryFont}"/>
         <Setter Property="FontSize" Value="16"/>
@@ -9,12 +14,14 @@
         <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
     </Style>
 
+    <!-- 正文：未使用，预留给后续设置/列表项等 -->
     <Style x:Key="BodyText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource PrimaryFont}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
     </Style>
 
+    <!-- 说明：艺术家/专辑/时间/采样率等次要文字 -->
     <Style x:Key="CaptionText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource PrimaryFont}"/>
         <Setter Property="FontSize" Value="11"/>

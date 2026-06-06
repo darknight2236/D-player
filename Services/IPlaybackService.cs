@@ -27,6 +27,14 @@ public interface IPlaybackService : IDisposable
     void Pause();
     void Stop();
 
+    /// <summary>
+    /// 卸载当前曲目：停止播放并释放底层解码器/输出设备。
+    /// 与 Stop() 区别：Stop() 仅暂停并把位置归零（下次 Play 会重播同一首），
+    /// Unload() 之后调用 Play() 是 no-op，必须先 LoadAsync 一首新曲。
+    /// 用于"清空队列"/"删除当前曲"等场景。
+    /// </summary>
+    void Unload();
+
     /// <summary>跳转到指定播放位置。</summary>
     void Seek(TimeSpan position);
 

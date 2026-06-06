@@ -133,6 +133,17 @@ public sealed class NAudioPlaybackService : IPlaybackService
         _reader.CurrentTime = position;
     }
 
+    /// <summary>
+    /// 卸载当前曲：释放底层 reader/wavePlayer，清掉 _currentTrack。
+    /// 下次 Play() 会因 _wavePlayer == null 直接 no-op。
+    /// </summary>
+    public void Unload()
+    {
+        DisposePlayback();
+        _currentTrack = null;
+        SetState(PlayState.Stopped);
+    }
+
     private void SetState(PlayState newState)
     {
         if (_state == newState) return; // 去重，避免连续触发同状态事件

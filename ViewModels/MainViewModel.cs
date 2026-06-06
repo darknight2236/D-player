@@ -295,13 +295,13 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>
     /// 停止播放并清空 PlayerBar 上与"当前曲"相关的所有 VM 状态。
-    /// _player.Stop() 不触发新的 TrackChanged 事件，所以必须手动清 CurrentTrack/封面/时间。
+    /// 必须用 _player.Unload() 而不是 Stop() —— 后者保留底层 reader, 用户再点 Play 会重播刚才那首。
     /// 同时令 _playToken 自增，使任何 in-flight 的 PlayTrackAtAsync 被顶替丢弃。
     /// </summary>
     private void UnloadCurrentTrack()
     {
         _playToken++; // 顶替任何 in-flight 的播放调用
-        _player.Stop();
+        _player.Unload();
         CurrentIndex = -1;
         CurrentTrack = null;
         AlbumArtImage = null;

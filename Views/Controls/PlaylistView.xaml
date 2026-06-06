@@ -39,6 +39,9 @@
                         Background="Transparent" BorderThickness="0"
                         ToolTip="随机播放">
                     <TextBlock Text="&#x1F500;" FontSize="14"
+                               FontFamily="Segoe UI Symbol"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center"
                                Foreground="{Binding ShuffleEnabled, Converter={StaticResource BoolToAccentBrush}}"/>
                 </Button>
                 <Button Command="{Binding CycleRepeatCommand}" Width="32" Height="32"
@@ -46,6 +49,9 @@
                         ToolTip="循环模式 (Off / List / One)">
                     <TextBlock Text="{Binding RepeatMode, Converter={StaticResource RepeatModeToIcon}}"
                                FontSize="14"
+                               FontFamily="Segoe UI Symbol"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center"
                                Foreground="{Binding RepeatActive, Converter={StaticResource BoolToAccentBrush}}"/>
                 </Button>
             </StackPanel>

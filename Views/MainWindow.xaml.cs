@@ -32,7 +32,11 @@ public partial class MainWindow : Window
             Left = settings.WindowLeft;
             Top = settings.WindowTop;
             Width = settings.WindowWidth;
-            Height = settings.WindowHeight;
+
+            // Phase 2 一次性迁移: Phase 1 持久化的高度可能 < 500 (PlaylistView 不可见)
+            // 检测并提升到 650, 让用户首次看到完整 UI。
+            Height = settings.WindowHeight < 500 ? 650 : settings.WindowHeight;
+
             EnsureVisible();
         }
         catch

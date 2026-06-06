@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -65,6 +66,47 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>静音前的音量快照，用于"取消静音"时恢复。</summary>
     private float _volumeBeforeMute;
+
+    #region Phase 2 — Playlist Queue
+
+    /// <summary>当前播放队列。ObservableCollection 自动通知 UI 增删改。</summary>
+    public ObservableCollection<Track> Queue { get; } = new();
+
+    /// <summary>当前播放曲在 Queue 中的索引；-1 表示未选/队列空。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCurrentTrack))]
+    private int _currentIndex = -1;
+
+    /// <summary>UI 列表选中项（与"当前播放曲"无关，仅供 Delete 键定位）。</summary>
+    [ObservableProperty]
+    private Track? _selectedTrack;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShuffleBrushKey))]
+    private bool _shuffleEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RepeatActive))]
+    private RepeatMode _repeatMode = RepeatMode.Off;
+
+    /// <summary>随机模式下"已播过"的索引集合。切换 ShuffleEnabled 或清空队列时重置。</summary>
+    private readonly HashSet<int> _shuffleHistory = new();
+
+    /// <summary>用于 Shuffle 模式随机选曲；构造一次复用。</summary>
+    private readonly Random _random = new();
+
+    // —— 派生属性 ——
+
+    /// <summary>循环按钮是否处于"激活"状态（List 或 One 都算）。</summary>
+    public bool RepeatActive => RepeatMode != RepeatMode.Off;
+
+    /// <summary>暴露给 XAML 的 Shuffle 高亮指示（直接绑 ShuffleEnabled 即可，留作语义清晰）。</summary>
+    public bool ShuffleBrushKey => ShuffleEnabled;
+
+    /// <summary>当前是否有正在播放的曲（用于 Next/Prev 按钮 CanExecute）。</summary>
+    public bool HasCurrentTrack => CurrentIndex >= 0 && CurrentIndex < Queue.Count;
+
+    #endregion
 
     // —— 派生只读属性，供 XAML 绑定 ——
 

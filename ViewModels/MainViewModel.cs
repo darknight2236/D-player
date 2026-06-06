@@ -222,6 +222,134 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    // —— Phase 2 命令 ——
+
+    /// <summary>文件对话框多选 → 入队（不读元数据，仅占位）。</summary>
+    [RelayCommand]
+    private void AddToQueue()
+    {
+        var files = _fileDialog.OpenFiles(
+            "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
+            multiselect: true);
+        if (files.Count == 0) return;
+
+        foreach (var path in files)
+        {
+            // 轻量占位 Track：仅文件名作为 Title，其他字段为空
+            Queue.Add(CreateFallbackTrack(path));
+        }
+    }
+
+    /// <summary>按索引移除单项；若是当前播放曲则停止播放并同步索引。</summary>
+    [RelayCommand]
+    private void RemoveTrack(int index)
+    {
+        if (index < 0 || index >= Queue.Count) return;
+
+        bool isCurrent = (index == CurrentIndex);
+        Queue.RemoveAt(index);
+
+        // 修正 CurrentIndex
+        if (isCurrent)
+        {
+            _player.Stop();
+            CurrentIndex = -1;
+        }
+        else if (index < CurrentIndex)
+        {
+            CurrentIndex--; // 当前曲位置前的项被删，当前曲索引下移 1
+        }
+
+        // 修正 _shuffleHistory：
+        // 1) 删除该索引本身  2) 大于该索引的全部 -1
+        var rebuilt = new HashSet<int>();
+        foreach (var i in _shuffleHistory)
+        {
+            if (i == index) continue;
+            rebuilt.Add(i > index ? i - 1 : i);
+        }
+        _shuffleHistory.Clear();
+        foreach (var i in rebuilt) _shuffleHistory.Add(i);
+    }
+
+    /// <summary>清空整个队列 → 停止播放，重置索引和历史。</summary>
+    [RelayCommand]
+    private void ClearQueue()
+    {
+        _player.Stop();
+        Queue.Clear();
+        CurrentIndex = -1;
+        _shuffleHistory.Clear();
+    }
+
+    /// <summary>双击列表项 → 播放该索引曲目。重置 shuffleHistory（视为新会话）。</summary>
+    [RelayCommand]
+    private async Task PlayTrackAt(int index)
+    {
+        _shuffleHistory.Clear();
+        await PlayTrackAtAsync(index);
+    }
+
+    /// <summary>下一首按钮（用户手动）。RepeatOne 下也跳走，不重播当前。</summary>
+    [RelayCommand(CanExecute = nameof(HasCurrentTrack))]
+    private async Task NextTrack()
+    {
+        var next = CalculateNextIndex();
+        if (next == -1) return;
+        await PlayTrackAtAsync(next);
+    }
+
+    /// <summary>上一首按钮。</summary>
+    [RelayCommand(CanExecute = nameof(HasCurrentTrack))]
+    private async Task PrevTrack()
+    {
+        var prev = CalculatePrevIndex();
+        if (prev == -1) return;
+        await PlayTrackAtAsync(prev);
+    }
+
+    /// <summary>切换 Shuffle 开关。同时清空已播过历史（避免状态语义混乱）。</summary>
+    [RelayCommand]
+    private void ToggleShuffle()
+    {
+        ShuffleEnabled = !ShuffleEnabled;
+        _shuffleHistory.Clear();
+        if (CurrentIndex >= 0) _shuffleHistory.Add(CurrentIndex); // 当前曲不应再被随机选中
+    }
+
+    /// <summary>循环模式三态循环：Off → List → One → Off。</summary>
+    [RelayCommand]
+    private void CycleRepeat()
+    {
+        RepeatMode = RepeatMode switch
+        {
+            RepeatMode.Off  => RepeatMode.List,
+            RepeatMode.List => RepeatMode.One,
+            _               => RepeatMode.Off,
+        };
+    }
+
+    /// <summary>
+    /// IPlaybackService.TrackEnded 订阅：根据循环/随机模式自动推进。
+    /// </summary>
+    private async void HandleTrackEnded()
+    {
+        // 单曲循环：仅在自动播完时重播当前
+        if (RepeatMode == RepeatMode.One && CurrentIndex >= 0)
+        {
+            await PlayTrackAtAsync(CurrentIndex);
+            return;
+        }
+
+        var next = CalculateNextIndex();
+        if (next == -1)
+        {
+            // 列表播完且不循环 → 维持 Stopped, 当前索引保留以便用户重新点击 Play
+            return;
+        }
+        await PlayTrackAtAsync(next);
+    }
+
     #endregion
 
     // —— 派生只读属性，供 XAML 绑定 ——
@@ -253,6 +381,15 @@ public partial class MainViewModel : ObservableObject
         _player.DurationChanged += HandleDurationChanged;
         _player.TrackChanged += HandleTrackChanged;
         _player.PlaybackError += HandlePlaybackError;
+        _player.TrackEnded += HandleTrackEnded;
+
+        // 队列变化时强制刷新 Next/Prev 命令可用性
+        Queue.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasCurrentTrack));
+            NextTrackCommand.NotifyCanExecuteChanged();
+            PrevTrackCommand.NotifyCanExecuteChanged();
+        };
 
         Initialize();
     }
@@ -467,6 +604,7 @@ public partial class MainViewModel : ObservableObject
         _player.DurationChanged -= HandleDurationChanged;
         _player.TrackChanged -= HandleTrackChanged;
         _player.PlaybackError -= HandlePlaybackError;
+        _player.TrackEnded -= HandleTrackEnded;
         _player.Dispose();
         await _persistence.SaveAsync(_settings);
     }

@@ -131,6 +131,9 @@ public sealed class NAudioPlaybackService : IPlaybackService
     {
         if (_reader == null) return;
         _reader.CurrentTime = position;
+        // 主动广播一次新位置：暂停态下 PollPositionAsync 已退出，否则 VM.Position 不刷新，
+        // 进度条会停留在旧位置直到用户按 Play 才被轮询拽回（用户视角看起来像"没跳转"）。
+        RaiseOnUIThread(PositionChanged, _reader.CurrentTime);
     }
 
     /// <summary>

@@ -91,6 +91,10 @@ public sealed class NAudioPlaybackService : IPlaybackService
                     SampleRate = _reader.WaveFormat.SampleRate
                 };
 
+                // 先归零 Position，再广播新 Duration —— 否则切换到时长更短的曲目时，
+                // VM 的旧 Position（如上一首播完的 4:05）会和新 Duration（3:20）短暂并存，
+                // 进度条出现"4:05 / 3:20"的越界显示，直到下一帧 PollPositionAsync 才纠正。
+                RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
                 RaiseOnUIThread(DurationChanged, _reader.TotalTime);
                 RaiseOnUIThread(TrackChanged, _currentTrack);
             }
@@ -133,7 +137,8 @@ public sealed class NAudioPlaybackService : IPlaybackService
         _reader.CurrentTime = position;
         // 主动广播一次新位置：暂停态下 PollPositionAsync 已退出，否则 VM.Position 不刷新，
         // 进度条会停留在旧位置直到用户按 Play 才被轮询拽回（用户视角看起来像"没跳转"）。
-        RaiseOnUIThread(PositionChanged, _reader.CurrentTime);
+        // Clamp 到 [0, TotalTime]：解码器对 seek 到尾部允许越界几十毫秒。
+        RaiseOnUIThread(PositionChanged, ClampToDuration(_reader.CurrentTime));
     }
 
     /// <summary>
@@ -205,10 +210,19 @@ public sealed class NAudioPlaybackService : IPlaybackService
             if (now - _lastPositionEvent >= PositionThrottle)
             {
                 _lastPositionEvent = now;
-                var pos = _reader?.CurrentTime ?? TimeSpan.Zero;
+                var pos = ClampToDuration(_reader?.CurrentTime ?? TimeSpan.Zero);
                 RaiseOnUIThread(PositionChanged, pos);
             }
         }
+    }
+
+    /// <summary>把 Position 截断到 [0, TotalTime]，防止解码器尾部浮点越界（如 245.012s 上报到时长 245.000s 的曲）。</summary>
+    private TimeSpan ClampToDuration(TimeSpan pos)
+    {
+        var total = _reader?.TotalTime ?? TimeSpan.Zero;
+        if (pos < TimeSpan.Zero) return TimeSpan.Zero;
+        if (total > TimeSpan.Zero && pos > total) return total;
+        return pos;
     }
 
     /// <summary>将事件回调封送到 UI 线程；VM 中所有 handler 可直接更新绑定属性。</summary>

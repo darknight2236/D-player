@@ -31,6 +31,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IFileDialogService _fileDialog;
     private readonly ISettingsPersistence _persistence;
     private readonly IOptions<AppSettings> _options;
+    private readonly ITrackMetadataReader _metadataReader;
     private AppSettings _settings;
 
     // 标记构造期间：避免 OnVolumeChanged 在初始化时写磁盘
@@ -211,7 +212,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             // 读元数据并回写到 Queue[index]（占位 Track → 完整 Track）
-            var meta = await ReadTrackMetadataAsync(Queue[index].FilePath);
+            var meta = await _metadataReader.ReadAsync(Queue[index].FilePath);
             if (myToken != _playToken) return; // 被顶替, 静默退出
             Queue[index] = meta; // ObservableCollection.set[i] 触发 Replace, UI 自动刷新
 
@@ -249,7 +250,7 @@ public partial class MainViewModel : ObservableObject
         foreach (var path in files)
         {
             // 轻量占位 Track：仅文件名作为 Title，其他字段为空
-            Queue.Add(CreateFallbackTrack(path));
+            Queue.Add(_metadataReader.CreateFallback(path));
         }
     }
 
@@ -394,12 +395,14 @@ public partial class MainViewModel : ObservableObject
         IPlaybackService player,
         IFileDialogService fileDialog,
         ISettingsPersistence persistence,
-        IOptions<AppSettings> options)
+        IOptions<AppSettings> options,
+        ITrackMetadataReader metadataReader)
     {
         _player = player;
         _fileDialog = fileDialog;
         _persistence = persistence;
         _options = options;
+        _metadataReader = metadataReader;
         _settings = options.Value;
 
         // 订阅播放服务事件 —— 所有事件已由服务封送到 UI 线程，handler 可直接更新属性
@@ -522,70 +525,11 @@ public partial class MainViewModel : ObservableObject
         int firstNewIndex = Queue.Count;
         foreach (var path in files)
         {
-            Queue.Add(CreateFallbackTrack(path));
+            Queue.Add(_metadataReader.CreateFallback(path));
         }
 
         _shuffleHistory.Clear();
         await PlayTrackAtAsync(firstNewIndex);
-    }
-
-    /// <summary>
-    /// 通过 z440.atl.core 读取音频标签（ID3、Vorbis Comment、APE 等）。
-    /// 文件损坏或读不出有效音频时回落到仅含文件名的 fallback Track。
-    /// 在后台线程执行，避免大文件首次解析卡 UI。
-    /// </summary>
-    private static Task<Track> ReadTrackMetadataAsync(string filePath)
-    {
-        return Task.Run(() =>
-        {
-            try
-            {
-                var atlTrack = new ATL.Track(filePath);
-
-                // DurationMs == 0 通常意味着没有解析到有效音频数据 → 走 fallback
-                if (atlTrack.DurationMs <= 0)
-                    return CreateFallbackTrack(filePath);
-
-                var title = !string.IsNullOrWhiteSpace(atlTrack.Title)
-                    ? atlTrack.Title
-                    : Path.GetFileNameWithoutExtension(filePath);
-
-                // 只取第一张内嵌封面（多数情况下只有一张）
-                var albumArt = atlTrack.EmbeddedPictures.Count > 0
-                    ? atlTrack.EmbeddedPictures[0].PictureData
-                    : null;
-
-                return new Track(
-                    FilePath: filePath,
-                    Title: title,
-                    Artist: atlTrack.Artist,
-                    Album: atlTrack.Album,
-                    Genre: atlTrack.Genre,
-                    Year: atlTrack.Year > 0 ? atlTrack.Year : null,
-                    SampleRate: atlTrack.SampleRate > 0 ? (int?)atlTrack.SampleRate : null,
-                    AlbumArt: albumArt,
-                    Duration: TimeSpan.Zero); // Duration 由播放服务加载完成后回填
-            }
-            catch
-            {
-                return CreateFallbackTrack(filePath);
-            }
-        });
-    }
-
-    /// <summary>退化版 Track：仅含文件路径与文件名作为标题。</summary>
-    private static Track CreateFallbackTrack(string filePath)
-    {
-        return new Track(
-            FilePath: filePath,
-            Title: Path.GetFileNameWithoutExtension(filePath),
-            Artist: null,
-            Album: null,
-            Genre: null,
-            Year: null,
-            SampleRate: null,
-            AlbumArt: null,
-            Duration: TimeSpan.Zero);
     }
 
     /// <summary>

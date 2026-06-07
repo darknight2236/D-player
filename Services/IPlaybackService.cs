@@ -42,7 +42,11 @@ public interface IPlaybackService : IDisposable
     event Action<PlayState> StateChanged;
     event Action<TimeSpan> PositionChanged;
     event Action<TimeSpan> DurationChanged;
-    event Action<Track> TrackChanged;
+    /// <summary>
+    /// 当前曲目变化。新加载曲目时携带 Track；调用 Unload() 卸载时携带 null
+    /// 通知 VM 清屏（清除标题/艺术家/专辑/封面显示）。
+    /// </summary>
+    event Action<Track?> TrackChanged;
     event Action<string>? PlaybackError;
 
     /// <summary>

@@ -119,10 +119,10 @@ public partial class PlayerViewModel : ObservableObject
     private void HandleDurationChanged(TimeSpan duration)
         => Duration = duration;
 
-    private void HandleTrackChanged(Track track)
+    private void HandleTrackChanged(Track? track)
     {
         CurrentTrack = track;
-        AlbumArtImage = CreateAlbumArtImage(track.AlbumArt);
+        AlbumArtImage = CreateAlbumArtImage(track?.AlbumArt);
     }
 
     private void HandleStateChanged(PlayState state)

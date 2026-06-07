@@ -51,7 +51,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
     public event Action<PlayState>? StateChanged;
     public event Action<TimeSpan>? PositionChanged;
     public event Action<TimeSpan>? DurationChanged;
-    public event Action<Track>? TrackChanged;
+    public event Action<Track?>? TrackChanged;
     public event Action<string>? PlaybackError;
     public event Action? TrackEnded;
 
@@ -137,13 +137,17 @@ public sealed class NAudioPlaybackService : IPlaybackService
     }
 
     /// <summary>
-    /// 卸载当前曲：释放底层 reader/wavePlayer，清掉 _currentTrack。
+    /// 卸载当前曲：释放底层 reader/wavePlayer，清掉 _currentTrack，
+    /// 并广播 TrackChanged(null) / DurationChanged(Zero) 让 VM 清屏（标题/封面/时长归零）。
     /// 下次 Play() 会因 _wavePlayer == null 直接 no-op。
     /// </summary>
     public void Unload()
     {
         DisposePlayback();
         _currentTrack = null;
+        RaiseOnUIThread(TrackChanged, (Track?)null);
+        RaiseOnUIThread(DurationChanged, TimeSpan.Zero);
+        RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
         SetState(PlayState.Stopped);
     }
 

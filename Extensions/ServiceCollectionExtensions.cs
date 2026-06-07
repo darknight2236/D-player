@@ -35,6 +35,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITrackMetadataReader, AtlMetadataReader>();
 
         // ViewModel（Transient —— 主窗口持有实例，关闭即释放）
+        services.AddTransient<PlayerViewModel>();
+        services.AddTransient<PlaylistViewModel>();
         services.AddTransient<MainViewModel>();
 
         return services;

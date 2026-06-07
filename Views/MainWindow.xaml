@@ -22,7 +22,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <controls:PlayerBar    Grid.Row="0" DataContext="{Binding}"/>
-        <controls:PlaylistView Grid.Row="1" DataContext="{Binding}"/>
+        <controls:PlayerBar    Grid.Row="0" DataContext="{Binding Player}"/>
+        <controls:PlaylistView Grid.Row="1" DataContext="{Binding Playlist}"/>
     </Grid>
 </Window>

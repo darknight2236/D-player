@@ -39,7 +39,7 @@ public partial class PlayerBar : UserControl
         var ratio = track.ActualWidth > 0 ? pos.X / track.ActualWidth : 0;
         ratio = Math.Clamp(ratio, 0, 1);
 
-        (DataContext as MainViewModel)?.SeekCompletedCommand.Execute(ratio);
+        (DataContext as PlayerViewModel)?.SeekCompletedCommand.Execute(ratio);
         e.Handled = true; // 阻止后续默认拖拽行为
     }
 
@@ -57,8 +57,8 @@ public partial class PlayerBar : UserControl
     // —— Thumb 拖拽：开始时让 VM 进入 IsSeeking 状态，结束时提交最终位置 ——
 
     private void SeekBar_DragStarted(object sender, DragStartedEventArgs e)
-        => (DataContext as MainViewModel)?.SeekStartedCommand.Execute(null);
+        => (DataContext as PlayerViewModel)?.SeekStartedCommand.Execute(null);
 
     private void SeekBar_DragCompleted(object sender, DragCompletedEventArgs e)
-        => (DataContext as MainViewModel)?.SeekCompletedCommand.Execute(SeekBar.Value);
+        => (DataContext as PlayerViewModel)?.SeekCompletedCommand.Execute(SeekBar.Value);
 }

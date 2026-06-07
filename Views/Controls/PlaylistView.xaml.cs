@@ -18,7 +18,7 @@ namespace UmaPlayer.Views.Controls;
 /// </summary>
 public partial class PlaylistView : UserControl
 {
-    private MainViewModel? _vm;
+    private PlaylistViewModel? _vm;
 
     public PlaylistView()
     {
@@ -44,7 +44,7 @@ public partial class PlaylistView : UserControl
             _vm.Queue.CollectionChanged -= OnQueueChanged;
         }
 
-        _vm = e.NewValue as MainViewModel;
+        _vm = e.NewValue as PlaylistViewModel;
 
         if (_vm != null)
         {
@@ -57,7 +57,7 @@ public partial class PlaylistView : UserControl
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.CurrentIndex))
+        if (e.PropertyName == nameof(PlaylistViewModel.CurrentIndex))
             RefreshCurrentIndicator();
     }
 

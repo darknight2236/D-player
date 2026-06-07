@@ -31,7 +31,12 @@ public static class ServiceCollectionExtensions
         // 由 IPlaybackService 负责释放生命周期）
         services.AddTransient<IAudioOutputFactory, StubAudioOutputFactory>();
 
+        // 元数据读取（Singleton —— 无状态、纯函数式接口）
+        services.AddSingleton<ITrackMetadataReader, AtlMetadataReader>();
+
         // ViewModel（Transient —— 主窗口持有实例，关闭即释放）
+        services.AddTransient<PlayerViewModel>();
+        services.AddTransient<PlaylistViewModel>();
         services.AddTransient<MainViewModel>();
 
         return services;

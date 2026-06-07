@@ -95,7 +95,7 @@ private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
 
 ---
 
-### 债 #3 — settings.json 双写者无合并纪律
+### 债 #3 — settings.json 双写者无合并纪律 ✅ 已偿（Phase 3）
 
 **位置：**
 - 写入者 A：`MainViewModel.OnVolumeChanged` → `_persistence.SaveAsync(_settings)`（fire-and-forget，**不重读**）
@@ -118,7 +118,7 @@ T2  用户拖音量 → VM 写入 { Volume=0.6, WindowLeft=100 }  ← WindowLeft
 
 ---
 
-### 债 #4 — 元数据读取硬编码 `ATL.Track`
+### 债 #4 — 元数据读取硬编码 `ATL.Track` ✅ 已偿（Phase 3）
 
 **位置：** `ViewModels/MainViewModel.cs:ReadTrackMetadataAsync`
 
@@ -183,6 +183,8 @@ public sealed class AtlMetadataReader : ITrackMetadataReader { ... }
 ## 6. Phase 3 启动检查清单
 
 > Phase 2（播放队列）已完成并合并到 master（`8efc109`）。下一阶段（如多命名播放列表 / 队列持久化）启动时按以下顺序：
+>
+> **更新（Phase 3 完成）：** 项 1 (VM 拆分)、2 (View 去硬转型)、3 (ITrackMetadataReader)、4 (settings 合并纪律) 已完成。后续 Phase 4+ 仍待办：5、6、7。
 
 1. ☐ **VM 拆分**（债 #1 关联）—— `MainViewModel` 现 ~520 行，**已超阈值**
    - 拆 `PlayerViewModel`（仅 transport：Play/Pause/Stop/Seek/Volume）

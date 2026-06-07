@@ -5,7 +5,7 @@
       Row 1  (Auto) : 当前时间 | 进度条 | 总时长
       Row 2  (Auto) : 播放/停止/打开 按钮组   ＋   音量 + 静音按钮（右上角）
 
-    DataContext = MainViewModel（由 MainWindow.xaml 注入）
+    DataContext = PlayerViewModel（由 MainWindow.xaml 注入）；跨域命令通过 RelativeSource AncestorType=Window 访问 Playlist
 -->
 <UserControl x:Class="UmaPlayer.Views.Controls.PlayerBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -76,8 +76,8 @@
         <Grid Grid.Row="2" Margin="0,8,0,0">
             <!-- 居中：上一首、播放/暂停 (动态图标)、停止、下一首、打开文件 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Command="{Binding PrevTrackCommand}" Width="48" Height="48"
-                        ToolTip="上一首">
+                <Button Command="{Binding DataContext.Playlist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        Width="48" Height="48" ToolTip="上一首">
                     <TextBlock Text="&#x23EE;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
                 <Button Command="{Binding PlayPauseCommand}" Width="48" Height="48" Margin="8,0,0,0">
@@ -87,11 +87,12 @@
                 <Button Command="{Binding StopCommand}" Width="48" Height="48" Margin="8,0,0,0">
                     <TextBlock Text="&#x23F9;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
-                <Button Command="{Binding NextTrackCommand}" Width="48" Height="48" Margin="8,0,0,0"
-                        ToolTip="下一首">
+                <Button Command="{Binding DataContext.Playlist.NextTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        Width="48" Height="48" Margin="8,0,0,0" ToolTip="下一首">
                     <TextBlock Text="&#x23ED;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
-                <Button Command="{Binding OpenFilesCommand}" Width="48" Height="48" Margin="8,0,0,0">
+                <Button Command="{Binding DataContext.Playlist.OpenAndPlayCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        Width="48" Height="48" Margin="8,0,0,0">
                     <TextBlock Text="&#x1F4C2;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
             </StackPanel>

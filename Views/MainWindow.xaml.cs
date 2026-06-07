@@ -49,16 +49,22 @@ public partial class MainWindow : Window
     /// <summary>关闭时：合并最新窗口几何到设置文件，再让 VM 清理播放器资源。</summary>
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {
+        // 提前在 UI 线程读出 WPF DependencyProperty —— UpdateAsync 内部
+        // ConfigureAwait(false) 后 mutator 会在 thread-pool 上执行，
+        // 那里读 Left/Top/Width/ActualHeight 会抛 InvalidOperationException
+        var left = Left;
+        var top = Top;
+        var width = Width;
+        var height = ActualHeight;
+
         try
         {
-            // 先读再写，保留 VM 写入的其他字段（如 DefaultVolume）
-            var settings = await _persistence.LoadAsync();
-            settings = settings with
+            // 锁内 read-modify-write：仅改窗口几何，DefaultVolume 等其他字段保留磁盘最新值
+            await _persistence.UpdateAsync(s => s with
             {
-                WindowLeft = Left, WindowTop = Top,
-                WindowWidth = Width, WindowHeight = ActualHeight
-            };
-            await _persistence.SaveAsync(settings);
+                WindowLeft = left, WindowTop = top,
+                WindowWidth = width, WindowHeight = height
+            });
         }
         catch { /* 关闭流程不打扰用户 */ }
 

@@ -7,8 +7,9 @@ namespace UmaPlayer.Services;
 /// <summary>
 /// 将 AppSettings 序列化到 %LocalAppData%\UmaPlayer\settings.json。
 ///
-/// 并发控制：用 SemaphoreSlim(1,1) 串行化所有读写，
-/// 防止 VM 的音量变更与 MainWindow.Window_Closing 的窗口尺寸保存竞态写文件。
+/// 并发控制：用 SemaphoreSlim(1,1) 把整个"读盘 → mutator → 写盘"封进临界区，
+/// 调用方只需提供 mutator (s => s with { Field = newValue })，
+/// 字段合并由实现保证。
 /// </summary>
 public sealed class JsonSettingsPersistence : ISettingsPersistence
 {
@@ -33,8 +34,7 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
         await _lock.WaitAsync();
         try
         {
-            var json = await File.ReadAllTextAsync(_path).ConfigureAwait(false);
-            return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            return await ReadFromDiskNoLockAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -42,12 +42,31 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
         }
     }
 
-    public async Task SaveAsync(AppSettings settings)
+    /// <summary>
+    /// 锁内 read-modify-write。读盘失败 → 把 new AppSettings() 喂给 mutator
+    /// （与 LoadAsync 失败回落语义一致），写盘失败照样抛出（关闭流程调用方自行 catch）。
+    /// </summary>
+    public async Task UpdateAsync(Func<AppSettings, AppSettings> mutator)
     {
+        ArgumentNullException.ThrowIfNull(mutator);
+
         await _lock.WaitAsync();
         try
         {
-            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+            AppSettings current;
+            try
+            {
+                current = await ReadFromDiskNoLockAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                // 读失败（文件损坏 / 权限）→ 以默认值为起点，让 mutator 仍可应用变更
+                current = new AppSettings();
+            }
+
+            var next = mutator(current);
+
+            var json = JsonSerializer.Serialize(next, new JsonSerializerOptions
             {
                 WriteIndented = true // 人类可读，方便手动调试
             });
@@ -57,5 +76,15 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
         {
             _lock.Release();
         }
+    }
+
+    /// <summary>不获取锁的读 —— 调用方负责持锁。文件不存在返回默认值。</summary>
+    private async Task<AppSettings> ReadFromDiskNoLockAsync()
+    {
+        if (!File.Exists(_path))
+            return new AppSettings();
+
+        var json = await File.ReadAllTextAsync(_path).ConfigureAwait(false);
+        return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
     }
 }

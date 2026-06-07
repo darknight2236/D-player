@@ -565,8 +565,8 @@ public partial class MainViewModel : ObservableObject
         if (IsMuted && value > 0f)
             IsMuted = false;
 
-        _settings = _settings with { DefaultVolume = value };
-        _ = _persistence.SaveAsync(_settings); // fire-and-forget；下次写覆盖前者
+        // 锁内 read-modify-write：DefaultVolume 改这个，其他字段（含 Window* 几何）保留磁盘最新值
+        _ = _persistence.UpdateAsync(s => s with { DefaultVolume = value });
     }
 
     /// <summary>
@@ -582,6 +582,7 @@ public partial class MainViewModel : ObservableObject
         _player.PlaybackError -= HandlePlaybackError;
         _player.TrackEnded -= HandleTrackEnded;
         _player.Dispose();
-        await _persistence.SaveAsync(_settings);
+        // 兜底写一次音量（OnVolumeChanged 已 fire-and-forget；此处确保最后一次拖动被持久化）
+        await _persistence.UpdateAsync(s => s with { DefaultVolume = Volume });
     }
 }

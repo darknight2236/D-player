@@ -1,8 +1,8 @@
 # UmaPlayer 耦合分析与重构备忘
 
-> 创建日期：2026/06/06 · 对应分支：`master` · 对应阶段：**Phase 2 完成**（播放队列）
+> 创建日期：2026/06/06 · 更新日期：2026/06/08 · 对应分支：`master` · 对应阶段：**Phase 3 完成**（VM 拆分 + 技术债清算）
 >
-> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 已偿还债 #2 + 新增 1 项；Phase 3 启动时按 §6 顺序处理剩余债。
+> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；剩余债与后续工作详见 §6。
 
 ---
 
@@ -10,10 +10,10 @@
 
 | 维度 | 评级 | 备注 |
 |------|------|------|
-| 整体耦合度 | **中** | Phase 2 后 `MainViewModel` ~520 行，达到拆分阈值 |
-| 是否需要立即重构 | ⚠️ **Phase 3 启动前必做 VM 拆分** | 见 §6 #1 |
-| Phase 3 是否会变痛 | ⚠️ **多列表/拖拽会** | 主要在 VM 单体性 + settings 合并纪律 |
-| 已识别"待还的债" | 4 项（#2 已偿 ✅，新增 1 项隐式契约 #5） | 见 §3 |
+| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；架构按 transport/queue 双 VM 分离 |
+| 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；下一波是功能增量（队列持久化等） |
+| Phase 4 是否会变痛 | ⚠️ **队列持久化要新加 `queue.json`** | settings.json 已隔离窗口/音量，queue 独立文件减小写盘压力 |
+| 已识别"待还的债" | 1 项剩余（#1 BitmapImage；#2/#3/#4 ✅ 已偿） | 见 §3 |
 | 已识别"过度抽象" | 2 项 | 见 §4 |
 
 ---
@@ -26,8 +26,9 @@
 ✅ 无 `static` 单例、无全局可变状态
 ✅ Layer 边界清晰（`Models/` / `Services/` / `ViewModels/` / `Views/` 物理隔离）
 ✅ Phase 2 新增（`PlaylistView` / Phase 2 命令 / 推进算法）全部沿用既有模式，未引入新抽象层
+✅ Phase 3 拆分：MainViewModel 收敛为 Strict Facade（44 行）；PlayerVM/PlaylistVM 互不持引用，仅共享 IPlaybackService Singleton；View 跨域命令用 RelativeSource AncestorType=Window 跨级绑定
 
-**结论：** Phase 2 后约 ~1100 行代码（含队列 UI），架构投入产出比仍然健康。继续往里加功能不会立刻碰壁，但**单 VM 体量已临阈值**，Phase 3 前需拆。
+**结论：** Phase 3 后约 ~1500 行代码（含拆分后的两个 VM + 元数据 reader），架构已完成结构性清算。MainViewModel 从 643 行降到 44 行；继续加功能（队列持久化 / 多命名播放列表 / 拖拽）不会再触碰核心架构。
 
 ---
 
@@ -37,15 +38,18 @@
 |--------|------------|----------------|
 | `App` | `MainViewModel`, `ISettingsPersistence` | `Views.MainWindow`, `ServiceProvider` |
 | `ServiceCollectionExtensions` | — | 5 个 Service 实现 + `MainViewModel`（注册绑定） |
-| `MainViewModel` | `IPlaybackService`, `IFileDialogService`, `ISettingsPersistence`, `IOptions<AppSettings>` | ⚠️ `ATL.Track`、`BitmapImage`（WPF）、`Track`、`PlayState`、`RepeatMode` |
+| `MainViewModel` (Facade) | `PlayerViewModel`, `PlaylistViewModel`, `IPlaybackService` | — |
+| `PlayerViewModel` | `IPlaybackService`, `ISettingsPersistence`, `IOptions<AppSettings>` | ⚠️ `BitmapImage`（WPF，债 #1） |
+| `PlaylistViewModel` | `IPlaybackService`, `IFileDialogService`, `ITrackMetadataReader` | `Track`、`RepeatMode` |
 | `MainWindow` | `MainViewModel`, `ISettingsPersistence` | `Window`, `SystemParameters` |
-| `PlayerBar` | — | ⚠️ `MainViewModel`（通过 `DataContext as MainViewModel` 硬转型） |
-| `PlaylistView` | — | ⚠️ `MainViewModel`（同样硬转型；订阅 `PropertyChanged` / `Queue.CollectionChanged`） |
+| `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>` |
+| `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged` |
 | `NAudioPlaybackService` | `IPlaybackService` | `MediaFoundationReader`, `WasapiOut`, `VolumeSampleProvider` |
 | `Win32FileDialogService` | `IFileDialogService` | `Microsoft.Win32.OpenFileDialog` |
 | `JsonSettingsPersistence` | `ISettingsPersistence` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
+| `AtlMetadataReader` | `ITrackMetadataReader` | `ATL.Track`（封装隔离） |
 
-> ⚠️ 标记的就是 §3 列出的"已结疤的伤口"。
+> ⚠️ 标记的是 §3 仍未偿的债（仅剩 #1 BitmapImage）。
 
 ---
 
@@ -69,6 +73,8 @@
 1. VM 改为暴露 `byte[]? AlbumArtBytes`
 2. 新建 `Converters/BytesToBitmapImageConverter.cs`
 3. XAML 绑定加 `Converter={StaticResource BytesToBitmap}`
+
+**Phase 3 复盘：** 仍未偿。Phase 3 已把 VM 拆为 Player/Playlist，单元测试场景变得更可能（PlayerViewModel 只依赖 transport 服务）；下次想给 `PlayerViewModel` 写单元测试时一并还。
 
 ---
 
@@ -175,6 +181,12 @@ public sealed class AtlMetadataReader : ITrackMetadataReader { ... }
 | `Stop()` vs `Unload()` 语义差异 | `IPlaybackService` 两个独立方法 + 各自 XML 注释 | 用 `Stop()` 替代 `Unload()` 会让"清空队列后按 Play"重播刚才那首；用 `Unload()` 替代 `Stop()` 会让 `Pause→恢复` 失效 |
 | `PlayTrackAtAsync` 必须自增 `_playToken` 后再 `await` | 注释 + `if (myToken != _playToken) return` 守卫 | 任何新增的 `await` 后忘记校验 token 都会留下重入窗口 |
 | `PlaylistView.RefreshCurrentIndicator` 用 DataTemplate 列序定位 ▶ TextBlock | `FindChildByOrder<TextBlock>` | 在 `DataTemplate` 里加列会**静默错位** |
+| **Phase 3 新增** | | |
+| `PlayerVM` / `PlaylistVM` 互不持引用 | 注释 + spec §2.1 | 任何一方加入对另一方的字段引用都会让 MainViewModel Facade 退化为转发层；spec 明确此为硬规则 |
+| DI 注册顺序：PlayerVM **先于** PlaylistVM | `Extensions/ServiceCollectionExtensions.cs` 注释 | PlayerVM 在 ctor 中订阅 5 个 transport 事件；若 PlaylistVM 先构造，它的 TrackEnded 订阅会先收到事件，可能让 PlayerVM 错过开头几次 PositionChanged（实践上 LoadAsync 还没开始，未观察到，但显式顺序更稳） |
+| `UpdateAsync` mutator 内不可读 WPF DP | `MainWindow.xaml.cs:Window_Closing` 注释 | `.ConfigureAwait(false)` 把闭包扔到 threadpool；DP 读取必须先在 UI 线程捕获到局部变量再 await。违反时 `Left/Top/Width/ActualHeight` 抛 `InvalidOperationException`，被外层 catch 静默吞掉 → 窗口几何不保存 |
+| `IPlaybackService.TrackChanged` 携带 `Track?`（可为 null） | 接口 XML 注释 + `NAudioPlaybackService.Unload()` 实现 | `Unload()` 广播 `TrackChanged(null)` 通知 VM 清屏；VM 端 handler 必须 null-safe（已用 `?.AlbumArt`） |
+| `PlaylistViewModel.PlayTrackAtAsync` 期间 `RemoveTrack` 非当前曲未自增 `_playToken` | 代码审查发现，未修复（继承自 Phase 2） | 用户在 in-flight 元数据读取期间删除非当前曲，可能让 `Queue[index] = meta` 写到错位（或越界）；触发窗口极窄（几 ms），最坏 silent IndexOutOfRange 被吞。Phase 4 重构时一并修 |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
@@ -186,28 +198,28 @@ public sealed class AtlMetadataReader : ITrackMetadataReader { ... }
 >
 > **更新（Phase 3 完成）：** 项 1 (VM 拆分)、2 (View 去硬转型)、3 (ITrackMetadataReader)、4 (settings 合并纪律) 已完成。后续 Phase 4+ 仍待办：5、6、7。
 
-1. ☐ **VM 拆分**（债 #1 关联）—— `MainViewModel` 现 ~520 行，**已超阈值**
-   - 拆 `PlayerViewModel`（仅 transport：Play/Pause/Stop/Seek/Volume）
-   - 拆 `PlaylistViewModel`（队列 + Shuffle/Repeat + Next/Prev + 推进算法）
-   - `MainViewModel` 作为 facade 持有两者；事件路由：`IPlaybackService.TrackEnded` 由 PlaylistVM 订阅
-2. ☐ **`PlayerBar` / `PlaylistView` 去硬转型** —— 配合 VM 拆分；命令通过 `DependencyProperty` 或 XAML `{Binding}` 暴露；`PlaylistView` 的 `PropertyChanged` 订阅改成绑定到 `CurrentIndex` 触发的附加行为
-3. ☐ **抽 `ITrackMetadataReader`**（债 #4）—— 多列表 / 文件夹扫描需要批量元数据；当前 `ReadTrackMetadataAsync` 是 VM 内 static
-4. ☐ **解决 settings 合并纪律**（债 #3）—— 加入队列持久化前必做；引入 `UpdateAsync(Func<>)` 把读-改-写封进锁内
+1. ✅ **VM 拆分**（Phase 3 完成，commit `54edf9a`）—— MainViewModel 643→44 行 Strict Facade；PlayerVM + PlaylistVM 互不持引用
+2. ✅ **`PlayerBar` / `PlaylistView` 去硬转型**（Phase 3 完成）—— DataContext 切到子 VM；跨域命令用 `RelativeSource AncestorType=Window`
+3. ✅ **抽 `ITrackMetadataReader`**（Phase 3 完成，commit `c9cd1bd`）—— `AtlMetadataReader` 封装 z440.atl.core
+4. ✅ **解决 settings 合并纪律**（Phase 3 完成，commit `fadae44`）—— `UpdateAsync(Func<>)` 把读-改-写封进锁内
 5. ☐ **队列持久化** —— `%LocalAppData%\UmaPlayer\queue.json`；考虑与 settings.json 分离以减小写盘压力
 6. ☐ **多命名播放列表（L3）** —— 真正的"播放列表管理"；UI 侧需引入 Tab 或侧栏
 7. ☐ **拖拽支持** —— 外部文件拖入入队 + 队列内拖拽重排序
 
-**预估总工作量：** 10~14 小时（不含 L3 多命名列表本身的功能开发）
+**Phase 3 实际工作量：** 14 commits + 3 个搭车修复 ≈ 一个工作日（subagent-driven，单 session 完成）
+
+**Phase 4+ 候选范围预估：** 队列持久化 ~3h；拖拽支持 ~4h；多命名播放列表 ~10h+。
 
 ---
 
 ## 7. 不要做的事 🚫
 
-- ❌ 现在为了"更解耦"而拆分 VM —— **除非**开始 Phase 3（届时是 §6 #1 必做项）
-- ❌ 现在删 `IAudioDeviceManager` / `IAudioOutputFactory` —— 删了 Phase 3 还要写回来
-- ❌ 现在引入 MediatR / EventAggregator —— 6 个事件直连完全够用
-- ❌ 现在为 `MainViewModel` 写单测 —— 先把 §3 的 BitmapImage 和 ATL 抽掉再说
+- ❌ 现在删 `IAudioDeviceManager` / `IAudioOutputFactory` —— 删了未来加多设备支持还要写回来
+- ❌ 现在引入 MediatR / EventAggregator —— 6 个事件直连完全够用；两个子 VM 通过 `IPlaybackService` 间接协作已足够解耦
+- ❌ 现在为 `PlayerViewModel` 写单测 —— 先把债 #1（`BitmapImage`）抽掉再说
 - ❌ 用 `IPlaybackService.Stop()` 代替 `Unload()` 来"清空当前曲" —— 会重现已修复的 Bug（清队列后按 Play 重播刚才那首）
+- ❌ 让 `PlayerViewModel` 与 `PlaylistViewModel` 互相持有引用 —— 直接违反 spec §2.1 硬规则，会让 MainViewModel Facade 倒退为转发层
+- ❌ 在 `UpdateAsync` mutator 闭包内读 WPF DependencyProperty —— 见 §5 隐式契约新增项
 
 ---
 
@@ -217,6 +229,8 @@ public sealed class AtlMetadataReader : ITrackMetadataReader { ... }
 - 原始设计稿：
   - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1
   - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2
+  - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3
 - 原始实现计划：
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
+  - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3

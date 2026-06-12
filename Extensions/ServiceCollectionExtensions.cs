@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPlaybackService, NAudioPlaybackService>();
         services.AddSingleton<IFileDialogService, Win32FileDialogService>();
         services.AddSingleton<ISettingsPersistence, JsonSettingsPersistence>();
+        services.AddSingleton<IQueuePersistence, JsonQueuePersistence>();
 
         // 预留服务 —— 注册 Stub 以便未来替换不需要改 DI
         services.AddSingleton<IAudioDeviceManager, StubAudioDeviceManager>();

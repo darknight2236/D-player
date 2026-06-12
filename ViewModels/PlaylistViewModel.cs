@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,6 +24,7 @@ public partial class PlaylistViewModel : ObservableObject
     private readonly IPlaybackService _player;
     private readonly IFileDialogService _fileDialog;
     private readonly ITrackMetadataReader _metadataReader;
+    private readonly IQueuePersistence _queuePersistence;
 
     /// <summary>当前播放队列。ObservableCollection 自动通知 UI 增删改。</summary>
     public ObservableCollection<Track> Queue { get; } = new();
@@ -30,6 +32,9 @@ public partial class PlaylistViewModel : ObservableObject
     /// <summary>当前播放曲在 Queue 中的索引；-1 表示未选/队列空。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCurrentTrack))]
+    [NotifyCanExecuteChangedFor(nameof(PlayCurrentCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NextTrackCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PrevTrackCommand))]
     private int _currentIndex = -1;
 
     /// <summary>UI 列表选中项（与"当前播放曲"无关，仅供 Delete 键定位）。</summary>
@@ -70,11 +75,13 @@ public partial class PlaylistViewModel : ObservableObject
     public PlaylistViewModel(
         IPlaybackService player,
         IFileDialogService fileDialog,
-        ITrackMetadataReader metadataReader)
+        ITrackMetadataReader metadataReader,
+        IQueuePersistence queuePersistence)
     {
         _player = player;
         _fileDialog = fileDialog;
         _metadataReader = metadataReader;
+        _queuePersistence = queuePersistence;
 
         _player.TrackEnded += HandleTrackEnded;
 
@@ -84,7 +91,12 @@ public partial class PlaylistViewModel : ObservableObject
             OnPropertyChanged(nameof(HasCurrentTrack));
             NextTrackCommand.NotifyCanExecuteChanged();
             PrevTrackCommand.NotifyCanExecuteChanged();
+            PlayCurrentCommand.NotifyCanExecuteChanged();
         };
+
+        // Phase 4：构造期同步读盘恢复队列。queue.json ≤ 10 KB 量级；
+        // 与 PlayerViewModel.Initialize 读音量、MainWindow 读窗口尺寸的纪律一致。
+        LoadFromDisk();
     }
 
     /// <summary>
@@ -380,5 +392,136 @@ public partial class PlaylistViewModel : ObservableObject
     public void Cleanup()
     {
         _player.TrackEnded -= HandleTrackEnded;
+    }
+
+    // —— Phase 4：队列持久化 ——
+
+    /// <summary>
+    /// 启动期同步读盘恢复队列。隐式契约：本方法是同步段，不可 await（DI 容器构造 VM
+    /// 时若死锁 UI sync ctx 会让窗口永不显示）。JsonQueuePersistence 内部已用
+    /// ConfigureAwait(false)，UI 线程同步等待 worker pool 任务回调时不会死锁。
+    ///
+    /// 文件丢失（用户外部移动/删除）静默跳过；schema 损坏/IO 异常 → 视为首次启动。
+    /// </summary>
+    private void LoadFromDisk()
+    {
+        QueueState state;
+        try
+        {
+            state = _queuePersistence.LoadAsync().GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // 极端 IO 故障 → 当作首次启动
+            return;
+        }
+
+        // 文件存在性过滤
+        var survivingPaths = state.Items.Where(File.Exists).ToList();
+        if (survivingPaths.Count == 0)
+        {
+            // 全丢/原本就空 → 仅恢复 Shuffle/Repeat
+            ShuffleEnabled = state.ShuffleEnabled;
+            RepeatMode = state.RepeatMode;
+            return;
+        }
+
+        int newCurrentIndex = MapCurrentIndexAfterFilter(state.Items, survivingPaths, state.CurrentIndex);
+
+        foreach (var path in survivingPaths)
+        {
+            // 占位 Track —— 与 OpenAndPlay 流程一致；用户首次播放时由 PlayTrackAtAsync 升级为完整元数据
+            Queue.Add(_metadataReader.CreateFallback(path));
+        }
+
+        CurrentIndex = newCurrentIndex;
+        ShuffleEnabled = state.ShuffleEnabled;
+        RepeatMode = state.RepeatMode;
+    }
+
+    /// <summary>
+    /// 把过滤前的 CurrentIndex 映射到过滤后的索引。
+    ///
+    /// 算法：
+    ///   - 若原索引仍在 surviving 中 → 直接返回它在 surviving 中的位置
+    ///   - 若原索引项丢失 → 向后找原数组中第一个仍存在的项；找不到则向前回退
+    ///   - 若 surviving 为空（外层已提前 return 处理）/ 原索引无效 → 返回 -1
+    ///
+    /// 设计取舍（spec §5.1）：选择"向后滑"而非"重置到 0"——
+    /// 用户的"当前曲"语义上是听到了一半，跳到后面延续聆听比回到列表顶部更接近预期。
+    /// 静态纯函数：无副作用，便于人工推理。
+    /// </summary>
+    private static int MapCurrentIndexAfterFilter(
+        IReadOnlyList<string> originalItems,
+        IReadOnlyList<string> survivingPaths,
+        int originalIndex)
+    {
+        if (survivingPaths.Count == 0) return -1;
+        if (originalIndex < 0 || originalIndex >= originalItems.Count) return 0;
+
+        // Case 1: 原项仍存在 —— 直接定位
+        var originalPath = originalItems[originalIndex];
+        if (File.Exists(originalPath))
+        {
+            var idx = IndexOf(survivingPaths, originalPath);
+            if (idx >= 0) return idx;
+        }
+
+        // Case 2: 原项丢失 —— 向后滑：找原数组中 originalIndex 之后第一个仍存在的项
+        for (int i = originalIndex + 1; i < originalItems.Count; i++)
+        {
+            var idx = IndexOf(survivingPaths, originalItems[i]);
+            if (idx >= 0) return idx;
+        }
+
+        // Case 3: 后方无幸存 —— 向前回退
+        for (int i = originalIndex - 1; i >= 0; i--)
+        {
+            var idx = IndexOf(survivingPaths, originalItems[i]);
+            if (idx >= 0) return idx;
+        }
+
+        // 理论不可达（surviving 非空意味着 originalItems 中至少一个 File.Exists）
+        return 0;
+    }
+
+    /// <summary>IReadOnlyList&lt;string&gt; 没有 IndexOf 实例方法（C# 12 / .NET 8 起 ReadOnlySpan 扩展会冲突），手写线性查找。</summary>
+    private static int IndexOf(IReadOnlyList<string> list, string value)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i] == value) return i;
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// 把当前 VM 状态打包成不可变快照。由 MainWindow.Window_Closing 调用。
+    ///
+    /// 隐式契约：本方法**仅读、无副作用**（COUPLING.md §5）。
+    /// 若未来加副作用，Window_Closing 在 Cleanup 之后调它会让人意外。
+    ///
+    /// Track[i] 即便是占位（Title==文件名、AlbumArt==null），FilePath 也已被
+    /// CreateFallback 填好，故未播放过的曲目也能被正确持久化。
+    /// </summary>
+    public QueueState SnapshotState() => new()
+    {
+        SchemaVersion = 1,
+        Items = Queue.Select(t => t.FilePath).ToArray(),
+        CurrentIndex = CurrentIndex,
+        ShuffleEnabled = ShuffleEnabled,
+        RepeatMode = RepeatMode,
+    };
+
+    /// <summary>
+    /// 启动后用户首次按 ▶ 走的命令：加载并播放 CurrentIndex 指向的曲目。
+    /// PlayerBar 的 ▶ 按钮通过 DataTrigger 在 PlayerVM.CurrentTrack==null 时
+    /// 跨级绑定到本命令；TrackChanged 触发后回退到 PlayerVM.PlayPauseCommand。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasCurrentTrack))]
+    private async Task PlayCurrent()
+    {
+        if (CurrentIndex < 0 || CurrentIndex >= Queue.Count) return;
+        await PlayTrackAtAsync(CurrentIndex);
     }
 }

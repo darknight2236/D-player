@@ -80,7 +80,30 @@
                         Width="48" Height="48" ToolTip="上一首">
                     <TextBlock Text="&#x23EE;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
-                <Button Command="{Binding PlayPauseCommand}" Width="48" Height="48" Margin="8,0,0,0">
+                <Button Width="48" Height="48" Margin="8,0,0,0">
+                    <Button.Style>
+                        <!-- BasedOn 继承 Themes/Controls.xaml 中的隐式 Button 样式
+                             （透明背景 + 圆角 ControlTemplate）。漏掉 BasedOn 会让
+                             WPF 回退到 Aero 原生白底灰框，与窗口背景对不上。 -->
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <!-- 默认：transport 已 Loaded —— 走 PlayerVM 切换播放/暂停 -->
+                            <Setter Property="Command" Value="{Binding PlayPauseCommand}"/>
+                            <Style.Triggers>
+                                <!--
+                                    Phase 4：启动后 transport 空闲（CurrentTrack=null）但队列已恢复有当前曲，
+                                    跨级到 PlaylistVM.PlayCurrentCommand 触发首次加载 + 播放。
+                                    用户首次按 ▶ → PlayCurrentCommand → PlayTrackAtAsync → LoadAsync 触发
+                                    TrackChanged(track) → CurrentTrack 变非 null → DataTrigger 失活 → 回到 PlayPauseCommand。
+                                    清空队列后 IPlaybackService.Unload() 会触发 TrackChanged(null)，本 trigger 再次激活。
+                                -->
+                                <DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">
+                                    <Setter Property="Command"
+                                            Value="{Binding DataContext.Playlist.PlayCurrentCommand,
+                                                    RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
                     <TextBlock Text="{Binding PlayState, Converter={StaticResource PlayStateToIcon}}"
                                FontSize="20" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>

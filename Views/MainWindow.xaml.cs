@@ -17,12 +17,17 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
     private readonly ISettingsPersistence _persistence;
+    private readonly IQueuePersistence _queuePersistence;
 
-    public MainWindow(MainViewModel vm, ISettingsPersistence persistence)
+    public MainWindow(
+        MainViewModel vm,
+        ISettingsPersistence persistence,
+        IQueuePersistence queuePersistence)
     {
         InitializeComponent();
         _vm = vm;
         _persistence = persistence;
+        _queuePersistence = queuePersistence;
         DataContext = _vm;
 
         // 同步加载窗口几何 —— 文件极小，启动期阻塞可忽略
@@ -46,9 +51,27 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>关闭时：合并最新窗口几何到设置文件，再让 VM 清理播放器资源。</summary>
+    private bool _isClosing;
+
+    /// <summary>
+    /// 关闭时：合并最新窗口几何到设置文件，再让 VM 清理播放器资源，最后写队列快照。
+    ///
+    /// 关键纪律（cancel-and-close 模式）：本方法是 async void，多次 await 会让 WPF
+    /// 在第一个 await yield 后立即继续关闭流程 —— ShutdownMode.OnLastWindowClose 会
+    /// 触发 Application.Shutdown → Dispatcher.InvokeShutdown，把后续 await 的
+    /// 续延扔进死消息循环。Phase 3 时仅有 2 个 await，settings 写盘抢在 dispatcher
+    /// 关停前完成；Phase 4 加入 queue.json 写盘后 await 链变深，必须把首次 Closing
+    /// 取消、做完异步工作再 Close()，否则 queue.json 永不更新。
+    /// </summary>
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {
+        // 第二次进入：异步工作已完成 → 真正关闭窗口
+        if (_isClosing) return;
+
+        // 首次进入：拦下关闭，跑完所有异步写盘
+        e.Cancel = true;
+        _isClosing = true;
+
         // 提前在 UI 线程读出 WPF DependencyProperty —— UpdateAsync 内部
         // ConfigureAwait(false) 后 mutator 会在 thread-pool 上执行，
         // 那里读 Left/Top/Width/ActualHeight 会抛 InvalidOperationException
@@ -69,6 +92,19 @@ public partial class MainWindow : Window
         catch { /* 关闭流程不打扰用户 */ }
 
         await _vm.CleanupAsync();
+
+        // Phase 4：保存队列快照到 queue.json。
+        // 必须在 CleanupAsync 之后调 SnapshotState 也 OK ——
+        // Cleanup 仅解绑 TrackEnded，不修改 Queue/CurrentIndex/Shuffle/Repeat。
+        try
+        {
+            var snapshot = _vm.Playlist.SnapshotState();    // UI 线程纯读
+            await _queuePersistence.SaveAsync(snapshot);
+        }
+        catch { /* 写盘失败 = 用户下次启动队列丢失，与 settings 写盘失败行为对称 */ }
+
+        // 异步链跑完，重新触发 Closing —— 此次 _isClosing == true，直接放行
+        Close();
     }
 
     /// <summary>

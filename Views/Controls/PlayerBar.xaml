@@ -82,7 +82,10 @@
                 </Button>
                 <Button Width="48" Height="48" Margin="8,0,0,0">
                     <Button.Style>
-                        <Style TargetType="Button">
+                        <!-- BasedOn 继承 Themes/Controls.xaml 中的隐式 Button 样式
+                             （透明背景 + 圆角 ControlTemplate）。漏掉 BasedOn 会让
+                             WPF 回退到 Aero 原生白底灰框，与窗口背景对不上。 -->
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                             <!-- 默认：transport 已 Loaded —— 走 PlayerVM 切换播放/暂停 -->
                             <Setter Property="Command" Value="{Binding PlayPauseCommand}"/>
                             <Style.Triggers>

@@ -34,10 +34,12 @@ public partial class App : Application
         _services = services.BuildServiceProvider();
 
         // 注意：MainWindow 需要 persistence 用于恢复/保存窗口位置，
-        // 因此这里显式解析后通过构造函数传入（而非让 DI 解析窗口）
+        // 因此这里显式解析后通过构造函数传入（而非让 DI 解析窗口）。
+        // queuePersistence（Phase 4）同理 —— 仅 Window_Closing 写盘需要它。
         var vm = _services.GetRequiredService<MainViewModel>();
         var persistence = _services.GetRequiredService<ISettingsPersistence>();
-        var mainWindow = new Views.MainWindow(vm, persistence);
+        var queuePersistence = _services.GetRequiredService<IQueuePersistence>();
+        var mainWindow = new Views.MainWindow(vm, persistence, queuePersistence);
         mainWindow.Show();
     }
 

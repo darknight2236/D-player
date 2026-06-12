@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/08 · 对应分支：`master` · 当前阶段：**Phase 3 完成**（VM 拆分 + 技术债清算）
+> 文档日期：2026/06/12 · 对应分支：`master` · 当前阶段：**Phase 4 完成**（队列持久化）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。可视化、库扫描、多命名播放列表、队列持久化等放在 Phase 4+。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。可视化、库扫描、多命名播放列表、拖拽等放在 Phase 5+。
 
 ### 1.1 关键特性（已实现）
 
@@ -23,10 +23,10 @@
 | 主题   | 内置深色主题（深紫强调色）                                                  |
 | 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\UmaPlayer\settings.json`       |
 | 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、随机/3 态循环（Off/List/One） |
+| 队列持久化 | 关闭时写 `%LocalAppData%\UmaPlayer\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
 
 ### 1.2 后续增量（未实现）
 
-- 队列持久化（关闭即丢；Phase 4 计划项）
 - 多个命名播放列表（创建 / 保存 / 加载 / 切换）—— 当前仅支持单个内存队列
 - 拖拽入队 / 队列内拖拽重排序
 - M3U / PLS 等播放列表格式导入导出
@@ -69,6 +69,7 @@ UmaPlayer/
 │   ├── Track.cs                 # 不可变 record：音轨信息（含封面字节数组）
 │   ├── PlayState.cs             # enum: Stopped / Playing / Paused
 │   ├── RepeatMode.cs            # enum: Off / List / One  (Phase 2)
+│   ├── QueueState.cs            # 不可变 record: queue.json schema (Phase 4)
 │   └── AudioDeviceInfo.cs       # 预留：设备信息
 │
 ├── Services/                    # 业务/基础设施服务（全部基于接口）
@@ -78,6 +79,8 @@ UmaPlayer/
 │   ├── Win32FileDialogService.cs# Microsoft.Win32.OpenFileDialog 封装
 │   ├── ISettingsPersistence.cs
 │   ├── JsonSettingsPersistence.cs # 持久化到 %LocalAppData%\UmaPlayer\settings.json
+│   ├── IQueuePersistence.cs    # 队列持久化抽象 (Phase 4)
+│   ├── JsonQueuePersistence.cs # 持久化到 %LocalAppData%\UmaPlayer\queue.json (Phase 4)
 │   ├── ITrackMetadataReader.cs # 元数据读取抽象 (Phase 3)
 │   ├── AtlMetadataReader.cs    # 基于 z440.atl.core 的实现 (Phase 3)
 │   ├── IAudioDeviceManager.cs   # 预留：设备枚举/切换
@@ -115,13 +118,15 @@ UmaPlayer/
     ├── COUPLING.md              # 耦合分析 / 风险登记册
     └── superpowers/             # 设计稿 & 实现计划（历史归档）
         ├── specs/
-        │   ├── 2026-04-23-uma-player-design.md             # Phase 1 设计
-        │   ├── 2026-06-06-uma-player-playlist-design.md    # Phase 2 设计
-        │   └── 2026-06-07-uma-player-phase3-design.md       # Phase 3 设计
+        │   ├── 2026-04-23-uma-player-design.md                          # Phase 1 设计
+        │   ├── 2026-06-06-uma-player-playlist-design.md                 # Phase 2 设计
+        │   ├── 2026-06-07-uma-player-phase3-design.md                   # Phase 3 设计
+        │   └── 2026-06-12-uma-player-phase4-queue-persistence-design.md # Phase 4 设计
         └── plans/
-            ├── 2026-04-24-uma-player-implementation.md           # Phase 1 计划
-            ├── 2026-06-06-uma-player-playlist-implementation.md  # Phase 2 计划
-            └── 2026-06-07-uma-player-phase3-implementation.md  # Phase 3
+            ├── 2026-04-24-uma-player-implementation.md                          # Phase 1 计划
+            ├── 2026-06-06-uma-player-playlist-implementation.md                 # Phase 2 计划
+            ├── 2026-06-07-uma-player-phase3-implementation.md                   # Phase 3 计划
+            └── 2026-06-12-uma-player-phase4-queue-persistence-implementation.md # Phase 4 计划
 ```
 
 ---
@@ -135,8 +140,9 @@ UmaPlayer/
    │                       App.xaml.cs                    │
    │   1. 读取 appsettings.json                            │
    │   2. 构建 ServiceCollection (AddUmaPlayerServices)    │
-   │   3. 解析 MainViewModel + ISettingsPersistence       │
-   │   4. new MainWindow(vm, persistence).Show()          │
+   │   3. 解析 MainViewModel + ISettingsPersistence        │
+   │      + IQueuePersistence                              │
+   │   4. new MainWindow(vm, persistence, queue).Show()    │
    └──────────────┬─────────────────────────┬─────────────┘
                   │                         │
                   ▼                         ▼
@@ -144,14 +150,16 @@ UmaPlayer/
    │     MainWindow       │    │  MainViewModel (Facade)  │
    │  (View, code-behind) │◀──▶│  ~44 行：仅持有子 VM       │
    │ - 窗口位置恢复/保存   │    │  + CleanupAsync()         │
-   │ - PlayerBar 容器     │    └──────┬──────────┬─────────┘
-   │   (DC=Player)        │           │          │
-   │ - PlaylistView 容器  │           ▼          ▼
-   │   (DC=Playlist)      │   ┌─────────────┐ ┌──────────────┐
+   │ - 关闭写 queue.json  │    └──────┬──────────┬─────────┘
+   │   (cancel-and-close) │           │          │
+   │ - PlayerBar 容器     │           ▼          ▼
+   │ - PlaylistView 容器  │   ┌─────────────┐ ┌──────────────┐
    └──────────────────────┘   │ PlayerVM    │ │ PlaylistVM   │
                               │ Transport:  │ │ Queue/Shuffle│
                               │ Play/Pause/ │ │ /Repeat/推进 │
                               │ Position/Vol│ │ /TrackEnded  │
+                              │             │ │ +LoadFromDisk│
+                              │             │ │ +SnapshotState│
                               └──────┬──────┘ └──────┬───────┘
                                      │  互不持引用      │
                                      ▼  仅共享 Service ▼
@@ -161,8 +169,13 @@ UmaPlayer/
 │ IPlaybackService   │  │ ITrackMetadataReader   │  │ ISettingsPersistence │
 │ (NAudio impl)      │  │ (ATL impl) [Phase 3]   │  │ UpdateAsync(Func<>)  │
 └────────────────────┘  └────────────────────────┘  └──────────────────────┘
+                                                    ┌──────────────────────┐
+                                                    │ IQueuePersistence    │
+                                                    │ (JSON impl) [Phase4] │
+                                                    └──────────────────────┘
 
 注：IFileDialogService 由 PlaylistViewModel 直接消费（OpenAndPlay / AddToQueue）。
+注：IQueuePersistence 由 PlaylistViewModel（启动读盘）+ MainWindow.Window_Closing（关闭写盘）双方消费。
 ```
 
 ### 4.2 服务生命周期
@@ -175,6 +188,7 @@ UmaPlayer/
 | `IPlaybackService` | **Singleton** | 持有 NAudio 设备资源，必须长生命周期 |
 | `IFileDialogService` | Singleton | 无状态 |
 | `ISettingsPersistence` | Singleton | 内部 `SemaphoreSlim` 并发互斥 |
+| `IQueuePersistence` | Singleton (Phase 4) | 独立 `SemaphoreSlim`，与 settings 文件锁互不影响 |
 | `ITrackMetadataReader` | Singleton (Phase 3) | 无状态，封装 z440.atl.core；`ReadAsync` 不抛 |
 | `IAudioDeviceManager` | Singleton（Stub） | 预留 |
 | `IAudioOutputFactory` | Transient（Stub） | 预留；语义上由 `IPlaybackService` 创建即释放 |
@@ -202,6 +216,10 @@ UmaPlayer/
 
 9. **持久化 read-modify-write 原子化（Phase 3）**：`ISettingsPersistence` 接口由 `SaveAsync(AppSettings)` 改为 `UpdateAsync(Func<AppSettings, AppSettings> mutator)`，把"读盘 → 应用 mutator → 写盘"整个序列封进 `SemaphoreSlim` 锁内，根治了 VM 写音量与 `Window_Closing` 写窗口尺寸的合并竞态（COUPLING.md 旧债 #3）。注意：`UpdateAsync` 内部 `.ConfigureAwait(false)`，故调用方若需要在 mutator 内读取 WPF DependencyProperty，必须在 await 之前先把值捕获到 UI 线程局部变量（见 `MainWindow.xaml.cs:Window_Closing`）。
 
+10. **队列持久化与 settings 隔离（Phase 4）**：队列状态独立写到 `%LocalAppData%\UmaPlayer\queue.json`。**为什么不复用 settings.json**：(a) 队列条目数量级远大于 settings 字段，混在一起每次拖音量都会让队列 JSON 重新序列化；(b) settings 是高频更新（音量、窗口尺寸），queue 是低频快照（仅关闭时一次），写入节奏不同；(c) 模式失败隔离 —— queue.json 损坏不影响窗口/音量恢复。`IQueuePersistence` 故意比 `ISettingsPersistence` 简化：只有 `LoadAsync()` 与 `SaveAsync(QueueState)`，没有 `UpdateAsync` —— PlaylistViewModel 是唯一权威源（"读队列" = `SnapshotState()`），无需读-改-写原子化。
+
+11. **Cancel-and-close 关闭模式（Phase 4）**：`MainWindow.Window_Closing` 是 `async void`；从 Phase 3 的 2 个 await（settings + CleanupAsync）涨到 Phase 4 的 4 个（+ snapshot + queue 写盘）后撞上致命 race —— 第一个 await yield 后 WPF 立即继续关闭流程，`ShutdownMode.OnLastWindowClose` 触发 `Application.Shutdown` → `Dispatcher.InvokeShutdown`，把后续 await 续延 post 到死 dispatcher 上永不运行（settings 通常能抢到，queue 永远丢）。修复：首次进入 `e.Cancel = true` 拦下，跑完所有异步工作后调 `Close()` 重新触发 Closing，第二次进入凭 `_isClosing` 标志直接 fall-through。这是 WPF `async void` Closing 的标准纪律 —— 任何新增 await 都该用此模式。
+
 ---
 
 ## 5. 模块详解
@@ -210,6 +228,8 @@ UmaPlayer/
 
 - **`Track`**：不可变 record。`Duration` 与 `SampleRate` 在加载时由 `NAudioPlaybackService.LoadAsync` 通过 `track with { Duration=..., SampleRate=... }` 补齐。`AlbumArt` 为原始字节数组，由 VM 转 `BitmapImage`（限 200px、`Freeze()` 跨线程安全）。
 - **`PlayState`**：`Stopped / Playing / Paused`。
+- **`RepeatMode`**：`Off / List / One`（Phase 2）。
+- **`QueueState`**（Phase 4）：不可变 record；`SchemaVersion=1` / `Items: IReadOnlyList<string>`（路径） / `CurrentIndex` / `ShuffleEnabled` / `RepeatMode`。**只持久化路径与队列态**，不携带 Track 元数据或封面 —— 启动时由 `PlaylistViewModel.LoadFromDisk` 为每条路径创建占位 Track（与 OpenAndPlay 流程一致），用户首次播放时由 `PlayTrackAtAsync` 升级为完整元数据。
 - **`AudioDeviceInfo`**：`(Id, Name, IsDefault)`，目前仅类型存在。
 
 ### 5.2 `Services/NAudioPlaybackService`
@@ -232,6 +252,14 @@ UmaPlayer/
 - **Phase 3 重构**：接口由 `SaveAsync(AppSettings)` 改为 `UpdateAsync(Func<AppSettings, AppSettings> mutator)`，把整段"读盘 → 应用 mutator → 写盘"封进 `SemaphoreSlim(1,1)` 临界区。调用方仅需提供 `s => s with { Field = newValue }`，再无合并竞态
 - 读盘失败（损坏/权限）→ 以 `new AppSettings()` 为起点喂给 mutator，写盘照常；写盘失败则抛出（关闭流程调用方自行 catch）
 - 私有 `ReadFromDiskNoLockAsync()`：调用方负责持锁；供 `LoadAsync` 与 `UpdateAsync` 共用
+
+### 5.3a `Services/JsonQueuePersistence`（Phase 4）
+
+- 路径：`%LocalAppData%\UmaPlayer\queue.json`
+- 与 settings 持久化结构对称：独立 `SemaphoreSlim(1,1)`、`WriteIndented=true`、`JsonStringEnumConverter`（让 `RepeatMode` 序列化成字符串而非整数，跨版本稳定且方便手动调试）
+- 接口仅 `LoadAsync()` / `SaveAsync(QueueState)`，**故意没有 `UpdateAsync`** —— PlaylistViewModel 是队列状态的唯一权威源，无需读-改-写合并
+- `LoadAsync` 隐式契约：**绝不抛**（catch-all 静默 fallback 到 `new QueueState()`）。文件不存在/JSON 损坏/版本号不匹配/反序列化得 null 全部走同一回退分支；旧文件保留供用户排查
+- `SaveAsync` 失败抛出，由 `MainWindow.Window_Closing` 自行 catch（与 settings 写盘失败行为对称：用户下次启动队列丢失，但不打扰关闭流程）
 
 ### 5.4 `ViewModels/MainViewModel`（Strict Facade，~44 行）
 
@@ -263,15 +291,20 @@ public Task CleanupAsync();
 
 `HandleTrackChanged(Track? track)`：track 为 null 时把 `CurrentTrack` 和 `AlbumArtImage` 一起置 null（XAML 的 `FallbackValue='No track loaded'` 处理标题显示）。
 
-### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~384 行）
+### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~528 行 / Phase 4 增加 LoadFromDisk + SnapshotState + PlayCurrent）
 
 源生成器属性：`_currentIndex`（-1 表示未选）, `_selectedTrack`（UI 列表选中项，与播放无关）, `_shuffleEnabled`, `_repeatMode`。集合：`ObservableCollection<Track> Queue`。私有：`HashSet<int> _shuffleHistory` / `Random _random` / `int _playToken`（重入哨兵）。派生：`HasCurrentTrack`、`RepeatActive`、`ShuffleBrushKey`。
 
-构造时订阅 `IPlaybackService.TrackEnded` 用于自动推进；`Queue.CollectionChanged` 触发 Next/Prev 命令 `NotifyCanExecuteChanged`。
+构造时订阅 `IPlaybackService.TrackEnded` 用于自动推进；`Queue.CollectionChanged` 触发 Next/Prev/PlayCurrent 命令 `NotifyCanExecuteChanged`；构造尾段同步调 `LoadFromDisk()` 恢复队列。
 
-`[RelayCommand]`：`AddToQueue / RemoveTrack(int) / ClearQueue / PlayTrackAt(int) / NextTrack / PrevTrack / ToggleShuffle / CycleRepeat / OpenAndPlay`。
+`[RelayCommand]`：`AddToQueue / RemoveTrack(int) / ClearQueue / PlayTrackAt(int) / NextTrack / PrevTrack / ToggleShuffle / CycleRepeat / OpenAndPlay / PlayCurrent`（Phase 4）。
 
-**跨域命令 OpenAndPlay** —— PlayerBar 上的 📂 按钮归属本 VM（本质是"批量入队 + 播首项"，前者属于队列域）；PlayerBar 通过 `{Binding DataContext.Playlist.OpenAndPlayCommand, RelativeSource={RelativeSource AncestorType=Window}}` 跨级访问。同理 ⏮/⏭ 也用这个模式绑到 `Playlist.PrevTrackCommand / NextTrackCommand`。
+**Phase 4 新增成员：**
+- `LoadFromDisk()`（私有，构造期调用）：同步 `LoadAsync().GetAwaiter().GetResult()` 读 queue.json → 用 `File.Exists` 过滤丢失文件 → `MapCurrentIndexAfterFilter` 把过滤前 `CurrentIndex` 映射到过滤后位置（项还在直接定位；项丢失则向后滑找到第一个仍存在的，找不到再向前回退）→ 为每个 surviving 路径 `CreateFallback` 占位入队 → 恢复 Shuffle/Repeat
+- `SnapshotState()`（公有，纯读无副作用）：把 `Queue.Select(t => t.FilePath).ToArray()` + 当前模式/索引打包成 `QueueState`，由 `MainWindow.Window_Closing` 在 `CleanupAsync` 之后调用
+- `[RelayCommand(CanExecute=HasCurrentTrack)] PlayCurrent`：启动后用户首次按 ▶ 走的命令；触发 `PlayTrackAtAsync(CurrentIndex)`，把占位 Track 升级为完整元数据并 `LoadAsync + Play`
+
+**跨域命令 OpenAndPlay** —— PlayerBar 上的 📂 按钮归属本 VM（本质是"批量入队 + 播首项"，前者属于队列域）；PlayerBar 通过 `{Binding DataContext.Playlist.OpenAndPlayCommand, RelativeSource={RelativeSource AncestorType=Window}}` 跨级访问。同理 ⏮/⏭ 也用这个模式绑到 `Playlist.PrevTrackCommand / NextTrackCommand`。Phase 4 ▶ 按钮在 `CurrentTrack==null` 时通过 DataTrigger 跨级绑到 `PlayCurrentCommand`，`TrackChanged(track)` 后回退到 `PlayPauseCommand`。
 
 **关键私有方法**（与旧 MainViewModel 等价）：
 - `PlayTrackAtAsync(int, int skipCount=0)`：抢占 `_playToken` → 读元数据 → `Queue[i] = meta` → `LoadAsync` → `Play`；每个 `await` 后校验 token，被顶替则静默退出；失败连续 3 次自动停止
@@ -283,10 +316,11 @@ public Task CleanupAsync();
 
 ### 5.5 `Views`
 
-- **`MainWindow`**：两行 Grid 容器 —— `PlayerBar`（顶部，自适应高度）+ `PlaylistView`（底部填充）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时异步保存。
+- **`MainWindow`**：两行 Grid 容器 —— `PlayerBar`（顶部，自适应高度）+ `PlaylistView`（底部填充）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
 - **`PlayerBar`** *(UserControl)*：播放栏。三行 Grid：①封面+元数据；②`Position | Slider | Duration`；③⏮ ▶/⏸ ⏹ ⏭ 📂 + 音量。
   - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）
   - `⏮` / `⏭` / `📂` 通过 `{Binding DataContext.Playlist.<XxxCommand>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 `PlaylistViewModel`（PlayerBar 自身的 DataContext 已切为 PlayerViewModel），`HasCurrentTrack` 守卫；队列空时按钮自动禁用
+  - **▶/⏸ 按钮的双绑定（Phase 4）**：默认 `Command={Binding PlayPauseCommand}`（PlayerVM 的 transport 切换）；当 `CurrentTrack==null` 时通过 `<DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">` 切到 `Playlist.PlayCurrentCommand` —— 启动后队列已恢复但 transport 空闲，第一次按 ▶ 触发首次加载 + 播放，`TrackChanged(track)` 让 trigger 失活，回到 PlayPauseCommand。**注意 inline `<Style TargetType="Button">` 必须 `BasedOn="{StaticResource {x:Type Button}}"`**，否则会替换掉 `Themes/Controls.xaml` 中的隐式主题样式，按钮回退到 OS 原生白底（COUPLING.md §5）
 - **`PlaylistView`** *(UserControl, Phase 2)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空]` 左对齐、`🔀` `⇄/🔁/🔂` 右对齐；②`ListBox` 绑 `Queue`，每项含 ▶ 当前曲标记 + 标题 + `×` 删除按钮
   - 当前曲 ▶ 标记由 code-behind 维护：订阅 `PlaylistViewModel.PropertyChanged` (CurrentIndex) / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）
   - 交互：双击播放、Delete 键删除、右上角按钮触发命令
@@ -325,6 +359,22 @@ public Task CleanupAsync();
 
 **当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`。
 **已建模但未启用**：`OutputMode`、`PreferredDeviceId`、`LastPlayedPath`。
+
+### 6.3 队列快照：`%LocalAppData%\UmaPlayer\queue.json`（Phase 4）
+
+由 `JsonQueuePersistence` 读写。Schema：
+
+```json
+{
+  "SchemaVersion": 1,
+  "Items": ["C:\\Music\\foo.mp3", "C:\\Music\\bar.flac"],
+  "CurrentIndex": 0,
+  "ShuffleEnabled": false,
+  "RepeatMode": "Off"
+}
+```
+
+写时机：`MainWindow.Window_Closing`（每次关闭整队列覆盖一次）。读时机：`PlaylistViewModel` 构造期同步读盘。文件不存在/JSON 损坏/版本不匹配 → 静默 fallback 到空队列（保留旧文件供用户排查）。`Items` 中已被外部移动/删除的路径在加载时自动过滤；`CurrentIndex` 通过"向后滑、再向前回退"的算法映射到过滤后的位置（spec §5.1）。
 
 ---
 
@@ -403,25 +453,28 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
 ## 9. 已知约束与陷阱
 
 - **格式限制**：仅支持 Windows Media Foundation 原生解码的格式；OGG/Vorbis 需用户系统安装第三方编解码器或后续切换 reader。
-- **内存队列**：播放列表关闭即丢（当前仅内存 `ObservableCollection` 存在）；Phase 4 计划加入队列持久化。
 - **静默错误**：`HandlePlaybackError` 仅 TODO，未弹窗或写日志；调试期可通过断点检视。
-- **启动时同步 IO**：`PlayerViewModel.Initialize()` 与 `MainWindow` 构造函数中均使用 `LoadAsync().GetAwaiter().GetResult()`；settings.json 极小，可接受，未来若数据膨胀需重构。
+- **启动时同步 IO**：`PlayerViewModel.Initialize()` 与 `MainWindow` 构造函数中均使用 `LoadAsync().GetAwaiter().GetResult()`；`PlaylistViewModel.LoadFromDisk()` 同理（Phase 4）。三个文件都极小（settings 几百字节、queue 视队列长度，典型 < 10KB），可接受，未来若数据膨胀需重构。
 - **DI 解析跨线程**：`IPlaybackService` 必须由 UI 线程首次构造（依赖 `SynchronizationContext.Current` 捕获），目前由 `App.OnStartup` 保证。
 - **UpdateAsync 跨线程读 DP**：`JsonSettingsPersistence.UpdateAsync` 内部 `.ConfigureAwait(false)` 把 mutator 调用 / 继续上下文带到 threadpool；若 mutator 闭包内读 WPF DependencyProperty（如 `Left/Top/Width/ActualHeight`）会抛 `InvalidOperationException`。**调用方必须先在 UI 线程把 DP 值捕获到局部变量再 await**。`MainWindow.xaml.cs:Window_Closing` 即采用此模式。
+- **`async void Window_Closing` 多 await dispatcher race**（Phase 4）：超过 1-2 个 await 时第一个 await yield 后 WPF 立即继续关闭流程，`ShutdownMode.OnLastWindowClose` 触发 `Application.Shutdown → Dispatcher.InvokeShutdown`，后续 await 续延 post 到死 dispatcher 上**永不运行**。修复纪律：用 cancel-and-close 模式（首次 `e.Cancel=true` 加 `_isClosing` 标志，做完异步工作再 `Close()`）。Phase 4 加入 queue.json 写盘后从 2 个 await 涨到 4 个，settings 还能写但 queue 永远不更新；commit `9bae7ce` 用此模式修复（COUPLING.md §5）。
+- **WPF inline Style 必须 `BasedOn` 隐式主题样式**：`<X.Style><Style TargetType="X">` 没有 `BasedOn="{StaticResource {x:Type X}}"` 会完全替换 `Themes/Controls.xaml` 中的隐式 Style，回退到 OS 原生外观（Button 白底灰框、Slider 灰色等）。Phase 4 ▶ 按钮加 DataTrigger 时漏 BasedOn → 按钮变白底；commit `ca66fa9` 修复。
 
 ---
 
 ## 10. 历史与参考
 
-- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + Phase 3 启动检查清单
+- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + Phase 5 启动检查清单
 - 设计稿：
   - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
   - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
   - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3 VM 拆分 + 技术债清算设计
+  - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4 队列持久化设计
 - 实现计划：
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
   - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3
+  - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4
 - 主要里程碑提交：
   - **Phase 1**
     - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
@@ -447,3 +500,14 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `da500f6` fix(playback): clear PlayerBar metadata on Unload
     - `ee76afe` fix(playback): clamp Position to [0, Duration] and reset on LoadAsync
     - `70bd36a` merge: Phase 3 tech-debt cleanup
+  - **Phase 4**（feature/phase4-queue-persistence → master）
+    - `4ad58c5` feat(models): add QueueState record (Phase 4 schema)
+    - `f30ede8` feat(services): add IQueuePersistence interface
+    - `b52de5d` feat(services): add JsonQueuePersistence (queue.json read/write with semaphore)
+    - `7cb655d` feat(di): register IQueuePersistence singleton
+    - `53f9cd6` feat(vm): inject IQueuePersistence into PlaylistViewModel + LoadFromDisk on ctor
+    - `75e863b` feat(vm): add PlaylistViewModel.SnapshotState() + PlayCurrentCommand
+    - `e565cb4` feat(view): wire MainWindow.Window_Closing to write queue.json
+    - `519ead8` feat(view): PlayerBar ▶ button DataTrigger for null CurrentTrack → PlayCurrent
+    - `ca66fa9` fix(view): PlayerBar ▶ Style must chain BasedOn implicit Button style
+    - `9bae7ce` fix(view): cancel-and-close pattern in Window_Closing for queue.json write

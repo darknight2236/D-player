@@ -32,6 +32,9 @@ public partial class PlaylistViewModel : ObservableObject
     /// <summary>当前播放曲在 Queue 中的索引；-1 表示未选/队列空。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCurrentTrack))]
+    [NotifyCanExecuteChangedFor(nameof(PlayCurrentCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NextTrackCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PrevTrackCommand))]
     private int _currentIndex = -1;
 
     /// <summary>UI 列表选中项（与"当前播放曲"无关，仅供 Delete 键定位）。</summary>
@@ -88,6 +91,7 @@ public partial class PlaylistViewModel : ObservableObject
             OnPropertyChanged(nameof(HasCurrentTrack));
             NextTrackCommand.NotifyCanExecuteChanged();
             PrevTrackCommand.NotifyCanExecuteChanged();
+            PlayCurrentCommand.NotifyCanExecuteChanged();
         };
 
         // Phase 4：构造期同步读盘恢复队列。queue.json ≤ 10 KB 量级；
@@ -489,5 +493,35 @@ public partial class PlaylistViewModel : ObservableObject
             if (list[i] == value) return i;
         }
         return -1;
+    }
+
+    /// <summary>
+    /// 把当前 VM 状态打包成不可变快照。由 MainWindow.Window_Closing 调用。
+    ///
+    /// 隐式契约：本方法**仅读、无副作用**（COUPLING.md §5）。
+    /// 若未来加副作用，Window_Closing 在 Cleanup 之后调它会让人意外。
+    ///
+    /// Track[i] 即便是占位（Title==文件名、AlbumArt==null），FilePath 也已被
+    /// CreateFallback 填好，故未播放过的曲目也能被正确持久化。
+    /// </summary>
+    public QueueState SnapshotState() => new()
+    {
+        SchemaVersion = 1,
+        Items = Queue.Select(t => t.FilePath).ToArray(),
+        CurrentIndex = CurrentIndex,
+        ShuffleEnabled = ShuffleEnabled,
+        RepeatMode = RepeatMode,
+    };
+
+    /// <summary>
+    /// 启动后用户首次按 ▶ 走的命令：加载并播放 CurrentIndex 指向的曲目。
+    /// PlayerBar 的 ▶ 按钮通过 DataTrigger 在 PlayerVM.CurrentTrack==null 时
+    /// 跨级绑定到本命令；TrackChanged 触发后回退到 PlayerVM.PlayPauseCommand。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasCurrentTrack))]
+    private async Task PlayCurrent()
+    {
+        if (CurrentIndex < 0 || CurrentIndex >= Queue.Count) return;
+        await PlayTrackAtAsync(CurrentIndex);
     }
 }

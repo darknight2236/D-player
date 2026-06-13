@@ -274,11 +274,96 @@ public partial class PlaylistViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 队列内拖拽重排（Phase 5）。
+    ///
+    /// 算法用**引用身份**（ReferenceEquals / ReferenceEqualityComparer）回找
+    /// CurrentIndex 与 _shuffleHistory；不用索引算术，避免多源多目标插入时的
+    /// 前移/后移混合错误。Track 是 record（结构相等），不能用 IndexOf —— 同一
+    /// 文件加入两次产生两个结构相等但引用不同的占位 Track，IndexOf 会返回错误首匹配。
+    ///
+    /// 不中断播放：currentTrackObj 在 Queue 重排后仍是同一个 record 引用，
+    /// NAudio 不知道 Queue 重排，继续推流；仅 CurrentIndex 跟随对象身份指向新位置。
+    ///
+    /// 幂等：拖到原位（targetIndex 等于源位置或紧邻）时算法天然 no-op。
+    /// </summary>
+    [RelayCommand]
+    private void MoveTracks(MoveTracksArgs args)
+    {
+        if (args is null) return;
+        var sources = args.SourceIndices;
+        if (sources is null || sources.Count == 0) return;
+
+        // 1. 顶替 in-flight，与 RemoveTrack 同纪律
+        _playToken++;
+
+        // 2. 缓存被移动对象（按 sources 顺序，保证插入时块内顺序保留）
+        var moving = new List<Track>(sources.Count);
+        foreach (var i in sources)
+        {
+            if (i < 0 || i >= Queue.Count) return; // 防御式：越界即放弃，View 层应避免
+            moving.Add(Queue[i]);
+        }
+
+        // 3. 缓存当前曲对象 + history 对象集合（用对象身份做映射）
+        var currentTrackObj = (CurrentIndex >= 0 && CurrentIndex < Queue.Count)
+            ? Queue[CurrentIndex] : null;
+        var historyObjs = new HashSet<Track>(_shuffleHistory.Count, ReferenceEqualityComparer.Instance);
+        foreach (var i in _shuffleHistory)
+        {
+            if (i >= 0 && i < Queue.Count) historyObjs.Add(Queue[i]);
+        }
+
+        // 4. 修正 targetIndex —— 删源位置后，目标位置可能往前缩
+        int adjustedTarget = args.TargetIndex;
+        foreach (var i in sources)
+        {
+            if (i < args.TargetIndex) adjustedTarget--;
+        }
+        if (adjustedTarget < 0) adjustedTarget = 0;
+
+        // 5. 倒序删源
+        foreach (var i in sources.OrderByDescending(x => x))
+        {
+            Queue.RemoveAt(i);
+        }
+
+        // 6. 在 adjustedTarget 处依次插入（保留块内顺序）
+        if (adjustedTarget > Queue.Count) adjustedTarget = Queue.Count; // 防御式
+        for (int k = 0; k < moving.Count; k++)
+        {
+            Queue.Insert(adjustedTarget + k, moving[k]);
+        }
+
+        // 7. 重建 CurrentIndex（按引用身份回找；不能用 Queue.IndexOf —— Track 是 record，
+        //    结构相等会让重复 FilePath 占位 Track 的 IndexOf 返回错误首匹配）
+        CurrentIndex = -1;
+        if (currentTrackObj != null)
+        {
+            for (int i = 0; i < Queue.Count; i++)
+            {
+                if (ReferenceEquals(Queue[i], currentTrackObj)) { CurrentIndex = i; break; }
+            }
+        }
+
+        // 8. 重建 _shuffleHistory（按对象身份回找）
+        _shuffleHistory.Clear();
+        for (int i = 0; i < Queue.Count; i++)
+        {
+            if (historyObjs.Contains(Queue[i])) _shuffleHistory.Add(i);
+        }
+    }
+
     /// <summary>按索引移除单项；若是当前播放曲则停止播放并同步索引。</summary>
     [RelayCommand]
     private void RemoveTrack(int index)
     {
         if (index < 0 || index >= Queue.Count) return;
+
+        // Phase 5：顶替任何 in-flight PlayTrackAtAsync —— 防止
+        // "用户在元数据读取期间删除非当前曲" 让 Queue[i] = meta 写到错位
+        // (COUPLING.md §5 残留债)
+        _playToken++;
 
         bool isCurrent = (index == CurrentIndex);
         Queue.RemoveAt(index);

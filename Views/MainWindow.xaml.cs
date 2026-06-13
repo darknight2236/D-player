@@ -17,17 +17,12 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
     private readonly ISettingsPersistence _persistence;
-    private readonly IQueuePersistence _queuePersistence;
 
-    public MainWindow(
-        MainViewModel vm,
-        ISettingsPersistence persistence,
-        IQueuePersistence queuePersistence)
+    public MainWindow(MainViewModel vm, ISettingsPersistence persistence)
     {
         InitializeComponent();
         _vm = vm;
         _persistence = persistence;
-        _queuePersistence = queuePersistence;
         DataContext = _vm;
 
         // 同步加载窗口几何 —— 文件极小，启动期阻塞可忽略
@@ -49,6 +44,22 @@ public partial class MainWindow : Window
             // 读盘失败 → 让 WPF 自己居中
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
         }
+
+        Loaded += MainWindow_Loaded;
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        // 异步水化多歌单容器(读 queue.json + 可能的 v1→v2 迁移)。
+        // 失败 → JsonPlaylistService 内部已回 seed; UI 仍能用。
+        try
+        {
+            await _vm.InitializeAsync();
+        }
+        catch
+        {
+            // 一道额外护栏: 服务保证不抛, 这里只防御未来回归。
+        }
     }
 
     private bool _isClosing;
@@ -61,7 +72,8 @@ public partial class MainWindow : Window
     /// 触发 Application.Shutdown → Dispatcher.InvokeShutdown，把后续 await 的
     /// 续延扔进死消息循环。Phase 3 时仅有 2 个 await，settings 写盘抢在 dispatcher
     /// 关停前完成；Phase 4 加入 queue.json 写盘后 await 链变深，必须把首次 Closing
-    /// 取消、做完异步工作再 Close()，否则 queue.json 永不更新。
+    /// 取消、做完异步工作再 Close()。Phase 6 把 queue.json 写盘下沉到 MainViewModel.CleanupAsync,
+    /// 此处 await 链变成 settings UpdateAsync + CleanupAsync 两段, cancel-and-close 模式继续保护。
     /// </summary>
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {
@@ -92,16 +104,6 @@ public partial class MainWindow : Window
         catch { /* 关闭流程不打扰用户 */ }
 
         await _vm.CleanupAsync();
-
-        // Phase 4：保存队列快照到 queue.json。
-        // 必须在 CleanupAsync 之后调 SnapshotState 也 OK ——
-        // Cleanup 仅解绑 TrackEnded，不修改 Queue/CurrentIndex/Shuffle/Repeat。
-        try
-        {
-            var snapshot = _vm.Playlist.SnapshotState();    // UI 线程纯读
-            await _queuePersistence.SaveAsync(snapshot);
-        }
-        catch { /* 写盘失败 = 用户下次启动队列丢失，与 settings 写盘失败行为对称 */ }
 
         // 异步链跑完，重新触发 Closing —— 此次 _isClosing == true，直接放行
         Close();

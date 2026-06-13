@@ -8,19 +8,26 @@ using UmaPlayer.ViewModels;
 namespace UmaPlayer;
 
 /// <summary>
-/// 应用入口（替代默认 StartupUri 启动方式，便于注入 DI 容器）。
+/// 应用入口(替代默认 StartupUri 启动方式, 便于注入 DI 容器)。
 ///
-/// 启动流程：
-///   1) 读取 appsettings.json 构建 IConfiguration
-///   2) 注册所有服务 → 构建 ServiceProvider
-///   3) 解析 MainViewModel + ISettingsPersistence
-///   4) 创建并显示 MainWindow
-///
-/// 退出时释放 ServiceProvider —— 触发所有 Singleton 的 Dispose。
+/// Phase 6 新增 GetService&lt;T&gt; 静态入口 —— 给 View 层 code-behind 在事件
+/// 处理(双击播放等)中按需取 PlaylistsViewModel, 避免 PlaylistView 与
+/// PlaylistsViewModel 之间硬绑 DataContext 通道。
 /// </summary>
 public partial class App : Application
 {
-    private ServiceProvider? _services;
+    private static ServiceProvider? _services;
+
+    /// <summary>
+    /// 取一个 DI 单例/瞬态。仅供 View 层 code-behind 在事件处理中使用 ——
+    /// VM 之间永远走构造函数注入, 不要调用本方法。
+    /// </summary>
+    public static T GetService<T>() where T : notnull
+    {
+        if (_services is null)
+            throw new InvalidOperationException("ServiceProvider not initialized; called before App.OnStartup.");
+        return _services.GetRequiredService<T>();
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -33,20 +40,20 @@ public partial class App : Application
         services.AddUmaPlayerServices(configuration);
         _services = services.BuildServiceProvider();
 
-        // 注意：MainWindow 需要 persistence 用于恢复/保存窗口位置，
-        // 因此这里显式解析后通过构造函数传入（而非让 DI 解析窗口）。
-        // queuePersistence（Phase 4）同理 —— 仅 Window_Closing 写盘需要它。
+        // 注意:MainWindow 需要 settings persistence 用于恢复/保存窗口位置,
+        // 因此这里显式解析后通过构造函数传入(而非让 DI 解析窗口)。
+        // queue 持久化已下沉到 MainViewModel.InitializeAsync/CleanupAsync, 不再在此显式拉取。
         var vm = _services.GetRequiredService<MainViewModel>();
         var persistence = _services.GetRequiredService<ISettingsPersistence>();
-        var queuePersistence = _services.GetRequiredService<IQueuePersistence>();
-        var mainWindow = new Views.MainWindow(vm, persistence, queuePersistence);
+        var mainWindow = new Views.MainWindow(vm, persistence);
         mainWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // 触发 Singleton 服务的 Dispose（NAudioPlaybackService 借此释放音频设备）
+        // 触发 Singleton 服务的 Dispose(NAudioPlaybackService 借此释放音频设备)
         (_services as IDisposable)?.Dispose();
+        _services = null;
         base.OnExit(e);
     }
 }

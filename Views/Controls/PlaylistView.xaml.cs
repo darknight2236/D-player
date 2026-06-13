@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using UmaPlayer.Models;
 using UmaPlayer.ViewModels;
+using UmaPlayer;
 
 namespace UmaPlayer.Views.Controls;
 
@@ -72,7 +73,8 @@ public partial class PlaylistView : UserControl
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PlaylistViewModel.CurrentIndex))
+        if (e.PropertyName == nameof(PlaylistViewModel.CurrentIndex) ||
+            e.PropertyName == nameof(PlaylistViewModel.IsActivePlaylist))
             RefreshCurrentIndicator();
     }
 
@@ -105,8 +107,11 @@ public partial class PlaylistView : UserControl
             var title  = FindChildByOrder<TextBlock>(container, 1); // 文件名列
             if (marker == null || title == null) continue;
 
-            bool isCurrent = (i == _vm.CurrentIndex);
-            marker.Text = isCurrent ? "▶" : ""; // ▶
+            // Phase 6: 只在 _vm 是当前正在播放的歌单时才显示 ▶/高亮 ——
+            // 用户切到别的歌单查看时, 那个歌单的 CurrentIndex 仍然是它自己的本地光标,
+            // 但 ▶ 不应在非播放歌单上点亮(否则视觉与音频脱钩)。
+            bool isCurrent = _vm.IsActivePlaylist && (i == _vm.CurrentIndex);
+            marker.Text = isCurrent ? "▶" : "";
             title.Foreground = isCurrent
                 ? (Brush)Application.Current.FindResource("AccentPrimary")
                 : (Brush)Application.Current.FindResource("ForegroundPrimary");
@@ -141,7 +146,11 @@ public partial class PlaylistView : UserControl
 
     // —— 事件转发 ——
 
-    /// <summary>双击列表项 → 播放该项。空白区双击不触发。</summary>
+    /// <summary>
+    /// 双击列表项 → 通过 PlaylistsViewModel 路由播放 ——
+    /// 若双击的歌单不是 CurrentPlaylistId, 容器先切 CurrentPlaylistId(▶ 标记跨歌单移动),
+    /// 然后让目标 PlaylistViewModel 跑 PlayTrackAtCommand。空白区双击不触发。
+    /// </summary>
     private void QueueList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_vm == null) return;
@@ -151,7 +160,10 @@ public partial class PlaylistView : UserControl
         int index = QueueList.ItemContainerGenerator.IndexFromContainer(item);
         if (index < 0) return;
 
-        _vm.PlayTrackAtCommand.Execute(index);
+        var container = App.GetService<PlaylistsViewModel>();
+        // fire-and-forget: PlaylistsViewModel.HandleDoubleClickPlay 内部 await PlayTrackAtCommand.ExecuteAsync,
+        // 此处与 Phase 5 PlayTrackAtCommand.Execute(index) 行为对称(fire-and-forget UI 事件)。
+        _ = container.HandleDoubleClickPlay(_vm, index);
         e.Handled = true;
     }
 

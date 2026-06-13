@@ -1,8 +1,8 @@
 # UmaPlayer 耦合分析与重构备忘
 
-> 创建日期：2026/06/06 · 更新日期：2026/06/13 · 对应分支：`feature/phase6-named-playlists` · 对应阶段：**Phase 6 完成**（多命名歌单 + Debt #1 部分偿还 + xUnit 骨架）
+> 创建日期：2026/06/06 · 更新日期：2026/06/14 · 对应分支：`master` · 对应阶段：**Phase 8 完成**（ViewModel 单元测试，50 个测试）
 >
-> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还。剩余债与后续工作详见 §6。
+> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系。所有技术债已清零。详见 §6。
 
 ---
 
@@ -246,9 +246,10 @@ private void RemoveTrack(int index)
 7. ✅ **拖拽支持**（Phase 5 完成）—— 外部文件拖入入队 + 队列内拖拽重排（含多选）+ 视觉反馈；同步偿还旧债 #5
 8. ✅ **偿还债 #1 (`BitmapImage`)** —— Phase 7 已完成：`AlbumArtImage` → `AlbumArtBytes` (byte[])，VM 层无 WPF 类型
 
-**Phase 7+ 候选范围：**
-- [ ] PlayerViewModel 单元测试（债务 #1 已偿，可无 WPF 上下文实例化）
-- [ ] PlaylistsViewModel 测试覆盖: HandleDoubleClickPlay / RemovePlaylist 边界 / StateChanged 节流回归
+**Phase 9+ 候选范围：**
+- [x] PlayerViewModel 单元测试（Phase 8 完成，15 个测试）
+- [x] PlaylistViewModel 单元测试（Phase 8 完成，16 个测试）
+- [x] PlaylistsViewModel 单元测试（Phase 8 完成，17 个测试）
 - [ ] 评估 sidebar 拖拽重排歌单顺序（目前只支持新建/重命名/删除，不支持调序）
 - [ ] 库扫描 ~6h；可视化 ~6h+
 

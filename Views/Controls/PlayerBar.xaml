@@ -12,7 +12,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:UmaPlayer.Converters">
     <UserControl.Resources>
-        <!-- 值转换器：TimeSpan → "m:ss" / "h:mm:ss"，PlayState → ▶/⏸ -->
+        <!-- 值转换器：TimeSpan → "m:ss" / "h:mm:ss"，PlayState → ▶/⏸，byte[] → BitmapImage -->
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
         <converters:PlayStateToIconConverter x:Key="PlayStateToIcon"/>
     </UserControl.Resources>
@@ -29,7 +29,7 @@
             <!-- 封面框：固定 80x80，无封面时显示次级背景色 -->
             <Border Width="80" Height="80" CornerRadius="4" Margin="0,0,16,0"
                     Background="{StaticResource BackgroundSecondary}">
-                <Image Source="{Binding AlbumArtImage}" Stretch="UniformToFill"/>
+                <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
             </Border>
 
             <!-- 文本元数据；未加载曲目时显示 "No track loaded" 占位 -->

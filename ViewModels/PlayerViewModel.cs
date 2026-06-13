@@ -1,5 +1,3 @@
-using System.IO;
-using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Options;
@@ -17,7 +15,7 @@ namespace UmaPlayer.ViewModels;
 ///   - PlaylistViewModel 单独订阅 TrackEnded 推进队列
 ///   - 两个 VM 互不持引用；通过 IPlaybackService 单例共享底层状态
 ///
-/// 注：BitmapImage 在此 VM 中暂时保留（COUPLING.md 债 #1，Phase 4 单测前再还）。
+/// Phase 7: 债务 #1 已完整偿还 —— AlbumArt 为 byte[]，XAML 通过 BytesToBitmapImageConverter 转为 BitmapImage。
 /// </summary>
 public partial class PlayerViewModel : ObservableObject
 {
@@ -46,8 +44,9 @@ public partial class PlayerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SampleRateText))]
     private Track? _currentTrack;
 
+    /// <summary>封面原始字节数组；XAML 通过 BytesToBitmapImageConverter 转为 Frozen BitmapImage。</summary>
     [ObservableProperty]
-    private BitmapImage? _albumArtImage;
+    private byte[]? _albumArtBytes;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VolumeIcon))]
@@ -122,7 +121,7 @@ public partial class PlayerViewModel : ObservableObject
     private void HandleTrackChanged(Track? track)
     {
         CurrentTrack = track;
-        AlbumArtImage = CreateAlbumArtImage(track?.AlbumArt);
+        AlbumArtBytes = track?.AlbumArt;
     }
 
     private void HandleStateChanged(PlayState state)
@@ -206,25 +205,5 @@ public partial class PlayerViewModel : ObservableObject
         _player.TrackChanged -= HandleTrackChanged;
         _player.PlaybackError -= HandlePlaybackError;
         await _persistence.UpdateAsync(s => s with { DefaultVolume = Volume });
-    }
-
-    /// <summary>
-    /// 从字节数组创建可跨线程使用的 BitmapImage：
-    ///   - DecodePixelWidth=200：解码时即缩放，省内存（封面渲染区只有 80px）
-    ///   - Freeze()：冻结后可被任意线程读取，且 WPF 渲染更高效
-    /// </summary>
-    private static BitmapImage? CreateAlbumArtImage(byte[]? data)
-    {
-        if (data is not { Length: > 0 }) return null;
-
-        var image = new BitmapImage();
-        using var ms = new MemoryStream(data);
-        image.BeginInit();
-        image.CacheOption = BitmapCacheOption.OnLoad; // 一次性把流读入内存，立即释放 MemoryStream
-        image.StreamSource = ms;
-        image.DecodePixelWidth = 200;
-        image.EndInit();
-        image.Freeze();
-        return image;
     }
 }

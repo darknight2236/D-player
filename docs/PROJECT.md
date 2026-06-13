@@ -34,7 +34,6 @@
 - 音乐库扫描（文件夹扫描、按艺术家/专辑组织）
 - OGG/Vorbis 支持（MF 不原生支持，需额外解码器）
 - 多设备 / 输出模式切换（WASAPI Shared / Exclusive / ASIO）—— 接口已预留
-- 债务 #1 完整偿还：PlayerViewModel.CurrentCover BitmapImage → byte[]
 
 ---
 
@@ -255,7 +254,7 @@ UmaPlayer/
 
 19. **Debounce save 集中在 MainViewModel（Phase 6）**：子 VM 不感知存盘；`PlaylistsViewModel.StateChanged` → MainVM 500ms debounce → `SaveAsync`。`CleanupAsync` 同步 flush 一次。
 
-20. **debt #1 部分偿还（Phase 6）**：仅交付 `BytesToBitmapImageConverter`，`PlayerViewModel.CurrentCover` 仍是 `BitmapImage`。完整切换 byte[] 数据流推迟到 Phase 7+。
+20. **debt #1 偿还（Phase 6/7）**：Phase 6 交付 `BytesToBitmapImageConverter`；Phase 7 完成数据流切换 —— `PlayerViewModel.AlbumArtBytes` 改为 `byte[]`，XAML 通过 Converter 转为 Frozen BitmapImage。VM 层不再依赖任何 WPF 类型。
 
 ---
 

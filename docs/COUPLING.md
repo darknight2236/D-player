@@ -10,10 +10,9 @@
 
 | 维度 | 评级 | 备注 |
 |------|------|------|
-| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件） |
-| 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5 沿用既有模式 |
-| Phase 6 是否会变痛 | ⚠️ **多命名播放列表会改 queue.json schema** | 当前 schema 仅一个队列；多列表需 schema v2 + 迁移 |
-| 已识别"待还的债" | 1 项剩余（#1 BitmapImage；#2/#3/#4/#5 ✅ 已偿） | 见 §3 |
+| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏 |
+| 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5/6/7 沿用既有模式 |
+| 已识别"待还的债" | 0 项剩余（#1/#2/#3/#4/#5 ✅ 全部已偿） | 见 §3 |
 | 已识别"过度抽象" | 2 项 | 见 §4 |
 
 ---
@@ -60,26 +59,19 @@
 
 ## 3. 已识别的 5 个"待还的债"
 
-### 债 #1 — VM 持有 `BitmapImage`（WPF 类型泄漏）⚠️ Partial
+### 债 #1 — VM 持有 `BitmapImage`（WPF 类型泄漏）✅ 已偿（Phase 7）
 
-**位置：** `ViewModels/MainViewModel.cs:38-39`、`CreateAlbumArtImage`
+**位置：** `ViewModels/PlayerViewModel.cs` — 原 `AlbumArtImage` 字段 + `CreateAlbumArtImage` 方法
 
-```csharp
-[ObservableProperty] private BitmapImage? _albumArtImage;  // ← System.Windows.Media.Imaging
-```
+**Phase 6 部分偿还：** 交付 `Converters/BytesToBitmapImageConverter.cs`（byte[] → Frozen BitmapImage），注册为 App.xaml 全局资源。
 
-**影响：**
-- VM 不再能跨 UI 框架复用（如未来想出 MAUI / Avalonia 版本）
-- VM 不可在无 WPF 上下文的单元测试项目中实例化
+**Phase 7 完整偿还：**
+- `PlayerViewModel.AlbumArtImage` (BitmapImage) → `AlbumArtBytes` (byte[])
+- 删除 `CreateAlbumArtImage` 方法 + `System.IO` / `System.Windows.Media.Imaging` using
+- `PlayerBar.xaml` 绑定改为 `{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}`
+- `HandleTrackChanged` 直接赋 `track?.AlbumArt`（零拷贝）
 
-**触发时机：** 想为 VM 写单测时；想把核心逻辑独立成跨平台库时
-
-**Phase 6 部分偿还：** 已交付 `Converters/BytesToBitmapImageConverter.cs`（byte[] → Frozen BitmapImage），注册为 App.xaml 全局资源。PlayerViewModel.CurrentCover 仍是 BitmapImage，完整切换 byte[] 数据流推迟到 Phase 7+。
-
-**完整偿还方案（约 15 分钟）：**
-1. VM 改为暴露 `byte[]? AlbumArtBytes`
-2. XAML 绑定加 `Converter={StaticResource BytesToBitmapImage}`（转换器已就绪）
-3. 删除 PlayerViewModel 中的 BitmapImage 字段
+**收益：** PlayerViewModel 不再依赖任何 WPF 类型，可在无 WPF 上下文的 xUnit 测试中实例化。
 
 ---
 
@@ -252,12 +244,11 @@ private void RemoveTrack(int index)
 5. ✅ **队列持久化**（Phase 4 完成）—— `%LocalAppData%\UmaPlayer\queue.json` 与 settings.json 分离
 6. ✅ **多命名播放列表**（Phase 6 完成）—— `Playlist` record + `IPlaylistService` + `PlaylistsViewModel` 容器 + sidebar UI + v1→v2 迁移
 7. ✅ **拖拽支持**（Phase 5 完成）—— 外部文件拖入入队 + 队列内拖拽重排（含多选）+ 视觉反馈；同步偿还旧债 #5
-8. ⚠️ **偿还债 #1 (`BitmapImage`)** —— Converter 已就绪（Phase 6），数据流切换待 Phase 7
+8. ✅ **偿还债 #1 (`BitmapImage`)** —— Phase 7 已完成：`AlbumArtImage` → `AlbumArtBytes` (byte[])，VM 层无 WPF 类型
 
-**Phase 7 候选范围：**
-- [ ] 全跑一遍 Phase 6 acceptance（spec §9）前再开新 phase
-- [ ] 评估债务 #1 完整偿还: Track.Cover BitmapImage → byte[]（替 PlayerViewModel.CurrentCover 为 byte[] + XAML 用 BytesToBitmapImage）
-- [ ] 评估 PlaylistsViewModel 测试覆盖: HandleDoubleClickPlay / RemovePlaylist 边界 / StateChanged 节流回归
+**Phase 7+ 候选范围：**
+- [ ] PlayerViewModel 单元测试（债务 #1 已偿，可无 WPF 上下文实例化）
+- [ ] PlaylistsViewModel 测试覆盖: HandleDoubleClickPlay / RemovePlaylist 边界 / StateChanged 节流回归
 - [ ] 评估 sidebar 拖拽重排歌单顺序（目前只支持新建/重命名/删除，不支持调序）
 - [ ] 库扫描 ~6h；可视化 ~6h+
 

@@ -303,11 +303,16 @@ public partial class PlaylistView : UserControl
 
     private void Root_DragEnter(object sender, DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop) &&
-            !e.Data.GetDataPresent(QueueItemsFormat))
-        {
-            DragDropExtensions.SetIsDragOver(QueueListBorder, true);
-        }
+        // 仅在拖入"至少含 1 个白名单音频"的文件集合时高亮；
+        // 文件夹 / 全非音频 / 内部重排（QueueItemsFormat）都不亮。
+        if (e.Data.GetDataPresent(QueueItemsFormat)) return;
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+        var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
+        var audio = DragDropExtensions.FilterAudioPaths(paths);
+        if (audio.Count == 0) return;
+
+        DragDropExtensions.SetIsDragOver(QueueListBorder, true);
     }
 
     private void Root_DragOver(object sender, DragEventArgs e)

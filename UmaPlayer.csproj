@@ -8,6 +8,22 @@
         <UseWPF>true</UseWPF>
     </PropertyGroup>
 
+    <!--
+      WPF SDK 在每次构建时生成临时辅助工程 *_wpftmp.csproj, 它会从本 csproj 所在目录
+      重新 glob **/*.cs / *.xaml 等。Tests/ 是仓库根的兄弟目录(在本 csproj 同级),
+      因此必须把 WPF/SDK 会 glob 的所有 item 类型显式排除, 防止测试源被双重编译进
+      主程序集(否则会出现 AssemblyInfo 重复 + xunit 引用缺失)。如果以后把 Tests/
+      移出仓库根, 这段可以删除。
+    -->
+    <ItemGroup>
+        <Compile Remove="Tests/**" />
+        <Page Remove="Tests/**" />
+        <ApplicationDefinition Remove="Tests/**" />
+        <Resource Remove="Tests/**" />
+        <None Remove="Tests/**" />
+        <EmbeddedResource Remove="Tests/**" />
+    </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="NAudio" Version="2.2.*" />
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />

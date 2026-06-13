@@ -293,15 +293,16 @@ public partial class PlaylistView : UserControl
         }
     }
 
-    // —— Phase 5：根 Border 高亮（仅外部文件拖入触发；内部重排不亮整框） ——
+    // —— Phase 5：拖入高亮（外层 Border 承载 AllowDrop，但视觉高亮挂在 Row 1 的
+    //    QueueListBorder 上，让用户只看到圆角列表框被框住，不连带工具栏）。
+    //    仅外部文件拖入触发；内部重排走插入线 Adorner，不亮整框。 ——
 
     private void Root_DragEnter(object sender, DragEventArgs e)
     {
-        if (sender is not DependencyObject dep) return;
         if (e.Data.GetDataPresent(DataFormats.FileDrop) &&
             !e.Data.GetDataPresent(QueueItemsFormat))
         {
-            DragDropExtensions.SetIsDragOver(dep, true);
+            DragDropExtensions.SetIsDragOver(QueueListBorder, true);
         }
     }
 
@@ -324,15 +325,13 @@ public partial class PlaylistView : UserControl
 
     private void Root_DragLeave(object sender, DragEventArgs e)
     {
-        if (sender is DependencyObject dep)
-            DragDropExtensions.SetIsDragOver(dep, false);
+        DragDropExtensions.SetIsDragOver(QueueListBorder, false);
     }
 
     private void Root_Drop(object sender, DragEventArgs e)
     {
-        // 1) 清外框高亮（无论哪条路径）
-        if (sender is DependencyObject dep)
-            DragDropExtensions.SetIsDragOver(dep, false);
+        // 1) 清列表框高亮（无论哪条路径）
+        DragDropExtensions.SetIsDragOver(QueueListBorder, false);
 
         // 2) 内部重排：QueueList_Drop 已 Handled=true，此处不会到；保险起见早退
         if (e.Handled) return;

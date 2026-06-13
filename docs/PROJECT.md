@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/12 · 对应分支：`master` · 当前阶段：**Phase 4 完成**（队列持久化）
+> 文档日期：2026/06/13 · 对应分支：`master` · 当前阶段：**Phase 5 完成**（拖拽支持）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。可视化、库扫描、多命名播放列表、拖拽等放在 Phase 5+。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。可视化、库扫描、多命名播放列表放在 Phase 6+。
 
 ### 1.1 关键特性（已实现）
 
@@ -24,11 +24,11 @@
 | 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\UmaPlayer\settings.json`       |
 | 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、随机/3 态循环（Off/List/One） |
 | 队列持久化 | 关闭时写 `%LocalAppData%\UmaPlayer\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
+| 拖拽 | 外部音频文件拖入末尾入队（白名单 .mp3/.wma/.flac/.aac/.wav）；队列内单/多选拖拽重排（含 ▶ 当前曲跟随、Shuffle 历史按对象身份重映射）；插入线 Adorner + 圆角列表框边框高亮（Phase 5） |
 
 ### 1.2 后续增量（未实现）
 
 - 多个命名播放列表（创建 / 保存 / 加载 / 切换）—— 当前仅支持单个内存队列
-- 拖拽入队 / 队列内拖拽重排序
 - M3U / PLS 等播放列表格式导入导出
 - 音频可视化（频谱 / 波形）
 - 音乐库扫描（文件夹扫描、按艺术家/专辑组织）
@@ -70,6 +70,7 @@ UmaPlayer/
 │   ├── PlayState.cs             # enum: Stopped / Playing / Paused
 │   ├── RepeatMode.cs            # enum: Off / List / One  (Phase 2)
 │   ├── QueueState.cs            # 不可变 record: queue.json schema (Phase 4)
+│   ├── MoveTracksArgs.cs        # 不可变 record: 队列内拖拽重排命令参数 (Phase 5)
 │   └── AudioDeviceInfo.cs       # 预留：设备信息
 │
 ├── Services/                    # 业务/基础设施服务（全部基于接口）
@@ -97,7 +98,9 @@ UmaPlayer/
 │   ├── MainWindow.xaml(.cs)     # 主窗口；窗口位置恢复 + 关闭时清理
 │   └── Controls/
 │       ├── PlayerBar.xaml(.cs)  # 全功能播放栏（封面/信息/进度/控制/音量）
-│       └── PlaylistView.xaml(.cs)  # 播放队列（Phase 2）
+│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽事件接入）
+│       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频后缀白名单/过滤 (Phase 5)
+│       └── DropInsertionAdorner.cs   # ListBox AdornerLayer 插入线绘制 (Phase 5)
 │
 ├── Converters/
 │   ├── PlayStateToIconConverter.cs       # ▶/⏸ 图标
@@ -121,12 +124,14 @@ UmaPlayer/
         │   ├── 2026-04-23-uma-player-design.md                          # Phase 1 设计
         │   ├── 2026-06-06-uma-player-playlist-design.md                 # Phase 2 设计
         │   ├── 2026-06-07-uma-player-phase3-design.md                   # Phase 3 设计
-        │   └── 2026-06-12-uma-player-phase4-queue-persistence-design.md # Phase 4 设计
+        │   ├── 2026-06-12-uma-player-phase4-queue-persistence-design.md # Phase 4 设计
+        │   └── 2026-06-12-uma-player-phase5-drag-drop-design.md         # Phase 5 设计
         └── plans/
             ├── 2026-04-24-uma-player-implementation.md                          # Phase 1 计划
             ├── 2026-06-06-uma-player-playlist-implementation.md                 # Phase 2 计划
             ├── 2026-06-07-uma-player-phase3-implementation.md                   # Phase 3 计划
-            └── 2026-06-12-uma-player-phase4-queue-persistence-implementation.md # Phase 4 计划
+            ├── 2026-06-12-uma-player-phase4-queue-persistence-implementation.md # Phase 4 计划
+            └── 2026-06-12-uma-player-phase5-drag-drop-implementation.md         # Phase 5 计划
 ```
 
 ---
@@ -220,16 +225,23 @@ UmaPlayer/
 
 11. **Cancel-and-close 关闭模式（Phase 4）**：`MainWindow.Window_Closing` 是 `async void`；从 Phase 3 的 2 个 await（settings + CleanupAsync）涨到 Phase 4 的 4 个（+ snapshot + queue 写盘）后撞上致命 race —— 第一个 await yield 后 WPF 立即继续关闭流程，`ShutdownMode.OnLastWindowClose` 触发 `Application.Shutdown` → `Dispatcher.InvokeShutdown`，把后续 await 续延 post 到死 dispatcher 上永不运行（settings 通常能抢到，queue 永远丢）。修复：首次进入 `e.Cancel = true` 拦下，跑完所有异步工作后调 `Close()` 重新触发 Closing，第二次进入凭 `_isClosing` 标志直接 fall-through。这是 WPF `async void` Closing 的标准纪律 —— 任何新增 await 都该用此模式。
 
+12. **拖拽 View/VM 边界（Phase 5）**：所有 OLE DragDrop 事件、命中测试（`ComputeInsertIndex`）、文件后缀过滤（`DragDropExtensions.FilterAudioPaths`）、Adorner 绘制（`DropInsertionAdorner`）都在 View 层；VM 仅暴露纯数据命令 —— `DropExternalFiles(IReadOnlyList<string>)` 和 `MoveTracks(MoveTracksArgs)`。VM 不感知 `DataObject` / `DragEventArgs` / `AdornerLayer`，仍可单测。
+
+13. **重排算法用对象身份而非索引算术（Phase 5）**：`MoveTracks` 缓存被移动的 Track 引用 + 当前曲引用 + Shuffle 历史引用集合，删-插完成后用 `ReferenceEquals` 扫一遍 Queue 重建 `CurrentIndex` 和 `_shuffleHistory`。**不能用 `Queue.IndexOf`**：Track 是 `sealed record`（结构相等），多个 `CreateFallback("X.mp3")` 占位是结构相等但引用不同的对象，IndexOf 会返回首个结构等价匹配而非原始那一个，导致重排后 ▶ 跟到错的曲、Shuffle 历史塌陷。HashSet 同理需 `ReferenceEqualityComparer.Instance`。
+
+14. **拖拽期间 in-flight 重入用 `_playToken++` 顶替（Phase 5）**：`PlaylistViewModel.RemoveTrack` 与新增的 `MoveTracks` 入口都自增 `_playToken`，关上 in-flight `PlayTrackAtAsync` 在 `await` 元数据期间 `Queue[index] = meta` 写到错位的窗口（COUPLING.md 旧债 #5）。`MoveTracks` 不调 `_player.Unload()` —— 重排不中断播放，NAudio 在另一线程继续推流，仅 ▶ 标记跟到新位置。
+
 ---
 
 ## 5. 模块详解
 
 ### 5.1 `Models`
 
-- **`Track`**：不可变 record。`Duration` 与 `SampleRate` 在加载时由 `NAudioPlaybackService.LoadAsync` 通过 `track with { Duration=..., SampleRate=... }` 补齐。`AlbumArt` 为原始字节数组，由 VM 转 `BitmapImage`（限 200px、`Freeze()` 跨线程安全）。
+- **`Track`**：不可变 record。`Duration` 与 `SampleRate` 在加载时由 `NAudioPlaybackService.LoadAsync` 通过 `track with { Duration=..., SampleRate=... }` 补齐。`AlbumArt` 为原始字节数组，由 VM 转 `BitmapImage`（限 200px、`Freeze()` 跨线程安全）。**注意 record 的结构相等：** 两个 `CreateFallback("X.mp3")` 占位 Track 在结构上相等 —— 任何按相等性查找/去重的代码（`IndexOf` / 默认 `HashSet<Track>`）都会塌陷它们。Phase 5 重排算法因此改用引用身份（`ReferenceEquals` + `ReferenceEqualityComparer.Instance`）。
 - **`PlayState`**：`Stopped / Playing / Paused`。
 - **`RepeatMode`**：`Off / List / One`（Phase 2）。
 - **`QueueState`**（Phase 4）：不可变 record；`SchemaVersion=1` / `Items: IReadOnlyList<string>`（路径） / `CurrentIndex` / `ShuffleEnabled` / `RepeatMode`。**只持久化路径与队列态**，不携带 Track 元数据或封面 —— 启动时由 `PlaylistViewModel.LoadFromDisk` 为每条路径创建占位 Track（与 OpenAndPlay 流程一致），用户首次播放时由 `PlayTrackAtAsync` 升级为完整元数据。
+- **`MoveTracksArgs`**（Phase 5）：不可变 record；`SourceIndices: IReadOnlyList<int>`（升序无重复，每项 ∈ [0, Queue.Count)） / `TargetIndex: int`（∈ [0, Queue.Count]，i 表示插到 i 之前；Count 表示末尾）。由 View 层 Drop handler 构造，这些不变量由 View 保证（VM 信任入参，无校验代码）。
 - **`AudioDeviceInfo`**：`(Id, Name, IsDefault)`，目前仅类型存在。
 
 ### 5.2 `Services/NAudioPlaybackService`
@@ -297,7 +309,7 @@ public Task CleanupAsync();
 
 构造时订阅 `IPlaybackService.TrackEnded` 用于自动推进；`Queue.CollectionChanged` 触发 Next/Prev/PlayCurrent 命令 `NotifyCanExecuteChanged`；构造尾段同步调 `LoadFromDisk()` 恢复队列。
 
-`[RelayCommand]`：`AddToQueue / RemoveTrack(int) / ClearQueue / PlayTrackAt(int) / NextTrack / PrevTrack / ToggleShuffle / CycleRepeat / OpenAndPlay / PlayCurrent`（Phase 4）。
+`[RelayCommand]`：`AddToQueue / RemoveTrack(int) / ClearQueue / PlayTrackAt(int) / NextTrack / PrevTrack / ToggleShuffle / CycleRepeat / OpenAndPlay / PlayCurrent`（Phase 4） / `DropExternalFiles(IReadOnlyList<string>)`（Phase 5） / `MoveTracks(MoveTracksArgs)`（Phase 5）。
 
 **Phase 4 新增成员：**
 - `LoadFromDisk()`（私有，构造期调用）：同步 `LoadAsync().GetAwaiter().GetResult()` 读 queue.json → 用 `File.Exists` 过滤丢失文件 → `MapCurrentIndexAfterFilter` 把过滤前 `CurrentIndex` 映射到过滤后位置（项还在直接定位；项丢失则向后滑找到第一个仍存在的，找不到再向前回退）→ 为每个 surviving 路径 `CreateFallback` 占位入队 → 恢复 Shuffle/Repeat
@@ -305,6 +317,11 @@ public Task CleanupAsync();
 - `[RelayCommand(CanExecute=HasCurrentTrack)] PlayCurrent`：启动后用户首次按 ▶ 走的命令；触发 `PlayTrackAtAsync(CurrentIndex)`，把占位 Track 升级为完整元数据并 `LoadAsync + Play`
 
 **跨域命令 OpenAndPlay** —— PlayerBar 上的 📂 按钮归属本 VM（本质是"批量入队 + 播首项"，前者属于队列域）；PlayerBar 通过 `{Binding DataContext.Playlist.OpenAndPlayCommand, RelativeSource={RelativeSource AncestorType=Window}}` 跨级访问。同理 ⏮/⏭ 也用这个模式绑到 `Playlist.PrevTrackCommand / NextTrackCommand`。Phase 4 ▶ 按钮在 `CurrentTrack==null` 时通过 DataTrigger 跨级绑到 `PlayCurrentCommand`，`TrackChanged(track)` 后回退到 `PlayPauseCommand`。
+
+**Phase 5 新增成员：**
+- `[RelayCommand] DropExternalFiles(IReadOnlyList<string> paths)`：与 `AddToQueue` 同语义入队管线（`_metadataReader.CreateFallback(path) → Queue.Add`），不触发播放；与 `OpenAndPlay` 区别仅在入口（OS DragDrop vs OpenFileDialog）。路径白名单过滤由 View 层 `DragDropExtensions.FilterAudioPaths` 提前完成，VM 信任入参。
+- `[RelayCommand] MoveTracks(MoveTracksArgs args)`：队列内重排算法（spec §4 八步算法）。**入口先 `_playToken++`** 顶替 in-flight `PlayTrackAtAsync`（同时偿还旧债 #5）。算法用对象身份（`ReferenceEquals` + `ReferenceEqualityComparer.Instance`）回找 `CurrentIndex` 与 `_shuffleHistory`，不做索引算术 —— Track record 的结构相等会让 `Queue.IndexOf(currentTrackObj)` 在出现重复占位时返回首个结构等价匹配而非原始那一个。不调 `_player.Unload()`，重排不中断播放。
+- `RemoveTrack` 入口加 `_playToken++`（Phase 5 顺带还债 #5）：以前删除非当前曲不顶替 token，能让 in-flight `Queue[index] = meta` 写到错位；现已关闭。
 
 **关键私有方法**（与旧 MainViewModel 等价）：
 - `PlayTrackAtAsync(int, int skipCount=0)`：抢占 `_playToken` → 读元数据 → `Queue[i] = meta` → `LoadAsync` → `Play`；每个 `await` 后校验 token，被顶替则静默退出；失败连续 3 次自动停止
@@ -321,10 +338,30 @@ public Task CleanupAsync();
   - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）
   - `⏮` / `⏭` / `📂` 通过 `{Binding DataContext.Playlist.<XxxCommand>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 `PlaylistViewModel`（PlayerBar 自身的 DataContext 已切为 PlayerViewModel），`HasCurrentTrack` 守卫；队列空时按钮自动禁用
   - **▶/⏸ 按钮的双绑定（Phase 4）**：默认 `Command={Binding PlayPauseCommand}`（PlayerVM 的 transport 切换）；当 `CurrentTrack==null` 时通过 `<DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">` 切到 `Playlist.PlayCurrentCommand` —— 启动后队列已恢复但 transport 空闲，第一次按 ▶ 触发首次加载 + 播放，`TrackChanged(track)` 让 trigger 失活，回到 PlayPauseCommand。**注意 inline `<Style TargetType="Button">` 必须 `BasedOn="{StaticResource {x:Type Button}}"`**，否则会替换掉 `Themes/Controls.xaml` 中的隐式主题样式，按钮回退到 OS 原生白底（COUPLING.md §5）
-- **`PlaylistView`** *(UserControl, Phase 2)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空]` 左对齐、`🔀` `⇄/🔁/🔂` 右对齐；②`ListBox` 绑 `Queue`，每项含 ▶ 当前曲标记 + 标题 + `×` 删除按钮
+- **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空]` 左对齐、`🔀` `⇄/🔁/🔂` 右对齐；②`ListBox` 绑 `Queue`，每项含 ▶ 当前曲标记 + 标题 + `×` 删除按钮
   - 当前曲 ▶ 标记由 code-behind 维护：订阅 `PlaylistViewModel.PropertyChanged` (CurrentIndex) / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）
   - 交互：双击播放、Delete 键删除、右上角按钮触发命令
   - Shuffle / Repeat 图标用 `Segoe UI Emoji` 字体（默认 `Segoe UI` 不含 U+1F500 完整字形）
+  - **Phase 5 拖拽（XAML）：** 外层 `<Border AllowDrop="True">` 仅承载 OLE drop 区（覆盖工具栏 + 列表两行的 hit-test）；视觉高亮挂在 Row 1 的圆角 `<Border x:Name="QueueListBorder">`（用户期望仅看到列表区域被框住，不连带工具栏）。**BorderBrush 默认值放进 Style.Setter 而非 local 属性** —— WPF DP 优先级 `local > trigger setter > style setter`，写成 local 会让 `Style.Triggers` 失效（`docs/COUPLING.md §5` 隐式契约）。`ListBox` 加 `SelectionMode="Extended"` + `AllowDrop="True"` + 6 个事件挂接（`PreviewMouseLeftButton{Down,Up}` / `PreviewMouseMove` / `DragOver` / `DragLeave` / `Drop`）
+  - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"UmaPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
+  - **Phase 5 高亮纪律：** `Root_DragEnter` 必须先 `FilterAudioPaths` 再决定是否高亮 —— 仅看 `FileDrop` 存在就亮会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）。`Root_Drop` 与 `QueueList_Drop` **都要清高亮** —— `QueueList_Drop` 设 `e.Handled=true` 后 Drop 事件不再冒泡到 `Root_Drop`，否则文件落到列表区高亮卡死
+
+### 5.5a `Views/Controls/DragDropExtensions`（Phase 5）
+
+静态类，承担拖拽相关的 attached DependencyProperty 与文件过滤辅助：
+
+- `IsDragOver`（attached DP，bool，默认 false）：由 `PlaylistView.xaml.cs` 的 `Root_DragEnter` / `Root_DragLeave` / `Root_Drop` / `QueueList_Drop` 切换；XAML 用 `Style.Trigger Property="local:DragDropExtensions.IsDragOver"` 给 `QueueListBorder` 的 `BorderBrush` 设 `AccentPrimary` 实现高亮。所有切换调用都显式传 `QueueListBorder`（不是 `sender`），保证视觉范围只在列表圆角矩形上
+- `AudioExtensions`（`IReadOnlyList<string>`）：白名单 `.mp3 / .wma / .flac / .aac / .wav`，与 `IFileDialogService` 在 `OpenFiles` 中使用的过滤器单一来源
+- `FilterAudioPaths(IEnumerable<string>?)`：大小写不敏感后缀匹配；null/空字符串/空后缀（文件夹路径 `Path.GetExtension` 返回 ""）/ 后缀不在白名单都返回不入结果。VM 层 `DropExternalFilesCommand` 信任此函数已过滤完成
+
+### 5.5b `Views/Controls/DropInsertionAdorner`（Phase 5）
+
+继承 `Adorner` 的 sealed 类，挂在 `QueueList` 的 `AdornerLayer` 上画拖拽插入线：
+
+- 构造接收 `ListBox` 作为 `AdornedElement`，`IsHitTestVisible = false`（不抢鼠标事件）
+- 内部 `_insertIndex`（int）；`Update(int)` 设值 + `InvalidateVisual()`
+- `OnRender(DrawingContext)` 用 frozen `Pen`（颜色绑定 `AccentPrimary`，宽 2.0）画一条横线：`_insertIndex == Queue.Count` 时画在最后一项底部；否则画在 `Queue[insertIndex]` 项顶部。横线左右各缩 4px 留白
+- 生命周期由 `PlaylistView.xaml.cs` 的 `_currentAdorner` 字段管理：`ShowAdorner` 懒构造一次后只调 `Update`；`HideAdorner` 在 Drop / DragLeave / 拖拽取消时 `AdornerLayer.Remove + null` 复位
 
 ### 5.6 `Themes`
 
@@ -459,22 +496,28 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
 - **UpdateAsync 跨线程读 DP**：`JsonSettingsPersistence.UpdateAsync` 内部 `.ConfigureAwait(false)` 把 mutator 调用 / 继续上下文带到 threadpool；若 mutator 闭包内读 WPF DependencyProperty（如 `Left/Top/Width/ActualHeight`）会抛 `InvalidOperationException`。**调用方必须先在 UI 线程把 DP 值捕获到局部变量再 await**。`MainWindow.xaml.cs:Window_Closing` 即采用此模式。
 - **`async void Window_Closing` 多 await dispatcher race**（Phase 4）：超过 1-2 个 await 时第一个 await yield 后 WPF 立即继续关闭流程，`ShutdownMode.OnLastWindowClose` 触发 `Application.Shutdown → Dispatcher.InvokeShutdown`，后续 await 续延 post 到死 dispatcher 上**永不运行**。修复纪律：用 cancel-and-close 模式（首次 `e.Cancel=true` 加 `_isClosing` 标志，做完异步工作再 `Close()`）。Phase 4 加入 queue.json 写盘后从 2 个 await 涨到 4 个，settings 还能写但 queue 永远不更新；commit `9bae7ce` 用此模式修复（COUPLING.md §5）。
 - **WPF inline Style 必须 `BasedOn` 隐式主题样式**：`<X.Style><Style TargetType="X">` 没有 `BasedOn="{StaticResource {x:Type X}}"` 会完全替换 `Themes/Controls.xaml` 中的隐式 Style，回退到 OS 原生外观（Button 白底灰框、Slider 灰色等）。Phase 4 ▶ 按钮加 DataTrigger 时漏 BasedOn → 按钮变白底；commit `ca66fa9` 修复。
+- **WPF DP 优先级 `local > trigger setter > style setter`**（Phase 5）：要被 `Style.Triggers` 改的属性，**默认值必须放进 `Style.Setter`**，不能作为元素的 local attribute 写。Phase 5 拖拽边框高亮初次落地时 `<Border BorderBrush="Transparent">` 写成 local，让 `IsDragOver=True` 的 trigger setter 永远赢不了 → 高亮失效；commit `214d595` 把默认值挪进 Style.Setter 修复。Code review checklist：看到 inline Style.Trigger 改某 DP 时，对照查这个 DP 在元素自身上没有 local 写法。
+- **WPF DragDrop RoutedEvent 冒泡 + Handled 拦截**（Phase 5）：`Drop` / `DragOver` 等都是冒泡事件；子元素设 `e.Handled = true` 后父元素的同名 handler 不再触发。Phase 5 验收时撞过：`QueueList_Drop` 处理完入队/重排设 `Handled=true`，原本想靠 `Root_Drop` 清高亮的逻辑被吃掉 → 高亮卡死。修复：清高亮（清 Adorner、清 IsDragOver）必须在两条路径都做（`QueueList_Drop` finally + `Root_Drop`），不能假定事件会冒泡上来。
+- **WPF ListBox `PreviewMouseLeftButtonDown` 不消费事件 → 多选拖拽塌选**（Phase 5）：Preview 阶段不 `Handled=true` 时，ListBox 自身的选中处理仍会执行；用户 Ctrl+多选后再不带修饰键按下其中一项，ListBox 默认行为会立刻塌成单选，让随后启动的 DoDragDrop 拿到 `SelectedItems.Count==1`。修复：在按下点是"已选 + 多选 ≥2 + 无 Ctrl/Shift"时拦掉 `Handled=true`，没真正拖起来时再在 `MouseUp` 手动塌成单选模拟原行为；commit `af51dde`。
+- **WPF record 结构相等会让 `Queue.IndexOf` / `HashSet<Track>` 塌陷重复占位**（Phase 5）：Track 是 `sealed record`；两个 `CreateFallback("X.mp3")` 在结构上相等。基于相等性的查找/去重会把它们认作同一个，重排时 `Queue.IndexOf(currentTrackObj)` 返回首个结构等价匹配而非原始那一个 → ▶ 跟到错的曲、Shuffle 历史塌陷。修复纪律：所有需要"找回原来那一个 Track 实例"的代码用 `ReferenceEquals` + `ReferenceEqualityComparer.Instance`（见 `PlaylistViewModel.MoveTracks` 与 `PlaylistView.QueueList_PreviewMouseMove`）。
 
 ---
 
 ## 10. 历史与参考
 
-- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + Phase 5 启动检查清单
+- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + Phase 6 启动检查清单
 - 设计稿：
   - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
   - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
   - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3 VM 拆分 + 技术债清算设计
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4 队列持久化设计
-- 实现计划：
+  - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5 拖拽支持设计
+- 实现计划:
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
   - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4
+  - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
 - 主要里程碑提交：
   - **Phase 1**
     - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
@@ -511,3 +554,19 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `519ead8` feat(view): PlayerBar ▶ button DataTrigger for null CurrentTrack → PlayCurrent
     - `ca66fa9` fix(view): PlayerBar ▶ Style must chain BasedOn implicit Button style
     - `9bae7ce` fix(view): cancel-and-close pattern in Window_Closing for queue.json write
+  - **Phase 5**（feature/phase5-drag-drop → master）
+    - `e10ae0d` docs: add Phase 5 drag-drop design spec
+    - `73bdafe` docs: add Phase 5 drag-drop implementation plan
+    - `b8d5d37` feat(models): add MoveTracksArgs record (Phase 5 reorder command param)
+    - `a76a66e` feat(vm): add PlaylistViewModel.DropExternalFiles command
+    - `170bca8` feat(vm): add PlaylistViewModel.MoveTracks command + _playToken bump in RemoveTrack
+    - `451ff64` feat(view): add DragDropExtensions (IsDragOver attached prop + audio suffix filter)
+    - `78f9310` feat(view): add DropInsertionAdorner (1px accent-color insertion line)
+    - `c76d7a7` feat(view): PlaylistView XAML adds AllowDrop, IsDragOver border trigger, multi-select
+    - `6351d9d` feat(view): wire up PlaylistView drag-drop handlers (Phase 5)
+    - `214d595` fix(view): restore drag-over border highlight via Style.Setter default
+    - `c21c0d4` fix(view): scope drag-over highlight to queue list rounded box only
+    - `a80afdd` fix(view): clear drag-over highlight in QueueList_Drop
+    - `7af6bec` fix(view): only highlight when drag payload contains audio (folder fix)
+    - `af51dde` fix(view): preserve multi-select when starting drag from a selected item
+    - `5aa0c25` test: Phase 5 manual acceptance pass

@@ -9,13 +9,29 @@
 <UserControl x:Class="UmaPlayer.Views.Controls.PlaylistView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:converters="clr-namespace:UmaPlayer.Converters">
+             xmlns:converters="clr-namespace:UmaPlayer.Converters"
+             xmlns:local="clr-namespace:UmaPlayer.Views.Controls">
     <UserControl.Resources>
         <converters:RepeatModeToIconConverter x:Key="RepeatModeToIcon"/>
         <converters:BoolToAccentBrushConverter x:Key="BoolToAccentBrush"/>
     </UserControl.Resources>
 
-    <Grid Margin="16,0,16,16">
+    <Border BorderThickness="2" BorderBrush="Transparent"
+            AllowDrop="True"
+            DragEnter="Root_DragEnter"
+            DragOver="Root_DragOver"
+            DragLeave="Root_DragLeave"
+            Drop="Root_Drop">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Style.Triggers>
+                    <Trigger Property="local:DragDropExtensions.IsDragOver" Value="True">
+                        <Setter Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Grid Margin="16,0,16,16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -62,11 +78,19 @@
             <ListBox x:Name="QueueList"
                      ItemsSource="{Binding Queue}"
                      SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                     SelectionMode="Extended"
+                     AllowDrop="True"
                      Background="Transparent" BorderThickness="0"
                      Foreground="{StaticResource ForegroundPrimary}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      MouseDoubleClick="QueueList_MouseDoubleClick"
-                     KeyDown="QueueList_KeyDown">
+                     KeyDown="QueueList_KeyDown"
+                     PreviewMouseLeftButtonDown="QueueList_PreviewMouseLeftButtonDown"
+                     PreviewMouseMove="QueueList_PreviewMouseMove"
+                     PreviewMouseLeftButtonUp="QueueList_PreviewMouseLeftButtonUp"
+                     DragOver="QueueList_DragOver"
+                     DragLeave="QueueList_DragLeave"
+                     Drop="QueueList_Drop">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="Padding" Value="0"/>
@@ -122,4 +146,5 @@
             </ListBox>
         </Border>
     </Grid>
+    </Border>
 </UserControl>

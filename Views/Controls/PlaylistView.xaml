@@ -1,10 +1,10 @@
 <!--
-    PlaylistView —— Phase 2 队列 UI 控件。
+    PlaylistView —— Phase 2 队列 UI 控件 (Phase 6: DataContext 改为 PlaylistViewModel)。
     布局: 2 行 Grid
       Row 0 (Auto) : 工具栏（添加/清空 + 随机/循环开关）
       Row 1 (*)    : ListBox 显示队列，每项含 ▶/空 + 文件名 + ×
 
-    DataContext = MainViewModel（由 MainWindow.xaml 注入）
+    DataContext = PlaylistViewModel（Phase 6 由 MainWindow.xaml 绑定 Playlists.ViewedPlaylist）
 -->
 <UserControl x:Class="UmaPlayer.Views.Controls.PlaylistView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

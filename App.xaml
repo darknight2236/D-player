@@ -1,10 +1,14 @@
 <!--
-    应用级资源 —— 主题字典在此合并到全局，全应用任何 View 都可通过 StaticResource 引用。
-    顺序敏感：Colors 先加载，Fonts/Controls 中可引用其中的画刷资源。
+    应用级资源 —— 主题字典在此合并到全局, 全应用任何 View 都可通过 StaticResource 引用。
+    顺序敏感: Colors 先加载, Fonts/Controls 中可引用其中的画刷资源。
+
+    Phase 6: 注册 BytesToBitmapImage(债务 #1 部分偿还) —— 准备好后续把
+    Track.Cover 从 BitmapImage 切换到 byte[] 的转换器, 当前数据流未切换。
 -->
 <Application x:Class="UmaPlayer.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:UmaPlayer.Converters">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -12,6 +16,8 @@
                 <ResourceDictionary Source="Themes/Fonts.xaml"/>
                 <ResourceDictionary Source="Themes/Controls.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <conv:BytesToBitmapImageConverter x:Key="BytesToBitmapImage"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

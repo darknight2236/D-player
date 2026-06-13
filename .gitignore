@@ -3,3 +3,7 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+Tests/bin/
+Tests/obj/
+coverage.cobertura.xml
+TestResults/

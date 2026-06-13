@@ -18,13 +18,26 @@ namespace UmaPlayer.ViewModels;
 /// 跨域命令：OpenAndPlay（PlayerBar 的 📂 按钮）归本 VM——
 /// 因为它本质是"批量入队 + 自动播首项"，前者属于队列域，后者只是结果。
 /// PlayerBar 通过 RelativeSource AncestorType=Window 跨级访问。
+///
+/// Phase 6: 持久化由 PlaylistsViewModel 容器 + MainViewModel debounce save 统一负责;
+/// 本 VM 仅暴露 ToRecord() 把当前状态打包为不可变 Playlist record。
 /// </summary>
 public partial class PlaylistViewModel : ObservableObject
 {
     private readonly IPlaybackService _player;
     private readonly IFileDialogService _fileDialog;
     private readonly ITrackMetadataReader _metadataReader;
-    private readonly IQueuePersistence _queuePersistence;
+
+    /// <summary>歌单主键(GUID); 创建时一次性确定, 不可变。</summary>
+    public string Id { get; }
+
+    /// <summary>歌单显示名; 仅展示, 可重命名, 可重复。</summary>
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    /// <summary>容器侧设置: 本 VM 是否为当前正在播放的歌单。仅读;由 PlaylistsViewModel 维护。</summary>
+    [ObservableProperty]
+    private bool _isActivePlaylist;
 
     /// <summary>当前播放队列。ObservableCollection 自动通知 UI 增删改。</summary>
     public ObservableCollection<Track> Queue { get; } = new();
@@ -73,15 +86,20 @@ public partial class PlaylistViewModel : ObservableObject
     public bool HasCurrentTrack => CurrentIndex >= 0 && CurrentIndex < Queue.Count;
 
     public PlaylistViewModel(
+        Models.Playlist seed,
         IPlaybackService player,
         IFileDialogService fileDialog,
-        ITrackMetadataReader metadataReader,
-        IQueuePersistence queuePersistence)
+        ITrackMetadataReader metadataReader)
     {
-        _player = player;
-        _fileDialog = fileDialog;
-        _metadataReader = metadataReader;
-        _queuePersistence = queuePersistence;
+        ArgumentNullException.ThrowIfNull(seed);
+        _player = player ?? throw new ArgumentNullException(nameof(player));
+        _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
+        _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
+
+        Id = seed.Id;
+        Name = seed.Name;
+        _shuffleEnabled = seed.ShuffleEnabled;
+        _repeatMode = seed.RepeatMode;
 
         _player.TrackEnded += HandleTrackEnded;
 
@@ -94,10 +112,28 @@ public partial class PlaylistViewModel : ObservableObject
             PlayCurrentCommand.NotifyCanExecuteChanged();
         };
 
-        // Phase 4：构造期同步读盘恢复队列。queue.json ≤ 10 KB 量级；
-        // 与 PlayerViewModel.Initialize 读音量、MainWindow 读窗口尺寸的纪律一致。
-        LoadFromDisk();
+        // Port LoadFromDisk: 过滤不存在的文件, 重映射 CurrentIndex
+        var seedItems = seed.Items ?? Array.Empty<string>();
+        var existing = seedItems.Where(File.Exists).ToList();
+        foreach (var path in existing)
+        {
+            // 占位 Track —— 与 OpenAndPlay 流程一致；用户首次播放时由 PlayTrackAtAsync 升级为完整元数据
+            Queue.Add(_metadataReader.CreateFallback(path));
+        }
+        CurrentIndex = MapCurrentIndexAfterFilter(seedItems, existing, seed.CurrentIndex);
     }
+
+    /// <summary>
+    /// 把当前 VM 状态打包成持久化用 Playlist record。MainViewModel 在 BuildSnapshot 时调用。
+    /// 隐式契约：本方法**仅读、无副作用**。
+    /// </summary>
+    public Models.Playlist ToRecord() => new(
+        Id: Id,
+        Name: Name,
+        Items: Queue.Select(t => t.FilePath).ToArray(),
+        CurrentIndex: CurrentIndex,
+        ShuffleEnabled: ShuffleEnabled,
+        RepeatMode: RepeatMode);
 
     /// <summary>
     /// 计算下一首曲目的索引。
@@ -346,7 +382,7 @@ public partial class PlaylistViewModel : ObservableObject
             }
         }
 
-        // 8. 重建 _shuffleHistory（按对象身份回找）
+        // 8. 重建 _shuffleHistory(按对象身份回找)
         _shuffleHistory.Clear();
         for (int i = 0; i < Queue.Count; i++)
         {
@@ -492,55 +528,10 @@ public partial class PlaylistViewModel : ObservableObject
         await PlayTrackAtAsync(next);
     }
 
-    /// <summary>由 MainViewModel.CleanupAsync 调用 —— 解绑 TrackEnded 订阅。</summary>
+    /// <summary>由 MainViewModel.CleanupAsync / PlaylistsViewModel.UnhookPlaylistVm 调用 —— 解绑 TrackEnded 订阅。</summary>
     public void Cleanup()
     {
         _player.TrackEnded -= HandleTrackEnded;
-    }
-
-    // —— Phase 4：队列持久化 ——
-
-    /// <summary>
-    /// 启动期同步读盘恢复队列。隐式契约：本方法是同步段，不可 await（DI 容器构造 VM
-    /// 时若死锁 UI sync ctx 会让窗口永不显示）。JsonQueuePersistence 内部已用
-    /// ConfigureAwait(false)，UI 线程同步等待 worker pool 任务回调时不会死锁。
-    ///
-    /// 文件丢失（用户外部移动/删除）静默跳过；schema 损坏/IO 异常 → 视为首次启动。
-    /// </summary>
-    private void LoadFromDisk()
-    {
-        QueueState state;
-        try
-        {
-            state = _queuePersistence.LoadAsync().GetAwaiter().GetResult();
-        }
-        catch
-        {
-            // 极端 IO 故障 → 当作首次启动
-            return;
-        }
-
-        // 文件存在性过滤
-        var survivingPaths = state.Items.Where(File.Exists).ToList();
-        if (survivingPaths.Count == 0)
-        {
-            // 全丢/原本就空 → 仅恢复 Shuffle/Repeat
-            ShuffleEnabled = state.ShuffleEnabled;
-            RepeatMode = state.RepeatMode;
-            return;
-        }
-
-        int newCurrentIndex = MapCurrentIndexAfterFilter(state.Items, survivingPaths, state.CurrentIndex);
-
-        foreach (var path in survivingPaths)
-        {
-            // 占位 Track —— 与 OpenAndPlay 流程一致；用户首次播放时由 PlayTrackAtAsync 升级为完整元数据
-            Queue.Add(_metadataReader.CreateFallback(path));
-        }
-
-        CurrentIndex = newCurrentIndex;
-        ShuffleEnabled = state.ShuffleEnabled;
-        RepeatMode = state.RepeatMode;
     }
 
     /// <summary>
@@ -598,24 +589,6 @@ public partial class PlaylistViewModel : ObservableObject
         }
         return -1;
     }
-
-    /// <summary>
-    /// 把当前 VM 状态打包成不可变快照。由 MainWindow.Window_Closing 调用。
-    ///
-    /// 隐式契约：本方法**仅读、无副作用**（COUPLING.md §5）。
-    /// 若未来加副作用，Window_Closing 在 Cleanup 之后调它会让人意外。
-    ///
-    /// Track[i] 即便是占位（Title==文件名、AlbumArt==null），FilePath 也已被
-    /// CreateFallback 填好，故未播放过的曲目也能被正确持久化。
-    /// </summary>
-    public QueueState SnapshotState() => new()
-    {
-        SchemaVersion = 1,
-        Items = Queue.Select(t => t.FilePath).ToArray(),
-        CurrentIndex = CurrentIndex,
-        ShuffleEnabled = ShuffleEnabled,
-        RepeatMode = RepeatMode,
-    };
 
     /// <summary>
     /// 启动后用户首次按 ▶ 走的命令：加载并播放 CurrentIndex 指向的曲目。

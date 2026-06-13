@@ -1,9 +1,10 @@
 <!--
-    主窗口布局 —— Phase 2 改为两行:
-      Row 0 (Auto): PlayerBar (现有, 不动)
-      Row 1 (*)   : PlaylistView (新)
-    默认 Height 从 450 提升至 650 以容纳队列。
-    Closing 事件由 code-behind 处理: 保存窗口几何 + 触发 VM 清理。
+    主窗口布局 —— Phase 6 改为 PlayerBar + 2 列(Sidebar + 当前查看队列):
+      Row 0 (Auto): PlayerBar
+      Row 1 (*) : Grid 2 列
+        Column 0 (160): PlaylistsSidebarView (新建/重命名/删除/▶ 标记)
+        Column 1 (*) : PlaylistView, 绑定 Playlists.ViewedPlaylist (UI 选中, 与正在播放可不同)
+    Closing 事件由 code-behind 处理: 保存窗口几何 + 触发 VM 清理(VM 内 flush queue.json)。
 -->
 <Window x:Class="UmaPlayer.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -22,7 +23,18 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <controls:PlayerBar    Grid.Row="0" DataContext="{Binding Player}"/>
-        <controls:PlaylistView Grid.Row="1" DataContext="{Binding Playlist}"/>
+        <controls:PlayerBar Grid.Row="0" DataContext="{Binding Player}"/>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160" MinWidth="120"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <controls:PlaylistsSidebarView Grid.Column="0"
+                                            DataContext="{Binding Playlists}"/>
+            <controls:PlaylistView Grid.Column="1"
+                                    DataContext="{Binding Playlists.ViewedPlaylist}"/>
+        </Grid>
     </Grid>
 </Window>

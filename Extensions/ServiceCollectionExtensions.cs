@@ -23,7 +23,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPlaybackService, NAudioPlaybackService>();
         services.AddSingleton<IFileDialogService, Win32FileDialogService>();
         services.AddSingleton<ISettingsPersistence, JsonSettingsPersistence>();
-        services.AddSingleton<IQueuePersistence, JsonQueuePersistence>();
+
+        // Phase 6: 多歌单持久化 (替换 IQueuePersistence)
+        services.AddSingleton<IPlaylistService, JsonPlaylistService>();
 
         // 预留服务 —— 注册 Stub 以便未来替换不需要改 DI
         services.AddSingleton<IAudioDeviceManager, StubAudioDeviceManager>();
@@ -35,9 +37,16 @@ public static class ServiceCollectionExtensions
         // 元数据读取（Singleton —— 无状态、纯函数式接口）
         services.AddSingleton<ITrackMetadataReader, AtlMetadataReader>();
 
-        // ViewModel（Transient —— 主窗口持有实例，关闭即释放）
+        // ViewModel
         services.AddTransient<PlayerViewModel>();
-        services.AddTransient<PlaylistViewModel>();
+        // PlaylistViewModel 由 PlaylistsViewModel 通过工厂创建; 工厂封装依赖, seed 是动态参数。
+        services.AddTransient<Func<Models.Playlist, PlaylistViewModel>>(sp => seed =>
+            new PlaylistViewModel(
+                seed,
+                sp.GetRequiredService<IPlaybackService>(),
+                sp.GetRequiredService<IFileDialogService>(),
+                sp.GetRequiredService<ITrackMetadataReader>()));
+        services.AddSingleton<PlaylistsViewModel>();
         services.AddTransient<MainViewModel>();
 
         return services;

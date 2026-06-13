@@ -160,10 +160,10 @@ public partial class PlaylistView : UserControl
         int index = QueueList.ItemContainerGenerator.IndexFromContainer(item);
         if (index < 0) return;
 
-        var container = App.GetService<PlaylistsViewModel>();
+        var playlistsVm = App.GetService<PlaylistsViewModel>();
         // fire-and-forget: PlaylistsViewModel.HandleDoubleClickPlay 内部 await PlayTrackAtCommand.ExecuteAsync,
         // 此处与 Phase 5 PlayTrackAtCommand.Execute(index) 行为对称(fire-and-forget UI 事件)。
-        _ = container.HandleDoubleClickPlay(_vm, index);
+        _ = playlistsVm.HandleDoubleClickPlay(_vm, index);
         e.Handled = true;
     }
 

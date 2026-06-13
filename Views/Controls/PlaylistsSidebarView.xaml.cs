@@ -38,6 +38,7 @@ public partial class PlaylistsSidebarView : UserControl
         {
             _vm.PropertyChanged -= OnVmPropertyChanged;
             _vm.Playlists.CollectionChanged -= OnPlaylistsChanged;
+            UnhookAllPlaylistVms();
         }
 
         _vm = e.NewValue as PlaylistsViewModel;
@@ -46,6 +47,7 @@ public partial class PlaylistsSidebarView : UserControl
         {
             _vm.PropertyChanged += OnVmPropertyChanged;
             _vm.Playlists.CollectionChanged += OnPlaylistsChanged;
+            HookAllPlaylistVms();
             RefreshActiveMarker();
         }
     }
@@ -58,8 +60,39 @@ public partial class PlaylistsSidebarView : UserControl
 
     private void OnPlaylistsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // 新增的 VM 需要 hook，被移除的 VM 需要 unhook
+        if (e.OldItems != null)
+        {
+            foreach (PlaylistViewModel vm in e.OldItems)
+                vm.PropertyChanged -= OnPlaylistVmPropertyChanged;
+        }
+        if (e.NewItems != null)
+        {
+            foreach (PlaylistViewModel vm in e.NewItems)
+                vm.PropertyChanged += OnPlaylistVmPropertyChanged;
+        }
         Dispatcher.BeginInvoke(new Action(RefreshActiveMarker),
             System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private void OnPlaylistVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PlaylistViewModel.IsActivePlaylist))
+            RefreshActiveMarker();
+    }
+
+    private void HookAllPlaylistVms()
+    {
+        if (_vm is null) return;
+        foreach (var vm in _vm.Playlists)
+            vm.PropertyChanged += OnPlaylistVmPropertyChanged;
+    }
+
+    private void UnhookAllPlaylistVms()
+    {
+        if (_vm is null) return;
+        foreach (var vm in _vm.Playlists)
+            vm.PropertyChanged -= OnPlaylistVmPropertyChanged;
     }
 
     /// <summary>

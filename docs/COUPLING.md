@@ -233,6 +233,7 @@ private void RemoveTrack(int index)
 | `PlaylistView.RefreshCurrentIndicator` 必须检查 `IsActivePlaylist` | `PlaylistView.xaml.cs:RefreshCurrentIndicator` 注释 | 用户切到非播放歌单查看时，`CurrentIndex` 仍是该歌单的本地光标；不 guard 会让 ▶ 在非播放歌单上点亮（视觉与音频脱钩） |
 | `PlaylistView.QueueList_MouseDoubleClick` 走 `PlaylistsViewModel.HandleDoubleClickPlay` | `PlaylistView.xaml.cs:QueueList_MouseDoubleClick` 注释 | 直接调 `_vm.PlayTrackAtCommand` 不会切 `CurrentPlaylistId` → 跨歌单双击时 sidebar ▶ 标记不移动、`IsActivePlaylist` 不更新 |
 | `PlaylistsSidebarView.RefreshActiveMarker` 用 `FindChildByOrder<TextBlock>(container, 0)` 定位 ▶ | `PlaylistsSidebarView.xaml.cs:RefreshActiveMarker` 注释 | 在 `DataTemplate` 里加列会**静默错位**（与 PlaylistView 同规则） |
+| 删除当前播放歌单不自动停止音频 | `PlaylistsViewModel.RemovePlaylist` 注释 | 有意的 MVP 简化：删除歌单仅切指针 + unhook TrackEnded，当前曲自然播完即停；不调 `_player.Unload()` 避免 jarring UX。spec 说"让 MainViewModel 处理音频停"但 MainVM 无此 handler —— Phase 7 可评估是否加 stop-on-delete |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 

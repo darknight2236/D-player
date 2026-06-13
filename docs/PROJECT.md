@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/13 · 对应分支：`master` · 当前阶段：**Phase 5 完成**（拖拽支持）
+> 文档日期：2026/06/13 · 对应分支：`feature/phase6-named-playlists` · 当前阶段：**Phase 6 完成**（多命名歌单 + Debt #1 部分偿还 + xUnit 骨架）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。可视化、库扫描、多命名播放列表放在 Phase 6+。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。可视化、库扫描放在 Phase 7+。
 
 ### 1.1 关键特性（已实现）
 
@@ -25,15 +25,16 @@
 | 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、随机/3 态循环（Off/List/One） |
 | 队列持久化 | 关闭时写 `%LocalAppData%\UmaPlayer\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
 | 拖拽 | 外部音频文件拖入末尾入队（白名单 .mp3/.wma/.flac/.aac/.wav）；队列内单/多选拖拽重排（含 ▶ 当前曲跟随、Shuffle 历史按对象身份重映射）；插入线 Adorner + 圆角列表框边框高亮（Phase 5） |
+| 多命名歌单 | 创建/删除/重命名多个独立歌单；Viewed vs Current 双指针（切查看不打断播放，双击才跨歌单切换音频）；每个歌单独立 Shuffle/Repeat/CurrentIndex；v1→v2 schema 自动迁移（Phase 6） |
 
 ### 1.2 后续增量（未实现）
 
-- 多个命名播放列表（创建 / 保存 / 加载 / 切换）—— 当前仅支持单个内存队列
 - M3U / PLS 等播放列表格式导入导出
 - 音频可视化（频谱 / 波形）
 - 音乐库扫描（文件夹扫描、按艺术家/专辑组织）
 - OGG/Vorbis 支持（MF 不原生支持，需额外解码器）
 - 多设备 / 输出模式切换（WASAPI Shared / Exclusive / ASIO）—— 接口已预留
+- 债务 #1 完整偿还：PlayerViewModel.CurrentCover BitmapImage → byte[]
 
 ---
 
@@ -69,7 +70,8 @@ UmaPlayer/
 │   ├── Track.cs                 # 不可变 record：音轨信息（含封面字节数组）
 │   ├── PlayState.cs             # enum: Stopped / Playing / Paused
 │   ├── RepeatMode.cs            # enum: Off / List / One  (Phase 2)
-│   ├── QueueState.cs            # 不可变 record: queue.json schema (Phase 4)
+│   ├── Playlist.cs              # 不可变 record: 歌单 (Id, Name, Items, CurrentIndex, ShuffleEnabled, RepeatMode) (Phase 6)
+│   ├── QueueState.cs            # 不可变 record: queue.json schema v2 (Playlists + CurrentPlaylistId) (Phase 4/6)
 │   ├── MoveTracksArgs.cs        # 不可变 record: 队列内拖拽重排命令参数 (Phase 5)
 │   └── AudioDeviceInfo.cs       # 预留：设备信息
 │
@@ -80,8 +82,8 @@ UmaPlayer/
 │   ├── Win32FileDialogService.cs# Microsoft.Win32.OpenFileDialog 封装
 │   ├── ISettingsPersistence.cs
 │   ├── JsonSettingsPersistence.cs # 持久化到 %LocalAppData%\UmaPlayer\settings.json
-│   ├── IQueuePersistence.cs    # 队列持久化抽象 (Phase 4)
-│   ├── JsonQueuePersistence.cs # 持久化到 %LocalAppData%\UmaPlayer\queue.json (Phase 4)
+│   ├── IPlaylistService.cs      # 多歌单持久化抽象 (Phase 6, 替换 IQueuePersistence)
+│   ├── JsonPlaylistService.cs   # 持久化到 %LocalAppData%\UmaPlayer\queue.json; 内置 v1→v2 迁移 (Phase 6)
 │   ├── ITrackMetadataReader.cs # 元数据读取抽象 (Phase 3)
 │   ├── AtlMetadataReader.cs    # 基于 z440.atl.core 的实现 (Phase 3)
 │   ├── IAudioDeviceManager.cs   # 预留：设备枚举/切换
@@ -90,15 +92,19 @@ UmaPlayer/
 │   └── StubAudioOutputFactory.cs# 占位实现，固定返回 WASAPI Shared
 │
 ├── ViewModels/
-│   ├── MainViewModel.cs        # Strict Facade (~44 行)：仅暴露 Player/Playlist + CleanupAsync (Phase 3)
+│   ├── MainViewModel.cs        # Strict Facade (~44 行)：仅暴露 Player/Playlists + debounce save + CleanupAsync (Phase 3/6)
 │   ├── PlayerViewModel.cs      # Transport 子 VM：播放/暂停/进度/音量 (Phase 3)
-│   └── PlaylistViewModel.cs    # 队列子 VM：Queue/Shuffle/Repeat/推进算法 (Phase 3)
+│   ├── PlaylistViewModel.cs    # 队列子 VM：Queue/Shuffle/Repeat/推进算法 + Id/Name/IsActivePlaylist (Phase 3/6)
+│   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + Add/Remove/Rename + HandleDoubleClickPlay (Phase 6)
 │
 ├── Views/
-│   ├── MainWindow.xaml(.cs)     # 主窗口；窗口位置恢复 + 关闭时清理
+│   ├── MainWindow.xaml(.cs)     # 主窗口；Phase 6 改为 PlayerBar + 2 列(Sidebar + PlaylistView)
+│   ├── Dialogs/
+│   │   └── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)
 │   └── Controls/
 │       ├── PlayerBar.xaml(.cs)  # 全功能播放栏（封面/信息/进度/控制/音量）
-│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽事件接入）
+│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard）
+│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记）(Phase 6)
 │       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频后缀白名单/过滤 (Phase 5)
 │       └── DropInsertionAdorner.cs   # ListBox AdornerLayer 插入线绘制 (Phase 5)
 │
@@ -106,7 +112,8 @@ UmaPlayer/
 │   ├── PlayStateToIconConverter.cs       # ▶/⏸ 图标
 │   ├── TimeSpanToStringConverter.cs      # 0:00 / 0:00:00
 │   ├── RepeatModeToIconConverter.cs      # ⇄ / 🔁 / 🔂 (Phase 2)
-│   └── BoolToAccentBrushConverter.cs     # 强调色/次要色画刷 (Phase 2)
+│   ├── BoolToAccentBrushConverter.cs     # 强调色/次要色画刷 (Phase 2)
+│   └── BytesToBitmapImageConverter.cs    # byte[] → Frozen BitmapImage (Phase 6, 债务 #1 部分偿还)
 │
 ├── Themes/                      # 深色主题资源字典（App.xaml 合并加载）
 │   ├── Colors.xaml              # #1E1E2E 背景 + #7C4DFF 紫色强调
@@ -115,6 +122,11 @@ UmaPlayer/
 │
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs # AddUmaPlayerServices(...) DI 注册
+│
+├── Tests/                       # xUnit 测试项目 (Phase 6)
+│   ├── UmaPlayer.Tests.csproj   # 测试项目文件 (xUnit + Coverlet)
+│   └── Smoke/
+│       └── SmokeTests.cs        # 冒烟测试：Track record 结构相等
 │
 └── docs/
     ├── PROJECT.md               # 本文档
@@ -125,13 +137,15 @@ UmaPlayer/
         │   ├── 2026-06-06-uma-player-playlist-design.md                 # Phase 2 设计
         │   ├── 2026-06-07-uma-player-phase3-design.md                   # Phase 3 设计
         │   ├── 2026-06-12-uma-player-phase4-queue-persistence-design.md # Phase 4 设计
-        │   └── 2026-06-12-uma-player-phase5-drag-drop-design.md         # Phase 5 设计
+        │   ├── 2026-06-12-uma-player-phase5-drag-drop-design.md         # Phase 5 设计
+        │   └── 2026-06-13-uma-player-phase6-named-playlists-design.md   # Phase 6 设计
         └── plans/
             ├── 2026-04-24-uma-player-implementation.md                          # Phase 1 计划
             ├── 2026-06-06-uma-player-playlist-implementation.md                 # Phase 2 计划
             ├── 2026-06-07-uma-player-phase3-implementation.md                   # Phase 3 计划
             ├── 2026-06-12-uma-player-phase4-queue-persistence-implementation.md # Phase 4 计划
-            └── 2026-06-12-uma-player-phase5-drag-drop-implementation.md         # Phase 5 计划
+            ├── 2026-06-12-uma-player-phase5-drag-drop-implementation.md         # Phase 5 计划
+            └── 2026-06-13-uma-player-phase6-named-playlists.md                  # Phase 6 计划
 ```
 
 ---
@@ -230,6 +244,18 @@ UmaPlayer/
 13. **重排算法用对象身份而非索引算术（Phase 5）**：`MoveTracks` 缓存被移动的 Track 引用 + 当前曲引用 + Shuffle 历史引用集合，删-插完成后用 `ReferenceEquals` 扫一遍 Queue 重建 `CurrentIndex` 和 `_shuffleHistory`。**不能用 `Queue.IndexOf`**：Track 是 `sealed record`（结构相等），多个 `CreateFallback("X.mp3")` 占位是结构相等但引用不同的对象，IndexOf 会返回首个结构等价匹配而非原始那一个，导致重排后 ▶ 跟到错的曲、Shuffle 历史塌陷。HashSet 同理需 `ReferenceEqualityComparer.Instance`。
 
 14. **拖拽期间 in-flight 重入用 `_playToken++` 顶替（Phase 5）**：`PlaylistViewModel.RemoveTrack` 与新增的 `MoveTracks` 入口都自增 `_playToken`，关上 in-flight `PlayTrackAtAsync` 在 `await` 元数据期间 `Queue[index] = meta` 写到错位的窗口（COUPLING.md 旧债 #5）。`MoveTracks` 不调 `_player.Unload()` —— 重排不中断播放，NAudio 在另一线程继续推流，仅 ▶ 标记跟到新位置。
+
+15. **GUID 主键, Name 仅展示（Phase 6）**：`Playlist.Id` 是 GUID 字符串，创建时一次性确定，不可变。`Name` 是显示名，可重命名、可重复，不破坏持久化绑定。
+
+16. **Viewed vs Current 双指针（Phase 6）**：`ViewedPlaylist`（UI 选中，不持久化）与 `CurrentPlaylistId`（正在播放，持久化）解耦。用户切查看不打断播放，只有双击才跨歌单切换音频（Spotify 模型）。
+
+17. **Schema v2 一次性自动迁移（Phase 6）**：`JsonPlaylistService.LoadAsync` 检测 v1 包成单条 "默认歌单"，立即写盘；迁移失败则吞掉，内存仍是 v2，下次重迁（幂等）。
+
+18. **删除最后一个歌单自动重建（Phase 6）**：永远不存在 0 歌单状态；UI 不需要"空状态"分支。
+
+19. **Debounce save 集中在 MainViewModel（Phase 6）**：子 VM 不感知存盘；`PlaylistsViewModel.StateChanged` → MainVM 500ms debounce → `SaveAsync`。`CleanupAsync` 同步 flush 一次。
+
+20. **debt #1 部分偿还（Phase 6）**：仅交付 `BytesToBitmapImageConverter`，`PlayerViewModel.CurrentCover` 仍是 `BitmapImage`。完整切换 byte[] 数据流推迟到 Phase 7+。
 
 ---
 
@@ -417,6 +443,41 @@ public Task CleanupAsync();
 
 ## 7. 数据流：典型播放流程
 
+### 7.1 启动 + v1→v2 迁移
+
+```
+App.OnStartup 构建 DI → MainWindow Show → MainWindow.Loaded → MainViewModel.InitializeAsync()
+→ JsonPlaylistService.LoadAsync 读 queue.json:
+    SchemaVersion==1 → 自动迁移成单条 "默认歌单" + 立即覆盖写
+    SchemaVersion==2 → 正常反序列化
+→ Hydrate 进 PlaylistsViewModel 后, ViewedPlaylist 默认对齐 CurrentPlaylistId
+```
+
+### 7.2 创建/重命名/删除歌单
+
+```
+PlaylistsSidebarView + 按钮 → PromptDialog.Show → AddPlaylistCommand/RenamePlaylistCommand
+→ 容器结构变化触发 StateChanged → MainViewModel debounce 500ms 后 SaveAsync
+→ 删最后一个 → RemovePlaylistCommand 自动重建 "默认歌单"
+```
+
+### 7.3 切换查看(viewed) 不打断播放
+
+```
+sidebar 选中 → ViewedPlaylist 改 → MainWindow.xaml DataContext 切换 → PlaylistView 重绑数据
+→ PlaylistView.RefreshCurrentIndicator 检查 _vm.IsActivePlaylist —— 非当前播放歌单上不显示 ▶
+→ 当前正在播放的 PlayerBar 仍指向 CurrentPlaylistId 对应的歌单, 不变
+```
+
+### 7.4 双击跨歌单播放
+
+```
+PlaylistView.QueueList_MouseDoubleClick → App.GetService<PlaylistsViewModel>() →
+HandleDoubleClickPlay(target, index) → 若 target.Id != CurrentPlaylistId 先切 CurrentPlaylistId
+(触发 RecomputeIsActiveFlags + StateChanged) → await target.PlayTrackAtCommand.ExecuteAsync(index)
+→ sidebar ▶ 标记跟随 CurrentPlaylistId 移动; PlaylistView ▶ 标记按 IsActivePlaylist 显隐
+```
+
 ```
 用户点击 📂 (PlayerBar 按钮 → 跨级绑定 Playlist.OpenAndPlayCommand)
     │
@@ -512,12 +573,14 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
   - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3 VM 拆分 + 技术债清算设计
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4 队列持久化设计
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5 拖拽支持设计
+  - [`docs/superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md`](./superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md) — Phase 6 多命名歌单设计
 - 实现计划:
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
   - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
+  - [`docs/superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md`](./superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md) — Phase 6
 - 主要里程碑提交：
   - **Phase 1**
     - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
@@ -570,3 +633,9 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `7af6bec` fix(view): only highlight when drag payload contains audio (folder fix)
     - `af51dde` fix(view): preserve multi-select when starting drag from a selected item
     - `5aa0c25` test: Phase 5 manual acceptance pass
+  - **Phase 6**（feature/phase6-named-playlists）
+    - `041d3bc` test: add xUnit skeleton with smoke test (Phase 6 sub-project A)
+    - `c2bb0b3` feat(models): add Playlist record (Phase 6 B1)
+    - `ad6148d` feat(playlists): Phase 6 multi-playlist core — schema v2 + container VM (B1-B11)
+    - `991bb9e` feat(views): Phase 6 sidebar + prompt dialog + dual-state PlaylistView (B12-B14)
+    - `9f07eb4` feat(converters): add BytesToBitmapImageConverter (Phase 6 sub-project C, debt #1 partial)

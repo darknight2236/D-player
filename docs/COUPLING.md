@@ -1,8 +1,8 @@
 # UmaPlayer 耦合分析与重构备忘
 
-> 创建日期：2026/06/06 · 更新日期：2026/06/13 · 对应分支：`master` · 对应阶段：**Phase 5 完成**（拖拽支持）
+> 创建日期：2026/06/06 · 更新日期：2026/06/13 · 对应分支：`feature/phase6-named-playlists` · 对应阶段：**Phase 6 完成**（多命名歌单 + Debt #1 部分偿还 + xUnit 骨架）
 >
-> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约。剩余债与后续工作详见 §6。
+> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还。剩余债与后续工作详见 §6。
 
 ---
 
@@ -38,18 +38,20 @@
 
 | 消费方 | 依赖的抽象 | 依赖的具体类型 |
 |--------|------------|----------------|
-| `App` | `MainViewModel`, `ISettingsPersistence`, `IQueuePersistence` | `Views.MainWindow`, `ServiceProvider` |
-| `ServiceCollectionExtensions` | — | 6 个 Service 实现 + `MainViewModel`（注册绑定） |
-| `MainViewModel` (Facade) | `PlayerViewModel`, `PlaylistViewModel`, `IPlaybackService` | — |
+| `App` | `MainViewModel`, `ISettingsPersistence`, `IPlaylistService` | `Views.MainWindow`, `ServiceProvider` |
+| `ServiceCollectionExtensions` | — | 6 个 Service 实现 + `MainViewModel` + `PlaylistsViewModel` + `Func<Playlist, PlaylistVM>`（注册绑定） |
+| `MainViewModel` (Facade) | `PlayerViewModel`, `PlaylistsViewModel`, `IPlaybackService`, `IPlaylistService` | — |
 | `PlayerViewModel` | `IPlaybackService`, `ISettingsPersistence`, `IOptions<AppSettings>` | ⚠️ `BitmapImage`（WPF，债 #1） |
-| `PlaylistViewModel` | `IPlaybackService`, `IFileDialogService`, `ITrackMetadataReader`, `IQueuePersistence` | `Track`、`RepeatMode`、`QueueState`、`MoveTracksArgs`、`File.Exists` |
-| `MainWindow` | `MainViewModel`, `ISettingsPersistence`, `IQueuePersistence` | `Window`, `SystemParameters` |
+| `PlaylistViewModel` | `IPlaybackService`, `IFileDialogService`, `ITrackMetadataReader` | `Track`、`RepeatMode`、`QueueState`、`MoveTracksArgs`、`File.Exists` |
+| `PlaylistsViewModel` | `Func<Playlist, PlaylistViewModel>` | `Playlist`、`PlaylistViewModel` |
+| `MainWindow` | `MainViewModel`, `ISettingsPersistence` | `Window`, `SystemParameters` |
 | `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>`（含 Phase 4 ▶ DataTrigger 的 `PlayCurrentCommand`） |
-| `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信 |
+| `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信；Phase 6 双击路由走 `App.GetService<PlaylistsViewModel>().HandleDoubleClickPlay` |
+| `PlaylistsSidebarView` | — | `PlaylistsViewModel`（`DataContext as PlaylistsViewModel`）；订阅 `PropertyChanged` / `Playlists.CollectionChanged`；消费 `PromptDialog` |
 | `NAudioPlaybackService` | `IPlaybackService` | `MediaFoundationReader`, `WasapiOut`, `VolumeSampleProvider` |
 | `Win32FileDialogService` | `IFileDialogService` | `Microsoft.Win32.OpenFileDialog` |
 | `JsonSettingsPersistence` | `ISettingsPersistence` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
-| `JsonQueuePersistence` (Phase 4) | `IQueuePersistence` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
+| `JsonPlaylistService` (Phase 6) | `IPlaylistService` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
 | `AtlMetadataReader` | `ITrackMetadataReader` | `ATL.Track`（封装隔离） |
 
 > ⚠️ 标记的是 §3 仍未偿的债（仅剩 #1 BitmapImage）。
@@ -58,7 +60,7 @@
 
 ## 3. 已识别的 5 个"待还的债"
 
-### 债 #1 — VM 持有 `BitmapImage`（WPF 类型泄漏）
+### 债 #1 — VM 持有 `BitmapImage`（WPF 类型泄漏）⚠️ Partial
 
 **位置：** `ViewModels/MainViewModel.cs:38-39`、`CreateAlbumArtImage`
 
@@ -72,12 +74,12 @@
 
 **触发时机：** 想为 VM 写单测时；想把核心逻辑独立成跨平台库时
 
-**预修方案（约 15 分钟，等触发时再做）：**
-1. VM 改为暴露 `byte[]? AlbumArtBytes`
-2. 新建 `Converters/BytesToBitmapImageConverter.cs`
-3. XAML 绑定加 `Converter={StaticResource BytesToBitmap}`
+**Phase 6 部分偿还：** 已交付 `Converters/BytesToBitmapImageConverter.cs`（byte[] → Frozen BitmapImage），注册为 App.xaml 全局资源。PlayerViewModel.CurrentCover 仍是 BitmapImage，完整切换 byte[] 数据流推迟到 Phase 7+。
 
-**Phase 3 复盘：** 仍未偿。Phase 3 已把 VM 拆为 Player/Playlist，单元测试场景变得更可能（PlayerViewModel 只依赖 transport 服务）；下次想给 `PlayerViewModel` 写单元测试时一并还。
+**完整偿还方案（约 15 分钟）：**
+1. VM 改为暴露 `byte[]? AlbumArtBytes`
+2. XAML 绑定加 `Converter={StaticResource BytesToBitmapImage}`（转换器已就绪）
+3. 删除 PlayerViewModel 中的 BitmapImage 字段
 
 ---
 
@@ -225,29 +227,38 @@ private void RemoveTrack(int index)
 | WPF DragDrop 是冒泡 RoutedEvent；子元素 `Handled=true` 后父 handler 不再触发 → 清理逻辑必须在两条路径都做 | `PlaylistView.xaml.cs` `QueueList_Drop` finally + `Root_Drop` 注释 | 假定事件会冒泡上来清 Adorner / IsDragOver 会让高亮卡死（commit `a80afdd` 修） |
 | WPF ListBox `PreviewMouseLeftButtonDown` 不消费事件时仍会触发自身的塌选；多选拖拽必须主动拦 | `PlaylistView.xaml.cs:QueueList_PreviewMouseLeftButtonDown` `_pendingSingleSelectItem` 状态机注释 | "Ctrl+多选 → 在已选项上点 → 默认行为塌为单选" 在 PreviewMouseMove 启动 DoDragDrop 之前就发生，多选拖拽静默退化为单项拖；commit `af51dde` 用"按下时拦 + MouseUp 补单选"的状态机修复 |
 | `Root_DragEnter` 高亮前必须 `FilterAudioPaths` 检查 | `PlaylistView.xaml.cs:Root_DragEnter` 注释 | 仅看 `FileDrop` 存在就亮，会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）；commit `7af6bec` 修 |
+| **Phase 6 新增** | | |
+| `IPlaylistService.LoadAsync` 隐式契约：绝不抛 | `JsonPlaylistService.LoadAsync` catch-all + 注释 | 任何异常逃出会让 `PlaylistsViewModel.Hydrate` 抛 → 应用启动崩溃。文件不存在/JSON 损坏/版本不匹配/反序列化得 null 全部走静默 fallback；v1→v2 迁移失败也吞掉，下次重迁（幂等） |
+| `PlaylistsViewModel.StateChanged` 不因 `IsActivePlaylist` 设值触发 | `PlaylistsViewModel.OnPlaylistVmPropertyChanged` 注释 | `RecomputeIsActiveFlags` 批量设 `IsActivePlaylist` 会触发 `PropertyChanged`；若 `StateChanged` 不过滤会 echo 回 save → 无意义写盘 |
+| `PlaylistView.RefreshCurrentIndicator` 必须检查 `IsActivePlaylist` | `PlaylistView.xaml.cs:RefreshCurrentIndicator` 注释 | 用户切到非播放歌单查看时，`CurrentIndex` 仍是该歌单的本地光标；不 guard 会让 ▶ 在非播放歌单上点亮（视觉与音频脱钩） |
+| `PlaylistView.QueueList_MouseDoubleClick` 走 `PlaylistsViewModel.HandleDoubleClickPlay` | `PlaylistView.xaml.cs:QueueList_MouseDoubleClick` 注释 | 直接调 `_vm.PlayTrackAtCommand` 不会切 `CurrentPlaylistId` → 跨歌单双击时 sidebar ▶ 标记不移动、`IsActivePlaylist` 不更新 |
+| `PlaylistsSidebarView.RefreshActiveMarker` 用 `FindChildByOrder<TextBlock>(container, 0)` 定位 ▶ | `PlaylistsSidebarView.xaml.cs:RefreshActiveMarker` 注释 | 在 `DataTemplate` 里加列会**静默错位**（与 PlaylistView 同规则） |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
 ---
 
-## 6. Phase 6 启动检查清单
+## 6. Phase 7 启动检查清单
 
-> Phase 5（拖拽支持）已完成并准备合并到 master。下一阶段（多命名播放列表 / 库扫描 / 可视化）启动时按以下顺序：
+> Phase 6（多命名歌单 + Debt #1 部分偿还 + xUnit 骨架）已完成。下一阶段启动时按以下顺序：
 >
-> **更新（Phase 5 完成）：** 项 7（拖拽支持）已完成，且债 #5 一并偿清。后续 Phase 6+ 仍待办：6（多命名播放列表）、8（债 #1 BitmapImage）。
+> **更新（Phase 6 完成）：** 项 6（多命名播放列表）已完成，项 8（债 #1 BitmapImage）部分偿还（Converter 已就绪，数据流未切换）。
 
 1. ✅ **VM 拆分**（Phase 3 完成，commit `54edf9a`）—— MainViewModel 643→44 行 Strict Facade；PlayerVM + PlaylistVM 互不持引用
 2. ✅ **`PlayerBar` / `PlaylistView` 去硬转型**（Phase 3 完成）—— DataContext 切到子 VM；跨域命令用 `RelativeSource AncestorType=Window`
 3. ✅ **抽 `ITrackMetadataReader`**（Phase 3 完成，commit `c9cd1bd`）—— `AtlMetadataReader` 封装 z440.atl.core
 4. ✅ **解决 settings 合并纪律**（Phase 3 完成，commit `fadae44`）—— `UpdateAsync(Func<>)` 把读-改-写封进锁内
-5. ✅ **队列持久化**（Phase 4 完成）—— `%LocalAppData%\UmaPlayer\queue.json` 与 settings.json 分离；`IQueuePersistence` + `JsonQueuePersistence` + `QueueState` schema v1
-6. ☐ **多命名播放列表（L3）** —— 真正的"播放列表管理"；UI 侧需引入 Tab 或侧栏；queue.json 需 schema v2 + 迁移
-7. ✅ **拖拽支持**（Phase 5 完成）—— 外部文件拖入入队 + 队列内拖拽重排（含多选）+ 视觉反馈；同步偿还旧债 #5（in-flight RemoveTrack/MoveTracks 重入）
-8. ☐ **偿还债 #1 (`BitmapImage`)** —— 想给 `PlayerViewModel` 写单元测试时一并做
+5. ✅ **队列持久化**（Phase 4 完成）—— `%LocalAppData%\UmaPlayer\queue.json` 与 settings.json 分离
+6. ✅ **多命名播放列表**（Phase 6 完成）—— `Playlist` record + `IPlaylistService` + `PlaylistsViewModel` 容器 + sidebar UI + v1→v2 迁移
+7. ✅ **拖拽支持**（Phase 5 完成）—— 外部文件拖入入队 + 队列内拖拽重排（含多选）+ 视觉反馈；同步偿还旧债 #5
+8. ⚠️ **偿还债 #1 (`BitmapImage`)** —— Converter 已就绪（Phase 6），数据流切换待 Phase 7
 
-**Phase 5 实际工作量：** 9 个核心 commits（含 spec/plan）+ 5 个验收期发现的 hotfix（边框 trigger / 高亮范围 / 高亮清理双路径 / 文件夹高亮 / 多选拖拽塌选）+ 1 个 acceptance pass + 1 个 docs ≈ 一个工作日（subagent-driven，单 session 完成）
-
-**Phase 6+ 候选范围预估：** 多命名播放列表 ~10h+；库扫描 ~6h；可视化 ~6h+。
+**Phase 7 候选范围：**
+- [ ] 全跑一遍 Phase 6 acceptance（spec §9）前再开新 phase
+- [ ] 评估债务 #1 完整偿还: Track.Cover BitmapImage → byte[]（替 PlayerViewModel.CurrentCover 为 byte[] + XAML 用 BytesToBitmapImage）
+- [ ] 评估 PlaylistsViewModel 测试覆盖: HandleDoubleClickPlay / RemovePlaylist 边界 / StateChanged 节流回归
+- [ ] 评估 sidebar 拖拽重排歌单顺序（目前只支持新建/重命名/删除，不支持调序）
+- [ ] 库扫描 ~6h；可视化 ~6h+
 
 ---
 
@@ -279,9 +290,11 @@ private void RemoveTrack(int index)
   - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5
+  - [`docs/superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md`](./superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md) — Phase 6
 - 原始实现计划：
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
   - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
+  - [`docs/superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md`](./superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md) — Phase 6

@@ -163,6 +163,30 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         args.Target.Name = trimmed;  // OnPlaylistVmPropertyChanged 已挂 -> StateChanged
     }
 
+    /// <summary>
+    /// sidebar 拖拽重排：把 sourceIndex 处的歌单移到 targetIndex 之前。
+    /// targetIndex == Playlists.Count 表示移到末尾。
+    /// ViewedPlaylist / CurrentPlaylistId 跟随对象身份，不因位置变化而改变。
+    /// </summary>
+    [RelayCommand]
+    private void MovePlaylist((int SourceIndex, int TargetIndex) args)
+    {
+        var (src, tgt) = args;
+        if (src < 0 || src >= Playlists.Count) return;
+        if (tgt < 0 || tgt > Playlists.Count) return;
+        if (src == tgt || src == tgt - 1) return; // 拖到原位 = no-op
+
+        var item = Playlists[src];
+        Playlists.RemoveAt(src);
+
+        // 删源后, 若 target 在源之后, 索引前移 1
+        if (tgt > src) tgt--;
+        Playlists.Insert(tgt, item);
+
+        // ViewedPlaylist 跟随对象身份（ObservableCollection 移动同一引用）
+        ViewedPlaylist = item;
+    }
+
     partial void OnCurrentPlaylistIdChanged(string value)
     {
         RecomputeIsActiveFlags();

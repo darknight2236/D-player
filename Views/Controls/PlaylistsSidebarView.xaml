@@ -30,14 +30,21 @@
                     Click="RemoveBtn_Click"/>
         </StackPanel>
 
-        <!-- 歌单列表 -->
+        <!-- 歌单列表（Phase 9: 支持拖拽重排） -->
         <ListBox x:Name="PlaylistList"
                  Grid.Row="1"
                  ItemsSource="{Binding Playlists}"
                  SelectedItem="{Binding ViewedPlaylist, Mode=TwoWay}"
                  BorderThickness="0"
                  Background="Transparent"
-                 MouseDoubleClick="PlaylistList_MouseDoubleClick">
+                 AllowDrop="True"
+                 MouseDoubleClick="PlaylistList_MouseDoubleClick"
+                 PreviewMouseLeftButtonDown="PlaylistList_PreviewMouseLeftButtonDown"
+                 PreviewMouseMove="PlaylistList_PreviewMouseMove"
+                 PreviewMouseLeftButtonUp="PlaylistList_PreviewMouseLeftButtonUp"
+                 DragOver="PlaylistList_DragOver"
+                 DragLeave="PlaylistList_DragLeave"
+                 Drop="PlaylistList_Drop">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="0,2">

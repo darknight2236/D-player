@@ -327,6 +327,91 @@ public class PlaylistsViewModelTests
         Assert.True(container.Playlists[1].IsActivePlaylist);
     }
 
+    // —— MovePlaylist ——
+
+    [Fact]
+    public void MovePlaylist_ReordersCollection()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id3", "C", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+
+        container.MovePlaylistCommand.Execute((0, 2)); // A 移到 B 后面
+
+        Assert.Equal("B", container.Playlists[0].Name);
+        Assert.Equal("A", container.Playlists[1].Name);
+        Assert.Equal("C", container.Playlists[2].Name);
+    }
+
+    [Fact]
+    public void MovePlaylist_SamePosition_IsNoOp()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var stateChangedCount = 0;
+        container.StateChanged += (_, _) => stateChangedCount++;
+
+        container.MovePlaylistCommand.Execute((0, 0)); // 原位
+
+        Assert.Equal(0, stateChangedCount);
+    }
+
+    [Fact]
+    public void MovePlaylist_AdjacentPosition_IsNoOp()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+
+        container.MovePlaylistCommand.Execute((0, 1)); // A 移到 B 前面 = 原位
+
+        Assert.Equal("A", container.Playlists[0].Name);
+        Assert.Equal("B", container.Playlists[1].Name);
+    }
+
+    [Fact]
+    public void MovePlaylist_UpdatesViewedPlaylist()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        container.ViewedPlaylist = container.Playlists[0]; // 选中 A
+
+        container.MovePlaylistCommand.Execute((0, 2)); // A 移到末尾
+
+        Assert.Equal("id1", container.ViewedPlaylist?.Id); // 跟随对象身份
+    }
+
     // —— StateChanged ——
 
     [Fact]

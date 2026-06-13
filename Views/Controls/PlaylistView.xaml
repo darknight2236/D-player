@@ -16,14 +16,18 @@
         <converters:BoolToAccentBrushConverter x:Key="BoolToAccentBrush"/>
     </UserControl.Resources>
 
-    <Border BorderThickness="2" BorderBrush="Transparent"
+    <Border BorderThickness="2"
             AllowDrop="True"
             DragEnter="Root_DragEnter"
             DragOver="Root_DragOver"
             DragLeave="Root_DragLeave"
             Drop="Root_Drop">
         <Border.Style>
+            <!-- BorderBrush 必须由 Style.Setter 提供默认值；若写成 Border 的 local 属性，
+                 会以 local-value 优先级压过 Style.Triggers 里的 Setter，导致 IsDragOver=True
+                 时高亮失效（依赖属性值优先级：local > trigger setter > style setter）。 -->
             <Style TargetType="Border">
+                <Setter Property="BorderBrush" Value="Transparent"/>
                 <Style.Triggers>
                     <Trigger Property="local:DragDropExtensions.IsDragOver" Value="True">
                         <Setter Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>

@@ -29,6 +29,9 @@ public partial class PlaylistView : UserControl
     /// <summary>PreviewMouseLeftButtonDown 时记录的起点；MouseMove 用于阈值判定。</summary>
     private Point? _dragStartPoint;
 
+    /// <summary>本次按下时被拦截了默认塌选的 ListBoxItem；若没拖起来，MouseUp 时还原单选。</summary>
+    private ListBoxItem? _pendingSingleSelectItem;
+
     /// <summary>当前 ListBox AdornerLayer 上的插入线 Adorner；同一时刻最多 1 个。</summary>
     private DropInsertionAdorner? _currentAdorner;
 
@@ -181,15 +184,44 @@ public partial class PlaylistView : UserControl
 
     private void QueueList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // 仅记录起点；实际启动在 MouseMove 阈值后。
-        // 不抢 ListBox 默认选中行为 —— 不 Handled。
+        // 记录起点；实际启动在 MouseMove 阈值后。
         _dragStartPoint = e.GetPosition(QueueList);
+        _pendingSingleSelectItem = null;
+
+        // 多选塌选拦截：用户 Ctrl+多选后，再不带修饰键点击其中任一已选项，
+        // ListBox 默认会立刻把选中塌成只剩这一项 —— 这会让 MouseMove 启动拖拽时
+        // SelectedItems.Count == 1，多选拖拽失效。
+        // 处理：若按下点是"已选 & 属于 ≥2 项的多选 & 无 Ctrl/Shift"，
+        // Handled=true 拦掉塌选；MouseUp 时若没真正拖起来，再手动塌成单选模拟原行为。
+        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        if (item is null) return;
+        if (!item.IsSelected) return;
+        if (QueueList.SelectedItems.Count < 2) return;
+
+        var mods = Keyboard.Modifiers;
+        if ((mods & (ModifierKeys.Control | ModifierKeys.Shift)) != 0) return;
+
+        _pendingSingleSelectItem = item;
+        e.Handled = true;
     }
 
     private void QueueList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         // 鼠标抬起即清除起点，避免松开后再移动还会触发拖拽
         _dragStartPoint = null;
+
+        // 没真正拖起来（未过阈值）→ 还原 ListBox 默认的"单击塌成单选"行为
+        if (_pendingSingleSelectItem is not null)
+        {
+            // 仅当鼠标抬起时还停在原项上才塌选；移到别处了说明是空操作
+            var hover = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+            if (ReferenceEquals(hover, _pendingSingleSelectItem))
+            {
+                QueueList.SelectedItems.Clear();
+                _pendingSingleSelectItem.IsSelected = true;
+            }
+            _pendingSingleSelectItem = null;
+        }
     }
 
     private void QueueList_PreviewMouseMove(object sender, MouseEventArgs e)
@@ -223,6 +255,7 @@ public partial class PlaylistView : UserControl
         if (indices.Count == 0) { _dragStartPoint = null; return; }
 
         _dragStartPoint = null; // 启动拖拽即消费起点
+        _pendingSingleSelectItem = null; // 真的拖起来了，不再补单选
         var data = new DataObject(QueueItemsFormat, indices);
         // DoDragDrop 是同步 modal —— 期间 UI 线程被 OLE 阻塞，但 NAudio 在另一线程推流不停
         DragDrop.DoDragDrop(QueueList, data, DragDropEffects.Move);

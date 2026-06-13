@@ -289,6 +289,10 @@ public partial class PlaylistView : UserControl
         finally
         {
             HideAdorner();
+            // 同时清掉外层文件高亮：QueueList_Drop 会 e.Handled=true，事件不再冒泡到 Root_Drop，
+            // 否则用户拖文件落到列表区时高亮会卡住不消失（DragLeave 已先于 Drop 离场，
+            // Root_DragLeave 也不会再触发）。
+            DragDropExtensions.SetIsDragOver(QueueListBorder, false);
             e.Handled = true;
         }
     }

@@ -286,6 +286,56 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         catch (IOException) { /* cache write failure doesn't block */ }
     }
 
+    /// <summary>
+    /// 启动时用 library-cache.json 的缓存元数据回填文件夹绑定歌单的占位 Track。
+    /// 由 MainViewModel.InitializeAsync 在 Hydrate 之后调用(非 fire-and-forget, 需 await)。
+    /// 解决问题: queue.json 只存路径, PlaylistViewModel 构造时用 CreateFallback 占位(仅文件名),
+    /// 用户需等到后台扫描完成后才能看到完整元数据。此方法让启动即可显示。
+    /// </summary>
+    internal async Task ApplyCachedMetadataAsync()
+    {
+        foreach (var vm in Playlists)
+        {
+            if (vm.SourceFolder is not { } sourceFolder)
+                continue;
+
+            try
+            {
+                var normalized = Path.GetFullPath(sourceFolder);
+                var cached = await _cache.LoadAsync(normalized).ConfigureAwait(false);
+                if (cached.Count == 0) continue;
+
+                // 建立路径→缓存条目映射
+                var cacheDict = new Dictionary<string, LibraryCacheEntry>(StringComparer.OrdinalIgnoreCase);
+                foreach (var entry in cached)
+                    cacheDict[entry.FilePath] = entry;
+
+                // 替换 Queue 中的占位 Track 为缓存的完整元数据
+                for (int i = 0; i < vm.Queue.Count; i++)
+                {
+                    var current = vm.Queue[i];
+                    if (cacheDict.TryGetValue(current.FilePath, out var entry))
+                    {
+                        vm.Queue[i] = new Track(
+                            FilePath: entry.FilePath,
+                            Title: entry.Title,
+                            Artist: entry.Artist,
+                            Album: entry.Album,
+                            Genre: entry.Genre,
+                            Year: entry.Year,
+                            SampleRate: entry.SampleRate,
+                            AlbumArt: null,
+                            Duration: entry.Duration);
+                    }
+                }
+            }
+            catch
+            {
+                // 缓存加载失败静默跳过, 队列保持占位 Track
+            }
+        }
+    }
+
     /// <summary>启动后台扫描所有文件夹绑定歌单。由 MainViewModel.InitializeAsync fire-and-forget。</summary>
     internal async Task RescanFolderBoundPlaylistsAsync()
     {

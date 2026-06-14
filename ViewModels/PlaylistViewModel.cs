@@ -31,6 +31,12 @@ public partial class PlaylistViewModel : ObservableObject
     /// <summary>歌单主键(GUID); 创建时一次性确定, 不可变。</summary>
     public string Id { get; }
 
+    /// <summary>文件夹绑定歌单的源文件夹路径; null 表示普通歌单(Phase 10)。</summary>
+    public string? SourceFolder { get; }
+
+    /// <summary>是否为文件夹绑定歌单(Phase 10)。sidebar DataTemplate 用。</summary>
+    public bool HasSourceFolder => SourceFolder is not null;
+
     /// <summary>歌单显示名; 仅展示, 可重命名, 可重复。</summary>
     [ObservableProperty]
     private string _name = string.Empty;
@@ -38,6 +44,14 @@ public partial class PlaylistViewModel : ObservableObject
     /// <summary>容器侧设置: 本 VM 是否为当前正在播放的歌单。仅读;由 PlaylistsViewModel 维护。</summary>
     [ObservableProperty]
     private bool _isActivePlaylist;
+
+    /// <summary>该歌单是否正在后台扫描(Phase 10)。由 PlaylistsViewModel 设置。</summary>
+    [ObservableProperty]
+    private bool _isScanning;
+
+    /// <summary>最近一次扫描是否失败(Phase 10)。由 PlaylistsViewModel 设置。</summary>
+    [ObservableProperty]
+    private bool _hasScanError;
 
     /// <summary>当前播放队列。ObservableCollection 自动通知 UI 增删改。</summary>
     public ObservableCollection<Track> Queue { get; } = new();
@@ -98,6 +112,7 @@ public partial class PlaylistViewModel : ObservableObject
 
         Id = seed.Id;
         Name = seed.Name;
+        SourceFolder = seed.SourceFolder;
         _shuffleEnabled = seed.ShuffleEnabled;
         _repeatMode = seed.RepeatMode;
 
@@ -133,7 +148,8 @@ public partial class PlaylistViewModel : ObservableObject
         Items: Queue.Select(t => t.FilePath).ToArray(),
         CurrentIndex: CurrentIndex,
         ShuffleEnabled: ShuffleEnabled,
-        RepeatMode: RepeatMode);
+        RepeatMode: RepeatMode,
+        SourceFolder: SourceFolder);
 
     /// <summary>
     /// 计算下一首曲目的索引。

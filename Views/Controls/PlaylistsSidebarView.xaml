@@ -19,13 +19,17 @@
                     Margin="6">
             <Button x:Name="AddBtn"
                     Width="28" Height="28"
+                    Padding="0"
                     Content="+"
+                    FontSize="16"
                     ToolTip="新建歌单"
                     Click="AddBtn_Click"/>
             <Button x:Name="RemoveBtn"
                     Width="28" Height="28"
+                    Padding="0"
                     Margin="6,0,0,0"
                     Content="−"
+                    FontSize="16"
                     ToolTip="删除选中歌单"
                     Click="RemoveBtn_Click"/>
         </StackPanel>

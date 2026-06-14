@@ -156,9 +156,14 @@
                             <TextBlock Grid.Column="0" Text="" FontSize="11"
                                        Foreground="{StaticResource AccentPrimary}"
                                        VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Title}"
-                                       FontSize="12" TextTrimming="CharacterEllipsis"
-                                       VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Artist}"
+                                           FontSize="10"
+                                           Foreground="{StaticResource ForegroundSecondary}"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
                             <Button Grid.Column="2" Content="×"
                                     Width="20" Height="20" Padding="0"
                                     Background="Transparent" BorderThickness="0"

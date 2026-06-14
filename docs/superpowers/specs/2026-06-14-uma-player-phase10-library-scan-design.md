@@ -408,4 +408,18 @@ App.OnStartup → MainViewModel.InitializeAsync
   Views/Controls/PlaylistView.xaml.cs     (跨级绑定)
   Views/Controls/PlaylistsSidebarView.xaml (📂 标识 + 🔄 扫描指示)
   Extensions/ServiceCollectionExtensions.cs (注册新服务)
+  Models/AudioConstants.cs                (音频后缀白名单, 从 DragDropExtensions 提取)
 ```
+
+---
+
+## 13. 手动验收清单
+
+- [ ] **1. 启动应用** — `dotnet run --project UmaPlayer.csproj`，无崩溃
+- [ ] **2. 导入文件夹** — 点击「📂 导入文件夹」→ 选择含音频文件的文件夹 → sidebar 出现 📂 前缀新歌单，PlaylistView 显示曲目（标题/艺术家/专辑等元数据），右侧出现 🔄 刷新按钮
+- [ ] **3. 播放验证** — 双击文件夹歌单中的曲目 → 正常播放，PlayerBar 显示元数据和封面
+- [ ] **4. 关闭重启持久化** — 关闭再启动 → 文件夹歌单仍存在（queue.json 恢复），sidebar 🔄 短暂出现后消失（后台扫描），曲目立即显示完整元数据（library-cache.json）
+- [ ] **5. 手动刷新** — 在文件夹歌单中点击 🔄 → sidebar 显示 🔄 扫描中，完成后消失
+- [ ] **6. 普通歌单不受影响** — 切换到普通歌单 → 无 📂 前缀，无 🔄 刷新按钮
+- [ ] **7. 增量同步** — 在文件夹中添加/删除音频文件 → 重启或刷新 → 新增文件出现，删除文件消失
+- [ ] **8. UI 按钮图标** — sidebar ➕/➖、PlaylistView 🔀/🔄/🔁、PlayerBar 🔇/🔊 图标均完整显示（无裁切）

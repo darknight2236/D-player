@@ -56,6 +56,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
     /// <summary>
     /// MainViewModel 启动时调用; 用持久化快照初始化容器。重复调用先清空。
+    /// 对文件夹绑定歌单, 同步加载 library-cache.json 回填元数据(缓存文件极小, 阻塞 &lt; 几 ms)。
     /// </summary>
     public void Hydrate(QueueState snapshot)
     {
@@ -68,6 +69,11 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         foreach (var p in snapshot.Playlists)
         {
             var vm = _factory(p);
+
+            // 文件夹绑定歌单: 用缓存元数据替换占位 Track
+            if (p.SourceFolder is { } sourceFolder)
+                ApplyCachedMetadataSync(vm, sourceFolder);
+
             HookPlaylistVm(vm);
             Playlists.Add(vm);
         }
@@ -287,52 +293,42 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 启动时用 library-cache.json 的缓存元数据回填文件夹绑定歌单的占位 Track。
-    /// 由 MainViewModel.InitializeAsync 在 Hydrate 之后调用(非 fire-and-forget, 需 await)。
-    /// 解决问题: queue.json 只存路径, PlaylistViewModel 构造时用 CreateFallback 占位(仅文件名),
-    /// 用户需等到后台扫描完成后才能看到完整元数据。此方法让启动即可显示。
+    /// 同步加载缓存元数据并替换占位 Track。由 Hydrate 在构造 PlaylistVM 后立即调用。
+    /// cache.LoadAsync 内部有 SemaphoreSlim, 用 .GetAwaiter().GetResult() 同步等待;
+    /// 缓存文件极小(几 KB), 阻塞 UI 线程 &lt; 几 ms。
     /// </summary>
-    internal async Task ApplyCachedMetadataAsync()
+    private void ApplyCachedMetadataSync(PlaylistViewModel vm, string sourceFolder)
     {
-        foreach (var vm in Playlists)
+        try
         {
-            if (vm.SourceFolder is not { } sourceFolder)
-                continue;
+            var normalized = Path.GetFullPath(sourceFolder);
+            var cached = _cache.LoadAsync(normalized).GetAwaiter().GetResult();
+            if (cached.Count == 0) return;
 
-            try
+            var cacheDict = new Dictionary<string, LibraryCacheEntry>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in cached)
+                cacheDict[entry.FilePath] = entry;
+
+            for (int i = 0; i < vm.Queue.Count; i++)
             {
-                var normalized = Path.GetFullPath(sourceFolder);
-                var cached = await _cache.LoadAsync(normalized).ConfigureAwait(false);
-                if (cached.Count == 0) continue;
-
-                // 建立路径→缓存条目映射
-                var cacheDict = new Dictionary<string, LibraryCacheEntry>(StringComparer.OrdinalIgnoreCase);
-                foreach (var entry in cached)
-                    cacheDict[entry.FilePath] = entry;
-
-                // 替换 Queue 中的占位 Track 为缓存的完整元数据
-                for (int i = 0; i < vm.Queue.Count; i++)
+                if (cacheDict.TryGetValue(vm.Queue[i].FilePath, out var entry))
                 {
-                    var current = vm.Queue[i];
-                    if (cacheDict.TryGetValue(current.FilePath, out var entry))
-                    {
-                        vm.Queue[i] = new Track(
-                            FilePath: entry.FilePath,
-                            Title: entry.Title,
-                            Artist: entry.Artist,
-                            Album: entry.Album,
-                            Genre: entry.Genre,
-                            Year: entry.Year,
-                            SampleRate: entry.SampleRate,
-                            AlbumArt: null,
-                            Duration: entry.Duration);
-                    }
+                    vm.Queue[i] = new Track(
+                        FilePath: entry.FilePath,
+                        Title: entry.Title,
+                        Artist: entry.Artist,
+                        Album: entry.Album,
+                        Genre: entry.Genre,
+                        Year: entry.Year,
+                        SampleRate: entry.SampleRate,
+                        AlbumArt: null,
+                        Duration: entry.Duration);
                 }
             }
-            catch
-            {
-                // 缓存加载失败静默跳过, 队列保持占位 Track
-            }
+        }
+        catch
+        {
+            // 缓存加载失败静默跳过, 队列保持占位 Track
         }
     }
 

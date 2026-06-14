@@ -51,9 +51,6 @@ public sealed class MainViewModel : IAsyncDisposable
         Playlists.StateChanged += OnPlaylistsStateChanged;
         _hydrated = true;
 
-        // Phase 10: 用缓存元数据回填文件夹歌单的占位 Track(阻塞, 但缓存文件极小)
-        await Playlists.ApplyCachedMetadataAsync().ConfigureAwait(true);
-
         // Phase 10: 后台扫描文件夹绑定歌单(不阻塞 UI)
         _ = Playlists.RescanFolderBoundPlaylistsAsync();
     }

@@ -34,6 +34,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="UmaPlayer.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <None Update="appsettings.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>

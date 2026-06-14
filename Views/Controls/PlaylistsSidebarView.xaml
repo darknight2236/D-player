@@ -49,14 +49,35 @@
                 <DataTemplate>
                     <Grid Margin="0,2">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="14"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="14"/>   <!-- ▶ marker -->
+                            <ColumnDefinition Width="16"/>   <!-- 📂/🔄 icon -->
+                            <ColumnDefinition Width="*"/>    <!-- Name -->
                         </Grid.ColumnDefinitions>
                         <!-- ▶ 标记由 code-behind 在 RefreshActiveMarker 中按 IsActivePlaylist 写入 -->
                         <TextBlock Grid.Column="0"
                                    FontSize="12"
                                    Foreground="{StaticResource AccentPrimary}"/>
+                        <!-- 📂 文件夹图标 / 🔄 扫描中 -->
                         <TextBlock Grid.Column="1"
+                                   FontSize="11"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value=""/>
+                                    <Style.Triggers>
+                                        <!-- 文件夹绑定歌单: 显示 📂 -->
+                                        <DataTrigger Binding="{Binding HasSourceFolder}" Value="True">
+                                            <Setter Property="Text" Value="📂"/>
+                                        </DataTrigger>
+                                        <!-- 扫描中(覆盖 📂): 显示 🔄 -->
+                                        <DataTrigger Binding="{Binding IsScanning}" Value="True">
+                                            <Setter Property="Text" Value="🔄"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Grid.Column="2"
                                    Text="{Binding Name}"
                                    TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center"/>

@@ -43,6 +43,7 @@
                  SelectedItem="{Binding ViewedPlaylist, Mode=TwoWay}"
                  BorderThickness="0"
                  Background="Transparent"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  AllowDrop="True"
                  MouseDoubleClick="PlaylistList_MouseDoubleClick"
                  PreviewMouseLeftButtonDown="PlaylistList_PreviewMouseLeftButtonDown"

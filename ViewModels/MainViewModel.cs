@@ -50,6 +50,9 @@ public sealed class MainViewModel : IAsyncDisposable
         Playlists.Hydrate(snapshot);
         Playlists.StateChanged += OnPlaylistsStateChanged;
         _hydrated = true;
+
+        // Phase 10: 后台扫描文件夹绑定歌单(不阻塞 UI)
+        _ = Playlists.RescanFolderBoundPlaylistsAsync();
     }
 
     private void OnPlaylistsStateChanged(object? sender, EventArgs e) => ScheduleSave();

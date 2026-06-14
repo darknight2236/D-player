@@ -20,6 +20,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private readonly IFileDialogService _fileDialog;
     private readonly ILibraryScannerService _scanner;
     private readonly ILibraryCache _cache;
+    private readonly ITrackMetadataReader _metadataReader;
 
     public ObservableCollection<PlaylistViewModel> Playlists { get; } = new();
 
@@ -42,17 +43,19 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         Func<Playlist, PlaylistViewModel> factory,
         IFileDialogService fileDialog,
         ILibraryScannerService scanner,
-        ILibraryCache cache)
+        ILibraryCache cache,
+        ITrackMetadataReader metadataReader)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
         Playlists.CollectionChanged += OnPlaylistsCollectionChanged;
     }
 
     internal PlaylistsViewModel(Func<Playlist, PlaylistViewModel> factory)
-        : this(factory, new NullFileDialogService(), new NullLibraryScannerService(), new NullLibraryCache()) { }
+        : this(factory, new NullFileDialogService(), new NullLibraryScannerService(), new NullLibraryCache(), new NullMetadataReader()) { }
 
     /// <summary>
     /// MainViewModel 启动时调用; 用持久化快照初始化容器。重复调用先清空。
@@ -70,9 +73,10 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         {
             var vm = _factory(p);
 
-            // 文件夹绑定歌单: 用缓存元数据替换占位 Track
             if (p.SourceFolder is { } sourceFolder)
-                ApplyCachedMetadataSync(vm, sourceFolder);
+                ApplyCachedMetadataSync(vm, sourceFolder);   // 文件夹歌单: 缓存回填
+            else
+                LoadMetadataForNormalPlaylistSync(vm);        // 普通歌单: 读文件元数据
 
             HookPlaylistVm(vm);
             Playlists.Add(vm);
@@ -332,6 +336,28 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 同步读取普通歌单的元数据。由 Hydrate 在构造 PlaylistVM 后调用。
+    /// 对每个占位 Track 调用 ITrackMetadataReader.ReadAsync(.GetAwaiter().GetResult());
+    /// 失败的文件静默跳过(保持占位 Track)。
+    /// </summary>
+    private void LoadMetadataForNormalPlaylistSync(PlaylistViewModel vm)
+    {
+        for (int i = 0; i < vm.Queue.Count; i++)
+        {
+            try
+            {
+                var track = _metadataReader.ReadAsync(vm.Queue[i].FilePath).GetAwaiter().GetResult();
+                if (track is not null)
+                    vm.Queue[i] = track;
+            }
+            catch
+            {
+                // 文件损坏/不存在, 保持占位 Track
+            }
+        }
+    }
+
     /// <summary>启动后台扫描所有文件夹绑定歌单。由 MainViewModel.InitializeAsync fire-and-forget。</summary>
     internal async Task RescanFolderBoundPlaylistsAsync()
     {
@@ -446,5 +472,11 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         public Task<IReadOnlyList<LibraryCacheEntry>> LoadAsync(string folderPath) => Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(Array.Empty<LibraryCacheEntry>());
         public Task SaveAsync(string folderPath, IReadOnlyList<LibraryCacheEntry> entries) => Task.CompletedTask;
+    }
+
+    private sealed class NullMetadataReader : ITrackMetadataReader
+    {
+        public Task<Track> ReadAsync(string filePath) => Task.FromResult(new Track(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero));
+        public Track CreateFallback(string filePath) => new(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero);
     }
 }

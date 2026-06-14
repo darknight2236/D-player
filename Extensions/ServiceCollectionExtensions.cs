@@ -37,6 +37,10 @@ public static class ServiceCollectionExtensions
         // 元数据读取（Singleton —— 无状态、纯函数式接口）
         services.AddSingleton<ITrackMetadataReader, AtlMetadataReader>();
 
+        // Phase 10: 库扫描 + 元数据缓存
+        services.AddSingleton<ILibraryScannerService, LibraryScannerService>();
+        services.AddSingleton<ILibraryCache, JsonLibraryCache>();
+
         // ViewModel
         services.AddTransient<PlayerViewModel>();
         // PlaylistViewModel 由 PlaylistsViewModel 通过工厂创建; 工厂封装依赖, seed 是动态参数。

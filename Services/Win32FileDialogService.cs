@@ -21,4 +21,16 @@ public sealed class Win32FileDialogService : IFileDialogService
             ? dialog.FileNames.ToList().AsReadOnly()
             : Array.Empty<string>();
     }
+
+    public string? OpenFolder()
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "选择音乐文件夹"
+        };
+
+        return dialog.ShowDialog() == true
+            ? dialog.FolderName
+            : null;
+    }
 }

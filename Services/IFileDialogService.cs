@@ -16,4 +16,10 @@ public interface IFileDialogService
     /// <param name="multiselect">是否允许多选；默认 false 保持原行为。</param>
     /// <returns>用户选中的文件路径列表；取消则返回空集合。</returns>
     IReadOnlyList<string> OpenFiles(string filter, bool multiselect = false);
+
+    /// <summary>
+    /// 弹出文件夹选择对话框(Phase 10)。
+    /// </summary>
+    /// <returns>用户选中的文件夹路径；取消则返回 null。</returns>
+    string? OpenFolder();
 }

@@ -123,6 +123,7 @@
             <!-- 右对齐：🔊/🔇 静音切换 + 音量滑块（IsMoveToPointEnabled：单击即跳） -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button Command="{Binding ToggleMuteCommand}" Width="32" Height="32"
+                        Padding="0"
                         Background="Transparent" BorderThickness="0">
                     <TextBlock Text="{Binding VolumeIcon}" FontSize="14"
                                Foreground="{StaticResource ForegroundPrimary}"/>

@@ -21,6 +21,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private readonly ILibraryScannerService _scanner;
     private readonly ILibraryCache _cache;
     private readonly ITrackMetadataReader _metadataReader;
+    private readonly SynchronizationContext _syncContext;
 
     public ObservableCollection<PlaylistViewModel> Playlists { get; } = new();
 
@@ -51,6 +52,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
+        _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
         Playlists.CollectionChanged += OnPlaylistsCollectionChanged;
     }
 
@@ -381,8 +383,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private async Task RescanSinglePlaylistAsync(PlaylistViewModel vm, string sourceFolder)
     {
         var normalized = Path.GetFullPath(sourceFolder);
-        vm.IsScanning = true;
-        vm.HasScanError = false;
+        _syncContext.Send(_ => { vm.IsScanning = true; vm.HasScanError = false; }, null);
 
         try
         {
@@ -406,39 +407,42 @@ public sealed partial class PlaylistsViewModel : ObservableObject
                     Album: track.Album, Genre: track.Genre, Year: track.Year,
                     Duration: track.Duration, SampleRate: track.SampleRate));
 
-            // Remove deleted files (reverse order to keep indices stable)
-            var removedIndices = diff.RemovedPaths
-                .Select(p => FindTrackIndexByPath(vm.Queue, p))
-                .Where(i => i >= 0)
-                .OrderByDescending(i => i)
-                .ToList();
-
-            foreach (var idx in removedIndices)
+            // 所有 Queue 修改必须在 UI 线程执行(WPF CollectionView 要求)
+            _syncContext.Send(_ =>
             {
-                vm.Queue.RemoveAt(idx);
-                if (idx == vm.CurrentIndex)
-                    vm.CurrentIndex = -1;
-                else if (idx < vm.CurrentIndex)
-                    vm.CurrentIndex--;
-            }
+                var removedIndices = diff.RemovedPaths
+                    .Select(p => FindTrackIndexByPath(vm.Queue, p))
+                    .Where(i => i >= 0)
+                    .OrderByDescending(i => i)
+                    .ToList();
 
-            foreach (var track in newTracks)
-                vm.Queue.Add(track);
+                foreach (var idx in removedIndices)
+                {
+                    vm.Queue.RemoveAt(idx);
+                    if (idx == vm.CurrentIndex)
+                        vm.CurrentIndex = -1;
+                    else if (idx < vm.CurrentIndex)
+                        vm.CurrentIndex--;
+                }
+
+                foreach (var track in newTracks)
+                    vm.Queue.Add(track);
+            }, null);
 
             try { await _cache.SaveAsync(normalized, updatedEntries).ConfigureAwait(false); }
             catch (IOException) { /* cache write failure doesn't block */ }
         }
         catch (DirectoryNotFoundException)
         {
-            vm.HasScanError = true;
+            _syncContext.Send(_ => vm.HasScanError = true, null);
         }
         catch (UnauthorizedAccessException)
         {
-            vm.HasScanError = true;
+            _syncContext.Send(_ => vm.HasScanError = true, null);
         }
         finally
         {
-            vm.IsScanning = false;
+            _syncContext.Send(_ => vm.IsScanning = false, null);
         }
     }
 

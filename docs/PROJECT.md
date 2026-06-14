@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/14 · 对应分支：`master` · 当前阶段：**Phase 9 完成**（sidebar 歌单拖拽重排）
+> 文档日期：2026/06/14 · 对应分支：`master` · 当前阶段：**Phase 10 完成**（文件夹绑定歌单）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。可视化、库扫描放在 Phase 10+。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。
 
 ### 1.1 关键特性（已实现）
 
@@ -26,12 +26,13 @@
 | 队列持久化 | 关闭时写 `%LocalAppData%\UmaPlayer\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
 | 拖拽 | 外部音频文件拖入末尾入队（白名单 .mp3/.wma/.flac/.aac/.wav）；队列内单/多选拖拽重排（含 ▶ 当前曲跟随、Shuffle 历史按对象身份重映射）；插入线 Adorner + 圆角列表框边框高亮（Phase 5） |
 | 多命名歌单 | 创建/删除/重命名多个独立歌单；Viewed vs Current 双指针（切查看不打断播放，双击才跨歌单切换音频）；每个歌单独立 Shuffle/Repeat/CurrentIndex；v1→v2 schema 自动迁移（Phase 6） |
+| 文件夹绑定歌单 | 指定文件夹扫描 → 创建歌单; 启动后台自动同步增删; 手动刷新; 元数据缓存 (Phase 10) |
 
 ### 1.2 后续增量（未实现）
 
 - M3U / PLS 等播放列表格式导入导出
 - 音频可视化（频谱 / 波形）
-- 音乐库扫描（文件夹扫描、按艺术家/专辑组织）
+- 音乐库按艺术家/专辑组织（文件夹扫描已在 Phase 10 实现）
 - OGG/Vorbis 支持（MF 不原生支持，需额外解码器）
 - 多设备 / 输出模式切换（WASAPI Shared / Exclusive / ASIO）—— 接口已预留
 
@@ -70,8 +71,11 @@ UmaPlayer/
 │   ├── PlayState.cs             # enum: Stopped / Playing / Paused
 │   ├── RepeatMode.cs            # enum: Off / List / One  (Phase 2)
 │   ├── Playlist.cs              # 不可变 record: 歌单 (Id, Name, Items, CurrentIndex, ShuffleEnabled, RepeatMode) (Phase 6)
-│   ├── QueueState.cs            # 不可变 record: queue.json schema v2 (Playlists + CurrentPlaylistId) (Phase 4/6)
+│   ├── QueueState.cs            # 不可变 record: queue.json schema v3 (Playlists + CurrentPlaylistId + SourceFolder) (Phase 4/6/10)
 │   ├── MoveTracksArgs.cs        # 不可变 record: 队列内拖拽重排命令参数 (Phase 5)
+│   ├── AudioConstants.cs         # 音频后缀白名单 (Phase 10, 从 DragDropExtensions 提取)
+│   ├── LibraryCacheEntry.cs      # 缓存条目 record (Phase 10)
+│   ├── LibraryDiff.cs            # 扫描增量同步 record (Phase 10)
 │   └── AudioDeviceInfo.cs       # 预留：设备信息
 │
 ├── Services/                    # 业务/基础设施服务（全部基于接口）
@@ -83,6 +87,10 @@ UmaPlayer/
 │   ├── JsonSettingsPersistence.cs # 持久化到 %LocalAppData%\UmaPlayer\settings.json
 │   ├── IPlaylistService.cs      # 多歌单持久化抽象 (Phase 6, 替换 IQueuePersistence)
 │   ├── JsonPlaylistService.cs   # 持久化到 %LocalAppData%\UmaPlayer\queue.json; 内置 v1→v2 迁移 (Phase 6)
+│   ├── ILibraryScannerService.cs      # 库扫描抽象 (Phase 10)
+│   ├── LibraryScannerService.cs       # 递归扫描 + Diff 实现 (Phase 10)
+│   ├── ILibraryCache.cs               # 元数据缓存抽象 (Phase 10)
+│   └── JsonLibraryCache.cs            # JSON 缓存实现 (Phase 10)
 │   ├── ITrackMetadataReader.cs # 元数据读取抽象 (Phase 3)
 │   ├── AtlMetadataReader.cs    # 基于 z440.atl.core 的实现 (Phase 3)
 │   ├── IAudioDeviceManager.cs   # 预留：设备枚举/切换
@@ -94,7 +102,7 @@ UmaPlayer/
 │   ├── MainViewModel.cs        # Strict Facade (~44 行)：仅暴露 Player/Playlists + debounce save + CleanupAsync (Phase 3/6)
 │   ├── PlayerViewModel.cs      # Transport 子 VM：播放/暂停/进度/音量 (Phase 3)
 │   ├── PlaylistViewModel.cs    # 队列子 VM：Queue/Shuffle/Repeat/推进算法 + Id/Name/IsActivePlaylist (Phase 3/6)
-│   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + Add/Remove/Rename + HandleDoubleClickPlay (Phase 6)
+│   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + Add/Remove/Rename + HandleDoubleClickPlay + ImportFolder/Rescan/Refresh (Phase 6/10)
 │
 ├── Views/
 │   ├── MainWindow.xaml(.cs)     # 主窗口；Phase 6 改为 PlayerBar + 2 列(Sidebar + PlaylistView)
@@ -102,8 +110,8 @@ UmaPlayer/
 │   │   └── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)
 │   └── Controls/
 │       ├── PlayerBar.xaml(.cs)  # 全功能播放栏（封面/信息/进度/控制/音量）
-│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard）
-│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记）(Phase 6)
+│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + Phase 10 导入文件夹/刷新按钮）
+│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、📂 文件夹图标、🔄 扫描指示）(Phase 6/10)
 │       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频后缀白名单/过滤 (Phase 5)
 │       └── DropInsertionAdorner.cs   # ListBox AdornerLayer 插入线绘制 (Phase 5)
 │
@@ -191,6 +199,11 @@ UmaPlayer/
                                                     │ IQueuePersistence    │
                                                     │ (JSON impl) [Phase4] │
                                                     └──────────────────────┘
+┌────────────────────────┐  ┌──────────────────────┐
+│ ILibraryScannerService │  │ ILibraryCache        │
+│ (Recursive scan+Diff)  │  │ (JSON impl) [Ph10]   │
+│ [Phase 10]             │  │                      │
+└────────────────────────┘  └──────────────────────┘
 
 注：IFileDialogService 由 PlaylistViewModel 直接消费（OpenAndPlay / AddToQueue）。
 注：IQueuePersistence 由 PlaylistViewModel（启动读盘）+ MainWindow.Window_Closing（关闭写盘）双方消费。
@@ -208,6 +221,8 @@ UmaPlayer/
 | `ISettingsPersistence` | Singleton | 内部 `SemaphoreSlim` 并发互斥 |
 | `IQueuePersistence` | Singleton (Phase 4) | 独立 `SemaphoreSlim`，与 settings 文件锁互不影响 |
 | `ITrackMetadataReader` | Singleton (Phase 3) | 无状态，封装 z440.atl.core；`ReadAsync` 不抛 |
+| `ILibraryScannerService` | **Singleton** (Phase 10) | 递归文件夹扫描 + Diff 计算；无状态 |
+| `ILibraryCache` | **Singleton** (Phase 10) | JSON 元数据缓存 (`library-cache.json`)；内部 `SemaphoreSlim` |
 | `IAudioDeviceManager` | Singleton（Stub） | 预留 |
 | `IAudioOutputFactory` | Transient（Stub） | 预留；语义上由 `IPlaybackService` 创建即释放 |
 | `PlayerViewModel` | **Transient** (Phase 3) | Transport 子 VM；DI 中**必须先于** `PlaylistViewModel` 注册 |
@@ -265,7 +280,7 @@ UmaPlayer/
 - **`Track`**：不可变 record。`Duration` 与 `SampleRate` 在加载时由 `NAudioPlaybackService.LoadAsync` 通过 `track with { Duration=..., SampleRate=... }` 补齐。`AlbumArt` 为原始字节数组，由 VM 转 `BitmapImage`（限 200px、`Freeze()` 跨线程安全）。**注意 record 的结构相等：** 两个 `CreateFallback("X.mp3")` 占位 Track 在结构上相等 —— 任何按相等性查找/去重的代码（`IndexOf` / 默认 `HashSet<Track>`）都会塌陷它们。Phase 5 重排算法因此改用引用身份（`ReferenceEquals` + `ReferenceEqualityComparer.Instance`）。
 - **`PlayState`**：`Stopped / Playing / Paused`。
 - **`RepeatMode`**：`Off / List / One`（Phase 2）。
-- **`QueueState`**（Phase 4）：不可变 record；`SchemaVersion=1` / `Items: IReadOnlyList<string>`（路径） / `CurrentIndex` / `ShuffleEnabled` / `RepeatMode`。**只持久化路径与队列态**，不携带 Track 元数据或封面 —— 启动时由 `PlaylistViewModel.LoadFromDisk` 为每条路径创建占位 Track（与 OpenAndPlay 流程一致），用户首次播放时由 `PlayTrackAtAsync` 升级为完整元数据。
+- **`QueueState`**（Phase 4）：不可变 record；`SchemaVersion=3`（v2→v3 新增 `Playlist.SourceFolder`，无迁移：缺失字段反序列化为 null）/ `Playlists: IReadOnlyList<Playlist>` / `CurrentPlaylistId`。**只持久化路径与队列态**，不携带 Track 元数据或封面 —— 启动时由 `PlaylistViewModel.LoadFromDisk` 为每条路径创建占位 Track（与 OpenAndPlay 流程一致），用户首次播放时由 `PlayTrackAtAsync` 升级为完整元数据。
 - **`MoveTracksArgs`**（Phase 5）：不可变 record；`SourceIndices: IReadOnlyList<int>`（升序无重复，每项 ∈ [0, Queue.Count)） / `TargetIndex: int`（∈ [0, Queue.Count]，i 表示插到 i 之前；Count 表示末尾）。由 View 层 Drop handler 构造，这些不变量由 View 保证（VM 信任入参，无校验代码）。
 - **`AudioDeviceInfo`**：`(Id, Name, IsDefault)`，目前仅类型存在。
 
@@ -290,12 +305,12 @@ UmaPlayer/
 - 读盘失败（损坏/权限）→ 以 `new AppSettings()` 为起点喂给 mutator，写盘照常；写盘失败则抛出（关闭流程调用方自行 catch）
 - 私有 `ReadFromDiskNoLockAsync()`：调用方负责持锁；供 `LoadAsync` 与 `UpdateAsync` 共用
 
-### 5.3a `Services/JsonQueuePersistence`（Phase 4）
+### 5.3a `Services/JsonPlaylistService`（Phase 6，替换 JsonQueuePersistence，Schema v3）
 
 - 路径：`%LocalAppData%\UmaPlayer\queue.json`
 - 与 settings 持久化结构对称：独立 `SemaphoreSlim(1,1)`、`WriteIndented=true`、`JsonStringEnumConverter`（让 `RepeatMode` 序列化成字符串而非整数，跨版本稳定且方便手动调试）
-- 接口仅 `LoadAsync()` / `SaveAsync(QueueState)`，**故意没有 `UpdateAsync`** —— PlaylistViewModel 是队列状态的唯一权威源，无需读-改-写合并
-- `LoadAsync` 隐式契约：**绝不抛**（catch-all 静默 fallback 到 `new QueueState()`）。文件不存在/JSON 损坏/版本号不匹配/反序列化得 null 全部走同一回退分支；旧文件保留供用户排查
+- 接口仅 `LoadAsync()` / `SaveAsync(QueueState)`，**故意没有 `UpdateAsync`** —— PlaylistsViewModel 是队列状态的唯一权威源，无需读-改-写合并
+- `LoadAsync` 隐式契约：**绝不抛**（catch-all 静默 fallback 到 `new QueueState()`）。文件不存在/JSON 损坏/版本号不匹配/反序列化得 null 全部走同一回退分支；旧文件保留供用户排查。内置 v1→v2 一次性迁移（单条"默认歌单"）+ v2→v3 字段补充（`SourceFolder` 缺失即 null，无需迁移）
 - `SaveAsync` 失败抛出，由 `MainWindow.Window_Closing` 自行 catch（与 settings 写盘失败行为对称：用户下次启动队列丢失，但不打扰关闭流程）
 
 ### 5.4 `ViewModels/MainViewModel`（Strict Facade，~44 行）
@@ -318,6 +333,12 @@ public Task CleanupAsync();
 
 源生成器属性：`_isSeeking`, `_position`, `_duration`, `_playState`, `_currentTrack`, `_albumArtImage`, `_volume`, `_isMuted`。派生：`VolumeIcon`（🔇/🔊）、`SampleRateText`、`PositionNormalized`（0..1）。
 
+**Phase 10 新增成员：**
+- `SourceFolder`（`string?`，构造时从 `Playlist` seed 传入）：文件夹绑定歌单的源路径；null 表示普通手动歌单
+- `HasSourceFolder`（`bool`，派生）：sidebar DataTemplate 用，决定是否显示文件夹图标
+- `IsScanning`（`[ObservableProperty] bool`）：由 `PlaylistsViewModel` 设置，指示后台扫描进行中
+- `HasScanError`（`[ObservableProperty] bool`）：由 `PlaylistsViewModel` 设置，指示最近一次扫描失败
+
 构造时订阅 `IPlaybackService` 的 5 个事件（`PositionChanged / StateChanged / DurationChanged / TrackChanged / PlaybackError`），并阻塞读盘加载持久化音量（`_isInitializing` 标志抑制初始化期的写盘）。**不订阅 `TrackEnded`**（那是 PlaylistViewModel 的职责）。
 
 `[RelayCommand]`：`SeekStarted / SeekCompleted(normalized) / PlayPause / Stop / ToggleMute`。
@@ -328,7 +349,7 @@ public Task CleanupAsync();
 
 `HandleTrackChanged(Track? track)`：track 为 null 时把 `CurrentTrack` 和 `AlbumArtImage` 一起置 null（XAML 的 `FallbackValue='No track loaded'` 处理标题显示）。
 
-### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~528 行 / Phase 4 增加 LoadFromDisk + SnapshotState + PlayCurrent）
+### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~528 行 / Phase 4 增加 LoadFromDisk + SnapshotState + PlayCurrent / Phase 10 增加 SourceFolder + IsScanning）
 
 源生成器属性：`_currentIndex`（-1 表示未选）, `_selectedTrack`（UI 列表选中项，与播放无关）, `_shuffleEnabled`, `_repeatMode`。集合：`ObservableCollection<Track> Queue`。私有：`HashSet<int> _shuffleHistory` / `Random _random` / `int _playToken`（重入哨兵）。派生：`HasCurrentTrack`、`RepeatActive`、`ShuffleBrushKey`。
 
@@ -356,6 +377,19 @@ public Task CleanupAsync();
 
 `Cleanup()`：同步解绑 `TrackEnded`，由 `MainViewModel.CleanupAsync` 调用。
 
+### 5.4c `ViewModels/PlaylistsViewModel`（多歌单容器，Phase 6 + Phase 10）
+
+源生成器属性：`_viewedPlaylist`（UI 当前选中）。集合：`ObservableCollection<PlaylistViewModel> Playlists`。私有：`Func<Playlist, PlaylistViewModel>` 工厂委托、`IPlaylistService`、`ILibraryScannerService`、`ILibraryCache`、`string _currentPlaylistId`。
+
+**Phase 6 成员：**`[RelayCommand]`：`AddPlaylist / RemovePlaylist / RenamePlaylist`；`HandleDoubleClickPlay`（跨歌单双击路由）；`RecomputeIsActiveFlags`（切 CurrentPlaylistId 后批量刷新 sidebar ▶ 标记）；`StateChanged` 事件（debounce save 触发点）。
+
+**Phase 10 新增成员：**
+- 构造函数新增 `ILibraryScannerService scanner` + `ILibraryCache cache` 两个依赖
+- `[RelayCommand] ImportFolderAsync()`：弹 `IFileDialogService.OpenFolder` → 递归扫描 → 创建文件夹绑定歌单（`Playlist` seed 带 `SourceFolder`）
+- `RescanFolderBoundPlaylistsAsync()`：启动时由 `MainViewModel.InitializeAsync` 触发；遍历所有 `HasSourceFolder` 的 VM，逐个增量同步（`LibraryDiff`）
+- `[RelayCommand] RefreshPlaylistAsync(PlaylistViewModel?)`：手动刷新单个文件夹绑定歌单
+- `RescanSinglePlaylistAsync(vm, sourceFolder)`：核心扫描逻辑 —— 调 `ILibraryScannerService.ScanAsync` + `ILibraryCache.LoadAsync/SaveAsync` → 计算 diff → 增删 Queue → 设 `IsScanning`/`HasScanError`
+
 ### 5.5 `Views`
 
 - **`MainWindow`**：两行 Grid 容器 —— `PlayerBar`（顶部，自适应高度）+ `PlaylistView`（底部填充）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
@@ -363,7 +397,7 @@ public Task CleanupAsync();
   - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）
   - `⏮` / `⏭` / `📂` 通过 `{Binding DataContext.Playlist.<XxxCommand>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 `PlaylistViewModel`（PlayerBar 自身的 DataContext 已切为 PlayerViewModel），`HasCurrentTrack` 守卫；队列空时按钮自动禁用
   - **▶/⏸ 按钮的双绑定（Phase 4）**：默认 `Command={Binding PlayPauseCommand}`（PlayerVM 的 transport 切换）；当 `CurrentTrack==null` 时通过 `<DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">` 切到 `Playlist.PlayCurrentCommand` —— 启动后队列已恢复但 transport 空闲，第一次按 ▶ 触发首次加载 + 播放，`TrackChanged(track)` 让 trigger 失活，回到 PlayPauseCommand。**注意 inline `<Style TargetType="Button">` 必须 `BasedOn="{StaticResource {x:Type Button}}"`**，否则会替换掉 `Themes/Controls.xaml` 中的隐式主题样式，按钮回退到 OS 原生白底（COUPLING.md §5）
-- **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空]` 左对齐、`🔀` `⇄/🔁/🔂` 右对齐；②`ListBox` 绑 `Queue`，每项含 ▶ 当前曲标记 + 标题 + `×` 删除按钮
+- **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽 + Phase 10)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空][导入文件夹][刷新]` 左对齐、`🔀` `⇄/🔁/🔂` 右对齐；②`ListBox` 绑 `Queue`，每项含 ▶ 当前曲标记 + 标题 + `×` 删除按钮
   - 当前曲 ▶ 标记由 code-behind 维护：订阅 `PlaylistViewModel.PropertyChanged` (CurrentIndex) / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）
   - 交互：双击播放、Delete 键删除、右上角按钮触发命令
   - Shuffle / Repeat 图标用 `Segoe UI Emoji` 字体（默认 `Segoe UI` 不含 U+1F500 完整字形）
@@ -376,7 +410,7 @@ public Task CleanupAsync();
 静态类，承担拖拽相关的 attached DependencyProperty 与文件过滤辅助：
 
 - `IsDragOver`（attached DP，bool，默认 false）：由 `PlaylistView.xaml.cs` 的 `Root_DragEnter` / `Root_DragLeave` / `Root_Drop` / `QueueList_Drop` 切换；XAML 用 `Style.Trigger Property="local:DragDropExtensions.IsDragOver"` 给 `QueueListBorder` 的 `BorderBrush` 设 `AccentPrimary` 实现高亮。所有切换调用都显式传 `QueueListBorder`（不是 `sender`），保证视觉范围只在列表圆角矩形上
-- `AudioExtensions`（`IReadOnlyList<string>`）：白名单 `.mp3 / .wma / .flac / .aac / .wav`，与 `IFileDialogService` 在 `OpenFiles` 中使用的过滤器单一来源
+- `AudioExtensions`（`IReadOnlyList<string>`）：代理到 `Models.AudioConstants.Extensions`（Phase 10 提取），白名单 `.mp3 / .wma / .flac / .aac / .wav`，与 `IFileDialogService` 在 `OpenFiles` 中使用的过滤器单一来源
 - `FilterAudioPaths(IEnumerable<string>?)`：大小写不敏感后缀匹配；null/空字符串/空后缀（文件夹路径 `Path.GetExtension` 返回 ""）/ 后缀不在白名单都返回不入结果。VM 层 `DropExternalFilesCommand` 信任此函数已过滤完成
 
 ### 5.5b `Views/Controls/DropInsertionAdorner`（Phase 5）
@@ -422,21 +456,35 @@ public Task CleanupAsync();
 **当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`。
 **已建模但未启用**：`OutputMode`、`PreferredDeviceId`、`LastPlayedPath`。
 
-### 6.3 队列快照：`%LocalAppData%\UmaPlayer\queue.json`（Phase 4）
+### 6.3 队列快照：`%LocalAppData%\UmaPlayer\queue.json`（Phase 4/6/10）
 
-由 `JsonQueuePersistence` 读写。Schema：
+由 `JsonPlaylistService` 读写。Schema v3：
 
 ```json
 {
-  "SchemaVersion": 1,
-  "Items": ["C:\\Music\\foo.mp3", "C:\\Music\\bar.flac"],
-  "CurrentIndex": 0,
-  "ShuffleEnabled": false,
-  "RepeatMode": "Off"
+  "SchemaVersion": 3,
+  "Playlists": [
+    {
+      "Id": "guid...",
+      "Name": "默认歌单",
+      "Items": ["C:\\Music\\foo.mp3", "C:\\Music\\bar.flac"],
+      "CurrentIndex": 0,
+      "ShuffleEnabled": false,
+      "RepeatMode": "Off",
+      "SourceFolder": null
+    }
+  ],
+  "CurrentPlaylistId": "guid..."
 }
 ```
 
 写时机：`MainWindow.Window_Closing`（每次关闭整队列覆盖一次）。读时机：`PlaylistViewModel` 构造期同步读盘。文件不存在/JSON 损坏/版本不匹配 → 静默 fallback 到空队列（保留旧文件供用户排查）。`Items` 中已被外部移动/删除的路径在加载时自动过滤；`CurrentIndex` 通过"向后滑、再向前回退"的算法映射到过滤后的位置（spec §5.1）。
+
+### 6.4 元数据缓存：`%LocalAppData%\UmaPlayer\library-cache.json`（Phase 10）
+
+由 `JsonLibraryCache` 读写。缓存文件夹绑定歌单扫描到的音频文件元数据，避免重复解析。Schema 为 `Dictionary<string, LibraryCacheEntry>`（key 为文件绝对路径）。`LibraryCacheEntry` 包含修改时间戳 (`LastWriteTimeUtc`) 与完整 `Track` 元数据。
+
+读时机：`RescanSinglePlaylistAsync` 扫描前调 `ILibraryCache.LoadAsync` 加载缓存。写时机：扫描完成后调 `ILibraryCache.SaveAsync` 更新。`LoadAsync` 隐式契约：**绝不抛**（catch-all 静默 fallback 到空字典）。
 
 ---
 
@@ -450,6 +498,7 @@ App.OnStartup 构建 DI → MainWindow Show → MainWindow.Loaded → MainViewMo
     SchemaVersion==1 → 自动迁移成单条 "默认歌单" + 立即覆盖写
     SchemaVersion==2 → 正常反序列化
 → Hydrate 进 PlaylistsViewModel 后, ViewedPlaylist 默认对齐 CurrentPlaylistId
+→ MainViewModel.InitializeAsync() 触发 Playlists.RescanFolderBoundPlaylistsAsync() 后台扫描
 ```
 
 ### 7.2 创建/重命名/删除歌单
@@ -648,3 +697,20 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `aa4040e` test: add PlaylistsViewModel unit tests (17 tests)
   - **Phase 9**（sidebar 歌单拖拽重排，master 直接提交）
     - `01b7db3` feat(views): add sidebar playlist drag-reorder
+  - **Phase 10**（文件夹绑定歌单，master 直接提交）
+    - `9d6a032` docs: add Phase 10 library scan design spec (folder-bound playlists)
+    - `2cf99e2` docs: add Phase 10 library scan implementation plan
+    - `8ffad2c` feat(models): add Playlist.SourceFolder + QueueState v3 (Phase 10)
+    - `0d1f522` feat(models): add LibraryCacheEntry + LibraryDiff records (Phase 10)
+    - `daf356e` docs: add SourceFolder XML doc to Playlist record
+    - `816e57d` feat(services): add ILibraryScannerService + LibraryScannerService (Phase 10)
+    - `56bbcab` revert: remove premature DI registration for Phase 10 services (belongs to Task 6)
+    - `1c680e5` refactor: extract AudioExtensions to Models.AudioConstants (fix layer violation)
+    - `b46ab6a` feat(services): add ILibraryCache + JsonLibraryCache (Phase 10)
+    - `82474b0` feat(services): add IFileDialogService.OpenFolder (Phase 10)
+    - `0131423` feat(di): register ILibraryScannerService + ILibraryCache (Phase 10)
+    - `02f9d0e` feat(vm): add PlaylistViewModel.IsScanning/HasScanError/SourceFolder (Phase 10)
+    - `8fc5322` feat(vm): add PlaylistsViewModel ImportFolder/Rescan/Refresh (Phase 10)
+    - `589d4d8` feat(vm): MainViewModel.InitializeAsync triggers background rescan (Phase 10)
+    - `5309984` feat(view): PlaylistView toolbar adds ImportFolder + Refresh buttons (Phase 10)
+    - `2bf93c0` feat(view): sidebar shows folder icon for folder-bound playlists + scanning indicator (Phase 10)

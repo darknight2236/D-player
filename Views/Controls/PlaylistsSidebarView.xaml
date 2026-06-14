@@ -22,6 +22,7 @@
                     Padding="0"
                     Content="+"
                     FontSize="16"
+                    Foreground="{StaticResource ForegroundPrimary}"
                     ToolTip="新建歌单"
                     Click="AddBtn_Click"/>
             <Button x:Name="RemoveBtn"
@@ -30,6 +31,7 @@
                     Margin="6,0,0,0"
                     Content="−"
                     FontSize="16"
+                    Foreground="{StaticResource ForegroundPrimary}"
                     ToolTip="删除选中歌单"
                     Click="RemoveBtn_Click"/>
         </StackPanel>
@@ -64,6 +66,7 @@
                         <!-- 📂 文件夹图标 / 🔄 扫描中 -->
                         <TextBlock Grid.Column="1"
                                    FontSize="11"
+                                   Foreground="{StaticResource ForegroundSecondary}"
                                    VerticalAlignment="Center">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -83,6 +86,7 @@
                         </TextBlock>
                         <TextBlock Grid.Column="2"
                                    Text="{Binding Name}"
+                                   Foreground="{StaticResource ForegroundPrimary}"
                                    TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center"/>
                     </Grid>

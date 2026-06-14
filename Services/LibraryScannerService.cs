@@ -1,13 +1,12 @@
 using System.IO;
 using UmaPlayer.Models;
-using UmaPlayer.Views.Controls;
 
 namespace UmaPlayer.Services;
 
 /// <summary>
 /// ILibraryScannerService 的默认实现(Phase 10)。
 ///
-/// ScanFolder: 递归枚举文件, 按 DragDropExtensions.AudioExtensions 白名单过滤。
+/// ScanFolder: 递归枚举文件, 按 AudioConstants.AudioExtensions 白名单过滤。
 /// ReadMetadataBatchAsync: 逐条调用 ITrackMetadataReader.ReadAsync, 失败静默跳过。
 /// ComputeDiff: 路径大小写不敏感比对 + 元数据质量检测(零时长/零采样率视为需重新读取)。
 /// </summary>
@@ -31,7 +30,7 @@ public sealed class LibraryScannerService : ILibraryScannerService
             if (!Directory.Exists(folderPath))
                 return Array.Empty<string>();
 
-            var extensions = new HashSet<string>(DragDropExtensions.AudioExtensions, StringComparer.OrdinalIgnoreCase);
+            var extensions = new HashSet<string>(AudioConstants.AudioExtensions, StringComparer.OrdinalIgnoreCase);
 
             return Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories)
                 .Where(f => extensions.Contains(Path.GetExtension(f)))

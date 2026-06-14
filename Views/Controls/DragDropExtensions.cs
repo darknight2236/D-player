@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using UmaPlayer.Models;
 
 namespace UmaPlayer.Views.Controls;
 
@@ -9,16 +10,13 @@ namespace UmaPlayer.Views.Controls;
 /// IsDragOver: 由 PlaylistView code-behind 在 DragEnter/DragLeave 切换，
 /// XAML 用 Style.Trigger 高亮根 Border 的 BorderBrush。
 ///
-/// AudioExtensions: 与 IFileDialogService 在 OpenFiles 中使用的过滤器
+/// AudioExtensions: 代理到 Models.AudioConstants, 与 IFileDialogService 在 OpenFiles 中使用的过滤器
 /// "*.mp3;*.wma;*.flac;*.aac;*.wav" 严格对齐，单一来源，避免漂移。
 /// </summary>
 public static class DragDropExtensions
 {
-    /// <summary>支持的音频后缀白名单（小写，含点）。</summary>
-    public static readonly IReadOnlyList<string> AudioExtensions = new[]
-    {
-        ".mp3", ".wma", ".flac", ".aac", ".wav"
-    };
+    /// <summary>支持的音频后缀白名单（小写，含点）。代理到 Models.AudioConstants。</summary>
+    public static readonly IReadOnlyList<string> AudioExtensions = AudioConstants.AudioExtensions;
 
     /// <summary>过滤一组路径，仅保留后缀在白名单中的（大小写不敏感）。文件夹/缺失文件会被自动剔除。</summary>
     public static IReadOnlyList<string> FilterAudioPaths(IEnumerable<string>? paths)

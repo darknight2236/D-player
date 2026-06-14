@@ -14,6 +14,7 @@
     <UserControl.Resources>
         <converters:RepeatModeToIconConverter x:Key="RepeatModeToIcon"/>
         <converters:BoolToAccentBrushConverter x:Key="BoolToAccentBrush"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </UserControl.Resources>
 
     <Border AllowDrop="True"
@@ -35,6 +36,11 @@
                 <Button Command="{Binding AddToQueueCommand}" Padding="12,4">
                     <TextBlock Text="+ 添加" FontSize="12"/>
                 </Button>
+                <Button Padding="12,4" Margin="8,0,0,0"
+                        Command="{Binding DataContext.Playlists.ImportFolderCommand,
+                                 RelativeSource={RelativeSource AncestorType=Window}}">
+                    <TextBlock Text="📂 导入文件夹" FontSize="12"/>
+                </Button>
                 <Button Command="{Binding ClearQueueCommand}" Padding="12,4" Margin="8,0,0,0">
                     <TextBlock Text="清空" FontSize="12"/>
                 </Button>
@@ -42,6 +48,18 @@
 
             <!-- 右侧：随机 / 循环 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <!-- 刷新按钮: 仅文件夹绑定歌单可见 -->
+                <Button Width="32" Height="32"
+                        Background="Transparent" BorderThickness="0"
+                        ToolTip="刷新文件夹"
+                        Visibility="{Binding HasSourceFolder, Converter={StaticResource BoolToVisibility}}"
+                        Command="{Binding DataContext.Playlists.RefreshPlaylistCommand,
+                                 RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}">
+                    <TextBlock Text="🔄" FontSize="14"
+                               FontFamily="Segoe UI Emoji"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
                 <Button Command="{Binding ToggleShuffleCommand}" Width="32" Height="32"
                         Background="Transparent" BorderThickness="0"
                         ToolTip="随机播放">

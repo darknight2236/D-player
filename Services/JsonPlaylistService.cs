@@ -13,7 +13,7 @@ namespace UmaPlayer.Services;
 /// </summary>
 public sealed class JsonPlaylistService : IPlaylistService
 {
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -59,7 +59,7 @@ public sealed class JsonPlaylistService : IPlaylistService
             if (version == 1)
                 return await MigrateV1ToV2Async(text).ConfigureAwait(false);
 
-            if (version == 2)
+            if (version is 2 or 3)
             {
                 QueueState? loaded;
                 try { loaded = JsonSerializer.Deserialize<QueueState>(text, JsonOptions); }

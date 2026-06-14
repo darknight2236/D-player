@@ -11,4 +11,5 @@ public sealed record Playlist(
     IReadOnlyList<string> Items,
     int CurrentIndex,
     bool ShuffleEnabled,
-    RepeatMode RepeatMode);
+    RepeatMode RepeatMode,
+    string? SourceFolder = null);

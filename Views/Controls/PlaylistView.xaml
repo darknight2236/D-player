@@ -149,22 +149,27 @@
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="20"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="2.5*"/>
+                                <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="1.5*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换；MVP 简化为空白占位 -->
+                            <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
                             <TextBlock Grid.Column="0" Text="" FontSize="11"
                                        Foreground="{StaticResource AccentPrimary}"
                                        VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Title}"
-                                           FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Artist}"
-                                           FontSize="10"
-                                           Foreground="{StaticResource ForegroundSecondary}"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
-                            <Button Grid.Column="2" Content="×"
+                            <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                       FontSize="12" TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Artist}"
+                                       FontSize="12" TextTrimming="CharacterEllipsis"
+                                       Foreground="{StaticResource ForegroundSecondary}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding Album}"
+                                       FontSize="12" TextTrimming="CharacterEllipsis"
+                                       Foreground="{StaticResource ForegroundSecondary}"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="4" Content="×"
                                     Width="20" Height="20" Padding="0"
                                     Background="Transparent" BorderThickness="0"
                                     FontSize="14"

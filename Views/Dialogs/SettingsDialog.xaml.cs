@@ -28,11 +28,18 @@ public partial class SettingsDialog : Window
         return dlg.ShowDialog() == true;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        var settings = _persistence.LoadAsync().GetAwaiter().GetResult();
-        VolumeSlider.Value = settings.DefaultVolume;
-        VolumePercent.Text = $"{settings.DefaultVolume:P0}";
+        try
+        {
+            var settings = await _persistence.LoadAsync().ConfigureAwait(true);
+            VolumeSlider.Value = settings.DefaultVolume;
+            VolumePercent.Text = $"{settings.DefaultVolume:P0}";
+        }
+        catch
+        {
+            // settings.json missing/corrupt → slider stays at XAML default (0), acceptable
+        }
     }
 
     private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -43,9 +50,16 @@ public partial class SettingsDialog : Window
 
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
-        var volume = (float)VolumeSlider.Value;
-        await _persistence.UpdateAsync(s => s with { DefaultVolume = volume }).ConfigureAwait(true);
-        DialogResult = true;
-        Close();
+        try
+        {
+            var volume = (float)VolumeSlider.Value;
+            await _persistence.UpdateAsync(s => s with { DefaultVolume = volume }).ConfigureAwait(true);
+            DialogResult = true;
+        }
+        catch
+        {
+            MessageBox.Show(this, "Failed to save settings.", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 }

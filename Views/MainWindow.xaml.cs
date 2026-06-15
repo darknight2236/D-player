@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Input;
 using UmaPlayer.Services;
 using UmaPlayer.ViewModels;
+using UmaPlayer.Views.Dialogs;
 
 namespace UmaPlayer.Views;
 
@@ -124,6 +126,17 @@ public partial class MainWindow : Window
         {
             Left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
             Top = (SystemParameters.PrimaryScreenHeight - Height) / 2;
+        }
+    }
+
+    /// <summary>Ctrl+, 打开设置对话框。</summary>
+    private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.OemComma && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            var persistence = App.GetService<ISettingsPersistence>();
+            SettingsDialog.Show(this, persistence);
+            e.Handled = true;
         }
     }
 }

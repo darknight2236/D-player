@@ -16,7 +16,8 @@
         Background="{StaticResource BackgroundPrimary}"
         Foreground="{StaticResource ForegroundPrimary}"
         WindowStartupLocation="Manual"
-        Closing="Window_Closing">
+        Closing="Window_Closing"
+        KeyDown="MainWindow_KeyDown">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

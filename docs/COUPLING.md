@@ -1,6 +1,6 @@
 # UmaPlayer 耦合分析与重构备忘
 
-> 创建日期：2026/06/06 · 更新日期：2026/06/14 · 对应分支：`master` · 对应阶段：**Phase 10 完成**（文件夹绑定歌单）
+> 创建日期：2026/06/06 · 更新日期：2026/06/14 · 对应分支：`master` · 对应阶段：**Phase 11 完成**（设置面板）
 >
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正。所有技术债已清零。详见 §6。
 
@@ -45,6 +45,7 @@
 | `PlaylistViewModel` | `IPlaybackService`, `IFileDialogService`, `ITrackMetadataReader` | `Track`、`RepeatMode`、`QueueState`、`MoveTracksArgs`、`File.Exists` |
 | `PlaylistsViewModel` | `Func<Playlist, PlaylistViewModel>`, `ILibraryScannerService`, `ILibraryCache` | `Playlist`、`PlaylistViewModel`、`LibraryDiff` |
 | `MainWindow` | `MainViewModel`, `ISettingsPersistence` | `Window`, `SystemParameters` |
+| `SettingsDialog` | `ISettingsPersistence` | `Window`, `App.GetService<>()` |
 | `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>`（含 Phase 4 ▶ DataTrigger 的 `PlayCurrentCommand`） |
 | `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信；Phase 6 双击路由走 `App.GetService<PlaylistsViewModel>().HandleDoubleClickPlay` |
 | `PlaylistsSidebarView` | — | `PlaylistsViewModel`（`DataContext as PlaylistsViewModel`）；订阅 `PropertyChanged` / `Playlists.CollectionChanged`；消费 `PromptDialog` |
@@ -230,6 +231,8 @@ private void RemoveTrack(int index)
 | **Phase 10 新增** | | |
 | `ILibraryCache.LoadAsync` 隐式契约：绝不抛 | `JsonLibraryCache.LoadAsync` catch-all + 注释 | 与 `IPlaylistService.LoadAsync` 同隐式契约。任何异常逃出会让 `RescanSinglePlaylistAsync` 抛 → 应用启动崩溃或手动刷新失败。文件不存在/JSON 损坏/反序列化得 null 全部走静默 fallback 到空字典 |
 | `LibraryScannerService` 不依赖 Views 层 | `Models.AudioConstants` 提取 + `Services/LibraryScannerService.cs` | Phase 10 前音频后缀白名单在 `DragDropExtensions`（View 层）；`LibraryScannerService` 需要用同一白名单但不能反向依赖 Views。已提取到 `Models.AudioConstants` 消除层级违规。Code review：新增扫描相关逻辑时确保不引用 `Views.Controls` 命名空间 |
+| **Phase 11 新增** | | |
+| SettingsDialog.Show 在 Loaded 中 async 读盘 | `SettingsDialog.xaml.cs:OnLoaded` | 与 MainWindow_Loaded 同模式（async void + try/catch）；文件极小（几百字节） |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
@@ -254,6 +257,7 @@ private void RemoveTrack(int index)
 - [x] PlaylistsViewModel 单元测试（Phase 8 完成，17 个测试）
 - [x] sidebar 拖拽重排歌单顺序（Phase 9 完成）
 - [x] 文件夹绑定歌单（Phase 10 完成：扫描 + 增量同步 + 元数据缓存）
+- [x] 设置对话框（Phase 11）—— 模态 Window，PlayerBar ⚙ 按钮 + Ctrl+, 快捷键；不加 SettingsViewModel（YAGNI）
 - [ ] 可视化 ~6h+
 
 ---
@@ -275,6 +279,7 @@ private void RemoveTrack(int index)
 - ❌ **把 OLE 类型（DataObject、DragEventArgs、AdornerLayer）下推到 VM**（Phase 5）—— View/VM 边界破坏；VM 失去单测能力，PlayerVM/PlaylistVM 拓扑也会被牵连
 - ❌ **在 `Root_DragEnter` 仅看 `FileDrop` 存在就高亮**（Phase 5）—— 文件夹/非音频也会亮，与光标禁止图标冲突；高亮前必须 `FilterAudioPaths` 检查（commit `7af6bec`）
 - ❌ **在 Services 层引用 `Views.Controls.DragDropExtensions`**（Phase 10）—— 音频后缀白名单已提取到 `Models.AudioConstants`；扫描服务必须用 `AudioConstants.Extensions` 而非 View 层的代理属性，否则破坏依赖方向
+- ❌ **为 Phase 11 设置对话框加 SettingsViewModel** —— 仅 DefaultVolume 可编辑，对话框直接读写 ISettingsPersistence；Phase 12 音频设置有复杂交互时再加
 
 ---
 

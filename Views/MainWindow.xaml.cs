@@ -134,8 +134,7 @@ public partial class MainWindow : Window
     {
         if (e.Key == Key.OemComma && Keyboard.Modifiers == ModifierKeys.Control)
         {
-            var persistence = App.GetService<ISettingsPersistence>();
-            SettingsDialog.Show(this, persistence);
+            SettingsDialog.Show(this, _persistence);
             e.Handled = true;
         }
     }

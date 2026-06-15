@@ -3,7 +3,9 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using UmaPlayer.Services;
 using UmaPlayer.ViewModels;
+using UmaPlayer.Views.Dialogs;
 
 namespace UmaPlayer.Views.Controls;
 
@@ -61,4 +63,11 @@ public partial class PlayerBar : UserControl
 
     private void SeekBar_DragCompleted(object sender, DragCompletedEventArgs e)
         => (DataContext as PlayerViewModel)?.SeekCompletedCommand.Execute(SeekBar.Value);
+
+    /// <summary>点击 ⚙ 按钮打开设置对话框。</summary>
+    private void SettingsBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var persistence = App.GetService<ISettingsPersistence>();
+        SettingsDialog.Show(Window.GetWindow(this), persistence);
+    }
 }

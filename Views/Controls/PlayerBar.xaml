@@ -131,6 +131,15 @@
                 <Slider Width="100" VerticalAlignment="Center"
                         Minimum="0" Maximum="1" IsMoveToPointEnabled="True"
                         Value="{Binding Volume, Mode=TwoWay}"/>
+                <!-- ⚙ 设置按钮：Phase 11 -->
+                <Button Width="32" Height="32"
+                        Padding="0" Margin="8,0,0,0"
+                        Background="Transparent" BorderThickness="0"
+                        Click="SettingsBtn_Click"
+                        ToolTip="Settings (Ctrl+,)">
+                    <TextBlock Text="&#x2699;" FontSize="14"
+                               Foreground="{StaticResource ForegroundSecondary}"/>
+                </Button>
             </StackPanel>
         </Grid>
     </Grid>

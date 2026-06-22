@@ -134,7 +134,8 @@ public partial class MainWindow : Window
     {
         if (e.Key == Key.OemComma && Keyboard.Modifiers == ModifierKeys.Control)
         {
-            SettingsDialog.Show(this, _persistence);
+            var playbackService = App.GetService<IPlaybackService>();
+            SettingsDialog.Show(this, _persistence, playbackService, _vm.Player);
             e.Handled = true;
         }
     }

@@ -68,6 +68,8 @@ public partial class PlayerBar : UserControl
     private void SettingsBtn_Click(object sender, RoutedEventArgs e)
     {
         var persistence = App.GetService<ISettingsPersistence>();
-        SettingsDialog.Show(Window.GetWindow(this), persistence);
+        var playbackService = App.GetService<IPlaybackService>();
+        var playerViewModel = DataContext as PlayerViewModel;
+        SettingsDialog.Show(Window.GetWindow(this), persistence, playbackService, playerViewModel);
     }
 }

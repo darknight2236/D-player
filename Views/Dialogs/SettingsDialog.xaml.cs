@@ -1,5 +1,6 @@
 using System.Windows;
 using UmaPlayer.Services;
+using UmaPlayer.ViewModels;
 
 namespace UmaPlayer.Views.Dialogs;
 
@@ -10,10 +11,14 @@ namespace UmaPlayer.Views.Dialogs;
 public partial class SettingsDialog : Window
 {
     private readonly ISettingsPersistence _persistence;
+    private readonly IPlaybackService _playbackService;
+    private readonly PlayerViewModel? _playerViewModel;
 
-    public SettingsDialog(ISettingsPersistence persistence)
+    public SettingsDialog(ISettingsPersistence persistence, IPlaybackService playbackService, PlayerViewModel? playerViewModel = null)
     {
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
+        _playbackService = playbackService ?? throw new ArgumentNullException(nameof(playbackService));
+        _playerViewModel = playerViewModel;
         InitializeComponent();
         Loaded += OnLoaded;
     }
@@ -22,9 +27,9 @@ public partial class SettingsDialog : Window
     /// 模态显示设置对话框。owner 用于居中。
     /// 返回 true = 用户保存，false = 取消/关闭。
     /// </summary>
-    public static bool Show(Window? owner, ISettingsPersistence persistence)
+    public static bool Show(Window? owner, ISettingsPersistence persistence, IPlaybackService playbackService, PlayerViewModel? playerViewModel = null)
     {
-        var dlg = new SettingsDialog(persistence) { Owner = owner };
+        var dlg = new SettingsDialog(persistence, playbackService, playerViewModel) { Owner = owner };
         return dlg.ShowDialog() == true;
     }
 
@@ -46,6 +51,9 @@ public partial class SettingsDialog : Window
     {
         if (VolumePercent != null)
             VolumePercent.Text = $"{e.NewValue:P0}";
+
+        // 实时调整播放音量
+        _playbackService.Volume = (float)e.NewValue;
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)
@@ -54,6 +62,13 @@ public partial class SettingsDialog : Window
         {
             var volume = (float)VolumeSlider.Value;
             await _persistence.UpdateAsync(s => s with { DefaultVolume = volume }).ConfigureAwait(true);
+
+            // 同步更新 PlayerViewModel 的音量属性，使 PlayerBar 滑块同步
+            if (_playerViewModel != null)
+            {
+                _playerViewModel.Volume = volume;
+            }
+
             DialogResult = true;
         }
         catch

@@ -15,6 +15,8 @@
     <!--
         Button 隐式样式：透明背景 + 圆角 + 鼠标悬停/按下高亮。
         通过 ControlTemplate 完全重写视觉树，去除 Aero 原生灰色框。
+        注意：WPF Trigger 的 Setter 无法直接做动画（需要 EventTrigger + Storyboard）。
+        当前方案用 Trigger 实现即时切换，后续可通过 Behavior 或自定义控件实现过渡动画。
     -->
     <Style TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
@@ -25,7 +27,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                    <Border x:Name="border" Background="Transparent"
                             Padding="{TemplateBinding Padding}" CornerRadius="4">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>

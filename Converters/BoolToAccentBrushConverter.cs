@@ -17,7 +17,7 @@ public sealed class BoolToAccentBrushConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         bool isActive = value is bool b && b;
-        var key = isActive ? "AccentPrimary" : "ForegroundSecondary";
+        var key = isActive ? "AccentPrimary" : "ForegroundPrimary";
         return (Brush)Application.Current.FindResource(key);
     }
 

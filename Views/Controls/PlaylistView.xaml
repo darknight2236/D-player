@@ -1,9 +1,8 @@
 <!--
     PlaylistView —— Phase 2 队列 UI 控件 (Phase 12: 紧凑表格优化)。
-    布局: 3 行 Grid
+    布局: 2 行 Grid
       Row 0 (Auto) : 工具栏（添加/清空 + 随机/循环开关）
-      Row 1 (Auto) : 表头行（标题/艺术家/专辑/时长）
-      Row 2 (*)    : ListBox 显示队列，每项含 ▶/空 + 标题 + 艺术家 + 专辑 + 时长 + ×
+      Row 1 (*)    : ListBox（自定义模板含表头行 + ScrollViewer，保证列对齐）
 
     DataContext = PlaylistViewModel（Phase 6 由 MainWindow.xaml 绑定 Playlists.ViewedPlaylist）
 -->
@@ -27,7 +26,6 @@
             Drop="Root_Drop">
         <Grid Margin="16,0,16,16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
@@ -88,27 +86,10 @@
             </StackPanel>
         </Grid>
 
-        <!-- Row 1: 表头行 -->
-        <Grid Grid.Row="1" Margin="0,0,0,2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="20"/>
-                <ColumnDefinition Width="2.5*"/>
-                <ColumnDefinition Width="1.5*"/>
-                <ColumnDefinition Width="1.5*"/>
-                <ColumnDefinition Width="50"/>
-                <ColumnDefinition Width="20"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Style="{StaticResource CaptionText}"/>
-            <TextBlock Grid.Column="1" Text="标题" Style="{StaticResource CaptionText}"/>
-            <TextBlock Grid.Column="2" Text="艺术家" Style="{StaticResource CaptionText}"/>
-            <TextBlock Grid.Column="3" Text="专辑" Style="{StaticResource CaptionText}"/>
-            <TextBlock Grid.Column="4" Text="时长" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
-            <TextBlock Grid.Column="5" Style="{StaticResource CaptionText}"/>
-        </Grid>
 
-        <!-- Row 2: 队列列表 -->
+        <!-- Row 1: 队列列表 -->
         <Border x:Name="QueueListBorder"
-                Grid.Row="2" Background="{StaticResource BackgroundSecondary}"
+                Grid.Row="1" Background="{StaticResource BackgroundSecondary}"
                 CornerRadius="4" BorderThickness="2">
             <!-- BorderBrush 必须由 Style.Setter 提供默认值；写成 local 属性会以 local-value
                  优先级压过 Style.Triggers 里的 Setter，导致 IsDragOver=True 高亮失效。
@@ -139,6 +120,40 @@
                      DragOver="QueueList_DragOver"
                      DragLeave="QueueList_DragLeave"
                      Drop="QueueList_Drop">
+                <!-- 覆盖模板：表头行 + ScrollViewer 共享同一容器宽度，保证列对齐 -->
+                <ListBox.Template>
+                    <ControlTemplate TargetType="ListBox">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <!-- 表头行：列定义与 DataTemplate 一致 -->
+                            <Grid Grid.Row="0" Margin="8,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20"/>
+                                    <ColumnDefinition Width="2.5*"/>
+                                    <ColumnDefinition Width="1.5*"/>
+                                    <ColumnDefinition Width="1.5*"/>
+                                    <ColumnDefinition Width="50"/>
+                                    <ColumnDefinition Width="20"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="1" Text="标题" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="2" Text="艺术家" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="3" Text="专辑" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="4" Text="时长" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Column="5" Style="{StaticResource CaptionText}"/>
+                            </Grid>
+                            <ScrollViewer Grid.Row="1"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto"
+                                          CanContentScroll="True">
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </Grid>
+                    </ControlTemplate>
+                </ListBox.Template>
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="Padding" Value="0"/>
@@ -179,7 +194,7 @@
                                 <ColumnDefinition Width="1.5*"/>
                                 <ColumnDefinition Width="1.5*"/>
                                 <ColumnDefinition Width="50"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="20"/>
                             </Grid.ColumnDefinitions>
                             <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
                             <TextBlock Grid.Column="0" Text="" FontSize="11"

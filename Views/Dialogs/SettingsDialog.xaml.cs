@@ -73,7 +73,7 @@ public partial class SettingsDialog : Window
         }
         catch
         {
-            MessageBox.Show(this, "Failed to save settings.", "Error",
+            MessageBox.Show(this, "保存设置失败。", "错误",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }

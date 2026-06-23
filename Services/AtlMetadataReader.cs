@@ -46,7 +46,7 @@ public sealed class AtlMetadataReader : ITrackMetadataReader
                     Year: atlTrack.Year > 0 ? atlTrack.Year : null,
                     SampleRate: atlTrack.SampleRate > 0 ? (int?)atlTrack.SampleRate : null,
                     AlbumArt: albumArt,
-                    Duration: TimeSpan.Zero); // Duration 由播放服务加载完成后回填
+                    Duration: TimeSpan.FromMilliseconds(atlTrack.DurationMs));
             }
             catch
             {

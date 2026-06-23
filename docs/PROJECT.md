@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/14 · 对应分支：`master` · 当前阶段：**Phase 11 完成**（设置面板）
+> 文档日期：2026/06/22 · 对应分支：`master` · 当前阶段：**Phase 12 完成**（UI 界面重构）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。
 
 ### 1.1 关键特性（已实现）
 
@@ -727,3 +727,9 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `c83cbfe` feat(view): PlayerBar adds gear button for settings (Phase 11)
     - `4940aed` feat(view): MainWindow adds Ctrl+, shortcut for settings (Phase 11)
     - `86c5b91` fix(view): MainWindow Ctrl+, uses existing _persistence field
+  - **Phase 12**（UI 界面重构）
+    - `9b0bf1d` feat(theme): adjust color palette — improve selected/disabled contrast, add DangerHover
+    - `2b82984` feat(view): move PlayerBar to bottom (Spotify-style layout)
+    - `36d083f` feat(view): PlayerBar — round play button, seek bar thumb hover, unified spacing
+    - `1b0ea7c` feat(view): PlaylistView — header row, duration column, row dividers, red delete hover
+    - `a14fc85` feat(view): Sidebar — music/folder icons, selected state background color, rounded corners

@@ -1,6 +1,6 @@
 # UmaPlayer 耦合分析与重构备忘
 
-> 创建日期：2026/06/06 · 更新日期：2026/06/14 · 对应分支：`master` · 对应阶段：**Phase 11 完成**（设置面板）
+> 创建日期：2026/06/06 · 更新日期：2026/06/22 · 对应分支：`master` · 对应阶段：**Phase 12 完成**（UI 界面重构）
 >
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正。所有技术债已清零。详见 §6。
 

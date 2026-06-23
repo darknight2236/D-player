@@ -61,6 +61,9 @@
     <Style TargetType="TextBox">
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     </Style>
+    <Style TargetType="GridSplitter">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
 
     <!--
         Slider 隐式样式：自定义视觉，由 3 部分组成

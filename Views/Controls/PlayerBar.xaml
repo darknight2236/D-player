@@ -64,22 +64,28 @@
                     Thumb.DragStarted="SeekBar_DragStarted"
                     Thumb.DragCompleted="SeekBar_DragCompleted">
                 <Slider.Resources>
+                    <!-- 覆盖 Thumb 完整模板：默认 8px 圆点，悬停/拖拽放大到 14px -->
                     <Style TargetType="Thumb">
-                        <Setter Property="Width" Value="8"/>
-                        <Setter Property="Height" Value="8"/>
                         <Setter Property="Opacity" Value="0.5"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Slider}}" Value="True">
-                                <Setter Property="Width" Value="14"/>
-                                <Setter Property="Height" Value="14"/>
-                                <Setter Property="Opacity" Value="1"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding IsDragging, RelativeSource={RelativeSource Self}}" Value="True">
-                                <Setter Property="Width" Value="14"/>
-                                <Setter Property="Height" Value="14"/>
-                                <Setter Property="Opacity" Value="1"/>
-                            </DataTrigger>
-                        </Style.Triggers>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Thumb">
+                                    <Ellipse x:Name="thumbDot" Width="8" Height="8" Fill="{StaticResource SliderThumb}"/>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Slider}}" Value="True">
+                                            <Setter TargetName="thumbDot" Property="Width" Value="14"/>
+                                            <Setter TargetName="thumbDot" Property="Height" Value="14"/>
+                                            <Setter Property="Opacity" Value="1"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDragging, RelativeSource={RelativeSource Self}}" Value="True">
+                                            <Setter TargetName="thumbDot" Property="Width" Value="14"/>
+                                            <Setter TargetName="thumbDot" Property="Height" Value="14"/>
+                                            <Setter Property="Opacity" Value="1"/>
+                                        </DataTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
                     </Style>
                 </Slider.Resources>
             </Slider>

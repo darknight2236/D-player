@@ -29,6 +29,8 @@
                 <ColumnDefinition Width="160" MinWidth="120"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="220" MinWidth="160"/>
             </Grid.ColumnDefinitions>
 
             <controls:PlaylistsSidebarView Grid.Column="0"
@@ -41,6 +43,14 @@
                           Cursor="SizeWE"/>
             <controls:PlaylistView Grid.Column="2"
                                     DataContext="{Binding Playlists.ViewedPlaylist}"/>
+            <GridSplitter Grid.Column="3"
+                          Width="4"
+                          Background="Transparent"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Cursor="SizeWE"/>
+            <controls:TrackInfoView Grid.Column="4"
+                                     DataContext="{Binding Player}"/>
         </Grid>
 
         <controls:PlayerBar Grid.Row="1" DataContext="{Binding Player}"/>

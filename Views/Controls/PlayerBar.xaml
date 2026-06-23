@@ -1,9 +1,8 @@
 <!--
-    PlayerBar —— 全功能播放栏控件（Phase 12: 沉浸型优化）。
-    布局：3 行 Grid
-      Row 0  (*)    : 封面 + 元数据（标题/艺术家/专辑/采样率）
-      Row 1  (Auto) : 当前时间 | 进度条 | 总时长
-      Row 2  (Auto) : 上一首/播放暂停/下一首 按钮组   ＋   音量 + 静音按钮（右上角）
+    PlayerBar —— 播放栏控件。
+    布局：2 行 Grid
+      Row 0  (Auto) : 当前时间 | 进度条 | 总时长
+      Row 1  (Auto) : 上一首/播放暂停/下一首/随机/循环 按钮组   ＋   音量 + 静音按钮（右上角）
 
     DataContext = PlayerViewModel（由 MainWindow.xaml 注入）；跨域命令通过 RelativeSource AncestorType=Window 访问 Playlist
 -->
@@ -19,36 +18,14 @@
         <converters:BoolToAccentBrushConverter x:Key="BoolToAccentBrush"/>
     </UserControl.Resources>
 
-    <Grid Margin="16">
+    <Grid Margin="16,8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Row 0：曲目信息（封面 + 文本） -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <!-- 封面框：固定 80x80，CornerRadius=6 -->
-            <Border Width="80" Height="80" CornerRadius="6" Margin="0,0,16,0"
-                    Background="{StaticResource BackgroundSecondary}">
-                <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
-            </Border>
-
-            <!-- 文本元数据；未加载曲目时显示 "No track loaded" 占位 -->
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="{Binding CurrentTrack.Title, FallbackValue='No track loaded'}"
-                           Style="{StaticResource HeaderText}"/>
-                <TextBlock Text="{Binding CurrentTrack.Artist, FallbackValue=''}"
-                           Style="{StaticResource CaptionText}" Margin="0,4,0,0"/>
-                <TextBlock Text="{Binding CurrentTrack.Album, FallbackValue=''}"
-                           Style="{StaticResource CaptionText}" Margin="0,2,0,0"/>
-                <TextBlock Text="{Binding SampleRateText}"
-                           Style="{StaticResource CaptionText}" Margin="0,2,0,0"/>
-            </StackPanel>
-        </StackPanel>
-
-        <!-- Row 1：进度条 [当前时间 | Slider | 总时长]，两侧时间各占 45px -->
-        <Grid Grid.Row="1" Margin="0,12,0,0">
+        <!-- Row 0：进度条 [当前时间 | Slider | 总时长]，两侧时间各占 45px -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="45"/>
                 <ColumnDefinition Width="*"/>
@@ -98,7 +75,7 @@
         </Grid>
 
         <!-- Row 2：控制按钮组（居中） + 音量区域（右对齐） -->
-        <Grid Grid.Row="2" Margin="0,8,0,0">
+        <Grid Grid.Row="1">
             <!-- 居中：上一首、播放/暂停 (圆形紫色)、下一首 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Command="{Binding DataContext.Playlists.ViewedPlaylist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"

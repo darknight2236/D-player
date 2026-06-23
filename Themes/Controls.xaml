@@ -51,6 +51,17 @@
         </Setter>
     </Style>
 
+    <!-- 全局关闭焦点虚线框 -->
+    <Style TargetType="ListBox">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+    <Style TargetType="ListBoxItem">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+    <Style TargetType="TextBox">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+
     <!--
         Slider 隐式样式：自定义视觉，由 3 部分组成
           - DecreaseRepeatButton：已填充段（紫色）
@@ -60,6 +71,7 @@
     -->
     <Style TargetType="Slider">
         <Setter Property="Height" Value="20"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">

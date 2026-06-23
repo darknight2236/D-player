@@ -1,7 +1,7 @@
 <!--
     PlaylistView —— Phase 2 队列 UI 控件 (Phase 12: 紧凑表格优化)。
     布局: 2 行 Grid
-      Row 0 (Auto) : 工具栏（添加/清空 + 随机/循环开关）
+      Row 0 (Auto) : 工具栏（添加/清空/导入文件夹 + 刷新）
       Row 1 (*)    : ListBox（自定义模板含表头行 + ScrollViewer，保证列对齐）
 
     DataContext = PlaylistViewModel（Phase 6 由 MainWindow.xaml 绑定 Playlists.ViewedPlaylist）
@@ -12,8 +12,6 @@
              xmlns:converters="clr-namespace:UmaPlayer.Converters"
              xmlns:local="clr-namespace:UmaPlayer.Views.Controls">
     <UserControl.Resources>
-        <converters:RepeatModeToIconConverter x:Key="RepeatModeToIcon"/>
-        <converters:BoolToAccentBrushConverter x:Key="BoolToAccentBrush"/>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </UserControl.Resources>
@@ -47,43 +45,19 @@
                 </Button>
             </StackPanel>
 
-            <!-- 右侧：随机 / 循环 -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <!-- 刷新按钮: 仅文件夹绑定歌单可见 -->
-                <Button Width="32" Height="32"
-                        Padding="0"
-                        Background="Transparent" BorderThickness="0"
-                        ToolTip="刷新文件夹"
-                        Visibility="{Binding HasSourceFolder, Converter={StaticResource BoolToVisibility}}"
-                        Command="{Binding DataContext.Playlists.RefreshPlaylistCommand,
-                                 RelativeSource={RelativeSource AncestorType=Window}}"
-                        CommandParameter="{Binding}">
-                    <TextBlock Text="🔄" FontSize="14"
-                               FontFamily="Segoe UI Emoji"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Button>
-                <Button Command="{Binding ToggleShuffleCommand}" Width="32" Height="32"
-                        Padding="0"
-                        Background="Transparent" BorderThickness="0"
-                        ToolTip="随机播放">
-                    <TextBlock Text="&#x1F500;" FontSize="14"
-                               FontFamily="Segoe UI Emoji"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               TextAlignment="Center"
-                               Foreground="{Binding ShuffleEnabled, Converter={StaticResource BoolToAccentBrush}}"/>
-                </Button>
-                <Button Command="{Binding CycleRepeatCommand}" Width="32" Height="32"
-                        Padding="0"
-                        Background="Transparent" BorderThickness="0" Margin="4,0,0,0"
-                        ToolTip="循环模式 (Off / List / One)">
-                    <TextBlock Text="{Binding RepeatMode, Converter={StaticResource RepeatModeToIcon}}"
-                               FontSize="14"
-                               FontFamily="Segoe UI Symbol"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               TextAlignment="Center"
-                               Foreground="{Binding RepeatActive, Converter={StaticResource BoolToAccentBrush}}"/>
-                </Button>
-            </StackPanel>
+            <!-- 右侧：刷新按钮（仅文件夹绑定歌单可见） -->
+            <Button Width="32" Height="32"
+                    Padding="0" HorizontalAlignment="Right"
+                    Background="Transparent" BorderThickness="0"
+                    ToolTip="刷新文件夹"
+                    Visibility="{Binding HasSourceFolder, Converter={StaticResource BoolToVisibility}}"
+                    Command="{Binding DataContext.Playlists.RefreshPlaylistCommand,
+                             RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="{Binding}">
+                <TextBlock Text="🔄" FontSize="14"
+                           FontFamily="Segoe UI Emoji"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Button>
         </Grid>
 
 

@@ -1,5 +1,5 @@
 <!--
-    PlayerBar —— 全功能播放栏控件。
+    PlayerBar —— 全功能播放栏控件（Phase 12: 沉浸型优化）。
     布局：3 行 Grid
       Row 0  (*)    : 封面 + 元数据（标题/艺术家/专辑/采样率）
       Row 1  (Auto) : 当前时间 | 进度条 | 总时长
@@ -26,8 +26,8 @@
 
         <!-- Row 0：曲目信息（封面 + 文本） -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <!-- 封面框：固定 80x80，无封面时显示次级背景色 -->
-            <Border Width="80" Height="80" CornerRadius="4" Margin="0,0,16,0"
+            <!-- 封面框：固定 80x80，CornerRadius=6 -->
+            <Border Width="80" Height="80" CornerRadius="6" Margin="0,0,16,0"
                     Background="{StaticResource BackgroundSecondary}">
                 <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
             </Border>
@@ -56,17 +56,27 @@
             <TextBlock Grid.Column="0" Text="{Binding Position, Converter={StaticResource TimeSpanToString}}"
                        Style="{StaticResource CaptionText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
 
-            <!--
-                Value=OneWay：服务驱动滑块位置，用户操作由 code-behind 的 SeekCompleted 命令回写。
-                PreviewMouseLeftButtonDown：实现"单击空白跳转"。
-                Thumb.DragStarted/Completed：拖拽时通知 VM 进入/退出 IsSeeking 状态。
-            -->
+            <!-- 进度条：默认隐藏 Thumb，鼠标悬停或拖拽时显示 -->
             <Slider x:Name="SeekBar" Grid.Column="1" Margin="8,0"
                     Minimum="0" Maximum="1"
                     Value="{Binding PositionNormalized, Mode=OneWay}"
                     PreviewMouseLeftButtonDown="SeekBar_PreviewMouseLeftButtonDown"
                     Thumb.DragStarted="SeekBar_DragStarted"
-                    Thumb.DragCompleted="SeekBar_DragCompleted"/>
+                    Thumb.DragCompleted="SeekBar_DragCompleted">
+                <Slider.Resources>
+                    <Style TargetType="Thumb">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Slider}}" Value="True">
+                                <Setter Property="Opacity" Value="1"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsDragging, RelativeSource={RelativeSource Self}}" Value="True">
+                                <Setter Property="Opacity" Value="1"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Slider.Resources>
+            </Slider>
 
             <TextBlock Grid.Column="2" Text="{Binding Duration, Converter={StaticResource TimeSpanToString}}"
                        Style="{StaticResource CaptionText}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
@@ -74,28 +84,38 @@
 
         <!-- Row 2：控制按钮组（居中） + 音量区域（右对齐） -->
         <Grid Grid.Row="2" Margin="0,8,0,0">
-            <!-- 居中：上一首、播放/暂停 (动态图标)、停止、下一首、打开文件 -->
+            <!-- 居中：上一首、播放/暂停 (圆形紫色)、停止、下一首、打开文件 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Command="{Binding DataContext.Playlist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" ToolTip="上一首">
                     <TextBlock Text="&#x23EE;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
+
+                <!-- 圆形播放键：紫色背景 + 圆角 24px -->
                 <Button Width="48" Height="48" Margin="8,0,0,0">
                     <Button.Style>
-                        <!-- BasedOn 继承 Themes/Controls.xaml 中的隐式 Button 样式
-                             （透明背景 + 圆角 ControlTemplate）。漏掉 BasedOn 会让
-                             WPF 回退到 Aero 原生白底灰框，与窗口背景对不上。 -->
                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                            <!-- 默认：transport 已 Loaded —— 走 PlayerVM 切换播放/暂停 -->
                             <Setter Property="Command" Value="{Binding PlayPauseCommand}"/>
+                            <Setter Property="Background" Value="{StaticResource AccentPrimary}"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                                CornerRadius="24" Width="48" Height="48">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentHover}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentPressed}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
                             <Style.Triggers>
-                                <!--
-                                    Phase 4：启动后 transport 空闲（CurrentTrack=null）但队列已恢复有当前曲，
-                                    跨级到 PlaylistVM.PlayCurrentCommand 触发首次加载 + 播放。
-                                    用户首次按 ▶ → PlayCurrentCommand → PlayTrackAtAsync → LoadAsync 触发
-                                    TrackChanged(track) → CurrentTrack 变非 null → DataTrigger 失活 → 回到 PlayPauseCommand。
-                                    清空队列后 IPlaybackService.Unload() 会触发 TrackChanged(null)，本 trigger 再次激活。
-                                -->
                                 <DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">
                                     <Setter Property="Command"
                                             Value="{Binding DataContext.Playlist.PlayCurrentCommand,
@@ -105,8 +125,9 @@
                         </Style>
                     </Button.Style>
                     <TextBlock Text="{Binding PlayState, Converter={StaticResource PlayStateToIcon}}"
-                               FontSize="20" Foreground="{StaticResource ForegroundPrimary}"/>
+                               FontSize="20" Foreground="White"/>
                 </Button>
+
                 <Button Command="{Binding StopCommand}" Width="48" Height="48" Margin="8,0,0,0">
                     <TextBlock Text="&#x23F9;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
@@ -123,8 +144,7 @@
             <!-- 右对齐：🔊/🔇 静音切换 + 音量滑块（IsMoveToPointEnabled：单击即跳） -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button Command="{Binding ToggleMuteCommand}" Width="32" Height="32"
-                        Padding="0"
-                        Background="Transparent" BorderThickness="0">
+                        Padding="0" Background="Transparent" BorderThickness="0">
                     <TextBlock Text="{Binding VolumeIcon}" FontSize="14"
                                Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
@@ -136,7 +156,7 @@
                         Padding="0" Margin="8,0,0,0"
                         Background="Transparent" BorderThickness="0"
                         Click="SettingsBtn_Click"
-                        ToolTip="Settings (Ctrl+,)">
+                        ToolTip="设置 (Ctrl+,)">
                     <TextBlock Text="&#x2699;" FontSize="14"
                                Foreground="{StaticResource ForegroundSecondary}"/>
                 </Button>

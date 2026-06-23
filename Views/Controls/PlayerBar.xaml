@@ -56,7 +56,7 @@
             <TextBlock Grid.Column="0" Text="{Binding Position, Converter={StaticResource TimeSpanToString}}"
                        Style="{StaticResource CaptionText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
 
-            <!-- 进度条：默认隐藏 Thumb，鼠标悬停或拖拽时显示 -->
+            <!-- 进度条：默认小 Thumb（8px 半透明），悬停/拖拽时变大（14px 不透明） -->
             <Slider x:Name="SeekBar" Grid.Column="1" Margin="8,0"
                     Minimum="0" Maximum="1"
                     Value="{Binding PositionNormalized, Mode=OneWay}"
@@ -65,12 +65,18 @@
                     Thumb.DragCompleted="SeekBar_DragCompleted">
                 <Slider.Resources>
                     <Style TargetType="Thumb">
-                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="Width" Value="8"/>
+                        <Setter Property="Height" Value="8"/>
+                        <Setter Property="Opacity" Value="0.5"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Slider}}" Value="True">
+                                <Setter Property="Width" Value="14"/>
+                                <Setter Property="Height" Value="14"/>
                                 <Setter Property="Opacity" Value="1"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsDragging, RelativeSource={RelativeSource Self}}" Value="True">
+                                <Setter Property="Width" Value="14"/>
+                                <Setter Property="Height" Value="14"/>
                                 <Setter Property="Opacity" Value="1"/>
                             </DataTrigger>
                         </Style.Triggers>

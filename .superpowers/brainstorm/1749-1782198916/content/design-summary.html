@@ -1,0 +1,80 @@
+<h2>Phase 12 UI 重构设计概览</h2>
+<p class="subtitle">基于你的选择汇总</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+  <div style="background: #2A2A3C; padding: 16px; border-radius: 8px;">
+    <h3 style="margin-top: 0; color: #7C4DFF;">PlayerBar</h3>
+    <p><strong>方向：</strong>沉浸型（Spotify 风格）</p>
+    <ul style="color: #A0A0B0; font-size: 13px;">
+      <li>保留三行结构（封面+元数据 / 进度条 / 控制+音量）</li>
+      <li>播放键改为圆形紫色按钮，突出主操作</li>
+      <li>进度条悬停时显示 Thumb</li>
+      <li>封面圆角统一为 6px</li>
+      <li>控制按钮间距统一</li>
+    </ul>
+  </div>
+
+  <div style="background: #2A2A3C; padding: 16px; border-radius: 8px;">
+    <h3 style="margin-top: 0; color: #7C4DFF;">PlaylistView</h3>
+    <p><strong>方向：</strong>紧凑表格</p>
+    <ul style="color: #A0A0B0; font-size: 13px;">
+      <li>新增时长列</li>
+      <li>添加表头行（标题/艺术家/专辑/时长）</li>
+      <li>行分隔线（1px BackgroundTertiary）</li>
+      <li>选中态背景色对比度提升</li>
+      <li>删除按钮悬停时变红色</li>
+    </ul>
+  </div>
+
+  <div style="background: #2A2A3C; padding: 16px; border-radius: 8px;">
+    <h3 style="margin-top: 0; color: #7C4DFF;">Sidebar</h3>
+    <p><strong>方向：</strong>分组 + 图标</p>
+    <ul style="color: #A0A0B0; font-size: 13px;">
+      <li>手动歌单 / 文件夹歌单分组显示</li>
+      <li>分组标题：小写大写字母 + 灰色</li>
+      <li>每项有 🎵/📂 图标</li>
+      <li>选中态完整背景色（当前仅文字高亮）</li>
+      <li>扫描中 🔄 图标保留</li>
+    </ul>
+  </div>
+
+  <div style="background: #2A2A3C; padding: 16px; border-radius: 8px;">
+    <h3 style="margin-top: 0; color: #7C4DFF;">整体视觉</h3>
+    <ul style="color: #A0A0B0; font-size: 13px;">
+      <li><strong>动画：</strong>按钮悬停/按下 0.15s 过渡，进度条 Thumb 悬停显示</li>
+      <li><strong>间距：</strong>统一 4px 网格（4/8/12/16/24），圆角统一 4/6/8px</li>
+      <li><strong>色板：</strong>提升选中态对比度，增加禁用态可见性</li>
+      <li><strong>字体：</strong>Header 16px SemiBold / Body 13px Regular / Caption 11px Regular</li>
+    </ul>
+  </div>
+</div>
+
+<div style="background: #363649; padding: 16px; border-radius: 8px; border-left: 4px solid #7C4DFF;">
+  <h3 style="margin-top: 0;">变更范围</h3>
+  <table style="width: 100%; font-size: 13px;">
+    <tr style="border-bottom: 1px solid #45475A;">
+      <td style="padding: 4px 0;"><strong>Themes/Colors.xaml</strong></td>
+      <td style="padding: 4px 0;">微调色板（选中态对比度、禁用态）</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #45475A;">
+      <td style="padding: 4px 0;"><strong>Themes/Fonts.xaml</strong></td>
+      <td style="padding: 4px 0;">字体层级微调</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #45475A;">
+      <td style="padding: 4px 0;"><strong>Themes/Controls.xaml</strong></td>
+      <td style="padding: 4px 0;">Button/Slider 样式 + 动画过渡</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #45475A;">
+      <td style="padding: 4px 0;"><strong>Views/Controls/PlayerBar.xaml</strong></td>
+      <td style="padding: 4px 0;">圆形播放键、间距统一、封面圆角</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #45475A;">
+      <td style="padding: 4px 0;"><strong>Views/Controls/PlaylistView.xaml</strong></td>
+      <td style="padding: 4px 0;">时长列、表头、行分隔线、选中态</td>
+    </tr>
+    <tr>
+      <td style="padding: 4px 0;"><strong>Views/Controls/PlaylistsSidebarView.xaml</strong></td>
+      <td style="padding: 4px 0;">分组、图标、选中态背景色</td>
+    </tr>
+  </table>
+</div>

@@ -156,9 +156,6 @@ public partial class PlayerViewModel : ObservableObject
             _player.Play();
     }
 
-    [RelayCommand]
-    private void Stop() => _player.Stop();
-
     /// <summary>切换静音：静音时记忆当前音量，恢复时还原。</summary>
     [RelayCommand]
     private void ToggleMute()

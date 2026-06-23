@@ -3,7 +3,7 @@
     布局：3 行 Grid
       Row 0  (*)    : 封面 + 元数据（标题/艺术家/专辑/采样率）
       Row 1  (Auto) : 当前时间 | 进度条 | 总时长
-      Row 2  (Auto) : 播放/停止/打开 按钮组   ＋   音量 + 静音按钮（右上角）
+      Row 2  (Auto) : 上一首/播放暂停/下一首 按钮组   ＋   音量 + 静音按钮（右上角）
 
     DataContext = PlayerViewModel（由 MainWindow.xaml 注入）；跨域命令通过 RelativeSource AncestorType=Window 访问 Playlist
 -->
@@ -97,7 +97,7 @@
 
         <!-- Row 2：控制按钮组（居中） + 音量区域（右对齐） -->
         <Grid Grid.Row="2" Margin="0,8,0,0">
-            <!-- 居中：上一首、播放/暂停 (圆形紫色)、停止、下一首、打开文件 -->
+            <!-- 居中：上一首、播放/暂停 (圆形紫色)、下一首 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Command="{Binding DataContext.Playlist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" ToolTip="上一首">
@@ -141,16 +141,9 @@
                                FontSize="20" Foreground="White"/>
                 </Button>
 
-                <Button Command="{Binding StopCommand}" Width="48" Height="48" Margin="8,0,0,0">
-                    <TextBlock Text="&#x23F9;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
-                </Button>
                 <Button Command="{Binding DataContext.Playlist.NextTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" Margin="8,0,0,0" ToolTip="下一首">
                     <TextBlock Text="&#x23ED;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
-                </Button>
-                <Button Command="{Binding DataContext.Playlist.OpenAndPlayCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                        Width="48" Height="48" Margin="8,0,0,0">
-                    <TextBlock Text="&#x1F4C2;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
             </StackPanel>
 

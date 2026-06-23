@@ -9,15 +9,11 @@ using UmaPlayer.Services;
 namespace UmaPlayer.ViewModels;
 
 /// <summary>
-/// 播放队列 ViewModel —— 负责队列状态、Shuffle/Repeat、自动推进算法、跨域的 OpenAndPlay。
+/// 播放队列 ViewModel —— 负责队列状态、Shuffle/Repeat、自动推进算法。
 ///
 /// 与 PlayerViewModel 的边界：
 ///   - 本 VM 订阅 IPlaybackService.TrackEnded 触发推进；不订阅 transport 事件
 ///   - 不持有 PlayerViewModel 引用；通过 IPlaybackService 调用 LoadAsync/Play/Unload/Stop
-///
-/// 跨域命令：OpenAndPlay（PlayerBar 的 📂 按钮）归本 VM——
-/// 因为它本质是"批量入队 + 自动播首项"，前者属于队列域，后者只是结果。
-/// PlayerBar 通过 RelativeSource AncestorType=Window 跨级访问。
 ///
 /// Phase 6: 持久化由 PlaylistsViewModel 容器 + MainViewModel debounce save 统一负责;
 /// 本 VM 仅暴露 ToRecord() 把当前状态打包为不可变 Playlist record。
@@ -496,31 +492,6 @@ public partial class PlaylistViewModel : ObservableObject
             RepeatMode.List => RepeatMode.One,
             _               => RepeatMode.Off,
         };
-    }
-
-    /// <summary>
-    /// PlayerBar 上的 📂 按钮：选文件 → 全部入队 → 从第一首新加入的开始播。
-    /// 与 [+ 添加] 区别：本命令会立即触发播放。
-    ///
-    /// 跨域归属说明：本质是"批量入队 + 自动播首项"，前者属于队列域，后者只是结果。
-    /// 故归本 VM；PlayerBar 通过 RelativeSource AncestorType=Window 跨级绑定调用。
-    /// </summary>
-    [RelayCommand]
-    private async Task OpenAndPlay()
-    {
-        var files = _fileDialog.OpenFiles(
-            "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
-            multiselect: true);
-        if (files.Count == 0) return;
-
-        int firstNewIndex = Queue.Count;
-        foreach (var path in files)
-        {
-            Queue.Add(_metadataReader.CreateFallback(path));
-        }
-
-        _shuffleHistory.Clear();
-        await PlayTrackAtAsync(firstNewIndex);
     }
 
     /// <summary>

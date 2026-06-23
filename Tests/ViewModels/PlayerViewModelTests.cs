@@ -180,16 +180,6 @@ public class PlayerViewModelTests
     }
 
     [Fact]
-    public void Stop_CallsPlayerStop()
-    {
-        var vm = CreateVm();
-
-        vm.StopCommand.Execute(null);
-
-        _player.Received(1).Stop();
-    }
-
-    [Fact]
     public void SeekCompleted_SeeksToCorrectPosition()
     {
         var vm = CreateVm();

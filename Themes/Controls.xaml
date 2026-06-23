@@ -68,7 +68,11 @@
                                 <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
                                     <RepeatButton.Template>
                                         <ControlTemplate TargetType="RepeatButton">
-                                            <Border Background="{StaticResource AccentPrimary}" Height="4" CornerRadius="2"/>
+                                            <!-- 外层透明 Border 扩大点击区域，内层 4px Border 负责视觉 -->
+                                            <Border Background="Transparent">
+                                                <Border Background="{StaticResource AccentPrimary}" Height="4"
+                                                        VerticalAlignment="Center" CornerRadius="2"/>
+                                            </Border>
                                         </ControlTemplate>
                                     </RepeatButton.Template>
                                 </RepeatButton>
@@ -77,7 +81,10 @@
                                 <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
                                     <RepeatButton.Template>
                                         <ControlTemplate TargetType="RepeatButton">
-                                            <Border Background="{StaticResource SliderTrack}" Height="4" CornerRadius="2"/>
+                                            <Border Background="Transparent">
+                                                <Border Background="{StaticResource SliderTrack}" Height="4"
+                                                        VerticalAlignment="Center" CornerRadius="2"/>
+                                            </Border>
                                         </ControlTemplate>
                                     </RepeatButton.Template>
                                 </RepeatButton>

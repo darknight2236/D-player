@@ -162,7 +162,7 @@
                                    RelativeSource={RelativeSource AncestorType=Window},
                                    Converter={StaticResource RepeatModeToIcon}}"
                                FontSize="16"
-                               FontFamily="Segoe UI Symbol"
+                               FontFamily="Segoe UI Emoji"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{Binding DataContext.Playlists.ViewedPlaylist.RepeatActive,
                                    RelativeSource={RelativeSource AncestorType=Window},

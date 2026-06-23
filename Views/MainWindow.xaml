@@ -1,9 +1,9 @@
 <!--
-    主窗口布局 —— Phase 6 改为 PlayerBar + 2 列(Sidebar + 当前查看队列):
-      Row 0 (Auto): PlayerBar
-      Row 1 (*) : Grid 2 列
+    主窗口布局 —— Spotify 风格: PlayerBar 在底部
+      Row 0 (*) : Grid 2 列 (主内容区)
         Column 0 (160): PlaylistsSidebarView (新建/重命名/删除/▶ 标记)
         Column 1 (*) : PlaylistView, 绑定 Playlists.ViewedPlaylist (UI 选中, 与正在播放可不同)
+      Row 1 (Auto): PlayerBar
     Closing 事件由 code-behind 处理: 保存窗口几何 + 触发 VM 清理(VM 内 flush queue.json)。
 -->
 <Window x:Class="UmaPlayer.Views.MainWindow"
@@ -20,13 +20,11 @@
         KeyDown="MainWindow_KeyDown">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <controls:PlayerBar Grid.Row="0" DataContext="{Binding Player}"/>
-
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="160" MinWidth="120"/>
                 <ColumnDefinition Width="Auto"/>
@@ -44,5 +42,7 @@
             <controls:PlaylistView Grid.Column="2"
                                     DataContext="{Binding Playlists.ViewedPlaylist}"/>
         </Grid>
+
+        <controls:PlayerBar Grid.Row="1" DataContext="{Binding Player}"/>
     </Grid>
 </Window>

@@ -1,8 +1,9 @@
 <!--
-    PlaylistView —— Phase 2 队列 UI 控件 (Phase 6: DataContext 改为 PlaylistViewModel)。
-    布局: 2 行 Grid
+    PlaylistView —— Phase 2 队列 UI 控件 (Phase 12: 紧凑表格优化)。
+    布局: 3 行 Grid
       Row 0 (Auto) : 工具栏（添加/清空 + 随机/循环开关）
-      Row 1 (*)    : ListBox 显示队列，每项含 ▶/空 + 文件名 + ×
+      Row 1 (Auto) : 表头行（标题/艺术家/专辑/时长）
+      Row 2 (*)    : ListBox 显示队列，每项含 ▶/空 + 标题 + 艺术家 + 专辑 + 时长 + ×
 
     DataContext = PlaylistViewModel（Phase 6 由 MainWindow.xaml 绑定 Playlists.ViewedPlaylist）
 -->
@@ -14,6 +15,7 @@
     <UserControl.Resources>
         <converters:RepeatModeToIconConverter x:Key="RepeatModeToIcon"/>
         <converters:BoolToAccentBrushConverter x:Key="BoolToAccentBrush"/>
+        <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </UserControl.Resources>
 
@@ -25,6 +27,7 @@
             Drop="Root_Drop">
         <Grid Margin="16,0,16,16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
@@ -85,9 +88,27 @@
             </StackPanel>
         </Grid>
 
-        <!-- Row 1: 队列列表 -->
+        <!-- Row 1: 表头行 -->
+        <Grid Grid.Row="1" Margin="0,0,0,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="2.5*"/>
+                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="50"/>
+                <ColumnDefinition Width="20"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Style="{StaticResource CaptionText}"/>
+            <TextBlock Grid.Column="1" Text="标题" Style="{StaticResource CaptionText}"/>
+            <TextBlock Grid.Column="2" Text="艺术家" Style="{StaticResource CaptionText}"/>
+            <TextBlock Grid.Column="3" Text="专辑" Style="{StaticResource CaptionText}"/>
+            <TextBlock Grid.Column="4" Text="时长" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
+            <TextBlock Grid.Column="5" Style="{StaticResource CaptionText}"/>
+        </Grid>
+
+        <!-- Row 2: 队列列表 -->
         <Border x:Name="QueueListBorder"
-                Grid.Row="1" Background="{StaticResource BackgroundSecondary}"
+                Grid.Row="2" Background="{StaticResource BackgroundSecondary}"
                 CornerRadius="4" BorderThickness="2">
             <!-- BorderBrush 必须由 Style.Setter 提供默认值；写成 local 属性会以 local-value
                  优先级压过 Style.Triggers 里的 Setter，导致 IsDragOver=True 高亮失效。
@@ -125,10 +146,15 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                            Padding="8,4">
-                                        <ContentPresenter/>
-                                    </Border>
+                                    <Grid>
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                                Padding="8,4">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <!-- 底部分隔线 -->
+                                        <Border Height="1" Background="{StaticResource BackgroundTertiary}"
+                                                VerticalAlignment="Bottom" Margin="8,0"/>
+                                    </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
                                             <Setter TargetName="bd" Property="Background"
@@ -152,6 +178,7 @@
                                 <ColumnDefinition Width="2.5*"/>
                                 <ColumnDefinition Width="1.5*"/>
                                 <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
@@ -169,14 +196,30 @@
                                        FontSize="12" TextTrimming="CharacterEllipsis"
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        VerticalAlignment="Center"/>
-                            <Button Grid.Column="4" Content="×"
+                            <!-- 时长列 -->
+                            <TextBlock Grid.Column="4"
+                                       Text="{Binding Duration, Converter={StaticResource TimeSpanToString}}"
+                                       FontSize="11" HorizontalAlignment="Right"
+                                       Foreground="{StaticResource ForegroundSecondary}"
+                                       VerticalAlignment="Center"/>
+                            <!-- 删除按钮：悬停变红 -->
+                            <Button Grid.Column="5" Content="×"
                                     Width="20" Height="20" Padding="0"
-                                    Background="Transparent" BorderThickness="0"
                                     FontSize="14"
-                                    Foreground="{StaticResource ForegroundSecondary}"
                                     Tag="{Binding}"
                                     Click="RemoveButton_Click"
-                                    ToolTip="移除"/>
+                                    ToolTip="移除">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                        <Setter Property="Foreground" Value="{StaticResource ForegroundSecondary}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource DangerHover}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>

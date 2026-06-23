@@ -139,9 +139,9 @@
                                     <ColumnDefinition Width="20"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Style="{StaticResource CaptionText}"/>
-                                <TextBlock Grid.Column="1" Text="标题" Style="{StaticResource CaptionText}"/>
-                                <TextBlock Grid.Column="2" Text="艺术家" Style="{StaticResource CaptionText}"/>
-                                <TextBlock Grid.Column="3" Text="专辑" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="1" Text="标题" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="艺术家" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="专辑" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
                                 <TextBlock Grid.Column="4" Text="时长" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
                                 <TextBlock Grid.Column="5" Style="{StaticResource CaptionText}"/>
                             </Grid>
@@ -202,13 +202,15 @@
                                        VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="1" Text="{Binding Title}"
                                        FontSize="12" TextTrimming="CharacterEllipsis"
-                                       VerticalAlignment="Center"/>
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding Artist}"
                                        FontSize="12" TextTrimming="CharacterEllipsis"
+                                       HorizontalAlignment="Center"
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="3" Text="{Binding Album}"
                                        FontSize="12" TextTrimming="CharacterEllipsis"
+                                       HorizontalAlignment="Center"
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        VerticalAlignment="Center"/>
                             <!-- 时长列 -->

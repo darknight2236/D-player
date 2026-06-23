@@ -8,12 +8,12 @@
     <!-- 背景层级（由深到浅）：窗口底色 → 卡片 → 悬停/凹陷 -->
     <SolidColorBrush x:Key="BackgroundPrimary"   Color="#1E1E2E"/>
     <SolidColorBrush x:Key="BackgroundSecondary" Color="#2A2A3C"/>
-    <SolidColorBrush x:Key="BackgroundTertiary"  Color="#363649"/>
+    <SolidColorBrush x:Key="BackgroundTertiary"  Color="#3E3E52"/>
 
     <!-- 前景文字层级：主体 → 次要说明 → 禁用 -->
     <SolidColorBrush x:Key="ForegroundPrimary"   Color="#E0E0E0"/>
     <SolidColorBrush x:Key="ForegroundSecondary" Color="#A0A0B0"/>
-    <SolidColorBrush x:Key="ForegroundDisabled"  Color="#606070"/>
+    <SolidColorBrush x:Key="ForegroundDisabled"  Color="#6C6C80"/>
 
     <!-- 强调色（紫）：默认 / 悬停 / 按下 —— 用于进度条已填充段、按钮按下背景 -->
     <SolidColorBrush x:Key="AccentPrimary"  Color="#7C4DFF"/>
@@ -23,4 +23,7 @@
     <!-- 滑块专用：未填充轨道色 + 圆形 thumb 色 -->
     <SolidColorBrush x:Key="SliderTrack" Color="#363649"/>
     <SolidColorBrush x:Key="SliderThumb" Color="#7C4DFF"/>
+
+    <!-- 危险色（删除按钮悬停） -->
+    <SolidColorBrush x:Key="DangerHover" Color="#FF6B6B"/>
 </ResourceDictionary>

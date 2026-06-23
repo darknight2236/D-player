@@ -99,7 +99,7 @@
         <Grid Grid.Row="2" Margin="0,8,0,0">
             <!-- 居中：上一首、播放/暂停 (圆形紫色)、下一首 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Command="{Binding DataContext.Playlist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                <Button Command="{Binding DataContext.Playlists.ViewedPlaylist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" ToolTip="上一首">
                     <TextBlock Text="&#x23EE;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
@@ -131,7 +131,7 @@
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">
                                     <Setter Property="Command"
-                                            Value="{Binding DataContext.Playlist.PlayCurrentCommand,
+                                            Value="{Binding DataContext.Playlists.ViewedPlaylist.PlayCurrentCommand,
                                                     RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 </DataTrigger>
                             </Style.Triggers>
@@ -141,7 +141,7 @@
                                FontSize="20" Foreground="White"/>
                 </Button>
 
-                <Button Command="{Binding DataContext.Playlist.NextTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                <Button Command="{Binding DataContext.Playlists.ViewedPlaylist.NextTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" Margin="8,0,0,0" ToolTip="下一首">
                     <TextBlock Text="&#x23ED;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>

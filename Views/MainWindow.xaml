@@ -24,13 +24,13 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
+        <Grid x:Name="ContentGrid" Grid.Row="0" SizeChanged="ContentGrid_SizeChanged">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="160" MinWidth="120"/>
+                <ColumnDefinition x:Name="SidebarCol" Width="160" MinWidth="120"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="220" MinWidth="160"/>
+                <ColumnDefinition x:Name="TrackInfoCol" Width="220" MinWidth="160"/>
             </Grid.ColumnDefinitions>
 
             <controls:PlaylistsSidebarView Grid.Column="0"
@@ -40,7 +40,8 @@
                           Background="Transparent"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Stretch"
-                          Cursor="SizeWE"/>
+                          Cursor="SizeWE"
+                          DragCompleted="GridSplitter_DragCompleted"/>
             <controls:PlaylistView Grid.Column="2"
                                     DataContext="{Binding Playlists.ViewedPlaylist}"/>
             <GridSplitter Grid.Column="3"
@@ -48,7 +49,8 @@
                           Background="Transparent"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Stretch"
-                          Cursor="SizeWE"/>
+                          Cursor="SizeWE"
+                          DragCompleted="GridSplitter_DragCompleted"/>
             <controls:TrackInfoView Grid.Column="4"
                                      DataContext="{Binding Player}"/>
         </Grid>

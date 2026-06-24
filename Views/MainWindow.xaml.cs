@@ -129,6 +129,27 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>拖拽完成后限制侧边栏/曲目信息列宽不超过窗口宽度一半。</summary>
+    private void GridSplitter_DragCompleted(object sender, RoutedEventArgs e)
+    {
+        ClampColumnWidths();
+    }
+
+    /// <summary>窗口大小变化时也限制列宽。</summary>
+    private void ContentGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ClampColumnWidths();
+    }
+
+    private void ClampColumnWidths()
+    {
+        var max = ContentGrid.ActualWidth / 2;
+        if (SidebarCol.Width.Value > max)
+            SidebarCol.Width = new GridLength(max);
+        if (TrackInfoCol.Width.Value > max)
+            TrackInfoCol.Width = new GridLength(max);
+    }
+
     /// <summary>Ctrl+, 打开设置对话框。</summary>
     private void MainWindow_KeyDown(object sender, KeyEventArgs e)
     {

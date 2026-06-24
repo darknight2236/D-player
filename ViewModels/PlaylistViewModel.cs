@@ -153,7 +153,7 @@ public partial class PlaylistViewModel : ObservableObject
         RepeatMode: RepeatMode.Off,
         SourceFolder: SourceFolder);
 
-    /// <summary>按指定列排序。再次点击同列切换升/降序。</summary>
+    /// <summary>按指定列物理重排 Queue。再次点击同列切换升/降序。</summary>
     public void SortBy(string column)
     {
         if (_sortColumn == column)
@@ -166,13 +166,34 @@ public partial class PlaylistViewModel : ObservableObject
             _sortDirection = ListSortDirection.Ascending;
         }
 
-        using (SortedView.DeferRefresh())
-        {
-            SortedView.SortDescriptions.Clear();
-            if (_sortColumn is not null)
-                SortedView.SortDescriptions.Add(new SortDescription(_sortColumn, _sortDirection));
-        }
+        // 记住当前播放曲，排序后更新 CurrentIndex
+        var currentTrack = CurrentIndex >= 0 && CurrentIndex < Queue.Count
+            ? Queue[CurrentIndex] : null;
+
+        var sorted = _sortDirection == ListSortDirection.Ascending
+            ? Queue.OrderBy(t => GetSortKey(t, column)).ToList()
+            : Queue.OrderByDescending(t => GetSortKey(t, column)).ToList();
+
+        Queue.Clear();
+        foreach (var item in sorted)
+            Queue.Add(item);
+
+        // 跟踪当前播放曲的新位置
+        if (currentTrack is not null)
+            CurrentIndex = Queue.IndexOf(currentTrack);
+
+        OnPropertyChanged(nameof(SortedView));
     }
+
+    private static object? GetSortKey(Track t, string column) => column switch
+    {
+        "TrackNumber" => t.TrackNumber ?? 0,
+        "Title"       => t.Title,
+        "Artist"      => t.Artist ?? "",
+        "Album"       => t.Album ?? "",
+        "Duration"    => t.Duration,
+        _             => null
+    };
 
     /// <summary>
     /// 计算下一首曲目的索引。

@@ -103,8 +103,8 @@ public partial class PlaylistView : UserControl
             var container = QueueList.ItemContainerGenerator.ContainerFromIndex(i) as ListBoxItem;
             if (container == null) continue;
 
-            var marker = FindChildByOrder<TextBlock>(container, 0); // ▶ 列
-            var title  = FindChildByOrder<TextBlock>(container, 1); // 文件名列
+            var marker = FindChildByOrder<TextBlock>(container, 1); // ▶ 列（# 列之后）
+            var title  = FindChildByOrder<TextBlock>(container, 2); // 标题列
             if (marker == null || title == null) continue;
 
             // Phase 6: 只在 _vm 是当前正在播放的歌单时才显示 ▶/高亮 ——

@@ -13,6 +13,7 @@
              xmlns:local="clr-namespace:UmaPlayer.Views.Controls">
     <UserControl.Resources>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
+        <converters:TrackIndexConverter x:Key="TrackIndex"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </UserControl.Resources>
 
@@ -105,6 +106,7 @@
                             <!-- 表头行：列定义与 DataTemplate 一致 -->
                             <Grid Grid.Row="0" Margin="8,0">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30"/>
                                     <ColumnDefinition Width="20"/>
                                     <ColumnDefinition Width="2.5*"/>
                                     <ColumnDefinition Width="1.5*"/>
@@ -112,12 +114,13 @@
                                     <ColumnDefinition Width="50"/>
                                     <ColumnDefinition Width="20"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Style="{StaticResource CaptionText}"/>
-                                <TextBlock Grid.Column="1" Text="标题" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="艺术家" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="3" Text="专辑" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="4" Text="时长" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
-                                <TextBlock Grid.Column="5" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="0" Text="#" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="2" Text="标题" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="艺术家" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="4" Text="专辑" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="5" Text="时长" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Column="6" Style="{StaticResource CaptionText}"/>
                             </Grid>
                             <ScrollViewer Grid.Row="1"
                                           HorizontalScrollBarVisibility="Disabled"
@@ -164,6 +167,7 @@
                     <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="30"/>
                                 <ColumnDefinition Width="20"/>
                                 <ColumnDefinition Width="2.5*"/>
                                 <ColumnDefinition Width="1.5*"/>
@@ -171,31 +175,42 @@
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="20"/>
                             </Grid.ColumnDefinitions>
+                            <!-- # 行号 -->
+                            <TextBlock Grid.Column="0" FontSize="11"
+                                       Foreground="{StaticResource ForegroundSecondary}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <TextBlock.Text>
+                                    <MultiBinding Converter="{StaticResource TrackIndex}">
+                                        <Binding RelativeSource="{RelativeSource AncestorType=ListBox}"/>
+                                        <Binding/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
                             <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
-                            <TextBlock Grid.Column="0" Text="" FontSize="11"
+                            <TextBlock Grid.Column="1" Text="" FontSize="11"
                                        Foreground="{StaticResource AccentPrimary}"
                                        VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Title}"
+                            <TextBlock Grid.Column="2" Text="{Binding Title}"
                                        FontSize="12" TextTrimming="CharacterEllipsis"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{Binding Artist}"
+                            <TextBlock Grid.Column="3" Text="{Binding Artist}"
                                        FontSize="12" TextTrimming="CharacterEllipsis"
                                        HorizontalAlignment="Center"
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="3" Text="{Binding Album}"
+                            <TextBlock Grid.Column="4" Text="{Binding Album}"
                                        FontSize="12" TextTrimming="CharacterEllipsis"
                                        HorizontalAlignment="Center"
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        VerticalAlignment="Center"/>
                             <!-- 时长列 -->
-                            <TextBlock Grid.Column="4"
+                            <TextBlock Grid.Column="5"
                                        Text="{Binding Duration, Converter={StaticResource TimeSpanToString}}"
                                        FontSize="11" HorizontalAlignment="Right"
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        VerticalAlignment="Center"/>
                             <!-- 删除按钮：悬停变红 -->
-                            <Button Grid.Column="5" Content="×"
+                            <Button Grid.Column="6" Content="×"
                                     Width="20" Height="20" Padding="0"
                                     FontSize="14"
                                     Tag="{Binding}"

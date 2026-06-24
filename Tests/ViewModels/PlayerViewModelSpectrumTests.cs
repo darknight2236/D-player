@@ -17,6 +17,10 @@ public class PlayerViewModelSpectrumTests
     public PlayerViewModelSpectrumTests()
     {
         _persistence.LoadAsync().Returns(Task.FromResult(new AppSettings()));
+
+        // SpectrumConfig 为 record（引用类型），NSubstitute 默认返回 null；
+        // 需要预设一个实例以避免 OnSpectrumEnabledChanged 中的 NRE
+        _player.SpectrumConfig.Returns(new SpectrumConfig());
     }
 
     private PlayerViewModel CreateVm()
@@ -30,7 +34,8 @@ public class PlayerViewModelSpectrumTests
         // Arrange
         var vm = CreateVm();
         vm.SpectrumEnabled = true;
-        var testData = new float[512];
+        // SampleAggregator 已将 FFT bins 对数映射为 32 bars，传入的数据就是 32 元素
+        var testData = new float[32];
         Array.Fill(testData, 0.5f);
 
         // Act
@@ -47,7 +52,7 @@ public class PlayerViewModelSpectrumTests
         // Arrange
         var vm = CreateVm();
         vm.SpectrumEnabled = false;
-        var testData = new float[512];
+        var testData = new float[32];
         Array.Fill(testData, 0.5f);
 
         // Act

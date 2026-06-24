@@ -105,16 +105,16 @@
                             <!-- 表头行：列定义与 DataTemplate 一致 -->
                             <Grid Grid.Row="0" Margin="8,0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="30"/>
                                     <ColumnDefinition Width="20"/>
+                                    <ColumnDefinition Width="30"/>
                                     <ColumnDefinition Width="2.5*"/>
                                     <ColumnDefinition Width="1.5*"/>
                                     <ColumnDefinition Width="1.5*"/>
                                     <ColumnDefinition Width="50"/>
                                     <ColumnDefinition Width="20"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="#" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
-                                <TextBlock Grid.Column="1" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="0" Style="{StaticResource CaptionText}"/>
+                                <TextBlock Grid.Column="1" Text="#" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
                                 <TextBlock Grid.Column="2" Text="标题" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
                                 <TextBlock Grid.Column="3" Text="艺术家" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
                                 <TextBlock Grid.Column="4" Text="专辑" Style="{StaticResource CaptionText}" HorizontalAlignment="Center"/>
@@ -166,24 +166,24 @@
                     <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="30"/>
                                 <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="30"/>
                                 <ColumnDefinition Width="2.5*"/>
                                 <ColumnDefinition Width="1.5*"/>
                                 <ColumnDefinition Width="1.5*"/>
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="20"/>
                             </Grid.ColumnDefinitions>
+                            <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
+                            <TextBlock x:Name="PART_Marker" Grid.Column="0" Text="" FontSize="11"
+                                       Foreground="{StaticResource AccentPrimary}"
+                                       VerticalAlignment="Center"/>
                             <!-- # 曲目编号 -->
-                            <TextBlock Grid.Column="0"
+                            <TextBlock Grid.Column="1"
                                        Text="{Binding TrackNumber, FallbackValue=''}"
                                        FontSize="11"
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
-                            <TextBlock x:Name="PART_Marker" Grid.Column="1" Text="" FontSize="11"
-                                       Foreground="{StaticResource AccentPrimary}"
-                                       VerticalAlignment="Center"/>
                             <TextBlock x:Name="PART_Title" Grid.Column="2" Text="{Binding Title}"
                                        FontSize="12" TextTrimming="CharacterEllipsis"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>

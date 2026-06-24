@@ -12,25 +12,28 @@
 
     <Border Background="{StaticResource BackgroundSecondary}" CornerRadius="4">
     <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16">
-        <!-- 封面框 -->
-        <Border Width="180" Height="180" CornerRadius="8" Margin="0,0,0,16"
-                Background="{StaticResource BackgroundSecondary}">
-            <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
-        </Border>
+        <!-- 封面框：ViewBox 自动缩放，MaxWidth=180 为最大尺寸 -->
+        <Viewbox MaxWidth="180" MaxHeight="180" Margin="0,0,0,16"
+                 HorizontalAlignment="Center">
+            <Border Width="180" Height="180" CornerRadius="8"
+                    Background="{StaticResource BackgroundSecondary}">
+                <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
+            </Border>
+        </Viewbox>
 
         <!-- 文本元数据 -->
         <StackPanel HorizontalAlignment="Center">
             <TextBlock Text="{Binding CurrentTrack.Title, FallbackValue='No track loaded'}"
                        Style="{StaticResource HeaderText}"
-                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="180"/>
+                       TextAlignment="Center" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding CurrentTrack.Artist, FallbackValue=''}"
                        Style="{StaticResource CaptionText}"
                        TextAlignment="Center" Margin="0,4,0,0"
-                       TextWrapping="Wrap" MaxWidth="180"/>
+                       TextWrapping="Wrap"/>
             <TextBlock Text="{Binding CurrentTrack.Album, FallbackValue=''}"
                        Style="{StaticResource CaptionText}"
                        TextAlignment="Center" Margin="0,2,0,0"
-                       TextWrapping="Wrap" MaxWidth="180"/>
+                       TextWrapping="Wrap"/>
             <TextBlock Text="{Binding SampleRateText}"
                        Style="{StaticResource CaptionText}"
                        TextAlignment="Center" Margin="0,2,0,0"/>

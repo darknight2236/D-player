@@ -147,14 +147,17 @@ public partial class PlayerViewModel : ObservableObject
     {
         if (!SpectrumEnabled) return;
 
-        // 1. 应用灵敏度增益
-        for (int i = 0; i < rawData.Length; i++)
+        // 1. 复制数据避免修改原始缓冲区
+        var data = rawData.ToArray();
+
+        // 2. 应用灵敏度增益
+        for (int i = 0; i < data.Length; i++)
         {
-            rawData[i] *= (float)SpectrumSensitivity;
+            data[i] *= (float)SpectrumSensitivity;
         }
 
-        // 2. 32 条频谱柱映射（对数分组）
-        var mapped = MapToBars(rawData, 32);
+        // 3. 32 条频谱柱映射（对数分组）
+        var mapped = MapToBars(data, 32);
 
         // 3. 应用平滑（指数移动平均）
         for (int i = 0; i < 32; i++)

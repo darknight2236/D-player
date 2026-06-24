@@ -103,8 +103,8 @@ public partial class PlaylistView : UserControl
             var container = QueueList.ItemContainerGenerator.ContainerFromIndex(i) as ListBoxItem;
             if (container == null) continue;
 
-            var marker = FindChildByOrder<TextBlock>(container, 1); // ▶ 列（# 列之后）
-            var title  = FindChildByOrder<TextBlock>(container, 2); // 标题列
+            var marker = FindChildByName<TextBlock>(container, "PART_Marker");
+            var title  = FindChildByName<TextBlock>(container, "PART_Title");
             if (marker == null || title == null) continue;
 
             // Phase 6: 只在 _vm 是当前正在播放的歌单时才显示 ▶/高亮 ——
@@ -119,12 +119,10 @@ public partial class PlaylistView : UserControl
     }
 
     /// <summary>
-    /// 按"出现顺序"在 VisualTree 中找第 N 个 T 类型的子元素。
-    /// 0 = ▶ 列, 1 = 文件名列（与 XAML 中 DataTemplate 的 TextBlock 顺序对应）。
+    /// 在 VisualTree 中按 x:Name 查找子元素。
     /// </summary>
-    private static T? FindChildByOrder<T>(DependencyObject parent, int n) where T : DependencyObject
+    private static T? FindChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
     {
-        int count = 0;
         return Walk(parent);
 
         T? Walk(DependencyObject p)
@@ -132,11 +130,7 @@ public partial class PlaylistView : UserControl
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(p); i++)
             {
                 var c = VisualTreeHelper.GetChild(p, i);
-                if (c is T match)
-                {
-                    if (count == n) return match;
-                    count++;
-                }
+                if (c is T fe && fe.Name == name) return fe;
                 var deeper = Walk(c);
                 if (deeper != null) return deeper;
             }

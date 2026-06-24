@@ -367,6 +367,17 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             {
                 if (cacheDict.TryGetValue(vm.Queue[i].FilePath, out var entry))
                 {
+                    var trackNumber = entry.TrackNumber;
+                    // 旧缓存无 TrackNumber 时回读文件补全
+                    if (trackNumber is null)
+                    {
+                        try
+                        {
+                            var full = _metadataReader.ReadAsync(entry.FilePath).GetAwaiter().GetResult();
+                            trackNumber = full.TrackNumber;
+                        }
+                        catch { /* 回读失败保持 null */ }
+                    }
                     vm.Queue[i] = new Track(
                         FilePath: entry.FilePath,
                         Title: entry.Title,
@@ -377,7 +388,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
                         SampleRate: entry.SampleRate,
                         AlbumArt: null,
                         Duration: entry.Duration,
-                        TrackNumber: entry.TrackNumber);
+                        TrackNumber: trackNumber);
                 }
             }
         }

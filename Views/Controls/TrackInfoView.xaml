@@ -10,7 +10,8 @@
         <converters:BytesToBitmapImageConverter x:Key="BytesToBitmapImage"/>
     </UserControl.Resources>
 
-    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16">
+    <Border Background="{StaticResource BackgroundSecondary}" CornerRadius="4">
+    <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16">
         <!-- 封面框 -->
         <Border Width="180" Height="180" CornerRadius="8" Margin="0,0,0,16"
                 Background="{StaticResource BackgroundSecondary}">
@@ -35,4 +36,5 @@
                        TextAlignment="Center" Margin="0,2,0,0"/>
         </StackPanel>
     </StackPanel>
+    </Border>
 </UserControl>

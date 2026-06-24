@@ -13,8 +13,7 @@
     <Border Background="{StaticResource BackgroundSecondary}" CornerRadius="4">
     <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16">
         <!-- 封面框：ViewBox 自动缩放，MaxWidth=180 为最大尺寸 -->
-        <Viewbox MaxWidth="180" MaxHeight="180" Margin="0,0,0,16"
-                 HorizontalAlignment="Center">
+        <Viewbox Margin="0,0,0,16" HorizontalAlignment="Stretch">
             <Border Width="180" Height="180" CornerRadius="8"
                     Background="{StaticResource BackgroundSecondary}">
                 <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>

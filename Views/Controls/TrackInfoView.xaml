@@ -15,7 +15,7 @@
         <!-- 封面框：ViewBox 自动缩放，上限 250px -->
         <Viewbox MaxWidth="250" MaxHeight="250" Margin="0,0,0,16"
                  HorizontalAlignment="Stretch">
-            <Border Width="180" Height="180" CornerRadius="8" ClipToBounds="True"
+            <Border Width="180" Height="180"
                     Background="{StaticResource BackgroundTertiary}">
                 <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
             </Border>

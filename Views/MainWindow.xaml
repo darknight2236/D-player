@@ -41,7 +41,7 @@
                           HorizontalAlignment="Center"
                           VerticalAlignment="Stretch"
                           Cursor="SizeWE"
-                          DragCompleted="GridSplitter_DragCompleted"/>
+                          DragDelta="SidebarSplitter_DragDelta"/>
             <controls:PlaylistView Grid.Column="2"
                                     DataContext="{Binding Playlists.ViewedPlaylist}"/>
             <GridSplitter Grid.Column="3"
@@ -50,7 +50,7 @@
                           HorizontalAlignment="Center"
                           VerticalAlignment="Stretch"
                           Cursor="SizeWE"
-                          DragCompleted="GridSplitter_DragCompleted"/>
+                          DragDelta="TrackInfoSplitter_DragDelta"/>
             <controls:TrackInfoView Grid.Column="4"
                                      DataContext="{Binding Player}"/>
         </Grid>

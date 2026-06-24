@@ -129,19 +129,30 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>拖拽完成后限制侧边栏/曲目信息列宽不超过窗口宽度一半。</summary>
-    private void GridSplitter_DragCompleted(object sender, RoutedEventArgs e)
+    /// <summary>侧边栏拖拽中实时限制列宽，到达上限时锁死。</summary>
+    private void SidebarSplitter_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
     {
-        ClampColumnWidths();
+        var max = ContentGrid.ActualWidth / 2;
+        if (SidebarCol.Width.Value >= max && e.HorizontalChange > 0)
+        {
+            SidebarCol.Width = new GridLength(max);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>曲目信息拖拽中实时限制列宽，到达上限时锁死。</summary>
+    private void TrackInfoSplitter_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        var max = ContentGrid.ActualWidth / 2;
+        if (TrackInfoCol.Width.Value >= max && e.HorizontalChange > 0)
+        {
+            TrackInfoCol.Width = new GridLength(max);
+            e.Handled = true;
+        }
     }
 
     /// <summary>窗口大小变化时也限制列宽。</summary>
     private void ContentGrid_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        ClampColumnWidths();
-    }
-
-    private void ClampColumnWidths()
     {
         var max = ContentGrid.ActualWidth / 2;
         if (SidebarCol.Width.Value > max)

@@ -29,8 +29,15 @@
                     Content="+"
                     FontSize="16"
                     Foreground="{StaticResource ForegroundPrimary}"
-                    ToolTip="新建歌单"
-                    Click="AddBtn_Click"/>
+                    ToolTip="新建歌单 / 导入文件夹"
+                    Click="AddBtn_Click">
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="新建歌单" Click="AddPlaylist_Click"/>
+                        <MenuItem Header="导入文件夹" Click="ImportFolder_Click"/>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
             <Button x:Name="RemoveBtn"
                     Width="28" Height="28"
                     Padding="0"

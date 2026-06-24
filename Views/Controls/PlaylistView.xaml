@@ -35,11 +35,6 @@
                 <Button Command="{Binding AddToQueueCommand}" Padding="12,4">
                     <TextBlock Text="+ 添加" FontSize="12"/>
                 </Button>
-                <Button Padding="12,4" Margin="8,0,0,0"
-                        Command="{Binding DataContext.Playlists.ImportFolderCommand,
-                                 RelativeSource={RelativeSource AncestorType=Window}}">
-                    <TextBlock Text="📂 导入文件夹" FontSize="12"/>
-                </Button>
                 <Button Command="{Binding ClearQueueCommand}" Padding="12,4" Margin="8,0,0,0">
                     <TextBlock Text="清空" FontSize="12"/>
                 </Button>

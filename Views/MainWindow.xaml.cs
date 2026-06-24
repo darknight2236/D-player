@@ -144,7 +144,8 @@ public partial class MainWindow : Window
     private void TrackInfoSplitter_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
     {
         var max = ContentGrid.ActualWidth / 2;
-        if (TrackInfoCol.Width.Value >= max && e.HorizontalChange > 0)
+        // 右侧 splitter 向左拖时 HorizontalChange < 0（列变宽）
+        if (TrackInfoCol.Width.Value >= max && e.HorizontalChange < 0)
         {
             TrackInfoCol.Width = new GridLength(max);
             e.Handled = true;

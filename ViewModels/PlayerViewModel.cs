@@ -59,6 +59,29 @@ public partial class PlayerViewModel : ObservableObject
     /// <summary>静音前的音量快照，用于"取消静音"时恢复。</summary>
     private float _volumeBeforeMute;
 
+    // ====== Phase 13: 频谱可视化 ======
+
+    [ObservableProperty]
+    private float[] _spectrumData = new float[32];
+
+    [ObservableProperty]
+    private bool _spectrumEnabled = true;
+
+    [ObservableProperty]
+    private double _spectrumSensitivity = 1.0;  // 0.5 ~ 2.0
+
+    [ObservableProperty]
+    private int _spectrumColorTheme = 0;  // 0=Purple, 1=Blue, 2=Green, 3=Rainbow
+
+    [ObservableProperty]
+    private double _spectrumSmoothing = 0.8;  // 0.0 ~ 0.95
+
+    /// <summary>平滑后的频谱数据（避免 UI 抖动）</summary>
+    private float[] _smoothedSpectrum = new float[32];
+
+    /// <summary>颜色主题列表（供 UI 绑定）</summary>
+    public string[] SpectrumColorThemes { get; } = ["紫色", "蓝色", "绿色", "彩虹"];
+
     // —— 派生只读属性，供 XAML 绑定 ——
 
     public string VolumeIcon => IsMuted ? "\U0001F507" : "\U0001F50A"; // 🔇 / 🔊
@@ -86,6 +109,9 @@ public partial class PlayerViewModel : ObservableObject
         _player.TrackChanged += HandleTrackChanged;
         _player.PlaybackError += HandlePlaybackError;
 
+        // Phase 13: 订阅频谱事件
+        InitializeSpectrum();
+
         Initialize();
     }
 
@@ -103,7 +129,73 @@ public partial class PlayerViewModel : ObservableObject
             settings = _options.Value;
         }
         Volume = settings.DefaultVolume;
+
+        // Phase 13: 加载频谱设置
+        LoadSpectrumSettings(settings);
+
         _isInitializing = false;
+    }
+
+    /// <summary>订阅频谱事件（在构造函数中调用）</summary>
+    private void InitializeSpectrum()
+    {
+        _player.SpectrumDataAvailable += HandleSpectrumData;
+    }
+
+    /// <summary>频谱数据处理（带平滑）</summary>
+    private void HandleSpectrumData(float[] rawData)
+    {
+        if (!SpectrumEnabled) return;
+
+        // 1. 应用灵敏度增益
+        for (int i = 0; i < rawData.Length; i++)
+        {
+            rawData[i] *= (float)SpectrumSensitivity;
+        }
+
+        // 2. 32 条频谱柱映射（对数分组）
+        var mapped = MapToBars(rawData, 32);
+
+        // 3. 应用平滑（指数移动平均）
+        for (int i = 0; i < 32; i++)
+        {
+            _smoothedSpectrum[i] = _smoothedSpectrum[i] * (float)SpectrumSmoothing
+                                 + mapped[i] * (1 - (float)SpectrumSmoothing);
+        }
+
+        // 4. 更新属性（触发 UI 绑定）
+        SpectrumData = _smoothedSpectrum.ToArray();
+    }
+
+    /// <summary>对数分组映射：512 bins → 32 bars</summary>
+    private static float[] MapToBars(float[] spectrum, int barCount)
+    {
+        var result = new float[barCount];
+        int totalBins = spectrum.Length;
+
+        for (int bar = 0; bar < barCount; bar++)
+        {
+            // 对数分布：低频 bins 更密集
+            float startPercent = (float)bar / barCount;
+            float endPercent = (float)(bar + 1) / barCount;
+
+            // 对数映射
+            int startBin = (int)(Math.Pow(startPercent, 2) * totalBins);
+            int endBin = (int)(Math.Pow(endPercent, 2) * totalBins);
+            endBin = Math.Max(endBin, startBin + 1);
+
+            // 取该范围内的平均值
+            float sum = 0;
+            int count = 0;
+            for (int i = startBin; i < endBin && i < totalBins; i++)
+            {
+                sum += spectrum[i];
+                count++;
+            }
+            result[bar] = count > 0 ? sum / count : 0;
+        }
+
+        return result;
     }
 
     // —— 播放服务事件 handler ——
@@ -189,6 +281,50 @@ public partial class PlayerViewModel : ObservableObject
         _ = _persistence.UpdateAsync(s => s with { DefaultVolume = value });
     }
 
+    /// <summary>切换频谱启用状态</summary>
+    [RelayCommand]
+    private void ToggleSpectrum()
+    {
+        SpectrumEnabled = !SpectrumEnabled;
+        SaveSpectrumSettings();
+    }
+
+    // 属性变更时自动保存
+    partial void OnSpectrumEnabledChanged(bool value)
+        => SaveSpectrumSettings();
+
+    partial void OnSpectrumSensitivityChanged(double value)
+        => SaveSpectrumSettings();
+
+    partial void OnSpectrumColorThemeChanged(int value)
+        => SaveSpectrumSettings();
+
+    partial void OnSpectrumSmoothingChanged(double value)
+        => SaveSpectrumSettings();
+
+    /// <summary>持久化频谱设置</summary>
+    private void SaveSpectrumSettings()
+    {
+        if (_isInitializing) return;
+
+        _ = _persistence.UpdateAsync(s => s with
+        {
+            SpectrumEnabled = SpectrumEnabled,
+            SpectrumSensitivity = SpectrumSensitivity,
+            SpectrumColorTheme = SpectrumColorTheme,
+            SpectrumSmoothing = SpectrumSmoothing
+        });
+    }
+
+    /// <summary>加载频谱设置</summary>
+    private void LoadSpectrumSettings(AppSettings settings)
+    {
+        SpectrumEnabled = settings.SpectrumEnabled;
+        SpectrumSensitivity = settings.SpectrumSensitivity;
+        SpectrumColorTheme = settings.SpectrumColorTheme;
+        SpectrumSmoothing = settings.SpectrumSmoothing;
+    }
+
     /// <summary>
     /// 由 MainViewModel.CleanupAsync 调用 —— 解绑事件并持久化最后一次音量。
     /// 注意：不在这里 Dispose IPlaybackService（PlaylistViewModel 还在用，
@@ -201,6 +337,10 @@ public partial class PlayerViewModel : ObservableObject
         _player.DurationChanged -= HandleDurationChanged;
         _player.TrackChanged -= HandleTrackChanged;
         _player.PlaybackError -= HandlePlaybackError;
+
+        // Phase 13: 解绑频谱事件
+        _player.SpectrumDataAvailable -= HandleSpectrumData;
+
         await _persistence.UpdateAsync(s => s with { DefaultVolume = Volume });
     }
 }

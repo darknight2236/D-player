@@ -1,6 +1,6 @@
 # UmaPlayer 耦合分析与重构备忘
 
-> 创建日期：2026/06/06 · 更新日期：2026/06/22 · 对应分支：`master` · 对应阶段：**Phase 12 完成**（UI 界面重构）
+> 创建日期：2026/06/06 · 更新日期：2026/06/23 · 对应分支：`master` · 对应阶段：**Phase 12 完成**（UI 界面重构 + 持续优化）
 >
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正。所有技术债已清零。详见 §6。
 
@@ -43,7 +43,7 @@
 | `MainViewModel` (Facade) | `PlayerViewModel`, `PlaylistsViewModel`, `IPlaybackService`, `IPlaylistService` | — |
 | `PlayerViewModel` | `IPlaybackService`, `ISettingsPersistence`, `IOptions<AppSettings>` | — |
 | `PlaylistViewModel` | `IPlaybackService`, `IFileDialogService`, `ITrackMetadataReader` | `Track`、`RepeatMode`、`QueueState`、`MoveTracksArgs`、`File.Exists` |
-| `PlaylistsViewModel` | `Func<Playlist, PlaylistViewModel>`, `ILibraryScannerService`, `ILibraryCache` | `Playlist`、`PlaylistViewModel`、`LibraryDiff` |
+| `PlaylistsViewModel` | `Func<Playlist, PlaylistViewModel>`, `IPlaybackService`, `ILibraryScannerService`, `ILibraryCache` | `Playlist`、`PlaylistViewModel`、`LibraryDiff` |
 | `MainWindow` | `MainViewModel`, `ISettingsPersistence` | `Window`, `SystemParameters` |
 | `SettingsDialog` | `ISettingsPersistence` | `Window`, `App.GetService<>()` |
 | `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>`（含 Phase 4 ▶ DataTrigger 的 `PlayCurrentCommand`） |
@@ -201,7 +201,7 @@ private void RemoveTrack(int index)
 | **Phase 2 新增** | | |
 | `Stop()` vs `Unload()` 语义差异 | `IPlaybackService` 两个独立方法 + 各自 XML 注释 | 用 `Stop()` 替代 `Unload()` 会让"清空队列后按 Play"重播刚才那首；用 `Unload()` 替代 `Stop()` 会让 `Pause→恢复` 失效 |
 | `PlayTrackAtAsync` 必须自增 `_playToken` 后再 `await` | 注释 + `if (myToken != _playToken) return` 守卫 | 任何新增的 `await` 后忘记校验 token 都会留下重入窗口 |
-| `PlaylistView.RefreshCurrentIndicator` 用 DataTemplate 列序定位 ▶ TextBlock | `FindChildByOrder<TextBlock>` | 在 `DataTemplate` 里加列会**静默错位** |
+| `PlaylistView.RefreshCurrentIndicator` 用 `x:Name` 定位 ▶ TextBlock | `FindChildByName<TextBlock>(container, "PART_Marker")` | 不再依赖列序，改名会失效但不会错位 |
 | **Phase 3 新增** | | |
 | `PlayerVM` / `PlaylistVM` 互不持引用 | 注释 + spec §2.1 | 任何一方加入对另一方的字段引用都会让 MainViewModel Facade 退化为转发层；spec 明确此为硬规则 |
 | DI 注册顺序：PlayerVM **先于** PlaylistVM | `Extensions/ServiceCollectionExtensions.cs` 注释 | PlayerVM 在 ctor 中订阅 5 个 transport 事件；若 PlaylistVM 先构造，它的 TrackEnded 订阅会先收到事件，可能让 PlayerVM 错过开头几次 PositionChanged（实践上 LoadAsync 还没开始，未观察到，但显式顺序更稳） |
@@ -227,12 +227,18 @@ private void RemoveTrack(int index)
 | `PlaylistView.RefreshCurrentIndicator` 必须检查 `IsActivePlaylist` | `PlaylistView.xaml.cs:RefreshCurrentIndicator` 注释 | 用户切到非播放歌单查看时，`CurrentIndex` 仍是该歌单的本地光标；不 guard 会让 ▶ 在非播放歌单上点亮（视觉与音频脱钩） |
 | `PlaylistView.QueueList_MouseDoubleClick` 走 `PlaylistsViewModel.HandleDoubleClickPlay` | `PlaylistView.xaml.cs:QueueList_MouseDoubleClick` 注释 | 直接调 `_vm.PlayTrackAtCommand` 不会切 `CurrentPlaylistId` → 跨歌单双击时 sidebar ▶ 标记不移动、`IsActivePlaylist` 不更新 |
 | `PlaylistsSidebarView.RefreshActiveMarker` 用 `FindChildByOrder<TextBlock>(container, 0)` 定位 ▶ | `PlaylistsSidebarView.xaml.cs:RefreshActiveMarker` 注释 | 在 `DataTemplate` 里加列会**静默错位**（与 PlaylistView 同规则） |
-| 删除当前播放歌单不自动停止音频 | `PlaylistsViewModel.RemovePlaylist` 注释 | 有意的 MVP 简化：删除歌单仅切指针 + unhook TrackEnded，当前曲自然播完即停；不调 `_player.Unload()` 避免 jarring UX。spec 说"让 MainViewModel 处理音频停"但 MainVM 无此 handler —— Phase 7 可评估是否加 stop-on-delete |
+| 删除当前播放歌单会停止播放 | `PlaylistsViewModel.RemovePlaylist` | Phase 12 改为：调 `_player.Stop()` + `_player.Unload()` + 清空 `CurrentPlaylistId`，▶ 标记消失。`PlaylistsViewModel` 新增 `IPlaybackService` 依赖 |
 | **Phase 10 新增** | | |
 | `ILibraryCache.LoadAsync` 隐式契约：绝不抛 | `JsonLibraryCache.LoadAsync` catch-all + 注释 | 与 `IPlaylistService.LoadAsync` 同隐式契约。任何异常逃出会让 `RescanSinglePlaylistAsync` 抛 → 应用启动崩溃或手动刷新失败。文件不存在/JSON 损坏/反序列化得 null 全部走静默 fallback 到空字典 |
 | `LibraryScannerService` 不依赖 Views 层 | `Models.AudioConstants` 提取 + `Services/LibraryScannerService.cs` | Phase 10 前音频后缀白名单在 `DragDropExtensions`（View 层）；`LibraryScannerService` 需要用同一白名单但不能反向依赖 Views。已提取到 `Models.AudioConstants` 消除层级违规。Code review：新增扫描相关逻辑时确保不引用 `Views.Controls` 命名空间 |
 | **Phase 11 新增** | | |
 | SettingsDialog.Show 在 Loaded 中 async 读盘 | `SettingsDialog.xaml.cs:OnLoaded` | 与 MainWindow_Loaded 同模式（async void + try/catch）；文件极小（几百字节） |
+| **Phase 12 新增** | | |
+| Shuffle/Repeat 是全局设置（PlaylistsViewModel 持有） | `PlaylistsViewModel.ShuffleEnabled/RepeatMode` + `PlaylistViewModel.Container` | `PlaylistViewModel` 通过 `Container` 属性读取全局状态；`Container` 由 `HookPlaylistVm` 设置，null 时 fallback 到 false/Off |
+| `PlaylistView.RefreshCurrentIndicator` 改用 `FindChildByName` | `PART_Marker` / `PART_Title` x:Name | 不再依赖视觉树列序；DataTemplate 加列不再导致 ▶ 错位 |
+| 表头排序物理重排 Queue | `PlaylistViewModel.SortBy` | `Queue.Clear()` + `Queue.Add()` 重排后 `CurrentIndex` 跟踪当前播放曲新位置 |
+| `ApplyCachedMetadataSync` 旧缓存回读 TrackNumber | `PlaylistsViewModel.ApplyCachedMetadataSync` | 缓存条目 `TrackNumber` 为 null 时调 `ReadAsync` 补全，保证 # 列持久化 |
+| GridSplitter DragDelta 实时限制列宽 | `MainWindow.xaml.cs` | 侧边栏/曲目信息列宽不超过窗口宽度一半；`HorizontalChange` 方向判断左右不同 |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
@@ -258,6 +264,8 @@ private void RemoveTrack(int index)
 - [x] sidebar 拖拽重排歌单顺序（Phase 9 完成）
 - [x] 文件夹绑定歌单（Phase 10 完成：扫描 + 增量同步 + 元数据缓存）
 - [x] 设置对话框（Phase 11）—— 模态 Window，PlayerBar ⚙ 按钮 + Ctrl+, 快捷键；不加 SettingsViewModel（YAGNI）
+- [x] UI 界面重构（Phase 12）—— PlayerBar 移底 + 圆形播放键 + PlaylistView 优化 + Sidebar 图标 + 色板微调
+- [x] Phase 12 持续优化 —— 全局 Shuffle/Repeat + TrackInfoView + #列 + 表头排序 + 导入文件夹到当前歌单 + 多项 UI 修复
 - [ ] 可视化 ~6h+
 
 ---

@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/22 · 对应分支：`master` · 当前阶段：**Phase 12 完成**（UI 界面重构）
+> 文档日期：2026/06/23 · 对应分支：`master` · 当前阶段：**Phase 12 continued 完成**（UI 界面重构 + 全局 Shuffle/Repeat + #列排序 + TrackInfoView + 导入文件夹到当前歌单）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。
 
 ### 1.1 关键特性（已实现）
 
@@ -16,18 +16,19 @@
 |------|----------------------------------------------------------------|
 | 文件导入 | Win32 OpenFileDialog 多文件选择                                     |
 | 支持格式 | MP3 / WMA / FLAC / AAC / WAV（基于 Windows Media Foundation 原生解码） |
-| 播放控制 | 播放 / 暂停 / 停止 / 上一首 / 下一首                                       |
+| 播放控制 | 播放 / 暂停 / 上一首 / 下一首 / 随机 / 循环                                  |
 | 进度控制 | 拖拽 + 单击跳转的进度条；位置实时更新（≈30 Hz，节流）                                |
 | 音量控制 | 0~1 线性滑块、一键静音/取消静音；通过 `VolumeSampleProvider` 实现                |
-| 元数据  | 标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 内嵌封面（z440.atl.core）            |
+| 元数据  | 标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 曲目号 / 内嵌封面（z440.atl.core）     |
 | 主题   | 内置深色主题（深紫强调色）                                                  |
 | 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\UmaPlayer\settings.json`       |
-| 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、随机/3 态循环（Off/List/One） |
+| 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、#列元数据 TrackNumber、表头点击排序 |
 | 队列持久化 | 关闭时写 `%LocalAppData%\UmaPlayer\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
 | 拖拽 | 外部音频文件拖入末尾入队（白名单 .mp3/.wma/.flac/.aac/.wav）；队列内单/多选拖拽重排（含 ▶ 当前曲跟随、Shuffle 历史按对象身份重映射）；插入线 Adorner + 圆角列表框边框高亮（Phase 5） |
-| 多命名歌单 | 创建/删除/重命名多个独立歌单；Viewed vs Current 双指针（切查看不打断播放，双击才跨歌单切换音频）；每个歌单独立 Shuffle/Repeat/CurrentIndex；v1→v2 schema 自动迁移（Phase 6） |
-| 文件夹绑定歌单 | 指定文件夹扫描 → 创建歌单; 启动后台自动同步增删; 手动刷新; 元数据缓存 (Phase 10) |
+| 多命名歌单 | 创建/删除/重命名多个独立歌单；Viewed vs Current 双指针（切查看不打断播放，双击才跨歌单切换音频）；全局 Shuffle/Repeat（所有歌单共享）；各歌单独立 CurrentIndex；v1→v2 schema 自动迁移（Phase 6） |
+| 文件夹绑定歌单 | 指定文件夹扫描 → 创建歌单; 启动后台自动同步增删; 手动刷新; 元数据缓存; 导入文件夹添加到当前歌单 (Phase 10) |
 | 设置 | 模态对话框：默认音量滑块；音频输出占位（Phase 12）；Ctrl+, 快捷键 (Phase 11) |
+| 曲目信息面板 | 右侧独立 TrackInfoView：封面（ViewBox 自动缩放）+ 标题/艺术家/专辑/采样率；BackgroundSecondary 背景 (Phase 12 continued) |
 
 ### 1.2 后续增量（未实现）
 
@@ -71,8 +72,8 @@ UmaPlayer/
 │   ├── Track.cs                 # 不可变 record：音轨信息（含封面字节数组）
 │   ├── PlayState.cs             # enum: Stopped / Playing / Paused
 │   ├── RepeatMode.cs            # enum: Off / List / One  (Phase 2)
-│   ├── Playlist.cs              # 不可变 record: 歌单 (Id, Name, Items, CurrentIndex, ShuffleEnabled, RepeatMode) (Phase 6)
-│   ├── QueueState.cs            # 不可变 record: queue.json schema v3 (Playlists + CurrentPlaylistId + SourceFolder) (Phase 4/6/10)
+│   ├── Playlist.cs              # 不可变 record: 歌单 (Id, Name, Items, CurrentIndex, ShuffleEnabled*, RepeatMode*, SourceFolder) (*=Phase 12 continued 写入时固定 false/Off, 实际全局状态在 QueueState 根级别) (Phase 6/10)
+│   ├── QueueState.cs            # 不可变 record: queue.json schema v3 (Playlists + CurrentPlaylistId + ShuffleEnabled + RepeatMode + SourceFolder) (Phase 4/6/10/12 continued)
 │   ├── MoveTracksArgs.cs        # 不可变 record: 队列内拖拽重排命令参数 (Phase 5)
 │   ├── AudioConstants.cs         # 音频后缀白名单 (Phase 10, 从 DragDropExtensions 提取)
 │   ├── LibraryCacheEntry.cs      # 缓存条目 record (Phase 10)
@@ -102,18 +103,19 @@ UmaPlayer/
 ├── ViewModels/
 │   ├── MainViewModel.cs        # Strict Facade (~44 行)：仅暴露 Player/Playlists + debounce save + CleanupAsync (Phase 3/6)
 │   ├── PlayerViewModel.cs      # Transport 子 VM：播放/暂停/进度/音量 (Phase 3)
-│   ├── PlaylistViewModel.cs    # 队列子 VM：Queue/Shuffle/Repeat/推进算法 + Id/Name/IsActivePlaylist (Phase 3/6)
-│   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + Add/Remove/Rename + HandleDoubleClickPlay + ImportFolder/Rescan/Refresh (Phase 6/10)
+│   ├── PlaylistViewModel.cs    # 队列子 VM：Queue/推进算法 + Id/Name/IsActivePlaylist + SortedView/SortBy + ImportFolderToCurrent (Phase 3/6/12 continued)
+│   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + 全局 Shuffle/Repeat + Add/Remove/Rename + HandleDoubleClickPlay + ImportFolder/Rescan/Refresh (Phase 6/10/12 continued)
 │
 ├── Views/
-│   ├── MainWindow.xaml(.cs)     # 主窗口；Phase 6 改为 PlayerBar + 2 列(Sidebar + PlaylistView)
+│   ├── MainWindow.xaml(.cs)     # 主窗口；5 列布局(Sidebar | Splitter | Playlist | Splitter | TrackInfo) + PlayerBar 底部
 │   ├── Dialogs/
 │   │   ├── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)
 │   │   └── SettingsDialog.xaml(.cs)  # 设置对话框（音量 + 音频输出占位）(Phase 11)
 │   └── Controls/
-│       ├── PlayerBar.xaml(.cs)  # 全功能播放栏（封面/信息/进度/控制/音量）
-│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + Phase 10 导入文件夹/刷新按钮）
-│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、📂 文件夹图标、🔄 扫描指示）(Phase 6/10)
+│       ├── PlayerBar.xaml(.cs)  # 播放栏（进度/控制/音量 + 随机/循环按钮）
+│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + #列/表头排序/导入文件夹到当前歌单）
+│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、📂 文件夹图标、🔄 扫描指示；+ 按钮直接新建歌单）(Phase 6/10/12 continued)
+│       ├── TrackInfoView.xaml(.cs)   # 右侧曲目信息面板（封面 ViewBox 缩放 + 标题/艺术家/专辑/采样率）(Phase 12 continued)
 │       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频后缀白名单/过滤 (Phase 5)
 │       └── DropInsertionAdorner.cs   # ListBox AdornerLayer 插入线绘制 (Phase 5)
 │
@@ -169,27 +171,29 @@ UmaPlayer/
    │   1. 读取 appsettings.json                            │
    │   2. 构建 ServiceCollection (AddUmaPlayerServices)    │
    │   3. 解析 MainViewModel + ISettingsPersistence        │
-   │      + IQueuePersistence                              │
-   │   4. new MainWindow(vm, persistence, queue).Show()    │
+   │      + IPlaylistService                               │
+   │   4. new MainWindow(vm, persistence).Show()           │
    └──────────────┬─────────────────────────┬─────────────┘
                   │                         │
                   ▼                         ▼
    ┌──────────────────────┐    ┌──────────────────────────┐
    │     MainWindow       │    │  MainViewModel (Facade)  │
-   │  (View, code-behind) │◀──▶│  ~44 行：仅持有子 VM       │
-   │ - 窗口位置恢复/保存   │    │  + CleanupAsync()         │
-   │ - 关闭写 queue.json  │    └──────┬──────────┬─────────┘
-   │   (cancel-and-close) │           │          │
-   │ - PlayerBar 容器     │           ▼          ▼
-   │ - PlaylistView 容器  │   ┌─────────────┐ ┌──────────────┐
-   └──────────────────────┘   │ PlayerVM    │ │ PlaylistVM   │
-                              │ Transport:  │ │ Queue/Shuffle│
-                              │ Play/Pause/ │ │ /Repeat/推进 │
-                              │ Position/Vol│ │ /TrackEnded  │
-                              │             │ │ +LoadFromDisk│
-                              │             │ │ +SnapshotState│
-                              └──────┬──────┘ └──────┬───────┘
-                                     │  互不持引用      │
+   │  (View, code-behind) │◀──▶│  ~130 行：持有子 VM       │
+   │ - 窗口位置恢复/保存   │    │  + InitializeAsync()      │
+   │ - 关闭写 queue.json  │    │  + CleanupAsync()         │
+   │   (cancel-and-close) │    │  + debounce save          │
+   │ - 5 列布局           │    └──────┬──────────┬─────────┘
+   │ - PlayerBar 底部     │           │          │
+   └──────────────────────┘           ▼          ▼
+                              ┌─────────────┐ ┌──────────────────┐
+                              │ PlayerVM    │ │ PlaylistsVM      │
+                              │ Transport:  │ │ 多歌单容器:       │
+                              │ Play/Pause/ │ │ 全局 Shuffle/    │
+                              │ Position/Vol│ │ Repeat + 增删    │
+                              │             │ │ 歌单 + 导入文件夹 │
+                              └──────┬──────┘ └───────┬──────────┘
+                                     │                │ 持有 N 个 PlaylistVM
+                                     │  互不持引用     │
                                      ▼  仅共享 Service ▼
            ┌──────────────────────────┴──────────────────────────┐
            ▼                          ▼                          ▼
@@ -197,18 +201,14 @@ UmaPlayer/
 │ IPlaybackService   │  │ ITrackMetadataReader   │  │ ISettingsPersistence │
 │ (NAudio impl)      │  │ (ATL impl) [Phase 3]   │  │ UpdateAsync(Func<>)  │
 └────────────────────┘  └────────────────────────┘  └──────────────────────┘
-                                                    ┌──────────────────────┐
-                                                    │ IQueuePersistence    │
-                                                    │ (JSON impl) [Phase4] │
-                                                    └──────────────────────┘
-┌────────────────────────┐  ┌──────────────────────┐
-│ ILibraryScannerService │  │ ILibraryCache        │
-│ (Recursive scan+Diff)  │  │ (JSON impl) [Ph10]   │
-│ [Phase 10]             │  │                      │
-└────────────────────────┘  └──────────────────────┘
+┌────────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
+│ ILibraryScannerService │  │ ILibraryCache        │  │ IPlaylistService     │
+│ (Recursive scan+Diff)  │  │ (JSON impl) [Ph10]   │  │ (JSON impl) [Ph6]    │
+│ [Phase 10]             │  │                      │  │                      │
+└────────────────────────┘  └──────────────────────┘  └──────────────────────┘
 
-注：IFileDialogService 由 PlaylistViewModel 直接消费（OpenAndPlay / AddToQueue）。
-注：IQueuePersistence 由 PlaylistViewModel（启动读盘）+ MainWindow.Window_Closing（关闭写盘）双方消费。
+注：IFileDialogService 由 PlaylistViewModel（AddToQueue / ImportFolderToCurrent）+ PlaylistsViewModel（ImportFolderAsync）消费。
+注：IPlaylistService 由 MainViewModel（启动读盘 + 关闭写盘 + debounce save）统一消费。
 ```
 
 ### 4.2 服务生命周期
@@ -247,7 +247,7 @@ UmaPlayer/
 
 7. **面向接口 + 占位实现**：`IAudioDeviceManager` / `IAudioOutputFactory` 已注册 Stub，便于后续替换为真实多设备/Exclusive/ASIO 实现而不动 VM。
 
-8. **Strict VM Facade（Phase 3）**：`MainViewModel` 仅作为子 VM 容器（~44 行），无 `[ObservableProperty]` 与 `[RelayCommand]`。`PlayerViewModel`（transport）与 `PlaylistViewModel`（队列）**互不持引用**，仅通过 `IPlaybackService` Singleton 间接协作（PlayerVM 订阅 transport 事件；PlaylistVM 单独订阅 `TrackEnded` 推进队列）。View 跨域命令（如 PlayerBar 上的 ⏮/⏭/📂 调用 PlaylistVM）通过 `{Binding DataContext.<sub>.<cmd>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 MainWindow 的 DataContext 解决。
+8. **Strict VM Facade（Phase 3/6）**：`MainViewModel` 作为子 VM 容器（~130 行），暴露 `Player` + `Playlists` + `InitializeAsync` + `CleanupAsync`，集中 debounce save。`PlayerViewModel`（transport）与 `PlaylistViewModel`（队列）**互不持引用**，仅通过 `IPlaybackService` Singleton 间接协作（PlayerVM 订阅 transport 事件；PlaylistVM 单独订阅 `TrackEnded` 推进队列）。PlaylistVM 通过 `Container` 属性代理读取 PlaylistsVM 的全局 Shuffle/Repeat 状态。View 跨域命令（如 PlayerBar 上的 ⏮/⏭ 调用 PlaylistVM，🔀/🔁 调用 PlaylistsVM）通过 `{Binding DataContext.Playlists.<sub>.<cmd>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 MainWindow 的 DataContext 解决。
 
 9. **持久化 read-modify-write 原子化（Phase 3）**：`ISettingsPersistence` 接口由 `SaveAsync(AppSettings)` 改为 `UpdateAsync(Func<AppSettings, AppSettings> mutator)`，把"读盘 → 应用 mutator → 写盘"整个序列封进 `SemaphoreSlim` 锁内，根治了 VM 写音量与 `Window_Closing` 写窗口尺寸的合并竞态（COUPLING.md 旧债 #3）。注意：`UpdateAsync` 内部 `.ConfigureAwait(false)`，故调用方若需要在 mutator 内读取 WPF DependencyProperty，必须在 await 之前先把值捕获到 UI 线程局部变量（见 `MainWindow.xaml.cs:Window_Closing`）。
 
@@ -275,17 +275,20 @@ UmaPlayer/
 
 20. **debt #1 偿还（Phase 6/7）**：Phase 6 交付 `BytesToBitmapImageConverter`；Phase 7 完成数据流切换 —— `PlayerViewModel.AlbumArtBytes` 改为 `byte[]`，XAML 通过 Converter 转为 Frozen BitmapImage。VM 层不再依赖任何 WPF 类型。
 
+22. **全局 Shuffle/Repeat（Phase 12 continued）**：Shuffle/Repeat 从 Playlist 级别提升到 PlaylistsViewModel 全局共享。原因：用户切换歌单时 Shuffle/Repeat 状态被重置（每歌单独立）的体验反直觉，且与主流播放器（Spotify / foobar2000）行为不一致。实现：PlaylistsViewModel 持有 `[ObservableProperty] ShuffleEnabled/RepeatMode`，PlaylistViewModel 通过 `Container` 属性代理读取；Playlist record 的同名字段保留但写入时固定 `false/Off`（向后兼容旧 queue.json）；QueueState 根级别新增 `ShuffleEnabled/RepeatMode` 持久化字段。
+
 ---
 
 ## 5. 模块详解
 
 ### 5.1 `Models`
 
-- **`Track`**：不可变 record。`Duration` 与 `SampleRate` 在加载时由 `NAudioPlaybackService.LoadAsync` 通过 `track with { Duration=..., SampleRate=... }` 补齐。`AlbumArt` 为原始字节数组，由 VM 转 `BitmapImage`（限 200px、`Freeze()` 跨线程安全）。**注意 record 的结构相等：** 两个 `CreateFallback("X.mp3")` 占位 Track 在结构上相等 —— 任何按相等性查找/去重的代码（`IndexOf` / 默认 `HashSet<Track>`）都会塌陷它们。Phase 5 重排算法因此改用引用身份（`ReferenceEquals` + `ReferenceEqualityComparer.Instance`）。
+- **`Track`**：不可变 record。字段：`FilePath` / `Title` / `Artist` / `Album` / `Genre` / `Year` / `SampleRate` / `AlbumArt` / `Duration` / `TrackNumber`（元数据曲目号，Phase 12 continued 新增）。`Duration` 与 `SampleRate` 在加载时由 `NAudioPlaybackService.LoadAsync` 通过 `track with { Duration=..., SampleRate=... }` 补齐。`AlbumArt` 为原始字节数组，由 VM 转 `BitmapImage`（限 200px、`Freeze()` 跨线程安全）。**注意 record 的结构相等：** 两个 `CreateFallback("X.mp3")` 占位 Track 在结构上相等 —— 任何按相等性查找/去重的代码（`IndexOf` / 默认 `HashSet<Track>`）都会塌陷它们。Phase 5 重排算法因此改用引用身份（`ReferenceEquals` + `ReferenceEqualityComparer.Instance`）。
 - **`PlayState`**：`Stopped / Playing / Paused`。
 - **`RepeatMode`**：`Off / List / One`（Phase 2）。
-- **`QueueState`**（Phase 4）：不可变 record；`SchemaVersion=3`（v2→v3 新增 `Playlist.SourceFolder`，无迁移：缺失字段反序列化为 null）/ `Playlists: IReadOnlyList<Playlist>` / `CurrentPlaylistId`。**只持久化路径与队列态**，不携带 Track 元数据或封面 —— 启动时由 `PlaylistViewModel.LoadFromDisk` 为每条路径创建占位 Track（与 OpenAndPlay 流程一致），用户首次播放时由 `PlayTrackAtAsync` 升级为完整元数据。
+- **`QueueState`**（Phase 4）：不可变 record；`SchemaVersion=3`（v2→v3 新增 `Playlist.SourceFolder`，无迁移：缺失字段反序列化为 null）/ `Playlists: IReadOnlyList<Playlist>` / `CurrentPlaylistId` / `ShuffleEnabled: bool` / `RepeatMode: RepeatMode`（Phase 12 continued：全局播放模式，所有歌单共享，从 Playlist 级别提升到 QueueState 根级别）。**只持久化路径与队列态**，不携带 Track 元数据或封面 —— 启动时由 `PlaylistsViewModel.Hydrate` 为每条路径创建占位 Track，用户首次播放时由 `PlayTrackAtAsync` 升级为完整元数据。
 - **`MoveTracksArgs`**（Phase 5）：不可变 record；`SourceIndices: IReadOnlyList<int>`（升序无重复，每项 ∈ [0, Queue.Count)） / `TargetIndex: int`（∈ [0, Queue.Count]，i 表示插到 i 之前；Count 表示末尾）。由 View 层 Drop handler 构造，这些不变量由 View 保证（VM 信任入参，无校验代码）。
+- **`LibraryCacheEntry`**（Phase 10）：不可变 record；`FilePath` / `Title` / `Artist` / `Album` / `Genre` / `Year` / `Duration` / `SampleRate` / `TrackNumber`（Phase 12 continued 新增，元数据曲目号）。不含 `AlbumArt` 字节——按需加载，保持缓存文件体积小。
 - **`AudioDeviceInfo`**：`(Id, Name, IsDefault)`，目前仅类型存在。
 
 ### 5.2 `Services/NAudioPlaybackService`
@@ -317,21 +320,22 @@ UmaPlayer/
 - `LoadAsync` 隐式契约：**绝不抛**（catch-all 静默 fallback 到 `new QueueState()`）。文件不存在/JSON 损坏/版本号不匹配/反序列化得 null 全部走同一回退分支；旧文件保留供用户排查。内置 v1→v2 一次性迁移（单条"默认歌单"）+ v2→v3 字段补充（`SourceFolder` 缺失即 null，无需迁移）
 - `SaveAsync` 失败抛出，由 `MainWindow.Window_Closing` 自行 catch（与 settings 写盘失败行为对称：用户下次启动队列丢失，但不打扰关闭流程）
 
-### 5.4 `ViewModels/MainViewModel`（Strict Facade，~44 行）
+### 5.4 `ViewModels/MainViewModel`（Strict Facade，~130 行）
 
-Phase 3 拆分后只剩三个公开成员：
+Phase 6 后暴露四个公开成员：
 
 ```csharp
 public PlayerViewModel Player { get; }
-public PlaylistViewModel Playlist { get; }
+public PlaylistsViewModel Playlists { get; }
+public Task InitializeAsync();
 public Task CleanupAsync();
 ```
 
-构造由 DI 注入 `(PlayerViewModel, PlaylistViewModel, IPlaybackService)`，本类**不持有** transport / 队列 / 命令 / Observable 状态。
+构造由 DI 注入 `(PlayerViewModel, PlaylistsViewModel, IPlaybackService, IPlaylistService)`。`InitializeAsync` 读 queue.json + Hydrate 容器 + 触发后台文件夹扫描。debounce save 500ms 集中在本类（`StateChanged` → `ScheduleSave` → `SaveAfterDelayAsync`）。
 
-`CleanupAsync()` 顺序固定：`Playlist.Cleanup()`（同步：解绑 `TrackEnded`）→ `await Player.CleanupAsync()`（异步：解绑 5 个 transport 事件 + 写最后一次音量）→ `_player.Dispose()`。**必须先解绑后 Dispose**，避免事件 handler 在底层资源销毁后被回调。
+`CleanupAsync()` 顺序固定：解绑 `StateChanged` → 取消 debounce → flush in-flight save → 同步 `BuildSnapshot` + `SaveAsync` → 遍历所有 `PlaylistVM.Cleanup()` → `await Player.CleanupAsync()` → `_player.Dispose()`。**必须先解绑后 Dispose**，避免事件 handler 在底层资源销毁后被回调。
 
-**架构不变量（COUPLING.md §5）：** `PlayerViewModel` 与 `PlaylistViewModel` **互不持引用**，仅共享 `IPlaybackService` Singleton；本 Facade 不暴露 Player/Playlist/CleanupAsync 之外的任何成员（否则倒退为"转发 Facade"反模式）。
+**架构不变量（COUPLING.md §5）：** `PlayerViewModel` 与 `PlaylistViewModel` **互不持引用**，仅共享 `IPlaybackService` Singleton；本 Facade 不暴露 Player/Playlists/InitializeAsync/CleanupAsync 之外的任何成员（否则倒退为"转发 Facade"反模式）。
 
 ### 5.4a `ViewModels/PlayerViewModel`（Transport 子 VM，~230 行）
 
@@ -345,7 +349,7 @@ public Task CleanupAsync();
 
 构造时订阅 `IPlaybackService` 的 5 个事件（`PositionChanged / StateChanged / DurationChanged / TrackChanged / PlaybackError`），并阻塞读盘加载持久化音量（`_isInitializing` 标志抑制初始化期的写盘）。**不订阅 `TrackEnded`**（那是 PlaylistViewModel 的职责）。
 
-`[RelayCommand]`：`SeekStarted / SeekCompleted(normalized) / PlayPause / Stop / ToggleMute`。
+`[RelayCommand]`：`SeekStarted / SeekCompleted(normalized) / PlayPause / ToggleMute`。
 
 `partial void OnVolumeChanged(value)`：同步到 `_player.Volume` → 拖滑块到非零自动取消静音 → `_persistence.UpdateAsync(s => s with { DefaultVolume = value })`。
 
@@ -353,23 +357,29 @@ public Task CleanupAsync();
 
 `HandleTrackChanged(Track? track)`：track 为 null 时把 `CurrentTrack` 和 `AlbumArtImage` 一起置 null（XAML 的 `FallbackValue='No track loaded'` 处理标题显示）。
 
-### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~528 行 / Phase 4 增加 LoadFromDisk + SnapshotState + PlayCurrent / Phase 10 增加 SourceFolder + IsScanning）
+### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~650 行 / Phase 4 增加 LoadFromDisk + SnapshotState + PlayCurrent / Phase 10 增加 SourceFolder + IsScanning / Phase 12 continued 增加排序 + ImportFolderToCurrent）
 
-源生成器属性：`_currentIndex`（-1 表示未选）, `_selectedTrack`（UI 列表选中项，与播放无关）, `_shuffleEnabled`, `_repeatMode`。集合：`ObservableCollection<Track> Queue`。私有：`HashSet<int> _shuffleHistory` / `Random _random` / `int _playToken`（重入哨兵）。派生：`HasCurrentTrack`、`RepeatActive`、`ShuffleBrushKey`。
+源生成器属性：`_currentIndex`（-1 表示未选）, `_selectedTrack`（UI 列表选中项，与播放无关）。集合：`ObservableCollection<Track> Queue`。私有：`HashSet<int> _shuffleHistory` / `Random _random` / `int _playToken`（重入哨兵）。派生：`HasCurrentTrack`。
 
-构造时订阅 `IPlaybackService.TrackEnded` 用于自动推进；`Queue.CollectionChanged` 触发 Next/Prev/PlayCurrent 命令 `NotifyCanExecuteChanged`；构造尾段同步调 `LoadFromDisk()` 恢复队列。
+**Phase 12 continued 变更：**
+- `ShuffleEnabled` / `RepeatMode` / `RepeatActive` / `ToggleShuffle` / `CycleRepeat` **已移除**（提升到 `PlaylistsViewModel` 全局共享）。本 VM 通过 `Container` 属性代理读取全局状态：`ShuffleEnabled => Container?.ShuffleEnabled ?? false`，`RepeatMode => Container?.RepeatMode ?? RepeatMode.Off`
+- `OpenAndPlay` 命令**已移除**（PlayerBar 上的 📂 按钮已删除）
+- `Container`（`PlaylistsViewModel?`，internal）：由 `PlaylistsViewModel.HookPlaylistVm` 设置，用于读取全局 Shuffle/Repeat 状态
+- `SortedView`（`ICollectionView`）：排序后的队列视图，ListBox 绑定此属性而非直接绑 Queue
+- `SortBy(string column)`：按指定列物理重排 Queue（TrackNumber / Title / Artist / Album / Duration）；再次点击同列切换升/降序；排序后更新 `CurrentIndex` 跟踪当前播放曲
+- `GetSortKey(Track, string)`（私有静态）：排序键提取辅助方法
+- `ClearShuffleHistory()`（internal）：由 `PlaylistsViewModel.ToggleShuffle` 调用，清空已播过历史
+- `[RelayCommand] ImportFolderToCurrent()`：选文件夹 → 递归扫描音频文件 → 读取元数据入队当前歌单（不再创建新歌单）
+- `AddToQueue` 现在读取元数据（`_metadataReader.ReadAsync`）而非仅创建占位 Track
 
-`[RelayCommand]`：`AddToQueue / RemoveTrack(int) / ClearQueue / PlayTrackAt(int) / NextTrack / PrevTrack / ToggleShuffle / CycleRepeat / OpenAndPlay / PlayCurrent`（Phase 4） / `DropExternalFiles(IReadOnlyList<string>)`（Phase 5） / `MoveTracks(MoveTracksArgs)`（Phase 5）。
+构造时订阅 `IPlaybackService.TrackEnded` 用于自动推进；`Queue.CollectionChanged` 触发 Next/Prev/PlayCurrent 命令 `NotifyCanExecuteChanged`；构造尾段从 seed 恢复队列（`File.Exists` 过滤 + `MapCurrentIndexAfterFilter` 重映射）。
 
-**Phase 4 新增成员：**
-- `LoadFromDisk()`（私有，构造期调用）：同步 `LoadAsync().GetAwaiter().GetResult()` 读 queue.json → 用 `File.Exists` 过滤丢失文件 → `MapCurrentIndexAfterFilter` 把过滤前 `CurrentIndex` 映射到过滤后位置（项还在直接定位；项丢失则向后滑找到第一个仍存在的，找不到再向前回退）→ 为每个 surviving 路径 `CreateFallback` 占位入队 → 恢复 Shuffle/Repeat
-- `SnapshotState()`（公有，纯读无副作用）：把 `Queue.Select(t => t.FilePath).ToArray()` + 当前模式/索引打包成 `QueueState`，由 `MainWindow.Window_Closing` 在 `CleanupAsync` 之后调用
-- `[RelayCommand(CanExecute=HasCurrentTrack)] PlayCurrent`：启动后用户首次按 ▶ 走的命令；触发 `PlayTrackAtAsync(CurrentIndex)`，把占位 Track 升级为完整元数据并 `LoadAsync + Play`
+`[RelayCommand]`：`AddToQueue / RemoveTrack(int) / ClearQueue / PlayTrackAt(int) / NextTrack / PrevTrack / PlayCurrent` / `DropExternalFiles(IReadOnlyList<string>)`（Phase 5） / `MoveTracks(MoveTracksArgs)`（Phase 5） / `ImportFolderToCurrent`（Phase 12 continued）。
 
-**跨域命令 OpenAndPlay** —— PlayerBar 上的 📂 按钮归属本 VM（本质是"批量入队 + 播首项"，前者属于队列域）；PlayerBar 通过 `{Binding DataContext.Playlist.OpenAndPlayCommand, RelativeSource={RelativeSource AncestorType=Window}}` 跨级访问。同理 ⏮/⏭ 也用这个模式绑到 `Playlist.PrevTrackCommand / NextTrackCommand`。Phase 4 ▶ 按钮在 `CurrentTrack==null` 时通过 DataTrigger 跨级绑到 `PlayCurrentCommand`，`TrackChanged(track)` 后回退到 `PlayPauseCommand`。
+`ToRecord()`：把当前状态打包成 `Playlist` record（`ShuffleEnabled=false` / `RepeatMode=Off` 占位，实际全局状态由 `PlaylistsViewModel.BuildSnapshot` 负责）。
 
 **Phase 5 新增成员：**
-- `[RelayCommand] DropExternalFiles(IReadOnlyList<string> paths)`：与 `AddToQueue` 同语义入队管线（`_metadataReader.CreateFallback(path) → Queue.Add`），不触发播放；与 `OpenAndPlay` 区别仅在入口（OS DragDrop vs OpenFileDialog）。路径白名单过滤由 View 层 `DragDropExtensions.FilterAudioPaths` 提前完成，VM 信任入参。
+- `[RelayCommand] DropExternalFiles(IReadOnlyList<string> paths)`：与 `AddToQueue` 同语义入队管线（读元数据 → Queue.Add），不触发播放。路径白名单过滤由 View 层 `DragDropExtensions.FilterAudioPaths` 提前完成，VM 信任入参。
 - `[RelayCommand] MoveTracks(MoveTracksArgs args)`：队列内重排算法（spec §4 八步算法）。**入口先 `_playToken++`** 顶替 in-flight `PlayTrackAtAsync`（同时偿还旧债 #5）。算法用对象身份（`ReferenceEquals` + `ReferenceEqualityComparer.Instance`）回找 `CurrentIndex` 与 `_shuffleHistory`，不做索引算术 —— Track record 的结构相等会让 `Queue.IndexOf(currentTrackObj)` 在出现重复占位时返回首个结构等价匹配而非原始那一个。不调 `_player.Unload()`，重排不中断播放。
 - `RemoveTrack` 入口加 `_playToken++`（Phase 5 顺带还债 #5）：以前删除非当前曲不顶替 token，能让 in-flight `Queue[index] = meta` 写到错位；现已关闭。
 
@@ -381,11 +391,24 @@ public Task CleanupAsync();
 
 `Cleanup()`：同步解绑 `TrackEnded`，由 `MainViewModel.CleanupAsync` 调用。
 
-### 5.4c `ViewModels/PlaylistsViewModel`（多歌单容器，Phase 6 + Phase 10）
+### 5.4c `ViewModels/PlaylistsViewModel`（多歌单容器，Phase 6 + Phase 10 + Phase 12 continued）
 
-源生成器属性：`_viewedPlaylist`（UI 当前选中）。集合：`ObservableCollection<PlaylistViewModel> Playlists`。私有：`Func<Playlist, PlaylistViewModel>` 工厂委托、`IPlaylistService`、`ILibraryScannerService`、`ILibraryCache`、`string _currentPlaylistId`。
+源生成器属性：`_viewedPlaylist`（UI 当前选中）、`_shuffleEnabled`、`_repeatMode`（Phase 12 continued：全局播放模式，所有歌单共享）。集合：`ObservableCollection<PlaylistViewModel> Playlists`。私有：`Func<Playlist, PlaylistViewModel>` 工厂委托、`IPlaybackService`、`IFileDialogService`、`ILibraryScannerService`、`ILibraryCache`、`ITrackMetadataReader`、`string _currentPlaylistId`。派生：`RepeatActive`（`RepeatMode != RepeatMode.Off`）。
 
 **Phase 6 成员：**`[RelayCommand]`：`AddPlaylist / RemovePlaylist / RenamePlaylist`；`HandleDoubleClickPlay`（跨歌单双击路由）；`RecomputeIsActiveFlags`（切 CurrentPlaylistId 后批量刷新 sidebar ▶ 标记）；`StateChanged` 事件（debounce save 触发点）。
+
+**Phase 12 continued 新增成员：**
+- `IPlaybackService` 依赖（构造注入）：用于 `RemovePlaylist` 时停止播放
+- `ITrackMetadataReader` 依赖（构造注入）：用于 `ApplyCachedMetadataSync` 回读旧缓存缺少 TrackNumber 的文件
+- `ShuffleEnabled` / `RepeatMode`（`[ObservableProperty]`）：全局播放模式，从 Playlist 级别提升到容器级别
+- `RepeatActive`（派生）：循环按钮激活状态
+- `[RelayCommand] ToggleShuffle()`：切换 Shuffle → 同时清空当前歌单的 `_shuffleHistory`
+- `[RelayCommand] CycleRepeat()`：循环模式三态循环 Off → List → One → Off
+- `RemovePlaylist` 增强：若删除的是当前播放歌单，调 `_player.Stop()` + `_player.Unload()` 停止播放并清空 `CurrentPlaylistId`
+- `HookPlaylistVm` 设置 `vm.Container = this`，让 PlaylistVM 代理读取全局 Shuffle/Repeat
+- `Hydrate` 从 snapshot 加载全局 `ShuffleEnabled` / `RepeatMode`
+- `BuildSnapshot` 保存全局 `ShuffleEnabled` / `RepeatMode`
+- `ApplyCachedMetadataSync` 增强：当缓存条目 `TrackNumber` 为 null 时回读文件补全元数据
 
 **Phase 10 新增成员：**
 - 构造函数新增 `ILibraryScannerService scanner` + `ILibraryCache cache` 两个依赖
@@ -396,18 +419,23 @@ public Task CleanupAsync();
 
 ### 5.5 `Views`
 
-- **`MainWindow`**：两行 Grid 容器 —— `PlayerBar`（顶部，自适应高度）+ `PlaylistView`（底部填充）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
-- **`PlayerBar`** *(UserControl)*：播放栏。三行 Grid：①封面+元数据；②`Position | Slider | Duration`；③⏮ ▶/⏸ ⏹ ⏭ 📂 + 音量。
-  - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）
-  - `⏮` / `⏭` / `📂` 通过 `{Binding DataContext.Playlist.<XxxCommand>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 `PlaylistViewModel`（PlayerBar 自身的 DataContext 已切为 PlayerViewModel），`HasCurrentTrack` 守卫；队列空时按钮自动禁用
-  - **▶/⏸ 按钮的双绑定（Phase 4）**：默认 `Command={Binding PlayPauseCommand}`（PlayerVM 的 transport 切换）；当 `CurrentTrack==null` 时通过 `<DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">` 切到 `Playlist.PlayCurrentCommand` —— 启动后队列已恢复但 transport 空闲，第一次按 ▶ 触发首次加载 + 播放，`TrackChanged(track)` 让 trigger 失活，回到 PlayPauseCommand。**注意 inline `<Style TargetType="Button">` 必须 `BasedOn="{StaticResource {x:Type Button}}"`**，否则会替换掉 `Themes/Controls.xaml` 中的隐式主题样式，按钮回退到 OS 原生白底（COUPLING.md §5）
-- **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽 + Phase 10)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空][导入文件夹][刷新]` 左对齐、`🔀` `⇄/🔁/🔂` 右对齐；②`ListBox` 绑 `Queue`，每项含 ▶ 当前曲标记 + 标题 + `×` 删除按钮
-  - 当前曲 ▶ 标记由 code-behind 维护：订阅 `PlaylistViewModel.PropertyChanged` (CurrentIndex) / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）
-  - 交互：双击播放、Delete 键删除、右上角按钮触发命令
-  - Shuffle / Repeat 图标用 `Segoe UI Emoji` 字体（默认 `Segoe UI` 不含 U+1F500 完整字形）
+- **`MainWindow`**：两行 Grid —— Row 0 `ContentGrid`（5 列：Sidebar | Splitter | Playlist | Splitter | TrackInfo）+ Row 1 `PlayerBar`（底部，自适应高度）。`SidebarCol` 和 `TrackInfoCol` 各限制为窗口宽度一半（`ContentGrid_SizeChanged` + `DragDelta` 中到达上限直接锁死）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
+- **`PlayerBar`** *(UserControl)*：播放栏。两行 Grid：①`Position | Slider | Duration` 进度条；②⏮ ▶/⏸ ⏭ 🔀 ⇄/🔁/🔂 按钮组（居中）+ 🔊音量 + ⚙设置（右对齐）。封面/信息已拆到 `TrackInfoView`。
+  - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）。Thumb 默认 8px 圆点半透明，悬停/拖拽放大到 14px 不透明
+  - `⏮` / `⏭` 通过 `{Binding DataContext.Playlists.ViewedPlaylist.<XxxCommand>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 `PlaylistViewModel`；`🔀` / `⇄/🔁/🔂` 绑到 `Playlists.ToggleShuffleCommand` / `Playlists.CycleRepeatCommand`
+  - Stop 按钮和 📂 OpenAndPlay 按钮**已移除**（Phase 12 continued）
+  - **▶/⏸ 按钮的双绑定（Phase 4）**：默认 `Command={Binding PlayPauseCommand}`（PlayerVM 的 transport 切换）；当 `CurrentTrack==null` 时通过 `<DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">` 切到 `Playlists.ViewedPlaylist.PlayCurrentCommand` —— 启动后队列已恢复但 transport 空闲，第一次按 ▶ 触发首次加载 + 播放，`TrackChanged(track)` 让 trigger 失活，回到 PlayPauseCommand。**注意 inline `<Style TargetType="Button">` 必须 `BasedOn="{StaticResource {x:Type Button}}"`**，否则会替换掉 `Themes/Controls.xaml` 中的隐式主题样式，按钮回退到 OS 原生白底（COUPLING.md §5）
+- **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽 + Phase 12 continued)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空][导入文件夹到当前歌单][刷新]` 左对齐；②`ListBox` 绑 `SortedView`，每项含 ▶ 当前曲标记 + `#` 列（TrackNumber）+ 标题/艺术家/专辑/时长 + `×` 删除按钮
+  - **# 列**：显示元数据 `TrackNumber`（Phase 12 continued 新增），从 `ITrackMetadataReader` 读取
+  - **表头排序**：点击列头触发 `SortBy(column)` 物理重排 Queue（Phase 12 continued）；表头用 TextBlock + MouseLeftButtonDown（非 Button，消除内边距对不齐问题）
+  - 当前曲 ▶ 标记由 code-behind 维护：订阅 `PlaylistViewModel.PropertyChanged` (CurrentIndex) / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）；▶ 标记在 # 列之前（最左列）
+  - 交互：双击播放、Delete 键删除、工具栏按钮触发命令
+  - Shuffle / Repeat 按钮**已移到 PlayerBar**（Phase 12 continued）
   - **Phase 5 拖拽（XAML）：** 外层 `<Border AllowDrop="True">` 仅承载 OLE drop 区（覆盖工具栏 + 列表两行的 hit-test）；视觉高亮挂在 Row 1 的圆角 `<Border x:Name="QueueListBorder">`（用户期望仅看到列表区域被框住，不连带工具栏）。**BorderBrush 默认值放进 Style.Setter 而非 local 属性** —— WPF DP 优先级 `local > trigger setter > style setter`，写成 local 会让 `Style.Triggers` 失效（`docs/COUPLING.md §5` 隐式契约）。`ListBox` 加 `SelectionMode="Extended"` + `AllowDrop="True"` + 6 个事件挂接（`PreviewMouseLeftButton{Down,Up}` / `PreviewMouseMove` / `DragOver` / `DragLeave` / `Drop`）
   - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"UmaPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
   - **Phase 5 高亮纪律：** `Root_DragEnter` 必须先 `FilterAudioPaths` 再决定是否高亮 —— 仅看 `FileDrop` 存在就亮会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）。`Root_Drop` 与 `QueueList_Drop` **都要清高亮** —— `QueueList_Drop` 设 `e.Handled=true` 后 Drop 事件不再冒泡到 `Root_Drop`，否则文件落到列表区高亮卡死
+- **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。
+- **`TrackInfoView`** *(UserControl, Phase 12 continued)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。封面用 `ViewBox` 包裹实现自动缩放（无 MaxWidth/MaxHeight 限制，完全跟随容器）；内部 `Border` 180×180 + `Image Stretch="UniformToFill"`。文本元数据（标题/艺术家/专辑/采样率）居中显示。无曲目时显示"播放曲目以查看信息"占位提示（DataTrigger 控制可见性）。封面 Border 加 `ClipToBounds=True` 实现圆角裁切（ViewBox 缩放后内容溢出问题）。
 - **`SettingsDialog`** *(Window, Phase 11)*：设置对话框。模态 ToolWindow（420×280），General 区域音量滑块（0..1, IsMoveToPointEnabled）+ Audio Output 灰色占位。静态 `Show(Window?, ISettingsPersistence)` 工厂方法。Loaded async 读盘加载当前音量；Save_Click 通过 `UpdateAsync(s => s with { DefaultVolume = v })` 原子写盘。
 
 ### 5.5a `Views/Controls/DragDropExtensions`（Phase 5）
@@ -429,7 +457,7 @@ public Task CleanupAsync();
 
 ### 5.6 `Themes`
 
-深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。
+深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。
 
 ---
 
@@ -479,9 +507,13 @@ public Task CleanupAsync();
       "SourceFolder": null
     }
   ],
-  "CurrentPlaylistId": "guid..."
+  "CurrentPlaylistId": "guid...",
+  "ShuffleEnabled": false,
+  "RepeatMode": "Off"
 }
 ```
+
+Phase 12 continued: `ShuffleEnabled` / `RepeatMode` 提升到 QueueState 根级别（全局共享），Playlist 级别的同名字段保留但写入时固定为 `false` / `Off`（向后兼容）。
 
 写时机：`MainWindow.Window_Closing`（每次关闭整队列覆盖一次）。读时机：`PlaylistViewModel` 构造期同步读盘。文件不存在/JSON 损坏/版本不匹配 → 静默 fallback 到空队列（保留旧文件供用户排查）。`Items` 中已被外部移动/删除的路径在加载时自动过滤；`CurrentIndex` 通过"向后滑、再向前回退"的算法映射到过滤后的位置（spec §5.1）。
 
@@ -509,7 +541,7 @@ App.OnStartup 构建 DI → MainWindow Show → MainWindow.Loaded → MainViewMo
 ### 7.2 创建/重命名/删除歌单
 
 ```
-PlaylistsSidebarView + 按钮 → PromptDialog.Show → AddPlaylistCommand/RenamePlaylistCommand
+PlaylistsSidebarView + 按钮 → AddPlaylistCommand（直接创建新歌单，无 PromptDialog）
 → 容器结构变化触发 StateChanged → MainViewModel debounce 500ms 后 SaveAsync
 → 删最后一个 → RemovePlaylistCommand 自动重建 "默认歌单"
 ```
@@ -532,13 +564,11 @@ HandleDoubleClickPlay(target, index) → 若 target.Id != CurrentPlaylistId 先�
 ```
 
 ```
-用户点击 📂 (PlayerBar 按钮 → 跨级绑定 Playlist.OpenAndPlayCommand)
+用户点击 ▶ (PlayerBar 按钮 → DataTrigger 跨级绑定 Playlists.ViewedPlaylist.PlayCurrentCommand)
     │
     ▼
-PlaylistViewModel.OpenAndPlay
-  → IFileDialogService.OpenFiles("Audio Files|*.mp3;...")
-  → 对每个 path：Queue.Add(metadataReader.CreateFallback(path))
-  → PlayTrackAtAsync(firstNewIndex)
+PlaylistViewModel.PlayCurrent
+  → PlayTrackAtAsync(CurrentIndex)
     │
     ▼
 PlayTrackAtAsync (PlaylistViewModel)
@@ -614,6 +644,7 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
 - **WPF DragDrop RoutedEvent 冒泡 + Handled 拦截**（Phase 5）：`Drop` / `DragOver` 等都是冒泡事件；子元素设 `e.Handled = true` 后父元素的同名 handler 不再触发。Phase 5 验收时撞过：`QueueList_Drop` 处理完入队/重排设 `Handled=true`，原本想靠 `Root_Drop` 清高亮的逻辑被吃掉 → 高亮卡死。修复：清高亮（清 Adorner、清 IsDragOver）必须在两条路径都做（`QueueList_Drop` finally + `Root_Drop`），不能假定事件会冒泡上来。
 - **WPF ListBox `PreviewMouseLeftButtonDown` 不消费事件 → 多选拖拽塌选**（Phase 5）：Preview 阶段不 `Handled=true` 时，ListBox 自身的选中处理仍会执行；用户 Ctrl+多选后再不带修饰键按下其中一项，ListBox 默认行为会立刻塌成单选，让随后启动的 DoDragDrop 拿到 `SelectedItems.Count==1`。修复：在按下点是"已选 + 多选 ≥2 + 无 Ctrl/Shift"时拦掉 `Handled=true`，没真正拖起来时再在 `MouseUp` 手动塌成单选模拟原行为；commit `af51dde`。
 - **WPF record 结构相等会让 `Queue.IndexOf` / `HashSet<Track>` 塌陷重复占位**（Phase 5）：Track 是 `sealed record`；两个 `CreateFallback("X.mp3")` 在结构上相等。基于相等性的查找/去重会把它们认作同一个，重排时 `Queue.IndexOf(currentTrackObj)` 返回首个结构等价匹配而非原始那一个 → ▶ 跟到错的曲、Shuffle 历史塌陷。修复纪律：所有需要"找回原来那一个 Track 实例"的代码用 `ReferenceEquals` + `ReferenceEqualityComparer.Instance`（见 `PlaylistViewModel.MoveTracks` 与 `PlaylistView.QueueList_PreviewMouseMove`）。
+- **ViewBox + CornerRadius + ClipToBounds（Phase 12 continued）**：`ViewBox` 缩放子元素时会突破父 `Border` 的 `CornerRadius` 圆角裁切区域，导致封面方形直角溢出圆角边框。修复：给封面 `Border` 加 `ClipToBounds=True`，让 WPF 裁切到 Border 边界内。同时封面 `Border` 不能有 `CornerRadius`（与播放时直角不一致），圆角仅在外层容器 Border 上设置。
 
 ---
 
@@ -733,3 +764,52 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `36d083f` feat(view): PlayerBar — round play button, seek bar thumb hover, unified spacing
     - `1b0ea7c` feat(view): PlaylistView — header row, duration column, row dividers, red delete hover
     - `a14fc85` feat(view): Sidebar — music/folder icons, selected state background color, rounded corners
+  - **Phase 12 continued**（UI 界面重构续）
+    - `8dab75b` docs: update PROJECT.md and COUPLING.md for Phase 12 UI refactor
+    - `d19599d` feat(theme): Button style — explicit default background, improved comments
+    - `9d574e3` fix(view): seek bar Thumb visible by default — small (8px, 50% opacity) then enlarges on hover (14px, 100%)
+    - `9b7a1ff` fix(view): SeekBar Thumb 圆形裁切 — 覆盖 Thumb 模板直接控制 Ellipse 尺寸
+    - `3c0eaf3` fix(view): 进度条点击区域扩大 — 外层透明 Border 填满 Slider 高度
+    - `9c17b6d` fix(view): 去掉按钮和 Thumb 的黑色虚线焦点框
+    - `20bcc0b` refactor(view): 移除 PlayerBar 停止和导入歌曲按钮及相关逻辑
+    - `def7770` fix(view): 修复上一首/下一首按钮绑定路径
+    - `a8202cb` fix: 歌曲时长显示 0:00 — 用 ATL 读到的 DurationMs 替代硬编码 Zero
+    - `a18df44` fix(view): 表头与数据列对齐 — 覆盖 ListBox 模板共享容器宽度
+    - `013abb5` fix(view): 曲目列表标题/艺术家/专辑列居中对齐
+    - `2800d41` refactor(view): 随机/循环按钮从 PlaylistView 移到 PlayerBar
+    - `0ae9672` fix: 随机/循环按钮未激活时颜色与其它按钮统一 — ForegroundSecondary → ForegroundPrimary
+    - `97de388` fix(view): 循环按钮 FontFamily 统一为 Segoe UI Emoji — 与随机按钮一致
+    - `3d9a182` fix(view): 曲目列表顶部边距 0→8
+    - `cb0b50c` refactor(view): 曲目信息从 PlayerBar 拆出到独立 TrackInfoView，置于曲目列表右侧
+    - `6fcaf6d` fix(view): 全局关闭焦点虚线框 — ListBox/ListBoxItem/TextBox/Slider 加 FocusVisualStyle={x:Null}
+    - `87d8f0d` fix(view): GridSplitter 拖拽时的黑色虚线框 — 加 FocusVisualStyle={x:Null}
+    - `d44dd07` fix(view): 歌单/曲目列表项点击虚线框 — 显式 ListBoxItem 样式加 FocusVisualStyle={x:Null}
+    - `06f8786` fix: 添加/拖入歌曲时立即读取元数据 — CreateFallback → ReadAsync
+    - `7428c38` fix: 删除当前播放歌单后停止播放并清空指针
+    - `0165c2c` refactor: Shuffle/Repeat 改为全局设置，所有歌单共享
+    - `3ffd00e` fix(view): TrackInfoView 加 BackgroundSecondary 背景 + 内容顶部居中
+    - `0eecaef` fix(view): TrackInfoView 封面随宽度缩放 — ViewBox 包裹 + 去掉文本固定 MaxWidth
+    - `5c1c577` fix(view): TrackInfoView 封面去掉 MaxWidth/MaxHeight 限制，完全跟随容器缩放
+    - `04ca124` fix(view): 三个区域底部对齐 — PlaylistView/TrackInfoView 底部 margin 改为 0
+    - `0d4c31e` feat(view): 曲目列表添加 # 行号列
+    - `7b8cdfe` feat: # 列改为读取元数据 TrackNumber + 修复 marker 索引
+    - `e1b26e0` fix(view): ▶ 标记位置 — 用 x:Name 定位替代 FindChildByOrder 索引
+    - `63ed02a` fix(view): ▶ 标记移到最左列（# 列之前）
+    - `6c6392f` fix: 文件夹歌单旧缓存缺少 TrackNumber 时回读文件补全
+    - `a8dc5f6` feat(view): 曲目列表表头点击排序
+    - `6c5fc13` feat(view): # 列表头可排序 — Tag=TrackNumber
+    - `fc91ab9` fix(view): 表头改回 TextBlock + MouseLeftButtonDown — 消除 Button 内边距导致的对不齐
+    - `e9d948d` fix: 随机/循环激活色 AccentPrimary→AccentHover（更亮，深色背景下易辨认）
+    - `37fdc00` fix: 强调色提亮 — AccentPrimary #7C4DFF→#9E7CFF, AccentHover→#B9A0FF
+    - `d9db167` fix: Thumb 默认透明度 0.5→0.8，减少与轨道的明暗差异
+    - `7425273` fix(view): 侧边栏/曲目信息列宽限制为窗口宽度一半
+    - `b45ec3c` fix(view): 拖拽实时限制列宽 — DragDelta 中到达上限直接锁死
+    - `d6073fb` fix: 曲目信息拖拽限制方向修正 — 向左拖(HorizontalChange<0)才拦截
+    - `96d4189` fix: 排序改为物理重排 Queue — 上一曲/下一曲跟随新顺序
+    - `3e1e959` refactor(view): 导入文件夹从曲目列表移到歌单列表 + 按钮子菜单
+    - `cf71241` refactor: 导入文件夹改为添加到当前歌单
+    - `1efda5d` refactor(view): + 按钮恢复直接新建歌单，去掉 ContextMenu
+    - `862ae9a` fix(view): UI 布局改进五项
+    - `2b2d5ad` fix(view): 封面 Border 加 ClipToBounds — ViewBox 缩放后保持圆角裁切
+    - `a07bc6c` fix(view): 封面 Border 去掉 CornerRadius，避免与播放时直角不一致
+    - `0b7137e` fix(view): 去掉 PlayerBar 上方分隔线

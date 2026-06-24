@@ -26,4 +26,18 @@ public sealed record AppSettings
     public double WindowTop { get; init; }
     public double WindowWidth { get; init; } = 800;
     public double WindowHeight { get; init; } = 450;
+
+    // ====== Phase 13: 频谱可视化 ======
+
+    /// <summary>启用频谱可视化</summary>
+    public bool SpectrumEnabled { get; init; } = true;
+
+    /// <summary>频谱灵敏度 (0.5 ~ 2.0)</summary>
+    public double SpectrumSensitivity { get; init; } = 1.0;
+
+    /// <summary>频谱颜色主题 (0=紫, 1=蓝, 2=绿, 3=彩虹)</summary>
+    public int SpectrumColorTheme { get; init; } = 0;
+
+    /// <summary>频谱动画平滑度 (0.0 ~ 0.95)</summary>
+    public double SpectrumSmoothing { get; init; } = 0.8;
 }

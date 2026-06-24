@@ -138,37 +138,6 @@ public class PlaylistViewModelTests
         Assert.Equal(-1, vm.CurrentIndex);
     }
 
-    // —— Shuffle/Repeat ——
-
-    [Fact]
-    public void ToggleShuffle_TogglesShuffleEnabled()
-    {
-        var vm = CreateVm();
-        Assert.False(vm.ShuffleEnabled);
-
-        vm.ToggleShuffleCommand.Execute(null);
-        Assert.True(vm.ShuffleEnabled);
-
-        vm.ToggleShuffleCommand.Execute(null);
-        Assert.False(vm.ShuffleEnabled);
-    }
-
-    [Fact]
-    public void CycleRepeat_CyclesThroughModes()
-    {
-        var vm = CreateVm();
-        Assert.Equal(RepeatMode.Off, vm.RepeatMode);
-
-        vm.CycleRepeatCommand.Execute(null);
-        Assert.Equal(RepeatMode.List, vm.RepeatMode);
-
-        vm.CycleRepeatCommand.Execute(null);
-        Assert.Equal(RepeatMode.One, vm.RepeatMode);
-
-        vm.CycleRepeatCommand.Execute(null);
-        Assert.Equal(RepeatMode.Off, vm.RepeatMode);
-    }
-
     // —— ToRecord ——
 
     [Fact]
@@ -193,18 +162,6 @@ public class PlaylistViewModelTests
         Assert.Equal("track1.mp3", record.Items[1]);
     }
 
-    [Fact]
-    public void ToRecord_PreservesShuffleAndRepeat()
-    {
-        var vm = CreateVm();
-        vm.ShuffleEnabled = true;
-        vm.RepeatMode = RepeatMode.List;
-
-        var record = vm.ToRecord();
-
-        Assert.True(record.ShuffleEnabled);
-        Assert.Equal(RepeatMode.List, record.RepeatMode);
-    }
 
     // —— IsActivePlaylist ——
 

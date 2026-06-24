@@ -11,4 +11,10 @@ public sealed record QueueState
     public int SchemaVersion { get; init; } = 3;
     public IReadOnlyList<Playlist> Playlists { get; init; } = Array.Empty<Playlist>();
     public string CurrentPlaylistId { get; init; } = string.Empty;
+
+    /// <summary>全局随机模式（所有歌单共享）；v3 缺失时反序列化为 false。</summary>
+    public bool ShuffleEnabled { get; init; }
+
+    /// <summary>全局循环模式（所有歌单共享）；v3 缺失时反序列化为 Off。</summary>
+    public RepeatMode RepeatMode { get; init; }
 }

@@ -24,6 +24,9 @@ public partial class PlaylistViewModel : ObservableObject
     private readonly IFileDialogService _fileDialog;
     private readonly ITrackMetadataReader _metadataReader;
 
+    /// <summary>由 PlaylistsViewModel 在 HookPlaylistVm 中设置，用于读取全局 Shuffle/Repeat 状态。</summary>
+    internal PlaylistsViewModel? Container { get; set; }
+
     /// <summary>歌单主键(GUID); 创建时一次性确定, 不可变。</summary>
     public string Id { get; }
 
@@ -64,14 +67,6 @@ public partial class PlaylistViewModel : ObservableObject
     [ObservableProperty]
     private Track? _selectedTrack;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShuffleBrushKey))]
-    private bool _shuffleEnabled;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RepeatActive))]
-    private RepeatMode _repeatMode = RepeatMode.Off;
-
     /// <summary>随机模式下"已播过"的索引集合。切换 ShuffleEnabled 或清空队列时重置。</summary>
     private readonly HashSet<int> _shuffleHistory = new();
 
@@ -86,11 +81,11 @@ public partial class PlaylistViewModel : ObservableObject
 
     // —— 派生属性 ——
 
-    /// <summary>循环按钮是否处于"激活"状态（List 或 One 都算）。</summary>
-    public bool RepeatActive => RepeatMode != RepeatMode.Off;
+    /// <summary>全局 Shuffle 状态（代理到 Container）。</summary>
+    private bool ShuffleEnabled => Container?.ShuffleEnabled ?? false;
 
-    /// <summary>暴露给 XAML 的 Shuffle 高亮指示（直接绑 ShuffleEnabled 即可，留作语义清晰）。</summary>
-    public bool ShuffleBrushKey => ShuffleEnabled;
+    /// <summary>全局 Repeat 状态（代理到 Container）。</summary>
+    private RepeatMode RepeatMode => Container?.RepeatMode ?? RepeatMode.Off;
 
     /// <summary>当前是否有正在播放的曲（用于 Next/Prev 按钮 CanExecute）。</summary>
     public bool HasCurrentTrack => CurrentIndex >= 0 && CurrentIndex < Queue.Count;
@@ -109,8 +104,6 @@ public partial class PlaylistViewModel : ObservableObject
         Id = seed.Id;
         Name = seed.Name;
         SourceFolder = seed.SourceFolder;
-        _shuffleEnabled = seed.ShuffleEnabled;
-        _repeatMode = seed.RepeatMode;
 
         _player.TrackEnded += HandleTrackEnded;
 
@@ -143,8 +136,8 @@ public partial class PlaylistViewModel : ObservableObject
         Name: Name,
         Items: Queue.Select(t => t.FilePath).ToArray(),
         CurrentIndex: CurrentIndex,
-        ShuffleEnabled: ShuffleEnabled,
-        RepeatMode: RepeatMode,
+        ShuffleEnabled: false,
+        RepeatMode: RepeatMode.Off,
         SourceFolder: SourceFolder);
 
     /// <summary>
@@ -474,25 +467,11 @@ public partial class PlaylistViewModel : ObservableObject
         await PlayTrackAtAsync(prev);
     }
 
-    /// <summary>切换 Shuffle 开关。同时清空已播过历史（避免状态语义混乱）。</summary>
-    [RelayCommand]
-    private void ToggleShuffle()
+    /// <summary>清空已播过历史（由 PlaylistsViewModel.ToggleShuffle 调用）。</summary>
+    internal void ClearShuffleHistory()
     {
-        ShuffleEnabled = !ShuffleEnabled;
         _shuffleHistory.Clear();
-        if (CurrentIndex >= 0) _shuffleHistory.Add(CurrentIndex); // 当前曲不应再被随机选中
-    }
-
-    /// <summary>循环模式三态循环：Off → List → One → Off。</summary>
-    [RelayCommand]
-    private void CycleRepeat()
-    {
-        RepeatMode = RepeatMode switch
-        {
-            RepeatMode.Off  => RepeatMode.List,
-            RepeatMode.List => RepeatMode.One,
-            _               => RepeatMode.Off,
-        };
+        if (CurrentIndex >= 0) _shuffleHistory.Add(CurrentIndex);
     }
 
     /// <summary>

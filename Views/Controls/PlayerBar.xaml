@@ -124,24 +124,24 @@
                         Width="48" Height="48" Margin="8,0,0,0" ToolTip="下一首">
                     <TextBlock Text="&#x23ED;" FontSize="16" Foreground="{StaticResource ForegroundPrimary}"/>
                 </Button>
-                <Button Command="{Binding DataContext.Playlists.ViewedPlaylist.ToggleShuffleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                <Button Command="{Binding DataContext.Playlists.ToggleShuffleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" Margin="8,0,0,0" ToolTip="随机播放">
                     <TextBlock Text="&#x1F500;" FontSize="16"
                                FontFamily="Segoe UI Emoji"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Foreground="{Binding DataContext.Playlists.ViewedPlaylist.ShuffleEnabled,
+                               Foreground="{Binding DataContext.Playlists.ShuffleEnabled,
                                    RelativeSource={RelativeSource AncestorType=Window},
                                    Converter={StaticResource BoolToAccentBrush}}"/>
                 </Button>
-                <Button Command="{Binding DataContext.Playlists.ViewedPlaylist.CycleRepeatCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                <Button Command="{Binding DataContext.Playlists.CycleRepeatCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" Margin="8,0,0,0" ToolTip="循环模式">
-                    <TextBlock Text="{Binding DataContext.Playlists.ViewedPlaylist.RepeatMode,
+                    <TextBlock Text="{Binding DataContext.Playlists.RepeatMode,
                                    RelativeSource={RelativeSource AncestorType=Window},
                                    Converter={StaticResource RepeatModeToIcon}}"
                                FontSize="16"
                                FontFamily="Segoe UI Emoji"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Foreground="{Binding DataContext.Playlists.ViewedPlaylist.RepeatActive,
+                               Foreground="{Binding DataContext.Playlists.RepeatActive,
                                    RelativeSource={RelativeSource AncestorType=Window},
                                    Converter={StaticResource BoolToAccentBrush}}"/>
                 </Button>

@@ -35,6 +35,18 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     [ObservableProperty]
     private string _currentPlaylistId = string.Empty;
 
+    // —— 全局播放模式（所有歌单共享） ——
+
+    [ObservableProperty]
+    private bool _shuffleEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RepeatActive))]
+    private RepeatMode _repeatMode = RepeatMode.Off;
+
+    /// <summary>循环按钮是否处于"激活"状态（List 或 One 都算）。</summary>
+    public bool RepeatActive => RepeatMode != RepeatMode.Off;
+
     /// <summary>
     /// 任意歌单内部状态(Tracks、CurrentIndex、Shuffle、Repeat、Name)、容器结构(增删歌单)、
     /// 或 CurrentPlaylistId 改变时触发。MainViewModel 订阅此事件做 debounce save。
@@ -96,6 +108,10 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         // ViewedPlaylist 不持久化, 默认对齐 CurrentPlaylistId。
         ViewedPlaylist = Playlists.FirstOrDefault(p => p.Id == matchId);
 
+        // 全局 Shuffle/Repeat
+        ShuffleEnabled = snapshot.ShuffleEnabled;
+        RepeatMode = snapshot.RepeatMode;
+
         RecomputeIsActiveFlags();
     }
 
@@ -106,6 +122,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         Playlists = Playlists.Select(vm => vm.ToRecord()).ToArray(),
         CurrentPlaylistId = CurrentPlaylistId,
+        ShuffleEnabled = ShuffleEnabled,
+        RepeatMode = RepeatMode,
     };
 
     /// <summary>
@@ -219,6 +237,29 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         ViewedPlaylist = item;
     }
 
+    /// <summary>切换 Shuffle 开关。同时清空当前歌单的已播过历史。</summary>
+    [RelayCommand]
+    private void ToggleShuffle()
+    {
+        ShuffleEnabled = !ShuffleEnabled;
+        if (ViewedPlaylist is { } vp)
+        {
+            vp.ClearShuffleHistory();
+        }
+    }
+
+    /// <summary>循环模式三态循环：Off → List → One → Off。</summary>
+    [RelayCommand]
+    private void CycleRepeat()
+    {
+        RepeatMode = RepeatMode switch
+        {
+            RepeatMode.Off  => RepeatMode.List,
+            RepeatMode.List => RepeatMode.One,
+            _               => RepeatMode.Off,
+        };
+    }
+
     partial void OnCurrentPlaylistIdChanged(string value)
     {
         RecomputeIsActiveFlags();
@@ -233,6 +274,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
     private void HookPlaylistVm(PlaylistViewModel vm)
     {
+        vm.Container = this;
         vm.PropertyChanged += OnPlaylistVmPropertyChanged;
         vm.Queue.CollectionChanged += OnPlaylistTracksChanged;
     }

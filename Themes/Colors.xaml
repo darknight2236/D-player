@@ -16,13 +16,13 @@
     <SolidColorBrush x:Key="ForegroundDisabled"  Color="#6C6C80"/>
 
     <!-- 强调色（紫）：默认 / 悬停 / 按下 —— 用于进度条已填充段、按钮按下背景 -->
-    <SolidColorBrush x:Key="AccentPrimary"  Color="#7C4DFF"/>
-    <SolidColorBrush x:Key="AccentHover"    Color="#9E7CFF"/>
+    <SolidColorBrush x:Key="AccentPrimary"  Color="#9E7CFF"/>
+    <SolidColorBrush x:Key="AccentHover"    Color="#B9A0FF"/>
     <SolidColorBrush x:Key="AccentPressed"  Color="#5C2DCF"/>
 
     <!-- 滑块专用：未填充轨道色 + 圆形 thumb 色 -->
     <SolidColorBrush x:Key="SliderTrack" Color="#363649"/>
-    <SolidColorBrush x:Key="SliderThumb" Color="#7C4DFF"/>
+    <SolidColorBrush x:Key="SliderThumb" Color="#9E7CFF"/>
 
     <!-- 危险色（删除按钮悬停） -->
     <SolidColorBrush x:Key="DangerHover" Color="#FF6B6B"/>

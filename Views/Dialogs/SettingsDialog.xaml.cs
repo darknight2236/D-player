@@ -46,6 +46,8 @@ public partial class SettingsDialog : Window
             SensitivitySlider.Value = settings.SpectrumSensitivity;
             ColorThemeComboBox.SelectedIndex = settings.SpectrumColorTheme;
             SmoothingSlider.Value = settings.SpectrumSmoothing;
+            SensitivityValue.Text = settings.SpectrumSensitivity.ToString("F1");
+            SmoothingValue.Text = settings.SpectrumSmoothing.ToString("F2");
         }
         catch
         {

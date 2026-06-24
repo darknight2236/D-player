@@ -289,7 +289,7 @@ public partial class PlaylistViewModel : ObservableObject
 
     /// <summary>文件对话框多选 → 入队（不读元数据，仅占位）。</summary>
     [RelayCommand]
-    private void AddToQueue()
+    private async Task AddToQueue()
     {
         var files = _fileDialog.OpenFiles(
             "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
@@ -298,27 +298,28 @@ public partial class PlaylistViewModel : ObservableObject
 
         foreach (var path in files)
         {
-            // 轻量占位 Track：仅文件名作为 Title，其他字段为空
-            Queue.Add(_metadataReader.CreateFallback(path));
+            var track = await _metadataReader.ReadAsync(path);
+            Queue.Add(track);
         }
     }
 
     /// <summary>
-    /// 外部文件拖入入队（Phase 5）。
-    /// 与 AddToQueue 同语义：仅占位入队，不读元数据，不自动播放。
+    /// 外部文件拖入入队。
+    /// 与 AddToQueue 同语义：读取元数据入队，不自动播放。
     /// 与 AddToQueue 区别：入口是 OS DragDrop（V 层已过滤白名单后缀）而非文件对话框。
     ///
     /// View 层契约：传入的 paths 已经过 .mp3/.wma/.flac/.aac/.wav 后缀过滤；
     /// 本命令不再二次过滤，避免双重职责。
     /// </summary>
     [RelayCommand]
-    private void DropExternalFiles(IReadOnlyList<string> paths)
+    private async Task DropExternalFiles(IReadOnlyList<string> paths)
     {
         if (paths is null || paths.Count == 0) return;
 
         foreach (var path in paths)
         {
-            Queue.Add(_metadataReader.CreateFallback(path));
+            var track = await _metadataReader.ReadAsync(path);
+            Queue.Add(track);
         }
     }
 

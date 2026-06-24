@@ -34,7 +34,6 @@
                 <Button.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="新建歌单" Click="AddPlaylist_Click"/>
-                        <MenuItem Header="导入文件夹" Click="ImportFolder_Click"/>
                     </ContextMenu>
                 </Button.ContextMenu>
             </Button>

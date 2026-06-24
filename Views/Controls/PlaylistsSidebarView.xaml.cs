@@ -168,11 +168,6 @@ public partial class PlaylistsSidebarView : UserControl
         _vm.AddPlaylistCommand.Execute(text);
     }
 
-    private void ImportFolder_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm is null) return;
-        _vm.ImportFolderCommand.Execute(null);
-    }
 
     private void RemoveBtn_Click(object sender, RoutedEventArgs e)
     {

@@ -351,6 +351,32 @@ public partial class PlaylistViewModel : ObservableObject
         }
     }
 
+    /// <summary>选择文件夹 → 扫描音频文件 → 入队当前歌单。</summary>
+    [RelayCommand]
+    private async Task ImportFolderToCurrent()
+    {
+        var folder = _fileDialog.OpenFolder();
+        if (folder is null) return;
+
+        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".mp3", ".wma", ".flac", ".aac", ".wav" };
+
+        string[] files;
+        try { files = Directory.GetFiles(folder, "*.*", SearchOption.AllDirectories); }
+        catch { return; }
+
+        foreach (var path in files)
+        {
+            if (!extensions.Contains(Path.GetExtension(path))) continue;
+            try
+            {
+                var track = await _metadataReader.ReadAsync(path);
+                Queue.Add(track);
+            }
+            catch { /* 跳过损坏文件 */ }
+        }
+    }
+
     /// <summary>
     /// 外部文件拖入入队。
     /// 与 AddToQueue 同语义：读取元数据入队，不自动播放。

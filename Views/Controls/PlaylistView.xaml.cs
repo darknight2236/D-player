@@ -118,6 +118,13 @@ public partial class PlaylistView : UserControl
         }
     }
 
+    /// <summary>表头点击 → 按列排序（再次点击切换升/降序）。</summary>
+    private void Header_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string column && _vm is not null)
+            _vm.SortBy(column);
+    }
+
     /// <summary>
     /// 在 VisualTree 中按 x:Name 查找子元素。
     /// </summary>

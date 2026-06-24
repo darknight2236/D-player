@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UmaPlayer.Models;
@@ -51,6 +53,14 @@ public partial class PlaylistViewModel : ObservableObject
     /// <summary>最近一次扫描是否失败(Phase 10)。由 PlaylistsViewModel 设置。</summary>
     [ObservableProperty]
     private bool _hasScanError;
+
+    // —— 排序状态 ——
+
+    private string? _sortColumn;
+    private ListSortDirection _sortDirection = ListSortDirection.Ascending;
+
+    /// <summary>排序后的队列视图。ListBox 绑定此属性而非直接绑 Queue。</summary>
+    public ICollectionView SortedView { get; private set; }
 
     /// <summary>当前播放队列。ObservableCollection 自动通知 UI 增删改。</summary>
     public ObservableCollection<Track> Queue { get; } = new();
@@ -116,6 +126,9 @@ public partial class PlaylistViewModel : ObservableObject
             PlayCurrentCommand.NotifyCanExecuteChanged();
         };
 
+        // 排序视图：ListBox 绑定 SortedView，排序通过 SortDescriptions 驱动
+        SortedView = CollectionViewSource.GetDefaultView(Queue);
+
         // Port LoadFromDisk: 过滤不存在的文件, 重映射 CurrentIndex
         var seedItems = seed.Items ?? Array.Empty<string>();
         var existing = seedItems.Where(File.Exists).ToList();
@@ -139,6 +152,27 @@ public partial class PlaylistViewModel : ObservableObject
         ShuffleEnabled: false,
         RepeatMode: RepeatMode.Off,
         SourceFolder: SourceFolder);
+
+    /// <summary>按指定列排序。再次点击同列切换升/降序。</summary>
+    public void SortBy(string column)
+    {
+        if (_sortColumn == column)
+            _sortDirection = _sortDirection == ListSortDirection.Ascending
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+        else
+        {
+            _sortColumn = column;
+            _sortDirection = ListSortDirection.Ascending;
+        }
+
+        using (SortedView.DeferRefresh())
+        {
+            SortedView.SortDescriptions.Clear();
+            if (_sortColumn is not null)
+                SortedView.SortDescriptions.Add(new SortDescription(_sortColumn, _sortDirection));
+        }
+    }
 
     /// <summary>
     /// 计算下一首曲目的索引。

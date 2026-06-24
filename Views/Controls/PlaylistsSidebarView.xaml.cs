@@ -152,16 +152,6 @@ public partial class PlaylistsSidebarView : UserControl
 
     private void AddBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.ContextMenu is { } menu)
-        {
-            menu.PlacementTarget = btn;
-            menu.IsOpen = true;
-            e.Handled = true;
-        }
-    }
-
-    private void AddPlaylist_Click(object sender, RoutedEventArgs e)
-    {
         if (_vm is null) return;
         var (ok, text) = PromptDialog.Show(Window.GetWindow(this), "新建歌单", "名称", "新歌单");
         if (!ok) return;

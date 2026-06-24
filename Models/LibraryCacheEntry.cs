@@ -13,4 +13,5 @@ public sealed record LibraryCacheEntry(
     string? Genre,
     int? Year,
     TimeSpan Duration,
-    int? SampleRate);
+    int? SampleRate,
+    int? TrackNumber);

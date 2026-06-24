@@ -339,7 +339,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         var entries = tracks.Select(t => new LibraryCacheEntry(
             FilePath: t.FilePath, Title: t.Title, Artist: t.Artist,
             Album: t.Album, Genre: t.Genre, Year: t.Year,
-            Duration: t.Duration, SampleRate: t.SampleRate)).ToList();
+            Duration: t.Duration, SampleRate: t.SampleRate,
+            TrackNumber: t.TrackNumber)).ToList();
 
         try { await _cache.SaveAsync(Path.GetFullPath(folderPath), entries).ConfigureAwait(false); }
         catch (IOException) { /* cache write failure doesn't block */ }
@@ -375,7 +376,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
                         Year: entry.Year,
                         SampleRate: entry.SampleRate,
                         AlbumArt: null,
-                        Duration: entry.Duration);
+                        Duration: entry.Duration,
+                        TrackNumber: entry.TrackNumber);
                 }
             }
         }
@@ -452,7 +454,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
                 updatedEntries.Add(new LibraryCacheEntry(
                     FilePath: track.FilePath, Title: track.Title, Artist: track.Artist,
                     Album: track.Album, Genre: track.Genre, Year: track.Year,
-                    Duration: track.Duration, SampleRate: track.SampleRate));
+                    Duration: track.Duration, SampleRate: track.SampleRate,
+                    TrackNumber: track.TrackNumber));
 
             // 所有 Queue 修改必须在 UI 线程执行(WPF CollectionView 要求)
             _syncContext.Send(_ =>
@@ -527,8 +530,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
     private sealed class NullMetadataReader : ITrackMetadataReader
     {
-        public Task<Track> ReadAsync(string filePath) => Task.FromResult(new Track(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero));
-        public Track CreateFallback(string filePath) => new(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero);
+        public Task<Track> ReadAsync(string filePath) => Task.FromResult(new Track(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero, null));
+        public Track CreateFallback(string filePath) => new(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero, null);
     }
 
     private sealed class NullPlaybackService : IPlaybackService

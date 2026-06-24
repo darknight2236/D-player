@@ -115,8 +115,8 @@ public class LibraryScannerServiceTests : IDisposable
     {
         var cache = new List<LibraryCacheEntry>
         {
-            new("C:\\a.mp3", "A", null, null, null, null, TimeSpan.FromSeconds(30), 44100),
-            new("C:\\b.mp3", "B", null, null, null, null, TimeSpan.FromSeconds(60), 44100),
+            new("C:\\a.mp3", "A", null, null, null, null, TimeSpan.FromSeconds(30), 44100, null),
+            new("C:\\b.mp3", "B", null, null, null, null, TimeSpan.FromSeconds(60), 44100, null),
         };
 
         var diff = _sut.ComputeDiff(Array.Empty<string>(), cache);
@@ -144,7 +144,7 @@ public class LibraryScannerServiceTests : IDisposable
         var path = CreateFile("song.mp3");
         var cache = new List<LibraryCacheEntry>
         {
-            new(path, "Song", "Artist", "Album", null, null, TimeSpan.FromSeconds(180), 44100),
+            new(path, "Song", "Artist", "Album", null, null, TimeSpan.FromSeconds(180), 44100, null),
         };
 
         var diff = _sut.ComputeDiff(new[] { path }, cache);
@@ -161,7 +161,7 @@ public class LibraryScannerServiceTests : IDisposable
         var path = CreateFile("gone.mp3");
         var cache = new List<LibraryCacheEntry>
         {
-            new(path, "Gone", null, null, null, null, TimeSpan.FromSeconds(100), 44100),
+            new(path, "Gone", null, null, null, null, TimeSpan.FromSeconds(100), 44100, null),
         };
 
         // 删除文件
@@ -181,7 +181,7 @@ public class LibraryScannerServiceTests : IDisposable
         // 缓存中使用不同大小写
         var cache = new List<LibraryCacheEntry>
         {
-            new(path.ToLowerInvariant(), "Song", null, null, null, null, TimeSpan.FromSeconds(100), 44100),
+            new(path.ToLowerInvariant(), "Song", null, null, null, null, TimeSpan.FromSeconds(100), 44100, null),
         };
 
         var diff = _sut.ComputeDiff(new[] { path }, cache);
@@ -198,7 +198,7 @@ public class LibraryScannerServiceTests : IDisposable
         var path = CreateFile("bad.mp3");
         var cache = new List<LibraryCacheEntry>
         {
-            new(path, "Bad", null, null, null, null, TimeSpan.Zero, null), // Duration=0, SampleRate=null
+            new(path, "Bad", null, null, null, null, TimeSpan.Zero, null, null), // Duration=0, SampleRate=null
         };
 
         var diff = _sut.ComputeDiff(new[] { path }, cache);
@@ -214,7 +214,7 @@ public class LibraryScannerServiceTests : IDisposable
         var path = CreateFile("bad2.mp3");
         var cache = new List<LibraryCacheEntry>
         {
-            new(path, "Bad2", null, null, null, null, TimeSpan.Zero, 0),
+            new(path, "Bad2", null, null, null, null, TimeSpan.Zero, 0, null),
         };
 
         var diff = _sut.ComputeDiff(new[] { path }, cache);
@@ -245,7 +245,7 @@ public class LibraryScannerServiceTests : IDisposable
     public async Task ReadMetadataBatchAsync_ReadsAllPaths()
     {
         var paths = new[] { "a.mp3", "b.mp3", "c.mp3" };
-        var track = new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero);
+        var track = new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero, null);
         _reader.ReadAsync(Arg.Any<string>()).Returns(track);
 
         var result = await _sut.ReadMetadataBatchAsync(paths);
@@ -258,7 +258,7 @@ public class LibraryScannerServiceTests : IDisposable
     public async Task ReadMetadataBatchAsync_SkipsFailedReads()
     {
         var paths = new[] { "good.mp3", "bad.mp3" };
-        var goodTrack = new Track("good.mp3", "Good", null, null, null, null, null, null, TimeSpan.Zero);
+        var goodTrack = new Track("good.mp3", "Good", null, null, null, null, null, null, TimeSpan.Zero, null);
 
         _reader.ReadAsync("good.mp3").Returns(goodTrack);
         _reader.ReadAsync("bad.mp3").Returns(Task.FromException<Track>(new IOException("corrupt")));

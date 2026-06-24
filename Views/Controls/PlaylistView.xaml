@@ -13,7 +13,6 @@
              xmlns:local="clr-namespace:UmaPlayer.Views.Controls">
     <UserControl.Resources>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
-        <converters:TrackIndexConverter x:Key="TrackIndex"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </UserControl.Resources>
 
@@ -175,17 +174,12 @@
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="20"/>
                             </Grid.ColumnDefinitions>
-                            <!-- # 行号 -->
-                            <TextBlock Grid.Column="0" FontSize="11"
+                            <!-- # 曲目编号 -->
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding TrackNumber, FallbackValue=''}"
+                                       FontSize="11"
                                        Foreground="{StaticResource ForegroundSecondary}"
-                                       HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <TextBlock.Text>
-                                    <MultiBinding Converter="{StaticResource TrackIndex}">
-                                        <Binding RelativeSource="{RelativeSource AncestorType=ListBox}"/>
-                                        <Binding/>
-                                    </MultiBinding>
-                                </TextBlock.Text>
-                            </TextBlock>
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
                             <TextBlock Grid.Column="1" Text="" FontSize="11"
                                        Foreground="{StaticResource AccentPrimary}"

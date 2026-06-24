@@ -30,7 +30,7 @@ public class PlaylistsViewModelTests
             RepeatMode: RepeatMode.Off);
 
         _metadataReader.CreateFallback(Arg.Any<string>())
-            .Returns(ci => new Track(ci.ArgAt<string>(0), ci.ArgAt<string>(0), null, null, null, null, null, null, TimeSpan.Zero));
+            .Returns(ci => new Track(ci.ArgAt<string>(0), ci.ArgAt<string>(0), null, null, null, null, null, null, TimeSpan.Zero, null));
 
         return new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader);
     }
@@ -258,8 +258,8 @@ public class PlaylistsViewModelTests
             CurrentPlaylistId = "id1"
         });
         // 加一个 Track 让 PlayTrackAt 不越界
-        container.Playlists[0].Queue.Add(new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero));
-        _metadataReader.ReadAsync("a.mp3").Returns(Task.FromResult(new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero)));
+        container.Playlists[0].Queue.Add(new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero, null));
+        _metadataReader.ReadAsync("a.mp3").Returns(Task.FromResult(new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero, null)));
 
         await container.HandleDoubleClickPlay(container.Playlists[0], 0);
 
@@ -279,8 +279,8 @@ public class PlaylistsViewModelTests
             },
             CurrentPlaylistId = "id1"
         });
-        container.Playlists[1].Queue.Add(new Track("b.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero));
-        _metadataReader.ReadAsync("b.mp3").Returns(Task.FromResult(new Track("b.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero)));
+        container.Playlists[1].Queue.Add(new Track("b.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero, null));
+        _metadataReader.ReadAsync("b.mp3").Returns(Task.FromResult(new Track("b.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero, null)));
 
         await container.HandleDoubleClickPlay(container.Playlists[1], 0);
 

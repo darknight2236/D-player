@@ -40,10 +40,10 @@ public sealed class JsonLibraryCacheTests : IDisposable
         {
             new(FilePath: @"C:\Music\song1.mp3", Title: "Song One", Artist: "Artist A",
                 Album: "Album X", Genre: "Rock", Year: 2020,
-                Duration: TimeSpan.FromMinutes(3), SampleRate: 44100),
+                Duration: TimeSpan.FromMinutes(3), SampleRate: 44100, TrackNumber: null),
             new(FilePath: @"C:\Music\song2.flac", Title: "Song Two", Artist: null,
                 Album: null, Genre: null, Year: null,
-                Duration: TimeSpan.FromMinutes(5), SampleRate: 96000),
+                Duration: TimeSpan.FromMinutes(5), SampleRate: 96000, TrackNumber: null),
         };
 
         await cache.SaveAsync(folder, entries);
@@ -69,13 +69,13 @@ public sealed class JsonLibraryCacheTests : IDisposable
         {
             new(FilePath: @"C:\A\track.mp3", Title: "Track A", Artist: null,
                 Album: null, Genre: null, Year: null,
-                Duration: TimeSpan.FromMinutes(2), SampleRate: null),
+                Duration: TimeSpan.FromMinutes(2), SampleRate: null, TrackNumber: null),
         };
         var entriesB = new List<LibraryCacheEntry>
         {
             new(FilePath: @"C:\B\track.mp3", Title: "Track B", Artist: "B Artist",
                 Album: null, Genre: null, Year: null,
-                Duration: TimeSpan.FromMinutes(4), SampleRate: 48000),
+                Duration: TimeSpan.FromMinutes(4), SampleRate: 48000, TrackNumber: null),
         };
 
         await cache.SaveAsync(folderA, entriesA);
@@ -114,16 +114,16 @@ public sealed class JsonLibraryCacheTests : IDisposable
         {
             new(FilePath: @"C:\Old\old.mp3", Title: "Old", Artist: null,
                 Album: null, Genre: null, Year: null,
-                Duration: TimeSpan.FromMinutes(1), SampleRate: null),
+                Duration: TimeSpan.FromMinutes(1), SampleRate: null, TrackNumber: null),
         };
         var second = new List<LibraryCacheEntry>
         {
             new(FilePath: @"C:\New\new1.mp3", Title: "New One", Artist: null,
                 Album: null, Genre: null, Year: null,
-                Duration: TimeSpan.FromMinutes(3), SampleRate: null),
+                Duration: TimeSpan.FromMinutes(3), SampleRate: null, TrackNumber: null),
             new(FilePath: @"C:\New\new2.mp3", Title: "New Two", Artist: null,
                 Album: null, Genre: null, Year: null,
-                Duration: TimeSpan.FromMinutes(4), SampleRate: null),
+                Duration: TimeSpan.FromMinutes(4), SampleRate: null, TrackNumber: null),
         };
 
         await cache.SaveAsync(folder, first);

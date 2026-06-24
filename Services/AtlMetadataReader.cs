@@ -46,7 +46,8 @@ public sealed class AtlMetadataReader : ITrackMetadataReader
                     Year: atlTrack.Year > 0 ? atlTrack.Year : null,
                     SampleRate: atlTrack.SampleRate > 0 ? (int?)atlTrack.SampleRate : null,
                     AlbumArt: albumArt,
-                    Duration: TimeSpan.FromMilliseconds(atlTrack.DurationMs));
+                    Duration: TimeSpan.FromMilliseconds(atlTrack.DurationMs),
+                    TrackNumber: atlTrack.TrackNumber > 0 ? atlTrack.TrackNumber : null);
             }
             catch
             {
@@ -67,6 +68,7 @@ public sealed class AtlMetadataReader : ITrackMetadataReader
             Year: null,
             SampleRate: null,
             AlbumArt: null,
-            Duration: TimeSpan.Zero);
+            Duration: TimeSpan.Zero,
+            TrackNumber: null);
     }
 }

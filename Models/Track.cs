@@ -21,4 +21,5 @@ public sealed record Track(
     int? Year,
     int? SampleRate,
     byte[]? AlbumArt,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    int? TrackNumber);

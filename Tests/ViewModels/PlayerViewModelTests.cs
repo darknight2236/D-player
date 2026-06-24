@@ -55,7 +55,7 @@ public class PlayerViewModelTests
     public void TrackChanged_SetsCurrentTrack()
     {
         var vm = CreateVm();
-        var track = new Track("a.mp3", "Title", "Artist", null, null, null, null, null, TimeSpan.Zero);
+        var track = new Track("a.mp3", "Title", "Artist", null, null, null, null, null, TimeSpan.Zero, null);
 
         _player.TrackChanged += Raise.Event<Action<Track?>>(track);
 
@@ -66,7 +66,7 @@ public class PlayerViewModelTests
     public void TrackChanged_Null_ClearsCurrentTrackAndAlbumArt()
     {
         var vm = CreateVm();
-        var track = new Track("a.mp3", "T", null, null, null, null, null, new byte[] { 1, 2, 3 }, TimeSpan.Zero);
+        var track = new Track("a.mp3", "T", null, null, null, null, null, new byte[] { 1, 2, 3 }, TimeSpan.Zero, null);
         _player.TrackChanged += Raise.Event<Action<Track?>>(track);
         Assert.NotNull(vm.AlbumArtBytes);
 
@@ -83,7 +83,7 @@ public class PlayerViewModelTests
     {
         var vm = CreateVm();
         var art = new byte[] { 0xFF, 0xD8, 0xFF };
-        var track = new Track("a.mp3", "T", null, null, null, null, null, art, TimeSpan.Zero);
+        var track = new Track("a.mp3", "T", null, null, null, null, null, art, TimeSpan.Zero, null);
 
         _player.TrackChanged += Raise.Event<Action<Track?>>(track);
 

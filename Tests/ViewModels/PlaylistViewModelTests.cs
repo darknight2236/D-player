@@ -33,7 +33,7 @@ public class PlaylistViewModelTests
             RepeatMode: RepeatMode.Off);
 
         _metadataReader.CreateFallback(Arg.Any<string>())
-            .Returns(ci => new Track(ci.ArgAt<string>(0), ci.ArgAt<string>(0), null, null, null, null, null, null, TimeSpan.Zero));
+            .Returns(ci => new Track(ci.ArgAt<string>(0), ci.ArgAt<string>(0), null, null, null, null, null, null, TimeSpan.Zero, null));
 
         return new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader);
     }

@@ -114,7 +114,9 @@
                                     <ColumnDefinition Width="20"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Style="{StaticResource CaptionText}"/>
-                                <TextBlock Grid.Column="1" Text="#" Style="{StaticResource CaptionText}" HorizontalAlignment="Right"/>
+                                <Button Grid.Column="1" Content="#" Click="Header_Click" Tag="TrackNumber"
+                                        Style="{StaticResource {x:Type Button}}" Padding="0"
+                                        HorizontalContentAlignment="Right" Cursor="Hand"/>
                                 <Button Grid.Column="2" Content="标题" Click="Header_Click" Tag="Title"
                                         Style="{StaticResource {x:Type Button}}" Padding="0"
                                         HorizontalContentAlignment="Center" Cursor="Hand"/>

@@ -119,9 +119,9 @@ public partial class PlaylistView : UserControl
     }
 
     /// <summary>表头点击 → 按列排序（再次点击切换升/降序）。</summary>
-    private void Header_Click(object sender, RoutedEventArgs e)
+    private void Header_Click(object sender, MouseButtonEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string column && _vm is not null)
+        if (sender is FrameworkElement fe && fe.Tag is string column && _vm is not null)
             _vm.SortBy(column);
     }
 

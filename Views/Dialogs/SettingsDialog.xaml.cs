@@ -86,10 +86,16 @@ public partial class SettingsDialog : Window
                 SpectrumSmoothing = SmoothingSlider.Value
             }).ConfigureAwait(true);
 
-            // 同步更新 PlayerViewModel 的音量属性，使 PlayerBar 滑块同步
+            // 同步更新 PlayerViewModel 属性，使 UI 立即反映新设置
             if (_playerViewModel != null)
             {
                 _playerViewModel.Volume = volume;
+
+                // Phase 13: 同步频谱设置，避免需重启才生效
+                _playerViewModel.SpectrumEnabled = SpectrumEnabledCheckBox.IsChecked ?? true;
+                _playerViewModel.SpectrumSensitivity = SensitivitySlider.Value;
+                _playerViewModel.SpectrumColorTheme = ColorThemeComboBox.SelectedIndex;
+                _playerViewModel.SpectrumSmoothing = SmoothingSlider.Value;
             }
 
             DialogResult = true;

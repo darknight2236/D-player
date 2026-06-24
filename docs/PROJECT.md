@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/23 · 对应分支：`master` · 当前阶段：**Phase 12 continued 完成**（UI 界面重构 + 全局 Shuffle/Repeat + #列排序 + TrackInfoView + 导入文件夹到当前歌单）
+> 文档日期：2026/06/24 · 对应分支：`master` · 当前阶段：**Phase 13 完成**（音频可视化 - 频谱条形图）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。
 
 ### 1.1 关键特性（已实现）
 
@@ -29,11 +29,11 @@
 | 文件夹绑定歌单 | 指定文件夹扫描 → 创建歌单; 启动后台自动同步增删; 手动刷新; 元数据缓存; 导入文件夹添加到当前歌单 (Phase 10) |
 | 设置 | 模态对话框：默认音量滑块；音频输出占位（Phase 12）；Ctrl+, 快捷键 (Phase 11) |
 | 曲目信息面板 | 右侧独立 TrackInfoView：封面（ViewBox 自动缩放）+ 标题/艺术家/专辑/采样率；BackgroundSecondary 背景 (Phase 12 continued) |
+| 音频可视化 | 32 条垂直频谱柱（对数分组）；4 种颜色主题（紫/蓝/绿/彩虹）；灵敏度/平滑度配置；启用/禁用开关；设置持久化 (Phase 13) |
 
 ### 1.2 后续增量（未实现）
 
 - M3U / PLS 等播放列表格式导入导出
-- 音频可视化（频谱 / 波形）
 - 音乐库按艺术家/专辑组织（文件夹扫描已在 Phase 10 实现）
 - OGG/Vorbis 支持（MF 不原生支持，需额外解码器）
 - 多设备 / 输出模式切换（WASAPI Shared / Exclusive / ASIO）—— 接口已预留
@@ -813,3 +813,16 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `2b2d5ad` fix(view): 封面 Border 加 ClipToBounds — ViewBox 缩放后保持圆角裁切
     - `a07bc6c` fix(view): 封面 Border 去掉 CornerRadius，避免与播放时直角不一致
     - `0b7137e` fix(view): 去掉 PlayerBar 上方分隔线
+  - **Phase 13**（音频可视化）
+    - `b78747d` feat(models): add SpectrumConfig record for audio visualization
+    - `12d5def` feat(services): add SampleAggregator for FFT spectrum analysis
+    - `0aae53f` feat(services): integrate SampleAggregator into NAudioPlaybackService
+    - `5a56ae8` feat(config): add spectrum visualization settings to AppSettings
+    - `aae42ca` feat(vm): add spectrum visualization properties and data processing
+    - `75c9b59` fix(vm): copy spectrum data before applying sensitivity gain
+    - `c0fcefc` feat(view): add SpectrumView custom control for audio visualization
+    - `c6977a9` feat(view): integrate SpectrumView into TrackInfoView
+    - `e1d4aa8` feat(view): add spectrum visualization settings to SettingsDialog
+    - `dd28308` fix(view): update spectrum slider labels on settings load
+    - `3814eb6` test: add unit tests for spectrum visualization in PlayerViewModel
+    - `305480e` fix: resolve final review findings (sync settings, remove double-log, propagate enabled)

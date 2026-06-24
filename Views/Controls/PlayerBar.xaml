@@ -18,7 +18,7 @@
         <converters:BoolToAccentBrushConverter x:Key="BoolToAccentBrush"/>
     </UserControl.Resources>
 
-    <Grid Margin="16,8">
+    <Grid Margin="16,8" Background="{StaticResource BackgroundSecondary}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>

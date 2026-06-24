@@ -22,6 +22,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid x:Name="ContentGrid" Grid.Row="0" SizeChanged="ContentGrid_SizeChanged">
@@ -55,6 +56,7 @@
                                      DataContext="{Binding Player}"/>
         </Grid>
 
-        <controls:PlayerBar Grid.Row="1" DataContext="{Binding Player}"/>
+        <Border Grid.Row="1" Height="1" Background="{StaticResource BackgroundTertiary}"/>
+        <controls:PlayerBar Grid.Row="2" DataContext="{Binding Player}"/>
     </Grid>
 </Window>

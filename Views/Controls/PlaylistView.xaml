@@ -40,6 +40,15 @@
                     <TextBlock Text="📂 导入文件夹" FontSize="12"/>
                 </Button>
                 <Button Command="{Binding ClearQueueCommand}" Padding="12,4" Margin="8,0,0,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource DangerHover}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
                     <TextBlock Text="清空" FontSize="12"/>
                 </Button>
             </StackPanel>

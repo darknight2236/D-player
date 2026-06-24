@@ -54,4 +54,14 @@ public interface IPlaybackService : IDisposable
     /// 用于实现自动下一首：VM 订阅此事件计算并播放下一首。
     /// </summary>
     event Action? TrackEnded;
+
+    /// <summary>
+    /// 频谱数据可用事件（每帧 FFT 计算后触发，已在 UI 线程）
+    /// </summary>
+    event Action<float[]>? SpectrumDataAvailable;
+
+    /// <summary>
+    /// 频谱配置（运行时可更新）
+    /// </summary>
+    SpectrumConfig SpectrumConfig { get; set; }
 }

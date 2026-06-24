@@ -8,8 +8,9 @@ namespace UmaPlayer.Services;
 /// <summary>
 /// 基于 NAudio 的播放服务实现。
 ///
-/// 播放链路：MediaFoundationReader → VolumeSampleProvider → WasapiOut(Shared)
+/// 播放链路：MediaFoundationReader → SampleAggregator → VolumeSampleProvider → WasapiOut(Shared)
 ///   - MediaFoundationReader：调用 Windows Media Foundation 原生解码 MP3/WMA/FLAC/AAC/WAV
+///   - SampleAggregator     ：透明截取 PCM 数据执行 FFT 频谱分析（Phase 13）
 ///   - VolumeSampleProvider ：在样本层做线性音量缩放
 ///   - WasapiOut(Shared)    ：共享模式输出，100ms 缓冲（低延迟与稳定性的折中）
 ///
@@ -25,6 +26,10 @@ public sealed class NAudioPlaybackService : IPlaybackService
     private Track? _currentTrack;
     private PlayState _state = PlayState.Stopped;
     private float _volume = 0.8f;
+
+    // Phase 13: 频谱分析
+    private SampleAggregator? _sampleAggregator;
+    private SpectrumConfig _spectrumConfig = new();
 
     // 位置事件节流：33ms ≈ 30Hz，刚好覆盖 60Hz 屏的"每两帧一次"，再高对感知无帮助
     private static readonly TimeSpan PositionThrottle = TimeSpan.FromMilliseconds(33);
@@ -55,6 +60,22 @@ public sealed class NAudioPlaybackService : IPlaybackService
     public event Action<string>? PlaybackError;
     public event Action? TrackEnded;
 
+    // Phase 13: 频谱事件和配置
+    public event Action<float[]>? SpectrumDataAvailable;
+
+    public SpectrumConfig SpectrumConfig
+    {
+        get => _spectrumConfig;
+        set
+        {
+            _spectrumConfig = value;
+            if (_sampleAggregator != null)
+            {
+                _sampleAggregator.Enabled = value.Enabled;
+            }
+        }
+    }
+
     public NAudioPlaybackService()
     {
         // App.OnStartup 在 UI 线程解析本服务，因此 Current 一定非空；
@@ -75,7 +96,13 @@ public sealed class NAudioPlaybackService : IPlaybackService
             try
             {
                 _reader = new MediaFoundationReader(track.FilePath);
-                _volumeProvider = new VolumeSampleProvider(_reader.ToSampleProvider())
+
+                // Phase 13: 插入 SampleAggregator
+                var sampleProvider = _reader.ToSampleProvider();
+                _sampleAggregator = new SampleAggregator(sampleProvider, _spectrumConfig);
+                _sampleAggregator.SpectrumDataReady += OnSpectrumDataReady;
+
+                _volumeProvider = new VolumeSampleProvider(_sampleAggregator)
                 {
                     Volume = _volume
                 };
@@ -197,6 +224,14 @@ public sealed class NAudioPlaybackService : IPlaybackService
     }
 
     /// <summary>
+    /// 频谱数据回调（在音频线程触发）→ 封送到 UI 线程触发 SpectrumDataAvailable 事件。
+    /// </summary>
+    private void OnSpectrumDataReady(float[] data)
+    {
+        RaiseOnUIThread(SpectrumDataAvailable, data);
+    }
+
+    /// <summary>
     /// 后台轮询循环：每 ~33ms 上报一次 Position；
     /// 通过 PlaybackState != Playing 自动退出（Pause/Stop 都会让其下一轮终止）。
     /// </summary>
@@ -242,6 +277,13 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// <summary>释放当前播放链；切歌前与 Dispose 都会调用。顺序：解订阅 → 停止 → 释放。</summary>
     private void DisposePlayback()
     {
+        // Phase 13: 清理 SampleAggregator
+        if (_sampleAggregator != null)
+        {
+            _sampleAggregator.SpectrumDataReady -= OnSpectrumDataReady;
+            _sampleAggregator = null;
+        }
+
         if (_wavePlayer != null)
         {
             _wavePlayer.PlaybackStopped -= OnPlaybackStopped;

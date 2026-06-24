@@ -564,6 +564,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         public event Action<Track?>? TrackChanged { add { } remove { } }
         public event Action<string>? PlaybackError { add { } remove { } }
         public event Action? TrackEnded { add { } remove { } }
+        public event Action<float[]>? SpectrumDataAvailable { add { } remove { } }
+        public SpectrumConfig SpectrumConfig { get; set; } = new();
         public void Dispose() { }
     }
 }

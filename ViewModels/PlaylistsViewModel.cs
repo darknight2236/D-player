@@ -17,6 +17,7 @@ namespace UmaPlayer.ViewModels;
 public sealed partial class PlaylistsViewModel : ObservableObject
 {
     private readonly Func<Playlist, PlaylistViewModel> _factory;
+    private readonly IPlaybackService _player;
     private readonly IFileDialogService _fileDialog;
     private readonly ILibraryScannerService _scanner;
     private readonly ILibraryCache _cache;
@@ -42,12 +43,14 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
     public PlaylistsViewModel(
         Func<Playlist, PlaylistViewModel> factory,
+        IPlaybackService player,
         IFileDialogService fileDialog,
         ILibraryScannerService scanner,
         ILibraryCache cache,
         ITrackMetadataReader metadataReader)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+        _player = player ?? throw new ArgumentNullException(nameof(player));
         _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
@@ -57,7 +60,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     }
 
     internal PlaylistsViewModel(Func<Playlist, PlaylistViewModel> factory)
-        : this(factory, new NullFileDialogService(), new NullLibraryScannerService(), new NullLibraryCache(), new NullMetadataReader()) { }
+        : this(factory, new NullPlaybackService(), new NullFileDialogService(), new NullLibraryScannerService(), new NullLibraryCache(), new NullMetadataReader()) { }
 
     /// <summary>
     /// MainViewModel 启动时调用; 用持久化快照初始化容器。重复调用先清空。
@@ -168,12 +171,14 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             return;
         }
 
-        // 修指针: 若被删项是当前播放/查看, 落到相邻项(优先后一个, 没有则前一个)。
+        // 修指针: 若被删项是当前播放歌单, 停止播放并清空指针。
         if (target.Id == CurrentPlaylistId)
         {
-            var fallbackIndex = Math.Min(index, Playlists.Count - 1);
-            CurrentPlaylistId = Playlists[fallbackIndex].Id;
+            _player.Stop();
+            _player.Unload();
+            CurrentPlaylistId = string.Empty;
         }
+        // 若被删项是当前查看歌单, 切到相邻项。
         if (ReferenceEquals(target, ViewedPlaylist))
         {
             var fallbackIndex = Math.Min(index, Playlists.Count - 1);
@@ -482,5 +487,27 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         public Task<Track> ReadAsync(string filePath) => Task.FromResult(new Track(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero));
         public Track CreateFallback(string filePath) => new(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero);
+    }
+
+    private sealed class NullPlaybackService : IPlaybackService
+    {
+        public PlayState State => PlayState.Stopped;
+        public Track? CurrentTrack => null;
+        public TimeSpan Position => TimeSpan.Zero;
+        public TimeSpan Duration => TimeSpan.Zero;
+        public float Volume { get; set; }
+        public Task LoadAsync(Track track) => Task.CompletedTask;
+        public void Play() { }
+        public void Pause() { }
+        public void Stop() { }
+        public void Unload() { }
+        public void Seek(TimeSpan position) { }
+        public event Action<PlayState>? StateChanged { add { } remove { } }
+        public event Action<TimeSpan>? PositionChanged { add { } remove { } }
+        public event Action<TimeSpan>? DurationChanged { add { } remove { } }
+        public event Action<Track?>? TrackChanged { add { } remove { } }
+        public event Action<string>? PlaybackError { add { } remove { } }
+        public event Action? TrackEnded { add { } remove { } }
+        public void Dispose() { }
     }
 }

@@ -208,8 +208,8 @@ public class PlaylistsViewModelTests
 
         container.RemovePlaylistCommand.Execute(container.Playlists[1]); // 删 B
 
-        // 当前播放落到相邻项（优先后一个）
-        Assert.Equal("id3", container.CurrentPlaylistId);
+        // 删的是当前播放歌单 → 停止播放并清空指针
+        Assert.Equal("", container.CurrentPlaylistId);
     }
 
     // —— RenamePlaylist ——

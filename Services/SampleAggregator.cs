@@ -59,8 +59,8 @@ public sealed class SampleAggregator : ISampleProvider
                     // 4. 提取幅度并映射到频谱柱
                     ExtractSpectrumData();
 
-                    // 5. 触发事件
-                    SpectrumDataReady?.Invoke(_spectrumData);
+                    // 5. 触发事件（复制数组，避免共享可变缓冲区被订阅者篡改）
+                    SpectrumDataReady?.Invoke(_spectrumData.ToArray());
 
                     _bufferPosition = 0;
                 }

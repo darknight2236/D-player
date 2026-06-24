@@ -40,11 +40,23 @@ public partial class SettingsDialog : Window
             var settings = await _persistence.LoadAsync().ConfigureAwait(true);
             VolumeSlider.Value = settings.DefaultVolume;
             VolumePercent.Text = $"{settings.DefaultVolume:P0}";
+
+            // Phase 13: 加载频谱设置
+            SpectrumEnabledCheckBox.IsChecked = settings.SpectrumEnabled;
+            SensitivitySlider.Value = settings.SpectrumSensitivity;
+            ColorThemeComboBox.SelectedIndex = settings.SpectrumColorTheme;
+            SmoothingSlider.Value = settings.SpectrumSmoothing;
         }
         catch
         {
             // settings.json missing/corrupt → slider stays at XAML default (0), acceptable
         }
+
+        // 绑定滑块值变化事件（避免设计时触发）
+        SensitivitySlider.ValueChanged += (_, args) =>
+            SensitivityValue.Text = args.NewValue.ToString("F1");
+        SmoothingSlider.ValueChanged += (_, args) =>
+            SmoothingValue.Text = args.NewValue.ToString("F2");
     }
 
     private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -61,7 +73,16 @@ public partial class SettingsDialog : Window
         try
         {
             var volume = (float)VolumeSlider.Value;
-            await _persistence.UpdateAsync(s => s with { DefaultVolume = volume }).ConfigureAwait(true);
+            await _persistence.UpdateAsync(s => s with
+            {
+                DefaultVolume = volume,
+
+                // Phase 13: 保存频谱设置
+                SpectrumEnabled = SpectrumEnabledCheckBox.IsChecked ?? true,
+                SpectrumSensitivity = SensitivitySlider.Value,
+                SpectrumColorTheme = ColorThemeComboBox.SelectedIndex,
+                SpectrumSmoothing = SmoothingSlider.Value
+            }).ConfigureAwait(true);
 
             // 同步更新 PlayerViewModel 的音量属性，使 PlayerBar 滑块同步
             if (_playerViewModel != null)

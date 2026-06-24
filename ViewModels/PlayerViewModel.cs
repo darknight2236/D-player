@@ -147,58 +147,25 @@ public partial class PlayerViewModel : ObservableObject
     {
         if (!SpectrumEnabled) return;
 
-        // 1. 复制数据避免修改原始缓冲区
+        // rawData 已由 SampleAggregator 完成 FFT → 对数分桶 → 32 bars 映射，
+        // 这里只需应用灵敏度增益 + 指数平滑即可，无需二次 MapToBars。
         var data = rawData.ToArray();
 
-        // 2. 应用灵敏度增益
+        // 应用灵敏度增益
         for (int i = 0; i < data.Length; i++)
         {
             data[i] *= (float)SpectrumSensitivity;
         }
 
-        // 3. 32 条频谱柱映射（对数分组）
-        var mapped = MapToBars(data, 32);
-
-        // 3. 应用平滑（指数移动平均）
-        for (int i = 0; i < 32; i++)
+        // 应用平滑（指数移动平均）
+        for (int i = 0; i < data.Length; i++)
         {
             _smoothedSpectrum[i] = _smoothedSpectrum[i] * (float)SpectrumSmoothing
-                                 + mapped[i] * (1 - (float)SpectrumSmoothing);
+                                 + data[i] * (1 - (float)SpectrumSmoothing);
         }
 
-        // 4. 更新属性（触发 UI 绑定）
+        // 更新属性（触发 UI 绑定）
         SpectrumData = _smoothedSpectrum.ToArray();
-    }
-
-    /// <summary>对数分组映射：512 bins → 32 bars</summary>
-    private static float[] MapToBars(float[] spectrum, int barCount)
-    {
-        var result = new float[barCount];
-        int totalBins = spectrum.Length;
-
-        for (int bar = 0; bar < barCount; bar++)
-        {
-            // 对数分布：低频 bins 更密集
-            float startPercent = (float)bar / barCount;
-            float endPercent = (float)(bar + 1) / barCount;
-
-            // 对数映射
-            int startBin = (int)(Math.Pow(startPercent, 2) * totalBins);
-            int endBin = (int)(Math.Pow(endPercent, 2) * totalBins);
-            endBin = Math.Max(endBin, startBin + 1);
-
-            // 取该范围内的平均值
-            float sum = 0;
-            int count = 0;
-            for (int i = startBin; i < endBin && i < totalBins; i++)
-            {
-                sum += spectrum[i];
-                count++;
-            }
-            result[bar] = count > 0 ? sum / count : 0;
-        }
-
-        return result;
     }
 
     // —— 播放服务事件 handler ——
@@ -284,17 +251,20 @@ public partial class PlayerViewModel : ObservableObject
         _ = _persistence.UpdateAsync(s => s with { DefaultVolume = value });
     }
 
-    /// <summary>切换频谱启用状态</summary>
+    /// <summary>切换频谱启用状态（属性变更触发 OnSpectrumEnabledChanged → SaveSpectrumSettings，无需重复调用）</summary>
     [RelayCommand]
     private void ToggleSpectrum()
     {
         SpectrumEnabled = !SpectrumEnabled;
-        SaveSpectrumSettings();
     }
 
     // 属性变更时自动保存
     partial void OnSpectrumEnabledChanged(bool value)
-        => SaveSpectrumSettings();
+    {
+        // 同步到 SampleAggregator.Enabled，避免禁用后 FFT 仍在空转
+        _player.SpectrumConfig = _player.SpectrumConfig with { Enabled = value };
+        SaveSpectrumSettings();
+    }
 
     partial void OnSpectrumSensitivityChanged(double value)
         => SaveSpectrumSettings();

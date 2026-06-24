@@ -22,7 +22,7 @@
             DragOver="Root_DragOver"
             DragLeave="Root_DragLeave"
             Drop="Root_Drop">
-        <Grid Margin="16,8,16,16">
+        <Grid Margin="16,8,16,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>

@@ -76,42 +76,13 @@ public partial class SpectrumView : UserControl
         // 绿色主题 (index 2)
         _gradients[2] = CreateGradient(Color.FromRgb(0x4C, 0xAF, 0x50), Color.FromRgb(0x81, 0xC7, 0x84));
 
-        // 彩虹主题 (index 3)：每个柱子一个颜色，从左到右渐变
-        var rainbowColors = new Color[]
+        // 彩虹主题 (index 3)：从左(红)到右(紫)均匀渐变
+        var rainbowColors = new Color[BarCount];
+        for (int i = 0; i < BarCount; i++)
         {
-            Color.FromRgb(0xFF, 0x00, 0x00), // 红
-            Color.FromRgb(0xFF, 0x40, 0x00),
-            Color.FromRgb(0xFF, 0x80, 0x00),
-            Color.FromRgb(0xFF, 0xBF, 0x00),
-            Color.FromRgb(0xFF, 0xFF, 0x00), // 黄
-            Color.FromRgb(0xBF, 0xFF, 0x00),
-            Color.FromRgb(0x80, 0xFF, 0x00),
-            Color.FromRgb(0x40, 0xFF, 0x00),
-            Color.FromRgb(0x00, 0xFF, 0x00), // 绿
-            Color.FromRgb(0x00, 0xFF, 0x40),
-            Color.FromRgb(0x00, 0xFF, 0x80),
-            Color.FromRgb(0x00, 0xFF, 0xBF),
-            Color.FromRgb(0x00, 0xFF, 0xFF), // 青
-            Color.FromRgb(0x00, 0xBF, 0xFF),
-            Color.FromRgb(0x00, 0x80, 0xFF),
-            Color.FromRgb(0x00, 0x40, 0xFF),
-            Color.FromRgb(0x00, 0x00, 0xFF), // 蓝
-            Color.FromRgb(0x40, 0x00, 0xFF),
-            Color.FromRgb(0x80, 0x00, 0xFF),
-            Color.FromRgb(0xBF, 0x00, 0xFF),
-            Color.FromRgb(0xFF, 0x00, 0xFF), // 紫
-            Color.FromRgb(0xFF, 0x00, 0xBF),
-            Color.FromRgb(0xFF, 0x00, 0x80),
-            Color.FromRgb(0xFF, 0x00, 0x40),
-            Color.FromRgb(0xFF, 0x00, 0x00), // 红（循环回来）
-            Color.FromRgb(0xFF, 0x33, 0x00),
-            Color.FromRgb(0xFF, 0x66, 0x00),
-            Color.FromRgb(0xFF, 0x99, 0x00),
-            Color.FromRgb(0xFF, 0xCC, 0x00),
-            Color.FromRgb(0xFF, 0xFF, 0x00), // 黄
-            Color.FromRgb(0xCC, 0xFF, 0x00),
-            Color.FromRgb(0x99, 0xFF, 0x00),
-        };
+            float hue = 0f + (300f / 31f) * i; // 红(0°) → 紫(300°)
+            rainbowColors[i] = HsvToRgb(hue, 1f, 1f);
+        }
 
         for (int i = 0; i < BarCount; i++)
         {
@@ -132,6 +103,27 @@ public partial class SpectrumView : UserControl
         brush.GradientStops.Add(new GradientStop(top, 1));
         brush.Freeze();
         return brush;
+    }
+
+    /// <summary>HSV 转 RGB（h: 0-360, s: 0-1, v: 0-1）</summary>
+    private static Color HsvToRgb(float h, float s, float v)
+    {
+        float c = v * s;
+        float x = c * (1 - MathF.Abs(h / 60 % 2 - 1));
+        float m = v - c;
+        float r, g, b;
+
+        if (h < 60) { r = c; g = x; b = 0; }
+        else if (h < 120) { r = x; g = c; b = 0; }
+        else if (h < 180) { r = 0; g = c; b = x; }
+        else if (h < 240) { r = 0; g = x; b = c; }
+        else if (h < 300) { r = x; g = 0; b = c; }
+        else { r = c; g = 0; b = x; }
+
+        return Color.FromRgb(
+            (byte)((r + m) * 255),
+            (byte)((g + m) * 255),
+            (byte)((b + m) * 255));
     }
 
     // 依赖属性：频谱数据

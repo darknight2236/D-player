@@ -72,37 +72,48 @@ public sealed class SampleAggregator : ISampleProvider
     }
 
     /// <summary>
-    /// 从 FFT 结果提取幅度并映射到频谱柱（对数分组）
+    /// 从 FFT 结果提取幅度并映射到频谱柱（对数频率分组）
+    /// 人耳对频率的感知是对数的（低频区分更细），因此使用对数分组。
     /// </summary>
     private void ExtractSpectrumData()
     {
         int binCount = _fftSize / 2;
+        float sampleRate = _source.WaveFormat.SampleRate;
+
+        // 频率范围：20Hz ~ 20kHz（人耳可听范围）
+        const float minFreq = 20f;
+        const float maxFreq = 20000f;
+        float logMin = MathF.Log10(minFreq);
+        float logMax = MathF.Log10(maxFreq);
 
         for (int bar = 0; bar < _barCount; bar++)
         {
-            // 对数分组：低频 bins 更密集
-            float startPercent = (float)bar / _barCount;
-            float endPercent = (float)(bar + 1) / _barCount;
+            // 对数分布的频率范围
+            float freqStart = MathF.Pow(10, logMin + (logMax - logMin) * bar / _barCount);
+            float freqEnd = MathF.Pow(10, logMin + (logMax - logMin) * (bar + 1) / _barCount);
 
-            // 对数映射
-            int startBin = (int)(Math.Pow(startPercent, 2) * binCount);
-            int endBin = (int)(Math.Pow(endPercent, 2) * binCount);
-            endBin = Math.Max(endBin, startBin + 1);
+            // 频率转 bin 索引：bin = freq / sampleRate * fftSize
+            int startBin = Math.Max(1, (int)(freqStart / sampleRate * _fftSize));
+            int endBin = Math.Min(binCount, (int)(freqEnd / sampleRate * _fftSize) + 1);
 
-            // 取该范围内的平均幅度
-            float sum = 0;
-            int count = 0;
-            for (int i = startBin; i < endBin && i < binCount; i++)
+            // 取该范围内的最大幅度（比平均值更能反映峰值）
+            float maxMagnitude = 0;
+            for (int i = startBin; i < endBin; i++)
             {
                 float magnitude = (float)Math.Sqrt(
                     _fftBuffer[i].X * _fftBuffer[i].X +
                     _fftBuffer[i].Y * _fftBuffer[i].Y);
-                sum += magnitude;
-                count++;
+                if (magnitude > maxMagnitude)
+                    maxMagnitude = magnitude;
             }
 
-            // 归一化到 0.0 ~ 1.0 范围
-            _spectrumData[bar] = count > 0 ? Math.Clamp(sum / count * 10, 0, 1) : 0;
+            // 对数幅度映射（dB  Scale），增强视觉效果
+            // 将幅度转换为 0~1 范围，使用对数缩放让人耳感知更均匀
+            float db = maxMagnitude > 0 ? 20 * MathF.Log10(maxMagnitude) : -100;
+            // 映射范围：-60dB ~ 0dB → 0.0 ~ 1.0
+            float normalized = Math.Clamp((db + 60) / 60, 0, 1);
+
+            _spectrumData[bar] = normalized;
         }
     }
 }

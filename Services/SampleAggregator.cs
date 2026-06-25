@@ -96,24 +96,31 @@ public sealed class SampleAggregator : ISampleProvider
             int startBin = Math.Max(1, (int)(freqStart / sampleRate * _fftSize));
             int endBin = Math.Min(binCount, (int)(freqEnd / sampleRate * _fftSize) + 1);
 
-            // 取该范围内的最大幅度（比平均值更能反映峰值）
-            float maxMagnitude = 0;
+            // 取该范围内的平均幅度（使用 RMS 均方根，更稳定）
+            float sumSquared = 0;
+            int count = 0;
             for (int i = startBin; i < endBin; i++)
             {
                 float magnitude = (float)Math.Sqrt(
                     _fftBuffer[i].X * _fftBuffer[i].X +
                     _fftBuffer[i].Y * _fftBuffer[i].Y);
-                if (magnitude > maxMagnitude)
-                    maxMagnitude = magnitude;
+                sumSquared += magnitude * magnitude;
+                count++;
             }
 
-            // 对数幅度映射（dB  Scale），增强视觉效果
-            // 将幅度转换为 0~1 范围，使用对数缩放让人耳感知更均匀
-            float db = maxMagnitude > 0 ? 20 * MathF.Log10(maxMagnitude) : -100;
-            // 映射范围：-60dB ~ 0dB → 0.0 ~ 1.0
-            float normalized = Math.Clamp((db + 60) / 60, 0, 1);
+            float rms = count > 0 ? MathF.Sqrt(sumSquared / count) : 0;
 
-            _spectrumData[bar] = normalized;
+            // 增益系数（可根据灵敏度调整）
+            float gain = 20f;
+
+            // 对数幅度映射（dB Scale）
+            // 将幅度转换为 0~1 范围，使用对数缩放让人耳感知更均匀
+            float db = rms > 0 ? 20 * MathF.Log10(rms * gain) : -100;
+            // 映射范围：-80dB ~ 0dB → 0.0 ~ 1.0（更宽的范围让两端也能动）
+            float normalized = Math.Clamp((db + 80) / 80, 0, 1);
+
+            // 应用 gamma 曲线增强对比度（让中间更明显，两端也有响应）
+            _spectrumData[bar] = MathF.Pow(normalized, 0.7f);
         }
     }
 }

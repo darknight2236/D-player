@@ -89,7 +89,7 @@
                 <!-- 启用开关 -->
                 <CheckBox x:Name="SpectrumEnabledCheckBox"
                           Content="启用频谱可视化"
-                          Style="{StaticResource BodyText}"
+                          Foreground="{StaticResource ForegroundPrimary}"
                           Margin="0,0,0,12"/>
 
                 <!-- 灵敏度 -->

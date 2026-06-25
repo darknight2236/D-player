@@ -75,16 +75,21 @@ public partial class SettingsDialog : Window
         try
         {
             var volume = (float)VolumeSlider.Value;
+            var spectrumEnabled = SpectrumEnabledCheckBox.IsChecked ?? true;
+            var spectrumSensitivity = SensitivitySlider.Value;
+            var spectrumColorTheme = ColorThemeComboBox.SelectedIndex;
+            var spectrumSmoothing = SmoothingSlider.Value;
+
             await _persistence.UpdateAsync(s => s with
             {
                 DefaultVolume = volume,
 
                 // Phase 13: 保存频谱设置
-                SpectrumEnabled = SpectrumEnabledCheckBox.IsChecked ?? true,
-                SpectrumSensitivity = SensitivitySlider.Value,
-                SpectrumColorTheme = ColorThemeComboBox.SelectedIndex,
-                SpectrumSmoothing = SmoothingSlider.Value
-            }).ConfigureAwait(true);
+                SpectrumEnabled = spectrumEnabled,
+                SpectrumSensitivity = spectrumSensitivity,
+                SpectrumColorTheme = spectrumColorTheme,
+                SpectrumSmoothing = spectrumSmoothing
+            });
 
             // 同步更新 PlayerViewModel 属性，使 UI 立即反映新设置
             if (_playerViewModel != null)
@@ -92,10 +97,10 @@ public partial class SettingsDialog : Window
                 _playerViewModel.Volume = volume;
 
                 // Phase 13: 同步频谱设置，避免需重启才生效
-                _playerViewModel.SpectrumEnabled = SpectrumEnabledCheckBox.IsChecked ?? true;
-                _playerViewModel.SpectrumSensitivity = SensitivitySlider.Value;
-                _playerViewModel.SpectrumColorTheme = ColorThemeComboBox.SelectedIndex;
-                _playerViewModel.SpectrumSmoothing = SmoothingSlider.Value;
+                _playerViewModel.SpectrumEnabled = spectrumEnabled;
+                _playerViewModel.SpectrumSensitivity = spectrumSensitivity;
+                _playerViewModel.SpectrumColorTheme = spectrumColorTheme;
+                _playerViewModel.SpectrumSmoothing = spectrumSmoothing;
             }
 
             DialogResult = true;

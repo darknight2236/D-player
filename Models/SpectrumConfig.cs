@@ -18,5 +18,5 @@ public record SpectrumConfig
     public double Smoothing { get; init; } = 0.8;
 
     /// <summary>FFT 大小（采样点数）</summary>
-    public int FftSize { get; init; } = 1024;
+    public int FftSize { get; init; } = 2048;
 }

@@ -100,9 +100,9 @@ public partial class SettingsDialog : Window
 
             DialogResult = true;
         }
-        catch
+        catch (Exception ex)
         {
-            MessageBox.Show(this, "保存设置失败。", "错误",
+            MessageBox.Show(this, $"保存设置失败：{ex.Message}", "错误",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }

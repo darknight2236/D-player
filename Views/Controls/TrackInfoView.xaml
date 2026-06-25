@@ -13,60 +13,56 @@
     </UserControl.Resources>
 
     <Border Background="{StaticResource BackgroundSecondary}" CornerRadius="4">
-    <DockPanel>
-        <!-- 底部：频谱可视化 -->
-        <local:SpectrumView DockPanel.Dock="Bottom"
-                            Margin="16,8,16,8"
+    <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center">
+        <!-- 封面框：ViewBox 自动缩放，上限 250px -->
+        <Viewbox MaxWidth="250" MaxHeight="250" Margin="16,16,16,16"
+                 HorizontalAlignment="Stretch">
+            <Border Width="180" Height="180"
+                    Background="{StaticResource BackgroundTertiary}">
+                <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
+            </Border>
+        </Viewbox>
+
+        <!-- 文本元数据 -->
+        <StackPanel HorizontalAlignment="Center">
+            <TextBlock Text="{Binding CurrentTrack.Title, FallbackValue=''}"
+                       Style="{StaticResource HeaderText}"
+                       TextAlignment="Center" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding CurrentTrack.Artist, FallbackValue=''}"
+                       Style="{StaticResource CaptionText}"
+                       TextAlignment="Center" Margin="0,4,0,0"
+                       TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding CurrentTrack.Album, FallbackValue=''}"
+                       Style="{StaticResource CaptionText}"
+                       TextAlignment="Center" Margin="0,2,0,0"
+                       TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding SampleRateText}"
+                       Style="{StaticResource CaptionText}"
+                       TextAlignment="Center" Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <!-- 无曲目时占位提示 -->
+        <TextBlock Text="播放曲目以查看信息"
+                   TextAlignment="Center" Margin="0,8,0,0"
+                   Foreground="{StaticResource ForegroundDisabled}">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <!-- 频谱可视化 -->
+        <local:SpectrumView Margin="16,8,16,16"
                             Height="100"
                             SpectrumData="{Binding SpectrumData}"
                             ColorTheme="{Binding SpectrumColorTheme}"
                             Visibility="{Binding SpectrumEnabled, Converter={StaticResource BoolToVisibility}}"/>
-
-        <!-- 上部：封面 + 文本信息 -->
-        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16,16,16,0">
-            <!-- 封面框：ViewBox 自动缩放，上限 250px -->
-            <Viewbox MaxWidth="250" MaxHeight="250" Margin="0,0,0,16"
-                     HorizontalAlignment="Stretch">
-                <Border Width="180" Height="180"
-                        Background="{StaticResource BackgroundTertiary}">
-                    <Image Source="{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}" Stretch="UniformToFill"/>
-                </Border>
-            </Viewbox>
-
-            <!-- 文本元数据 -->
-            <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="{Binding CurrentTrack.Title, FallbackValue=''}"
-                           Style="{StaticResource HeaderText}"
-                           TextAlignment="Center" TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding CurrentTrack.Artist, FallbackValue=''}"
-                           Style="{StaticResource CaptionText}"
-                           TextAlignment="Center" Margin="0,4,0,0"
-                           TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding CurrentTrack.Album, FallbackValue=''}"
-                           Style="{StaticResource CaptionText}"
-                           TextAlignment="Center" Margin="0,2,0,0"
-                           TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding SampleRateText}"
-                           Style="{StaticResource CaptionText}"
-                           TextAlignment="Center" Margin="0,2,0,0"/>
-            </StackPanel>
-
-            <!-- 无曲目时占位提示 -->
-            <TextBlock Text="播放曲目以查看信息"
-                       TextAlignment="Center" Margin="0,8,0,0"
-                       Foreground="{StaticResource ForegroundDisabled}">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-        </StackPanel>
-    </DockPanel>
+    </StackPanel>
     </Border>
 </UserControl>

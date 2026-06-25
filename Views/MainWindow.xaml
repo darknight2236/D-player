@@ -52,6 +52,7 @@
                           Cursor="SizeWE"
                           DragDelta="TrackInfoSplitter_DragDelta"/>
             <controls:TrackInfoView Grid.Column="4"
+                                     VerticalAlignment="Top"
                                      DataContext="{Binding Player}"/>
         </Grid>
 

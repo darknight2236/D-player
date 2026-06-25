@@ -5,5 +5,5 @@
              Background="Transparent">
     <Canvas x:Name="SpectrumCanvas"
             ClipToBounds="True"
-            Height="80"/>
+            Height="120"/>
 </UserControl>

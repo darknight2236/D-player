@@ -80,8 +80,8 @@ public sealed class SampleAggregator : ISampleProvider
         int binCount = _fftSize / 2;
         float sampleRate = _source.WaveFormat.SampleRate;
 
-        // 频率范围：60Hz ~ 16kHz（跳过超低频和超高频，这些区域通常能量很小）
-        const float minFreq = 60f;
+        // 频率范围：80Hz ~ 16kHz（跳过超低频和超高频，这些区域通常能量很小）
+        const float minFreq = 80f;
         const float maxFreq = 16000f;
         float logMin = MathF.Log10(minFreq);
         float logMax = MathF.Log10(maxFreq);

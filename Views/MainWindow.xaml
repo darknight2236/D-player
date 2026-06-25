@@ -25,7 +25,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid x:Name="ContentGrid" Grid.Row="0" SizeChanged="ContentGrid_SizeChanged">
@@ -56,18 +55,10 @@
                           Cursor="SizeWE"
                           DragDelta="TrackInfoSplitter_DragDelta"/>
             <controls:TrackInfoView Grid.Column="4"
-                                     VerticalAlignment="Top"
+                                     VerticalAlignment="Stretch"
                                      DataContext="{Binding Player}"/>
         </Grid>
 
-        <!-- 频谱可视化（独立区域，夹在内容区和播放栏之间） -->
-        <controls:SpectrumView Grid.Row="1"
-                               Height="60"
-                               Margin="0,0,0,0"
-                               SpectrumData="{Binding Player.SpectrumData}"
-                               ColorTheme="{Binding Player.SpectrumColorTheme}"
-                               Visibility="{Binding Player.SpectrumEnabled, Converter={StaticResource BoolToVisibility}}"/>
-
-        <controls:PlayerBar Grid.Row="2" DataContext="{Binding Player}"/>
+        <controls:PlayerBar Grid.Row="1" DataContext="{Binding Player}"/>
     </Grid>
 </Window>

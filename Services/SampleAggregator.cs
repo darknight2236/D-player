@@ -80,9 +80,9 @@ public sealed class SampleAggregator : ISampleProvider
         int binCount = _fftSize / 2;
         float sampleRate = _source.WaveFormat.SampleRate;
 
-        // 频率范围：20Hz ~ 20kHz（人耳可听范围）
-        const float minFreq = 20f;
-        const float maxFreq = 20000f;
+        // 频率范围：60Hz ~ 16kHz（跳过超低频和超高频，这些区域通常能量很小）
+        const float minFreq = 60f;
+        const float maxFreq = 16000f;
         float logMin = MathF.Log10(minFreq);
         float logMax = MathF.Log10(maxFreq);
 
@@ -110,17 +110,16 @@ public sealed class SampleAggregator : ISampleProvider
 
             float rms = count > 0 ? MathF.Sqrt(sumSquared / count) : 0;
 
-            // 增益系数（可根据灵敏度调整）
-            float gain = 20f;
+            // 增益系数（适中，避免饱和）
+            float gain = 8f;
 
             // 对数幅度映射（dB Scale）
-            // 将幅度转换为 0~1 范围，使用对数缩放让人耳感知更均匀
             float db = rms > 0 ? 20 * MathF.Log10(rms * gain) : -100;
-            // 映射范围：-80dB ~ 0dB → 0.0 ~ 1.0（更宽的范围让两端也能动）
-            float normalized = Math.Clamp((db + 80) / 80, 0, 1);
+            // 映射范围：-60dB ~ 0dB → 0.0 ~ 1.0
+            float normalized = Math.Clamp((db + 60) / 60, 0, 1);
 
-            // 应用 gamma 曲线增强对比度（让中间更明显，两端也有响应）
-            _spectrumData[bar] = MathF.Pow(normalized, 0.7f);
+            // 应用 gamma 曲线增强对比度
+            _spectrumData[bar] = MathF.Pow(normalized, 0.8f);
         }
     }
 }

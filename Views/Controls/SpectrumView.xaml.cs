@@ -19,7 +19,8 @@ public partial class SpectrumView : UserControl
     private const double AnimationSmoothFactor = 0.3;
 
     private readonly Rectangle[] _bars = new Rectangle[BarCount];
-    private readonly LinearGradientBrush[] _gradients = new LinearGradientBrush[4];
+    private readonly LinearGradientBrush[] _gradients = new LinearGradientBrush[3]; // 紫/蓝/绿
+    private readonly SolidColorBrush[] _rainbowBrushes = new SolidColorBrush[BarCount]; // 彩虹：每柱一色
     private readonly double[] _targetHeights = new double[BarCount];
 
     public SpectrumView()
@@ -75,8 +76,49 @@ public partial class SpectrumView : UserControl
         // 绿色主题 (index 2)
         _gradients[2] = CreateGradient(Color.FromRgb(0x4C, 0xAF, 0x50), Color.FromRgb(0x81, 0xC7, 0x84));
 
-        // 彩虹主题 (index 3)
-        _gradients[3] = CreateRainbowGradient();
+        // 彩虹主题 (index 3)：每个柱子一个颜色，从左到右渐变
+        var rainbowColors = new Color[]
+        {
+            Color.FromRgb(0xFF, 0x00, 0x00), // 红
+            Color.FromRgb(0xFF, 0x40, 0x00),
+            Color.FromRgb(0xFF, 0x80, 0x00),
+            Color.FromRgb(0xFF, 0xBF, 0x00),
+            Color.FromRgb(0xFF, 0xFF, 0x00), // 黄
+            Color.FromRgb(0xBF, 0xFF, 0x00),
+            Color.FromRgb(0x80, 0xFF, 0x00),
+            Color.FromRgb(0x40, 0xFF, 0x00),
+            Color.FromRgb(0x00, 0xFF, 0x00), // 绿
+            Color.FromRgb(0x00, 0xFF, 0x40),
+            Color.FromRgb(0x00, 0xFF, 0x80),
+            Color.FromRgb(0x00, 0xFF, 0xBF),
+            Color.FromRgb(0x00, 0xFF, 0xFF), // 青
+            Color.FromRgb(0x00, 0xBF, 0xFF),
+            Color.FromRgb(0x00, 0x80, 0xFF),
+            Color.FromRgb(0x00, 0x40, 0xFF),
+            Color.FromRgb(0x00, 0x00, 0xFF), // 蓝
+            Color.FromRgb(0x40, 0x00, 0xFF),
+            Color.FromRgb(0x80, 0x00, 0xFF),
+            Color.FromRgb(0xBF, 0x00, 0xFF),
+            Color.FromRgb(0xFF, 0x00, 0xFF), // 紫
+            Color.FromRgb(0xFF, 0x00, 0xBF),
+            Color.FromRgb(0xFF, 0x00, 0x80),
+            Color.FromRgb(0xFF, 0x00, 0x40),
+            Color.FromRgb(0xFF, 0x00, 0x00), // 红（循环回来）
+            Color.FromRgb(0xFF, 0x33, 0x00),
+            Color.FromRgb(0xFF, 0x66, 0x00),
+            Color.FromRgb(0xFF, 0x99, 0x00),
+            Color.FromRgb(0xFF, 0xCC, 0x00),
+            Color.FromRgb(0xFF, 0xFF, 0x00), // 黄
+            Color.FromRgb(0xCC, 0xFF, 0x00),
+            Color.FromRgb(0x99, 0xFF, 0x00),
+        };
+
+        for (int i = 0; i < BarCount; i++)
+        {
+            var brush = new SolidColorBrush(rainbowColors[i]);
+            brush.Freeze();
+            _rainbowBrushes[i] = brush;
+        }
     }
 
     private LinearGradientBrush CreateGradient(Color bottom, Color top)
@@ -88,23 +130,6 @@ public partial class SpectrumView : UserControl
         };
         brush.GradientStops.Add(new GradientStop(bottom, 0));
         brush.GradientStops.Add(new GradientStop(top, 1));
-        brush.Freeze();
-        return brush;
-    }
-
-    private LinearGradientBrush CreateRainbowGradient()
-    {
-        var brush = new LinearGradientBrush
-        {
-            StartPoint = new Point(0, 1),
-            EndPoint = new Point(0, 0)
-        };
-        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0xFF, 0x00, 0x00), 0.0));
-        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0xFF, 0xA5, 0x00), 0.2));
-        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0xFF, 0xFF, 0x00), 0.4));
-        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0x00, 0xFF, 0x00), 0.6));
-        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0x00, 0x00, 0xFF), 0.8));
-        brush.GradientStops.Add(new GradientStop(Color.FromRgb(0x8B, 0x00, 0xFF), 1.0));
         brush.Freeze();
         return brush;
     }
@@ -152,11 +177,22 @@ public partial class SpectrumView : UserControl
     {
         if (d is SpectrumView view && e.NewValue is int theme)
         {
-            var brush = view._gradients[Math.Clamp(theme, 0, 3)];
-            foreach (var bar in view._bars)
+            if (theme == 3) // 彩虹主题：每个柱子不同颜色
             {
-                if (bar != null)
-                    bar.Fill = brush;
+                for (int i = 0; i < BarCount; i++)
+                {
+                    if (view._bars[i] != null)
+                        view._bars[i].Fill = view._rainbowBrushes[i];
+                }
+            }
+            else
+            {
+                var brush = view._gradients[Math.Clamp(theme, 0, 2)];
+                foreach (var bar in view._bars)
+                {
+                    if (bar != null)
+                        bar.Fill = brush;
+                }
             }
         }
     }

@@ -18,9 +18,13 @@
         WindowStartupLocation="Manual"
         Closing="Window_Closing"
         KeyDown="MainWindow_KeyDown">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -56,6 +60,14 @@
                                      DataContext="{Binding Player}"/>
         </Grid>
 
-        <controls:PlayerBar Grid.Row="1" DataContext="{Binding Player}"/>
+        <!-- 频谱可视化（独立区域，夹在内容区和播放栏之间） -->
+        <controls:SpectrumView Grid.Row="1"
+                               Height="60"
+                               Margin="0,0,0,0"
+                               SpectrumData="{Binding Player.SpectrumData}"
+                               ColorTheme="{Binding Player.SpectrumColorTheme}"
+                               Visibility="{Binding Player.SpectrumEnabled, Converter={StaticResource BoolToVisibility}}"/>
+
+        <controls:PlayerBar Grid.Row="2" DataContext="{Binding Player}"/>
     </Grid>
 </Window>

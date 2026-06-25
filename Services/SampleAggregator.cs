@@ -41,11 +41,18 @@ public sealed class SampleAggregator : ISampleProvider
 
         if (Enabled && read > 0)
         {
-            // 2. 填充 FFT 缓冲区
-            for (int i = 0; i < read; i++)
+            int channels = _source.WaveFormat.Channels;
+
+            // 2. 填充 FFT 缓冲区（立体声先混音为单声道再做 FFT）
+            for (int i = 0; i < read; i += channels)
             {
+                // 多声道混音为单声道
+                float sample = 0;
+                for (int ch = 0; ch < channels; ch++)
+                    sample += buffer[offset + i + ch];
+                sample /= channels;
+
                 // 应用汉宁窗减少频谱泄漏
-                float sample = buffer[offset + i];
                 float windowFactor = (float)(0.5 * (1 - Math.Cos(2 * Math.PI * _bufferPosition / (_fftSize - 1))));
                 _fftBuffer[_bufferPosition].X = sample * windowFactor;
                 _fftBuffer[_bufferPosition].Y = 0;

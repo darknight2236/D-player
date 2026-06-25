@@ -152,16 +152,18 @@ public partial class PlayerViewModel : ObservableObject
         var data = rawData.ToArray();
 
         // 应用灵敏度增益
+        float sensitivity = Math.Clamp((float)SpectrumSensitivity, 0.5f, 2.0f);
         for (int i = 0; i < data.Length; i++)
         {
-            data[i] *= (float)SpectrumSensitivity;
+            data[i] *= sensitivity;
         }
 
-        // 应用平滑（指数移动平均）
+        // 应用平滑（指数移动平均），限制在 [0, 0.95] 防止异常值导致不收敛
+        float smoothing = Math.Clamp((float)SpectrumSmoothing, 0f, 0.95f);
         for (int i = 0; i < data.Length; i++)
         {
-            _smoothedSpectrum[i] = _smoothedSpectrum[i] * (float)SpectrumSmoothing
-                                 + data[i] * (1 - (float)SpectrumSmoothing);
+            _smoothedSpectrum[i] = _smoothedSpectrum[i] * smoothing
+                                 + data[i] * (1 - smoothing);
         }
 
         // 更新属性（触发 UI 绑定）

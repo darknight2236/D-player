@@ -16,7 +16,7 @@
     <DockPanel>
         <!-- 底部：频谱可视化 -->
         <local:SpectrumView DockPanel.Dock="Bottom"
-                            Margin="16,0,16,16"
+                            Margin="16,8,16,8"
                             Height="100"
                             SpectrumData="{Binding SpectrumData}"
                             ColorTheme="{Binding SpectrumColorTheme}"

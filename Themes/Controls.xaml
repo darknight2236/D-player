@@ -75,6 +75,7 @@
     <Style TargetType="Slider">
         <Setter Property="Height" Value="20"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">

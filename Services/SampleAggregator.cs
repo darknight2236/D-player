@@ -52,24 +52,33 @@ public sealed class SampleAggregator : ISampleProvider
                     sample += buffer[offset + i + ch];
                 sample /= channels;
 
-                // 应用汉宁窗减少频谱泄漏
-                float windowFactor = (float)(0.5 * (1 - Math.Cos(2 * Math.PI * _bufferPosition / (_fftSize - 1))));
-                _fftBuffer[_bufferPosition].X = sample * windowFactor;
+                // 先写入原始样本，FFT 前再统一加窗
+                _fftBuffer[_bufferPosition].X = sample;
                 _fftBuffer[_bufferPosition].Y = 0;
                 _bufferPosition++;
 
                 if (_bufferPosition >= _fftSize)
                 {
-                    // 3. 执行 FFT
+                    // 3. 应用汉宁窗（在 FFT 前统一加窗，避免重叠时窗口错位）
+                    for (int j = 0; j < _fftSize; j++)
+                    {
+                        float windowFactor = (float)(0.5 * (1 - Math.Cos(2 * Math.PI * j / (_fftSize - 1))));
+                        _fftBuffer[j].X *= windowFactor;
+                    }
+
+                    // 4. 执行 FFT
                     FastFourierTransform.FFT(true, (int)Math.Log2(_fftSize), _fftBuffer);
 
-                    // 4. 提取幅度并映射到频谱柱
+                    // 5. 提取幅度并映射到频谱柱
                     ExtractSpectrumData();
 
-                    // 5. 触发事件（复制数组，避免共享可变缓冲区被订阅者篡改）
+                    // 6. 触发事件（复制数组，避免共享可变缓冲区被订阅者篡改）
                     SpectrumDataReady?.Invoke(_spectrumData.ToArray());
 
-                    _bufferPosition = 0;
+                    // 50% 重叠：保留后半段数据，提高更新率
+                    int halfSize = _fftSize / 2;
+                    Array.Copy(_fftBuffer, halfSize, _fftBuffer, 0, halfSize);
+                    _bufferPosition = halfSize;
                 }
             }
         }

@@ -93,18 +93,22 @@
                           Margin="0,0,0,12"/>
 
                 <!-- 灵敏度 -->
-                <DockPanel Margin="0,0,0,8">
+                <DockPanel Margin="0,0,0,8" LastChildFill="True">
                     <TextBlock Text="灵敏度"
                                Style="{StaticResource BodyText}"
-                               Width="80" VerticalAlignment="Center"/>
-                    <Slider x:Name="SensitivitySlider"
-                            Minimum="0.5" Maximum="2.0"
-                            TickFrequency="0.1" IsSnapToTickEnabled="True"
-                            Value="1.0"/>
+                               Width="80" VerticalAlignment="Center"
+                               DockPanel.Dock="Left"/>
                     <TextBlock x:Name="SensitivityValue"
                                Text="1.0"
                                Style="{StaticResource CaptionText}"
-                               Width="30" TextAlignment="Right"/>
+                               Width="30" TextAlignment="Right"
+                               VerticalAlignment="Center"
+                               DockPanel.Dock="Right"/>
+                    <Slider x:Name="SensitivitySlider"
+                            Minimum="0.5" Maximum="2.0"
+                            TickFrequency="0.1" IsSnapToTickEnabled="True"
+                            Value="1.0"
+                            VerticalAlignment="Center"/>
                 </DockPanel>
 
                 <!-- 颜色主题 -->
@@ -121,18 +125,22 @@
                 </DockPanel>
 
                 <!-- 平滑度 -->
-                <DockPanel Margin="0,0,0,0">
+                <DockPanel Margin="0,0,0,0" LastChildFill="True">
                     <TextBlock Text="平滑度"
                                Style="{StaticResource BodyText}"
-                               Width="80" VerticalAlignment="Center"/>
-                    <Slider x:Name="SmoothingSlider"
-                            Minimum="0" Maximum="0.95"
-                            TickFrequency="0.05" IsSnapToTickEnabled="True"
-                            Value="0.8"/>
+                               Width="80" VerticalAlignment="Center"
+                               DockPanel.Dock="Left"/>
                     <TextBlock x:Name="SmoothingValue"
                                Text="0.80"
                                Style="{StaticResource CaptionText}"
-                               Width="35" TextAlignment="Right"/>
+                               Width="35" TextAlignment="Right"
+                               VerticalAlignment="Center"
+                               DockPanel.Dock="Right"/>
+                    <Slider x:Name="SmoothingSlider"
+                            Minimum="0" Maximum="0.95"
+                            TickFrequency="0.05" IsSnapToTickEnabled="True"
+                            Value="0.8"
+                            VerticalAlignment="Center"/>
                 </DockPanel>
             </StackPanel>
         </Border>

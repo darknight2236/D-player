@@ -13,14 +13,17 @@
     </UserControl.Resources>
 
     <Border Background="{StaticResource BackgroundSecondary}" CornerRadius="4">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>     <!-- 上部内容 -->
-            <RowDefinition Height="Auto"/>  <!-- 频谱图 -->
-        </Grid.RowDefinitions>
+    <DockPanel>
+        <!-- 底部：频谱可视化 -->
+        <local:SpectrumView DockPanel.Dock="Bottom"
+                            Margin="16,0,16,16"
+                            Height="100"
+                            SpectrumData="{Binding SpectrumData}"
+                            ColorTheme="{Binding SpectrumColorTheme}"
+                            Visibility="{Binding SpectrumEnabled, Converter={StaticResource BoolToVisibility}}"/>
 
         <!-- 上部：封面 + 文本信息 -->
-        <StackPanel Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16,16,16,0">
+        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Margin="16,16,16,0">
             <!-- 封面框：ViewBox 自动缩放，上限 250px -->
             <Viewbox MaxWidth="250" MaxHeight="250" Margin="0,0,0,16"
                      HorizontalAlignment="Stretch">
@@ -64,14 +67,6 @@
                 </TextBlock.Style>
             </TextBlock>
         </StackPanel>
-
-        <!-- 底部：频谱可视化 -->
-        <local:SpectrumView Grid.Row="1"
-                            Margin="16,0,16,16"
-                            Height="100"
-                            SpectrumData="{Binding SpectrumData}"
-                            ColorTheme="{Binding SpectrumColorTheme}"
-                            Visibility="{Binding SpectrumEnabled, Converter={StaticResource BoolToVisibility}}"/>
-    </Grid>
+    </DockPanel>
     </Border>
 </UserControl>

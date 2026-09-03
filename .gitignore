@@ -7,3 +7,9 @@ Tests/bin/
 Tests/obj/
 coverage.cobertura.xml
 TestResults/
+
+# IDE / 编辑器本地状态
+.idea/
+.vs/
+*.user
+*.suo

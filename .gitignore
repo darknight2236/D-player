@@ -13,3 +13,7 @@ TestResults/
 .vs/
 *.user
 *.suo
+
+# 工具/技能会话产物（superpowers brainstorm/sdd、claude 本地设置）
+.superpowers/
+.claude/

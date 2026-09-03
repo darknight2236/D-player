@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/24 · 对应分支：`master` · 当前阶段：**Phase 13 完成**（音频可视化 - 频谱条形图）
+> 文档日期：2026/06/25（对应 HEAD `808fb98`） · 对应分支：`master` · 当前阶段：**Phase 13 完成 + 频谱调优**（音频可视化 - FFT 频谱条形图，参数/布局/主题打磨）
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。
+**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。
 
 ### 1.1 关键特性（已实现）
 
@@ -29,7 +29,7 @@
 | 文件夹绑定歌单 | 指定文件夹扫描 → 创建歌单; 启动后台自动同步增删; 手动刷新; 元数据缓存; 导入文件夹添加到当前歌单 (Phase 10) |
 | 设置 | 模态对话框：默认音量滑块；音频输出占位（Phase 12）；Ctrl+, 快捷键 (Phase 11) |
 | 曲目信息面板 | 右侧独立 TrackInfoView：封面（ViewBox 自动缩放）+ 标题/艺术家/专辑/采样率；BackgroundSecondary 背景 (Phase 12 continued) |
-| 音频可视化 | 32 条垂直频谱柱（对数分组）；4 种颜色主题（紫/蓝/绿/彩虹）；灵敏度/平滑度配置；启用/禁用开关；设置持久化 (Phase 13) |
+| 音频可视化 | 32 条垂直频谱柱（8192 点 FFT + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）；4 种颜色主题（紫/蓝/绿/彩虹，彩虹为红→紫水平渐变）；灵敏度/平滑度配置；启用/禁用开关；置于 TrackInfoView 底部（高 120px）；设置持久化 (Phase 13) |
 
 ### 1.2 后续增量（未实现）
 
@@ -78,11 +78,13 @@ UmaPlayer/
 │   ├── AudioConstants.cs         # 音频后缀白名单 (Phase 10, 从 DragDropExtensions 提取)
 │   ├── LibraryCacheEntry.cs      # 缓存条目 record (Phase 10)
 │   ├── LibraryDiff.cs            # 扫描增量同步 record (Phase 10)
+│   ├── SpectrumConfig.cs        # 频谱分析配置 record (FftSize=8192/BarCount=32/Sensitivity/Smoothing) (Phase 13)
 │   └── AudioDeviceInfo.cs       # 预留：设备信息
 │
 ├── Services/                    # 业务/基础设施服务（全部基于接口）
 │   ├── IPlaybackService.cs      # 核心播放抽象
 │   ├── NAudioPlaybackService.cs # NAudio 实现（WASAPI + MediaFoundation）
+│   ├── SampleAggregator.cs      # ISampleProvider 透明中间件：FFT 频谱分析 (Phase 13)
 │   ├── IFileDialogService.cs
 │   ├── Win32FileDialogService.cs# Microsoft.Win32.OpenFileDialog 封装
 │   ├── ISettingsPersistence.cs
@@ -115,7 +117,8 @@ UmaPlayer/
 │       ├── PlayerBar.xaml(.cs)  # 播放栏（进度/控制/音量 + 随机/循环按钮）
 │       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + #列/表头排序/导入文件夹到当前歌单）
 │       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、📂 文件夹图标、🔄 扫描指示；+ 按钮直接新建歌单）(Phase 6/10/12 continued)
-│       ├── TrackInfoView.xaml(.cs)   # 右侧曲目信息面板（封面 ViewBox 缩放 + 标题/艺术家/专辑/采样率）(Phase 12 continued)
+│       ├── TrackInfoView.xaml(.cs)   # 右侧曲目信息面板（封面 ViewBox 缩放 + 标题/艺术家/专辑/采样率 + 底部 SpectrumView）(Phase 12 continued/13)
+│       ├── SpectrumView.xaml(.cs)    # 频谱可视化控件：32 柱 Canvas + CompositionTarget.Rendering 60fps + 4 色主题 (Phase 13)
 │       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频后缀白名单/过滤 (Phase 5)
 │       └── DropInsertionAdorner.cs   # ListBox AdornerLayer 插入线绘制 (Phase 5)
 │
@@ -134,10 +137,18 @@ UmaPlayer/
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs # AddUmaPlayerServices(...) DI 注册
 │
-├── Tests/                       # xUnit 测试项目 (Phase 6)
-│   ├── UmaPlayer.Tests.csproj   # 测试项目文件 (xUnit + Coverlet)
-│   └── Smoke/
-│       └── SmokeTests.cs        # 冒烟测试：Track record 结构相等
+├── Tests/                       # xUnit 测试项目 (Phase 6+，共 77 个测试)
+│   ├── UmaPlayer.Tests.csproj   # 测试项目文件 (xUnit + NSubstitute + Coverlet)
+│   ├── Smoke/
+│   │   └── SmokeTests.cs                 # 冒烟测试：Track record 结构相等 (1)
+│   ├── Services/
+│   │   ├── LibraryScannerServiceTests.cs # 库扫描 (17) (Phase 10)
+│   │   └── JsonLibraryCacheTests.cs      # 元数据缓存 (5) (Phase 10)
+│   └── ViewModels/
+│       ├── PlayerViewModelTests.cs        # Transport (15) (Phase 8)
+│       ├── PlayerViewModelSpectrumTests.cs# 频谱 (5) (Phase 13)
+│       ├── PlaylistViewModelTests.cs      # 队列 (13) (Phase 8)
+│       └── PlaylistsViewModelTests.cs     # 多歌单 (21) (Phase 8/12)
 │
 └── docs/
     ├── PROJECT.md               # 本文档
@@ -221,14 +232,15 @@ UmaPlayer/
 | `IPlaybackService` | **Singleton** | 持有 NAudio 设备资源，必须长生命周期 |
 | `IFileDialogService` | Singleton | 无状态 |
 | `ISettingsPersistence` | Singleton | 内部 `SemaphoreSlim` 并发互斥 |
-| `IQueuePersistence` | Singleton (Phase 4) | 独立 `SemaphoreSlim`，与 settings 文件锁互不影响 |
+| `IPlaylistService` | Singleton (Phase 6，替换 Phase 4 `IQueuePersistence`) | 独立 `SemaphoreSlim`，与 settings 文件锁互不影响；`LoadAsync` 绝不抛 |
 | `ITrackMetadataReader` | Singleton (Phase 3) | 无状态，封装 z440.atl.core；`ReadAsync` 不抛 |
 | `ILibraryScannerService` | **Singleton** (Phase 10) | 递归文件夹扫描 + Diff 计算；无状态 |
 | `ILibraryCache` | **Singleton** (Phase 10) | JSON 元数据缓存 (`library-cache.json`)；内部 `SemaphoreSlim` |
 | `IAudioDeviceManager` | Singleton（Stub） | 预留 |
 | `IAudioOutputFactory` | Transient（Stub） | 预留；语义上由 `IPlaybackService` 创建即释放 |
-| `PlayerViewModel` | **Transient** (Phase 3) | Transport 子 VM；DI 中**必须先于** `PlaylistViewModel` 注册 |
-| `PlaylistViewModel` | **Transient** (Phase 3) | 队列子 VM |
+| `PlayerViewModel` | **Transient** (Phase 3) | Transport 子 VM；DI 中**必须先于** `PlaylistViewModel` 注册；Phase 13 订阅 `SpectrumDataAvailable` |
+| `PlaylistViewModel` | **Transient**（经 `Func<Playlist, PlaylistViewModel>` 工厂） (Phase 3/6) | 队列子 VM；由 `PlaylistsViewModel` 用工厂按需创建，seed 为动态参数 |
+| `PlaylistsViewModel` | **Singleton** (Phase 6) | 多歌单容器；View 层 code-behind 经 `App.GetService<PlaylistsViewModel>()` 取用（双击跨歌单播放），故必须单例 |
 | `MainViewModel` | **Transient** | Strict Facade，构造时聚合两个子 VM |
 
 ### 4.3 关键设计决策
@@ -295,14 +307,33 @@ UmaPlayer/
 
 | 成员 | 说明 |
 |------|------|
-| `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `VolumeSampleProvider` → `WasapiOut(Shared, 100ms)`；触发 `DurationChanged` / `TrackChanged` · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
+| `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `ToSampleProvider` → **`SampleAggregator`（Phase 13 频谱中间件）** → `VolumeSampleProvider` → `WasapiOut(Shared, 100ms)`；触发 `DurationChanged` / `TrackChanged` · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
 | `Play / Pause / Stop` | 委派给 `IWavePlayer`；`Stop` 同时将 `CurrentTime` 归零（保留底层资源，再 `Play()` 会重播同一首） |
 | `Unload()` | **完全释放**底层 reader/wavePlayer，清掉 `_currentTrack`；之后 `Play()` 是 no-op。**Phase 3：同时广播 `TrackChanged(null) + DurationChanged(Zero) + PositionChanged(Zero)`** 让 VM 清屏（标题/封面/时长/进度全归零）。`PlaylistViewModel.UnloadCurrentTrack` 在清空队列/删当前曲时调用 |
 | `Seek(TimeSpan)` | 写 `reader.CurrentTime` 后**主动广播 PositionChanged**（Phase 3：暂停态下 PollPositionAsync 已退出，否则进度条不刷新，看上去像"没跳转"）；通过 `ClampToDuration` 截到 [0, TotalTime] |
 | `Volume { get; set; }` | `Math.Clamp(0..1)`；运行时写入 `VolumeSampleProvider.Volume` |
 | `PollPositionAsync` | 仅在 `PlaybackState==Playing` 时循环；每 33ms 派发一次 `PositionChanged` · Phase 3：经 `ClampToDuration` 截断，避免解码器尾部浮点越界 |
 | `OnPlaybackStopped` | 区分 (1) 异常 → `PlaybackError`；(2) 自然播完（距 `TotalTime` ≤ 200ms） → `TrackEnded`；(3) 用户 `Stop` → 仅 `Stopped` |
-| `Dispose()` | 拆事件、停止、释放 reader/wavePlayer |
+| `SpectrumConfig { get; set; }` | Phase 13：运行时可更新；setter 把 `Enabled` 传播到 in-flight `SampleAggregator`（禁用后 FFT 停转，不空耗 CPU） |
+| `SpectrumDataAvailable` 事件 | Phase 13：`SampleAggregator.SpectrumDataReady`（音频线程）→ `OnSpectrumDataReady` 经 `_syncContext.Post` 封送到 UI 线程再广播 |
+| `Dispose()` | 拆事件、停止、释放 reader/wavePlayer；`DisposePlayback` 先解绑并清空 `_sampleAggregator`（Phase 13） |
+
+### 5.2a `Services/SampleAggregator` + `Models/SpectrumConfig`（Phase 13）
+
+`SampleAggregator` 是实现 `ISampleProvider` 的**透明中间件**，插在 `MediaFoundationReader.ToSampleProvider()` 与 `VolumeSampleProvider` 之间：原样传递 PCM（`Read` 返回源读取数），同时截取样本做 FFT。
+
+处理管线（每填满一个 FFT 缓冲区触发一次）：
+1. **多声道混单声道**：立体声逐帧取各声道均值，避免声道相位干扰频谱
+2. **汉宁窗**：FFT 前统一加窗（`0.5*(1-cos(2πj/(N-1)))`），重叠时窗口不错位
+3. **FFT**：`NAudio.Dsp.FastFourierTransform.FFT`，`SpectrumConfig.FftSize`（当前 **8192**，历经 1024→2048→8192 提升低频分辨率）
+4. **对数频率分组**：20Hz–16kHz 按对数均分到 `BarCount`（**32**）条柱（人耳对低频更敏感）
+5. **RMS + dB + gamma**：每桶取均方根幅度 → 增益 8x → `20*log10` 映射到 -60~0dB → 归一化 [0,1] → `pow(x, 0.8)` gamma 增强对比
+6. **50% 重叠**：保留缓冲区后半段，更新率翻倍，动画更平滑
+7. **复制数组触发事件**：`SpectrumDataReady?.Invoke(_spectrumData.ToArray())`（复制防止订阅者篡改共享缓冲区）
+
+`SpectrumConfig`（不可变 record）：`Enabled` / `BarCount=32` / `Sensitivity`（0.5~2.0）/ `Smoothing`（0.0~0.95）/ `FftSize=8192`。`Enabled` 运行时可切（`NAudioPlaybackService.SpectrumConfig` setter 传播到聚合器）。
+
+**线程边界：** `SpectrumDataReady` 在 **NAudio 音频线程**触发；`NAudioPlaybackService.OnSpectrumDataReady` 负责封送到 UI 线程。灵敏度增益 + 指数平滑在 `PlayerViewModel.HandleSpectrumData`（UI 线程）做，**不在此重复 32-bar 映射**（聚合器已完成）。
 
 ### 5.3 `Services/JsonSettingsPersistence`
 
@@ -337,9 +368,9 @@ public Task CleanupAsync();
 
 **架构不变量（COUPLING.md §5）：** `PlayerViewModel` 与 `PlaylistViewModel` **互不持引用**，仅共享 `IPlaybackService` Singleton；本 Facade 不暴露 Player/Playlists/InitializeAsync/CleanupAsync 之外的任何成员（否则倒退为"转发 Facade"反模式）。
 
-### 5.4a `ViewModels/PlayerViewModel`（Transport 子 VM，~230 行）
+### 5.4a `ViewModels/PlayerViewModel`（Transport 子 VM，~320 行）
 
-源生成器属性：`_isSeeking`, `_position`, `_duration`, `_playState`, `_currentTrack`, `_albumArtImage`, `_volume`, `_isMuted`。派生：`VolumeIcon`（🔇/🔊）、`SampleRateText`、`PositionNormalized`（0..1）。
+源生成器属性：`_isSeeking`, `_position`, `_duration`, `_playState`, `_currentTrack`, `_albumArtBytes`（Phase 7：byte[]，非 BitmapImage）, `_volume`, `_isMuted`；**Phase 13 频谱**：`_spectrumData`(float[32]), `_spectrumEnabled`, `_spectrumSensitivity`, `_spectrumColorTheme`, `_spectrumSmoothing` + 私有 `_smoothedSpectrum`。派生：`VolumeIcon`（🔇/🔊）、`SampleRateText`、`PositionNormalized`（0..1）、`SpectrumColorThemes`（["紫色","蓝色","绿色","彩虹"]）。
 
 **Phase 10 新增成员：**
 - `SourceFolder`（`string?`，构造时从 `Playlist` seed 传入）：文件夹绑定歌单的源路径；null 表示普通手动歌单
@@ -347,13 +378,15 @@ public Task CleanupAsync();
 - `IsScanning`（`[ObservableProperty] bool`）：由 `PlaylistsViewModel` 设置，指示后台扫描进行中
 - `HasScanError`（`[ObservableProperty] bool`）：由 `PlaylistsViewModel` 设置，指示最近一次扫描失败
 
-构造时订阅 `IPlaybackService` 的 5 个事件（`PositionChanged / StateChanged / DurationChanged / TrackChanged / PlaybackError`），并阻塞读盘加载持久化音量（`_isInitializing` 标志抑制初始化期的写盘）。**不订阅 `TrackEnded`**（那是 PlaylistViewModel 的职责）。
+构造时订阅 `IPlaybackService` 的 **6 个事件**（`PositionChanged / StateChanged / DurationChanged / TrackChanged / PlaybackError` + **Phase 13 `SpectrumDataAvailable`**），并阻塞读盘加载持久化音量 + 频谱设置（`_isInitializing` 标志抑制初始化期的写盘）。**不订阅 `TrackEnded`**（那是 PlaylistViewModel 的职责）。
 
-`[RelayCommand]`：`SeekStarted / SeekCompleted(normalized) / PlayPause / ToggleMute`。
+`[RelayCommand]`：`SeekStarted / SeekCompleted(normalized) / PlayPause / ToggleMute` / **`ToggleSpectrum`（Phase 13）**。
 
 `partial void OnVolumeChanged(value)`：同步到 `_player.Volume` → 拖滑块到非零自动取消静音 → `_persistence.UpdateAsync(s => s with { DefaultVolume = value })`。
 
-`CleanupAsync()`：解绑 5 个事件 + 用观察属性 `Volume`（**非**陈旧的 `_settings` 字段）持久化最后一次音量。**不 Dispose `IPlaybackService`**（PlaylistViewModel 还在用，Facade 层统一 Dispose）。
+**Phase 13 频谱管线：**`HandleSpectrumData(float[] rawData)` —— 聚合器已完成 FFT→32-bar 映射，此处仅 `rawData.ToArray()` 复制 → 逐柱乘灵敏度增益（Clamp 0.5~2.0）→ 指数移动平均平滑（`_smoothedSpectrum[i]*smoothing + data[i]*(1-smoothing)`，smoothing Clamp 0~0.95）→ 写 `SpectrumData` 触发绑定；`SpectrumEnabled==false` 时直接 return（不更新）。四个 `OnSpectrum*Changed` 钩子调 `SaveSpectrumSettings()` 持久化；`OnSpectrumEnabledChanged` 额外把 `_player.SpectrumConfig with { Enabled=value }` 回写，禁用后 FFT 停转。
+
+`CleanupAsync()`：解绑 **6 个事件**（含 `SpectrumDataAvailable`）+ 用观察属性 `Volume`（**非**陈旧的 `_settings` 字段）持久化最后一次音量。**不 Dispose `IPlaybackService`**（PlaylistViewModel 还在用，Facade 层统一 Dispose）。
 
 `HandleTrackChanged(Track? track)`：track 为 null 时把 `CurrentTrack` 和 `AlbumArtImage` 一起置 null（XAML 的 `FallbackValue='No track loaded'` 处理标题显示）。
 
@@ -435,8 +468,8 @@ public Task CleanupAsync();
   - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"UmaPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
   - **Phase 5 高亮纪律：** `Root_DragEnter` 必须先 `FilterAudioPaths` 再决定是否高亮 —— 仅看 `FileDrop` 存在就亮会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）。`Root_Drop` 与 `QueueList_Drop` **都要清高亮** —— `QueueList_Drop` 设 `e.Handled=true` 后 Drop 事件不再冒泡到 `Root_Drop`，否则文件落到列表区高亮卡死
 - **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。
-- **`TrackInfoView`** *(UserControl, Phase 12 continued)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。封面用 `ViewBox` 包裹实现自动缩放（无 MaxWidth/MaxHeight 限制，完全跟随容器）；内部 `Border` 180×180 + `Image Stretch="UniformToFill"`。文本元数据（标题/艺术家/专辑/采样率）居中显示。无曲目时显示"播放曲目以查看信息"占位提示（DataTrigger 控制可见性）。封面 Border 加 `ClipToBounds=True` 实现圆角裁切（ViewBox 缩放后内容溢出问题）。
-- **`SettingsDialog`** *(Window, Phase 11)*：设置对话框。模态 ToolWindow（420×280），General 区域音量滑块（0..1, IsMoveToPointEnabled）+ Audio Output 灰色占位。静态 `Show(Window?, ISettingsPersistence)` 工厂方法。Loaded async 读盘加载当前音量；Save_Click 通过 `UpdateAsync(s => s with { DefaultVolume = v })` 原子写盘。
+- **`TrackInfoView`** *(UserControl, Phase 12 continued/13)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。两行 Grid：Row0（`*`）曲目信息 —— 封面用 `Viewbox MaxWidth/MaxHeight=250` 包裹自动缩放（内含 `Border` 180×180 + `Image Stretch="UniformToFill"`），文本元数据（标题/艺术家/专辑/采样率）居中，无曲目时 DataTrigger 显示"播放曲目以查看信息"占位；Row1（`Auto`）**Phase 13 `SpectrumView`**（高 120px，绑 `SpectrumData`/`SpectrumColorTheme`，`Visibility` 绑 `SpectrumEnabled`）。封面 Border 加 `ClipToBounds=True` 圆角裁切（ViewBox 缩放后内容溢出问题）。
+- **`SettingsDialog`** *(Window, Phase 11/13)*：设置对话框。模态 ToolWindow（**420×520**，Phase 13 因可视化区增高），9 行 Grid：通用（音量滑块 0..1）+ 音频输出灰色占位 + **音频可视化（Phase 13：启用 CheckBox + 灵敏度滑块 0.5~2.0 + 颜色主题 ComboBox + 平滑度滑块 0~0.95，DockPanel LastChildFill 布局：标签左/数值右/滑块填充）**。静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂。构造注入 `IPlaybackService`（音量滑块实时调 `_playbackService.Volume`）+ 可选 `PlayerViewModel`（保存后即时同步频谱属性，免重启）。OnLoaded async 读盘加载音量 + 频谱设置并绑定滑块 ValueChanged 实时更新数值标签；Save_Click 通过 `UpdateAsync` 原子写盘后同步 VM —— **故意不 `ConfigureAwait(false)`，留在 UI 线程**才能直接写 `PlayerViewModel` 属性；失败弹 MessageBox（Phase 13）。
 
 ### 5.5a `Views/Controls/DragDropExtensions`（Phase 5）
 
@@ -455,9 +488,19 @@ public Task CleanupAsync();
 - `OnRender(DrawingContext)` 用 frozen `Pen`（颜色绑定 `AccentPrimary`，宽 2.0）画一条横线：`_insertIndex == Queue.Count` 时画在最后一项底部；否则画在 `Queue[insertIndex]` 项顶部。横线左右各缩 4px 留白
 - 生命周期由 `PlaylistView.xaml.cs` 的 `_currentAdorner` 字段管理：`ShowAdorner` 懒构造一次后只调 `Update`；`HideAdorner` 在 Drop / DragLeave / 拖拽取消时 `AdornerLayer.Remove + null` 复位
 
+### 5.5c `Views/Controls/SpectrumView`（Phase 13）
+
+频谱可视化 UserControl，纯 code-behind 绘制（无 VM 逻辑）：
+
+- **32 条 `Rectangle` 柱**挂在 `SpectrumCanvas`（`Height=120` / `ClipToBounds`）；`RecalculateBarLayout` 在 `SizeChanged` 时按 `ActualWidth` 重算柱宽（`(ActualWidth - 31*BarSpacing) / 32`，`BarSpacing=2`），`Canvas.SetBottom(0)` 底部对齐
+- **两个 DependencyProperty**：`SpectrumData`（`float[32]`，默认全 0）、`ColorTheme`（`int`，默认 0）。`OnSpectrumDataChanged` 把每柱数据换算成目标高度 `_targetHeights[i] = MinBarHeight(2) + data[i]*(MaxBarHeight(118)-2)`
+- **60fps 渲染循环**：`CompositionTarget.Rendering += OnRendering`，每帧 `newHeight = current + (target-current)*AnimationSmoothFactor(0.3)` 做缓动；`Unloaded` 时解绑（防内存泄漏）
+- **4 种颜色主题**：紫/蓝/绿为 `LinearGradientBrush`（底→顶渐变，全部 `Freeze()`）；**彩虹（theme==3）为每柱一色** —— HSV 色相从左 0°(红) 线性到右 300°(紫)（`hue = 300/31*i`，`HsvToRgb`），水平渐变不循环。`OnColorThemeChanged` 切换 `Fill`
+- 数据源：`TrackInfoView.xaml` 绑 `PlayerViewModel.SpectrumData` / `SpectrumColorTheme` / `SpectrumEnabled`
+
 ### 5.6 `Themes`
 
-深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。
+深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。
 
 ---
 
@@ -486,7 +529,7 @@ public Task CleanupAsync();
 
 由 `JsonSettingsPersistence` 读写，包含与 `AppSettings` 相同的字段；首次启动文件不存在时使用 record 默认值。
 
-**当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`。
+**当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`、**`SpectrumEnabled/SpectrumSensitivity/SpectrumColorTheme/SpectrumSmoothing`（Phase 13）**。
 **已建模但未启用**：`OutputMode`、`PreferredDeviceId`、`LastPlayedPath`。
 
 ### 6.3 队列快照：`%LocalAppData%\UmaPlayer\queue.json`（Phase 4/6/10）
@@ -602,6 +645,26 @@ IPlaybackService.OnPlaybackStopped 检测距 TotalTime ≤ 200ms
                   → 否则：CalculateNextIndex → PlayTrackAtAsync(next)
 ```
 
+### 7.5 频谱数据流（Phase 13）
+
+```
+WasapiOut 拉流 → VolumeSampleProvider → SampleAggregator.Read(buffer)
+  → 混单声道 + 填 FFT 缓冲区（满 8192 点）
+  → 汉宁窗 → FFT → 对数分组 32 桶（RMS + gain8x + dB + gamma）→ 50% 重叠
+  → SpectrumDataReady(float[32].ToArray())   ── 音频线程 ──▶
+NAudioPlaybackService.OnSpectrumDataReady
+  → _syncContext.Post 封送 ── UI 线程 ──▶ SpectrumDataAvailable(data)
+PlayerViewModel.HandleSpectrumData(data)
+  → if (!SpectrumEnabled) return
+  → 复制 → 乘灵敏度增益 → 指数平滑(_smoothedSpectrum) → SpectrumData = smoothed.ToArray()
+TrackInfoView → SpectrumView.SpectrumData (DP) → OnSpectrumDataChanged 算 _targetHeights
+  → CompositionTarget.Rendering 每帧缓动 Rectangle.Height（60fps）
+
+设置变更（SettingsDialog.Save_Click / PlayerViewModel.OnSpectrum*Changed）
+  → UpdateAsync 写 settings.json + 同步 PlayerViewModel 属性
+  → OnSpectrumEnabledChanged 额外回写 _player.SpectrumConfig.Enabled（禁用即停 FFT）
+```
+
 ---
 
 ## 8. 构建与运行
@@ -645,6 +708,7 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
 - **WPF ListBox `PreviewMouseLeftButtonDown` 不消费事件 → 多选拖拽塌选**（Phase 5）：Preview 阶段不 `Handled=true` 时，ListBox 自身的选中处理仍会执行；用户 Ctrl+多选后再不带修饰键按下其中一项，ListBox 默认行为会立刻塌成单选，让随后启动的 DoDragDrop 拿到 `SelectedItems.Count==1`。修复：在按下点是"已选 + 多选 ≥2 + 无 Ctrl/Shift"时拦掉 `Handled=true`，没真正拖起来时再在 `MouseUp` 手动塌成单选模拟原行为；commit `af51dde`。
 - **WPF record 结构相等会让 `Queue.IndexOf` / `HashSet<Track>` 塌陷重复占位**（Phase 5）：Track 是 `sealed record`；两个 `CreateFallback("X.mp3")` 在结构上相等。基于相等性的查找/去重会把它们认作同一个，重排时 `Queue.IndexOf(currentTrackObj)` 返回首个结构等价匹配而非原始那一个 → ▶ 跟到错的曲、Shuffle 历史塌陷。修复纪律：所有需要"找回原来那一个 Track 实例"的代码用 `ReferenceEquals` + `ReferenceEqualityComparer.Instance`（见 `PlaylistViewModel.MoveTracks` 与 `PlaylistView.QueueList_PreviewMouseMove`）。
 - **ViewBox + CornerRadius + ClipToBounds（Phase 12 continued）**：`ViewBox` 缩放子元素时会突破父 `Border` 的 `CornerRadius` 圆角裁切区域，导致封面方形直角溢出圆角边框。修复：给封面 `Border` 加 `ClipToBounds=True`，让 WPF 裁切到 Border 边界内。同时封面 `Border` 不能有 `CornerRadius`（与播放时直角不一致），圆角仅在外层容器 Border 上设置。
+- **频谱事件跨线程（Phase 13）**：`SampleAggregator.SpectrumDataReady` 在 NAudio 音频渲染线程触发，`NAudioPlaybackService.OnSpectrumDataReady` 必须经 `_syncContext.Post` 封送到 UI 线程再广播 `SpectrumDataAvailable`；`PlayerViewModel.HandleSpectrumData` 直接在 UI 线程更新 `SpectrumData` 绑定属性。若跳过封送会跨线程触碰 DP 抛异常。`SettingsDialog.Save_Click` 同理故意不用 `ConfigureAwait(false)`，留在 UI 线程才能直接写 `PlayerViewModel` 属性。
 
 ---
 
@@ -825,4 +889,33 @@ dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
     - `e1d4aa8` feat(view): add spectrum visualization settings to SettingsDialog
     - `dd28308` fix(view): update spectrum slider labels on settings load
     - `3814eb6` test: add unit tests for spectrum visualization in PlayerViewModel
-    - `305480e` fix: resolve final review findings (sync settings, remove double-log, propagate enabled)
+    - `d030abe` fix(spectrum): copy array before passing to SpectrumDataReady event
+    - `51a04c6` fix(spectrum): remove double-log binning, propagate Enabled, fix double-save
+    - `4fc18d5` fix(settings): sync spectrum properties to PlayerViewModel on save
+    - `305480e` test(spectrum): update tests for 32-bar input and SpectrumConfig mock
+    - `0337aeb` docs: update PROJECT.md for Phase 13 audio visualization
+  - **Phase 13 频谱调优**（doc 更新后 24 commits：FFT 参数/布局/主题打磨）
+    - `825ceb3` fix(view): remove incorrect TextBlock style from CheckBox
+    - `8e76842` fix(services): improve spectrum frequency mapping with proper logarithmic grouping
+    - `eab1a7d` fix(services): improve spectrum response with RMS, gain, and gamma curve
+    - `b6d08fa` fix(services): adjust spectrum range 60Hz-16kHz, reduce gain to 8x
+    - `e8897b7` fix(services): raise minimum spectrum frequency to 80Hz
+    - `0d076bd` fix(models): increase FFT size from 1024 to 2048 for better low-frequency resolution
+    - `7979d24` fix(services): restore minimum spectrum frequency to 20Hz
+    - `f0c3248` fix(services): mono-mix stereo before FFT + clamp smoothing/sensitivity range
+    - `15679b2` fix(models): increase FFT size to 8192 for better frequency resolution
+    - `ea31c32` fix(services): add 50% FFT overlap for smoother spectrum animation
+    - `d447664` fix(view): move spectrum view to bottom of TrackInfoView
+    - `04049cd` fix(view): use DockPanel layout to keep spectrum within background
+    - `e932d34` fix(view): reduce spectrum bottom margin to fit within background
+    - `b074175` fix(view): revert to StackPanel layout, set VerticalAlignment=Top
+    - `2876b11` refactor(view): move spectrum to independent row between content and player bar
+    - `80791ea` fix(view): add background to SpectrumView for visibility
+    - `f1ceb78` refactor(view): move spectrum back into TrackInfoView as bottom section
+    - `0135430` fix(view): increase spectrum height to 120px
+    - `dbed4fa` fix(view): add detailed error message for settings save failure
+    - `a76d92a` fix(view): remove ConfigureAwait(true) to stay on UI thread
+    - `59932fc` fix(view): change rainbow gradient to horizontal (left to right)
+    - `8c4774d` fix(view): rainbow gradient from red (left) to purple (right) without cycling
+    - `781d35d` fix(theme): add IsMoveToPointEnabled to Slider style
+    - `808fb98` fix(view): fix slider layout in SettingsDialog using DockPanel LastChildFill

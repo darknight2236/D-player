@@ -1,11 +1,11 @@
 using System.IO;
 using System.Text.Json;
-using UmaPlayer.Configuration;
+using DPlayer.Configuration;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
-/// 将 AppSettings 序列化到 %LocalAppData%\UmaPlayer\settings.json。
+/// 将 AppSettings 序列化到 %LocalAppData%\D-player\settings.json。
 ///
 /// 并发控制：用 SemaphoreSlim(1,1) 把整个"读盘 → mutator → 写盘"封进临界区，
 /// 调用方只需提供 mutator (s => s with { Field = newValue })，
@@ -20,7 +20,7 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
     {
         // 使用 LocalApplicationData 而非 ApplicationData：本机配置不漫游，避免多机互覆盖
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(appData, "UmaPlayer");
+        var dir = Path.Combine(appData, "D-player");
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "settings.json");
     }

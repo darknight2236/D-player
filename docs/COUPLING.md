@@ -1,4 +1,4 @@
-# UmaPlayer 耦合分析与重构备忘
+# D-player 耦合分析与重构备忘
 
 > 创建日期：2026/06/06 · 更新日期：2026/06/25（对应 HEAD `808fb98`） · 对应分支：`master` · 对应阶段：**Phase 13 完成**（音频可视化 + 频谱调优）
 >
@@ -19,7 +19,7 @@
 
 ## 1. 当前架构为什么是健康的
 
-✅ DI 容器集中注册（`ServiceCollectionExtensions.AddUmaPlayerServices`），无 Service Locator 反模式
+✅ DI 容器集中注册（`ServiceCollectionExtensions.AddDPlayerServices`），无 Service Locator 反模式
 ✅ 依赖方向正确：`View → VM → Service → Model`，Service 从不反向引用 VM/UI
 ✅ 所有跨边界依赖**都走接口**：`IPlaybackService` / `IFileDialogService` / `ISettingsPersistence`
 ✅ 无 `static` 单例、无全局可变状态
@@ -39,7 +39,7 @@
 
 | 消费方 | 依赖的抽象 | 依赖的具体类型 |
 |--------|------------|----------------|
-| `App` | `MainViewModel`, `ISettingsPersistence`, `IPlaylistService` | `Views.MainWindow`, `ServiceProvider` |
+| `App` | `MainViewModel`, `ISettingsPersistence` | `Views.MainWindow`, `ServiceProvider`, `LegacyDataMigration`（启动一次性数据目录迁移，更名 UmaPlayer→D-player） |
 | `ServiceCollectionExtensions` | — | 8 个 Service 实现 + `MainViewModel` + `PlaylistsViewModel` + `Func<Playlist, PlaylistVM>`（注册绑定） |
 | `MainViewModel` (Facade) | `PlayerViewModel`, `PlaylistsViewModel`, `IPlaybackService`, `IPlaylistService` | — |
 | `PlayerViewModel` | `IPlaybackService`, `ISettingsPersistence`, `IOptions<AppSettings>` | — |
@@ -259,7 +259,7 @@ private void RemoveTrack(int index)
 2. ✅ **`PlayerBar` / `PlaylistView` 去硬转型**（Phase 3 完成）—— DataContext 切到子 VM；跨域命令用 `RelativeSource AncestorType=Window`
 3. ✅ **抽 `ITrackMetadataReader`**（Phase 3 完成，commit `c9cd1bd`）—— `AtlMetadataReader` 封装 z440.atl.core
 4. ✅ **解决 settings 合并纪律**（Phase 3 完成，commit `fadae44`）—— `UpdateAsync(Func<>)` 把读-改-写封进锁内
-5. ✅ **队列持久化**（Phase 4 完成）—— `%LocalAppData%\UmaPlayer\queue.json` 与 settings.json 分离
+5. ✅ **队列持久化**（Phase 4 完成）—— `%LocalAppData%\D-player\queue.json` 与 settings.json 分离
 6. ✅ **多命名播放列表**（Phase 6 完成）—— `Playlist` record + `IPlaylistService` + `PlaylistsViewModel` 容器 + sidebar UI + v1→v2 迁移
 7. ✅ **拖拽支持**（Phase 5 完成）—— 外部文件拖入入队 + 队列内拖拽重排（含多选）+ 视觉反馈；同步偿还旧债 #5
 8. ✅ **偿还债 #1 (`BitmapImage`)** —— Phase 7 已完成：`AlbumArtImage` → `AlbumArtBytes` (byte[])，VM 层无 WPF 类型

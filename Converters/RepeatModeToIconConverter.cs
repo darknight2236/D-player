@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Windows.Data;
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Converters;
+namespace DPlayer.Converters;
 
 /// <summary>
 /// 将 RepeatMode 转换为循环按钮图标：

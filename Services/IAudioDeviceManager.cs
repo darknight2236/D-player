@@ -1,6 +1,6 @@
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 音频输出设备管理抽象（预留）—— 未来支持 UI 中切换扬声器/耳机/虚拟声卡。

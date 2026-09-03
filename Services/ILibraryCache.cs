@@ -1,6 +1,6 @@
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 文件夹绑定歌单的元数据缓存抽象(Phase 10)。

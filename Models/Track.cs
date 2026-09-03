@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// 表示一首音轨的所有元数据 —— 不可变 record，便于跨线程安全传递。

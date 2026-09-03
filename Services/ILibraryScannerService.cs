@@ -1,6 +1,6 @@
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 音乐库扫描服务(Phase 10)。

@@ -5,11 +5,11 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using UmaPlayer.Models;
-using UmaPlayer.ViewModels;
-using UmaPlayer;
+using DPlayer.Models;
+using DPlayer.ViewModels;
+using DPlayer;
 
-namespace UmaPlayer.Views.Controls;
+namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// 播放队列 UserControl 的 code-behind。
@@ -25,7 +25,7 @@ public partial class PlaylistView : UserControl
     private PlaylistViewModel? _vm;
 
     /// <summary>内部拖拽自定义 DataObject 格式名（用于区分外部 FileDrop）。</summary>
-    private const string QueueItemsFormat = "UmaPlayer.QueueItems";
+    private const string QueueItemsFormat = "DPlayer.QueueItems";
 
     /// <summary>PreviewMouseLeftButtonDown 时记录的起点；MouseMove 用于阈值判定。</summary>
     private Point? _dragStartPoint;

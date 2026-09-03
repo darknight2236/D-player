@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// 循环播放模式：

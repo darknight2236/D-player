@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace UmaPlayer.Converters;
+namespace DPlayer.Converters;
 
 /// <summary>
 /// 将 TimeSpan 格式化为播放时间显示：

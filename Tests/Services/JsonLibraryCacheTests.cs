@@ -1,9 +1,9 @@
 using System.IO;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
+using DPlayer.Models;
+using DPlayer.Services;
 using Xunit;
 
-namespace UmaPlayer.Tests.Services;
+namespace DPlayer.Tests.Services;
 
 public sealed class JsonLibraryCacheTests : IDisposable
 {
@@ -11,7 +11,7 @@ public sealed class JsonLibraryCacheTests : IDisposable
 
     public JsonLibraryCacheTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"UmaPlayerTest_{Guid.NewGuid():N}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"DPlayerTest_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 

@@ -1,6 +1,6 @@
-using UmaPlayer.Configuration;
+using DPlayer.Configuration;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 应用配置的运行时持久化抽象。

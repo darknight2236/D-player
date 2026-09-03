@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// 一个命名歌单(Phase 6)。Id 是创建时生成的 GUID, 主键, 不可变;

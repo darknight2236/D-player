@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// 队列内拖拽重排命令的参数（Phase 5）。

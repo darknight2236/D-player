@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// 文件夹扫描增量同步结果(Phase 10)。

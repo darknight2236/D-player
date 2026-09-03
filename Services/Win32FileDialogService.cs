@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 基于 Microsoft.Win32.OpenFileDialog 的实现 —— WPF 推荐方式，不依赖 WinForms。

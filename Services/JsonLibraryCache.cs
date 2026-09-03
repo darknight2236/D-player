@@ -1,9 +1,9 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// library-cache.json 的 JSON 实现(Phase 10)。
@@ -24,7 +24,7 @@ public sealed class JsonLibraryCache : ILibraryCache
     public JsonLibraryCache()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(appData, "UmaPlayer");
+        var dir = Path.Combine(appData, "D-player");
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "library-cache.json");
     }
@@ -33,7 +33,7 @@ public sealed class JsonLibraryCache : ILibraryCache
     {
         var dir = overrideDir ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "UmaPlayer");
+            "D-player");
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "library-cache.json");
     }

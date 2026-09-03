@@ -1,8 +1,8 @@
 using System.IO;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
+using DPlayer.Models;
+using DPlayer.Services;
 
-namespace UmaPlayer.ViewModels;
+namespace DPlayer.ViewModels;
 
 /// <summary>
 /// Phase 6 Facade: Player + Playlists 容器 + 窗口生命周期清理。

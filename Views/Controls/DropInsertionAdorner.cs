@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 
-namespace UmaPlayer.Views.Controls;
+namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// 队列内拖拽重排时，在 ListBox AdornerLayer 上画 1px 插入线（Phase 5）。

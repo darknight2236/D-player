@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 
-namespace UmaPlayer.Views.Dialogs;
+namespace DPlayer.Views.Dialogs;
 
 /// <summary>
 /// Phase 6 共享单输入框对话框。AddPlaylist / RenamePlaylist 都用它。

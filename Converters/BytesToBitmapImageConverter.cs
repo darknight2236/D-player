@@ -3,7 +3,7 @@ using System.IO;
 using System.Windows.Data;
 using System.Windows.Media.Imaging;
 
-namespace UmaPlayer.Converters;
+namespace DPlayer.Converters;
 
 /// <summary>
 /// Phase 6 偿债 #1(部分): byte[] → 已 Freeze 的 BitmapImage。

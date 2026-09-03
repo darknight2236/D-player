@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Windows.Data;
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Converters;
+namespace DPlayer.Converters;
 
 /// <summary>
 /// 将 PlayState 转换为播放按钮图标：

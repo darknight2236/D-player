@@ -3,11 +3,11 @@
     DataContext = PlayerViewModel（由 MainWindow.xaml 注入）。
     上半部分：曲目信息；下半部分：频谱可视化。
 -->
-<UserControl x:Class="UmaPlayer.Views.Controls.TrackInfoView"
+<UserControl x:Class="DPlayer.Views.Controls.TrackInfoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:converters="clr-namespace:UmaPlayer.Converters"
-             xmlns:local="clr-namespace:UmaPlayer.Views.Controls">
+             xmlns:converters="clr-namespace:DPlayer.Converters"
+             xmlns:local="clr-namespace:DPlayer.Views.Controls">
     <UserControl.Resources>
         <converters:BytesToBitmapImageConverter x:Key="BytesToBitmapImage"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>

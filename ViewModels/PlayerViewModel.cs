@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Options;
-using UmaPlayer.Configuration;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
+using DPlayer.Configuration;
+using DPlayer.Models;
+using DPlayer.Services;
 
-namespace UmaPlayer.ViewModels;
+namespace DPlayer.ViewModels;
 
 /// <summary>
 /// 播放器 ViewModel —— 负责 transport 状态（播放/暂停/位置/音量）和当前曲信息展示。

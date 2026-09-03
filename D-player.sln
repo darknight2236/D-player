@@ -1,10 +1,10 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UmaPlayer", "UmaPlayer.csproj", "{37AF44ED-B081-40B3-B158-1EC9A42A76DA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D-player", "D-player.csproj", "{37AF44ED-B081-40B3-B158-1EC9A42A76DA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UmaPlayer.Tests", "Tests\UmaPlayer.Tests.csproj", "{F3C7C4D1-5197-4EF2-B856-F4238ED2DAF2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D-player.Tests", "Tests\D-player.Tests.csproj", "{F3C7C4D1-5197-4EF2-B856-F4238ED2DAF2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

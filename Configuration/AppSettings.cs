@@ -1,9 +1,9 @@
-namespace UmaPlayer.Configuration;
+namespace DPlayer.Configuration;
 
 /// <summary>
 /// 应用全局配置 —— 同时承担两种角色：
 /// 1) 启动默认值快照：通过 IOptions&lt;AppSettings&gt; 绑定 appsettings.json 的 "Player" 节；
-/// 2) 运行时持久化载体：由 JsonSettingsPersistence 读写 %LocalAppData%\UmaPlayer\settings.json。
+/// 2) 运行时持久化载体：由 JsonSettingsPersistence 读写 %LocalAppData%\D-player\settings.json。
 ///
 /// 使用 record + init 属性，通过 `with` 表达式不可变更新，避免并发写入时的数据竞争。
 /// </summary>

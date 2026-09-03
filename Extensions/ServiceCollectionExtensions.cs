@@ -1,18 +1,18 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using UmaPlayer.Configuration;
-using UmaPlayer.Services;
-using UmaPlayer.ViewModels;
+using DPlayer.Configuration;
+using DPlayer.Services;
+using DPlayer.ViewModels;
 
-namespace UmaPlayer.Extensions;
+namespace DPlayer.Extensions;
 
 /// <summary>
 /// DI 容器注册中心 —— 集中维护服务的生命周期与实现绑定，
-/// 让 App.OnStartup 只需一行 `services.AddUmaPlayerServices(configuration)`。
+/// 让 App.OnStartup 只需一行 `services.AddDPlayerServices(configuration)`。
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddUmaPlayerServices(
+    public static IServiceCollection AddDPlayerServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {

@@ -1,11 +1,11 @@
 using System.Windows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using UmaPlayer.Extensions;
-using UmaPlayer.Services;
-using UmaPlayer.ViewModels;
+using DPlayer.Extensions;
+using DPlayer.Services;
+using DPlayer.ViewModels;
 
-namespace UmaPlayer;
+namespace DPlayer;
 
 /// <summary>
 /// 应用入口(替代默认 StartupUri 启动方式, 便于注入 DI 容器)。
@@ -31,13 +31,16 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 更名 UmaPlayer → D-player：在持久化服务被 DI 构造前，先把旧数据目录迁移到新目录
+        LegacyDataMigration.MigrateIfNeeded();
+
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
             .Build();
 
         var services = new ServiceCollection();
-        services.AddUmaPlayerServices(configuration);
+        services.AddDPlayerServices(configuration);
         _services = services.BuildServiceProvider();
 
         // 注意:MainWindow 需要 settings persistence 用于恢复/保存窗口位置,

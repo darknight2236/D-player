@@ -2,13 +2,13 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using UmaPlayer.Configuration;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
-using UmaPlayer.ViewModels;
+using DPlayer.Configuration;
+using DPlayer.Models;
+using DPlayer.Services;
+using DPlayer.ViewModels;
 using Xunit;
 
-namespace UmaPlayer.Tests.ViewModels;
+namespace DPlayer.Tests.ViewModels;
 
 /// <summary>
 /// PlayerViewModel 单元测试。

@@ -1,7 +1,7 @@
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 占位实现 —— 固定返回 WASAPI 共享模式输出（100ms 缓冲）。

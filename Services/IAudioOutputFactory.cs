@@ -1,6 +1,6 @@
 using NAudio.Wave;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 音频输出后端工厂（预留）—— 用于在 WASAPI Shared / Exclusive / ASIO 间切换。

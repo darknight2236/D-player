@@ -1,9 +1,9 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// queue.json 的 JSON 实现(Phase 6, 替换 JsonQueuePersistence)。
@@ -27,7 +27,7 @@ public sealed class JsonPlaylistService : IPlaylistService
     public JsonPlaylistService()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(appData, "UmaPlayer");
+        var dir = Path.Combine(appData, "D-player");
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "queue.json");
     }

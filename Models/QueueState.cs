@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// v3 队列持久化快照(Phase 10)。包含所有命名歌单 + "正在播放"指针。

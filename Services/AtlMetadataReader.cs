@@ -1,7 +1,7 @@
 using System.IO;
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 基于 z440.atl.core 的元数据读取实现。

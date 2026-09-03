@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
-namespace UmaPlayer.Views.Controls;
+namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// 音频频谱可视化控件 —— 显示 32 条垂直频谱柱，支持多种颜色主题。

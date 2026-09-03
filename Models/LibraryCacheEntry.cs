@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// 文件夹绑定歌单的元数据缓存条目(Phase 10)。

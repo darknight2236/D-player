@@ -3,11 +3,11 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using UmaPlayer.Services;
-using UmaPlayer.ViewModels;
-using UmaPlayer.Views.Dialogs;
+using DPlayer.Services;
+using DPlayer.ViewModels;
+using DPlayer.Views.Dialogs;
 
-namespace UmaPlayer.Views.Controls;
+namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// 播放栏 UserControl —— 唯一的可视化组件，包含封面、元数据、进度条、播放控制和音量。

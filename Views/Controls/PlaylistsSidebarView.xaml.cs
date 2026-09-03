@@ -5,10 +5,10 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using UmaPlayer.ViewModels;
-using UmaPlayer.Views.Dialogs;
+using DPlayer.ViewModels;
+using DPlayer.Views.Dialogs;
 
-namespace UmaPlayer.Views.Controls;
+namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// Phase 6 左侧歌单容器侧边栏。+ 新建、− 删选中、双击重命名;
@@ -20,7 +20,7 @@ public partial class PlaylistsSidebarView : UserControl
     private PlaylistsViewModel? _vm;
 
     /// <summary>内部拖拽自定义 DataObject 格式名。</summary>
-    private const string PlaylistItemsFormat = "UmaPlayer.PlaylistItems";
+    private const string PlaylistItemsFormat = "DPlayer.PlaylistItems";
 
     /// <summary>PreviewMouseLeftButtonDown 时记录的起点；MouseMove 用于阈值判定。</summary>
     private Point? _dragStartPoint;

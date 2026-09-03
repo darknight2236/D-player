@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace UmaPlayer.Converters;
+namespace DPlayer.Converters;
 
 /// <summary>
 /// 将 bool 映射为画刷资源：

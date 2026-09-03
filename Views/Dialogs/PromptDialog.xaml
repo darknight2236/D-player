@@ -1,4 +1,4 @@
-<Window x:Class="UmaPlayer.Views.Dialogs.PromptDialog"
+<Window x:Class="DPlayer.Views.Dialogs.PromptDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="输入"

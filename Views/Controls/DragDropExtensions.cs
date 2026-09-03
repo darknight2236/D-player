@@ -1,8 +1,8 @@
 using System.IO;
 using System.Windows;
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Views.Controls;
+namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// 拖拽相关的 attached DependencyProperty 与静态辅助（Phase 5）。

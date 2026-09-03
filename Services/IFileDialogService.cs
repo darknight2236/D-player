@@ -1,4 +1,4 @@
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 文件选择对话框抽象，便于单元测试以 Mock 替换。

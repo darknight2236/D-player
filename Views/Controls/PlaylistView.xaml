@@ -6,11 +6,11 @@
 
     DataContext = PlaylistViewModel（Phase 6 由 MainWindow.xaml 绑定 Playlists.ViewedPlaylist）
 -->
-<UserControl x:Class="UmaPlayer.Views.Controls.PlaylistView"
+<UserControl x:Class="DPlayer.Views.Controls.PlaylistView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:converters="clr-namespace:UmaPlayer.Converters"
-             xmlns:local="clr-namespace:UmaPlayer.Views.Controls">
+             xmlns:converters="clr-namespace:DPlayer.Converters"
+             xmlns:local="clr-namespace:DPlayer.Views.Controls">
     <UserControl.Resources>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>

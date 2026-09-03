@@ -5,10 +5,10 @@ using System.Linq;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
+using DPlayer.Models;
+using DPlayer.Services;
 
-namespace UmaPlayer.ViewModels;
+namespace DPlayer.ViewModels;
 
 /// <summary>
 /// 播放队列 ViewModel —— 负责队列状态、Shuffle/Repeat、自动推进算法。

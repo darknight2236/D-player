@@ -1,8 +1,8 @@
 using System.Windows;
-using UmaPlayer.Services;
-using UmaPlayer.ViewModels;
+using DPlayer.Services;
+using DPlayer.ViewModels;
 
-namespace UmaPlayer.Views.Dialogs;
+namespace DPlayer.Views.Dialogs;
 
 /// <summary>
 /// Phase 11 设置对话框。模态显示，默认音量滑块可编辑，音频输出灰色占位。

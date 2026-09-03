@@ -4,10 +4,10 @@ using System.ComponentModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
+using DPlayer.Models;
+using DPlayer.Services;
 
-namespace UmaPlayer.ViewModels;
+namespace DPlayer.ViewModels;
 
 /// <summary>
 /// Phase 6 多歌单容器。维护命名歌单集合、"正在查看"指针(UI 选中, 不持久化)、"正在播放"指针

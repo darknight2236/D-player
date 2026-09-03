@@ -1,14 +1,14 @@
-# UmaPlayer 项目文档
+# D-player 项目文档
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/25（对应 HEAD `808fb98`） · 对应分支：`master` · 当前阶段：**Phase 13 完成 + 频谱调优**（音频可视化 - FFT 频谱条形图，参数/布局/主题打磨）
+> 文档日期：2026/06/25（对应 HEAD `808fb98`） · 对应分支：`master` · 当前阶段：**Phase 13 完成 + 频谱调优**（音频可视化 - FFT 频谱条形图，参数/布局/主题打磨） · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 
 ## 1. 项目简介
 
-**UmaPlayer** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。
+**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。
 
 ### 1.1 关键特性（已实现）
 
@@ -21,9 +21,9 @@
 | 音量控制 | 0~1 线性滑块、一键静音/取消静音；通过 `VolumeSampleProvider` 实现                |
 | 元数据  | 标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 曲目号 / 内嵌封面（z440.atl.core）     |
 | 主题   | 内置深色主题（深紫强调色）                                                  |
-| 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\UmaPlayer\settings.json`       |
+| 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\D-player\settings.json`       |
 | 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、#列元数据 TrackNumber、表头点击排序 |
-| 队列持久化 | 关闭时写 `%LocalAppData%\UmaPlayer\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
+| 队列持久化 | 关闭时写 `%LocalAppData%\D-player\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
 | 拖拽 | 外部音频文件拖入末尾入队（白名单 .mp3/.wma/.flac/.aac/.wav）；队列内单/多选拖拽重排（含 ▶ 当前曲跟随、Shuffle 历史按对象身份重映射）；插入线 Adorner + 圆角列表框边框高亮（Phase 5） |
 | 多命名歌单 | 创建/删除/重命名多个独立歌单；Viewed vs Current 双指针（切查看不打断播放，双击才跨歌单切换音频）；全局 Shuffle/Repeat（所有歌单共享）；各歌单独立 CurrentIndex；v1→v2 schema 自动迁移（Phase 6） |
 | 文件夹绑定歌单 | 指定文件夹扫描 → 创建歌单; 启动后台自动同步增删; 手动刷新; 元数据缓存; 导入文件夹添加到当前歌单 (Phase 10) |
@@ -59,10 +59,10 @@
 ## 3. 目录结构
 
 ```
-UmaPlayer/
+D-player/
 ├── App.xaml(.cs)                # 应用入口；构建 DI 容器、加载主窗口
 ├── AssemblyInfo.cs              # ThemeInfo（资源字典位置）
-├── UmaPlayer.csproj / .sln      # 项目/解决方案
+├── D-player.csproj / .sln      # 项目/解决方案
 ├── appsettings.json             # 启动默认配置（构建时复制到输出目录）
 │
 ├── Configuration/
@@ -88,9 +88,10 @@ UmaPlayer/
 │   ├── IFileDialogService.cs
 │   ├── Win32FileDialogService.cs# Microsoft.Win32.OpenFileDialog 封装
 │   ├── ISettingsPersistence.cs
-│   ├── JsonSettingsPersistence.cs # 持久化到 %LocalAppData%\UmaPlayer\settings.json
+│   ├── JsonSettingsPersistence.cs # 持久化到 %LocalAppData%\D-player\settings.json
+│   ├── LegacyDataMigration.cs   # 启动一次性迁移旧数据目录 UmaPlayer → D-player
 │   ├── IPlaylistService.cs      # 多歌单持久化抽象 (Phase 6, 替换 IQueuePersistence)
-│   ├── JsonPlaylistService.cs   # 持久化到 %LocalAppData%\UmaPlayer\queue.json; 内置 v1→v2 迁移 (Phase 6)
+│   ├── JsonPlaylistService.cs   # 持久化到 %LocalAppData%\D-player\queue.json; 内置 v1→v2 迁移 (Phase 6)
 │   ├── ILibraryScannerService.cs      # 库扫描抽象 (Phase 10)
 │   ├── LibraryScannerService.cs       # 递归扫描 + Diff 实现 (Phase 10)
 │   ├── ILibraryCache.cs               # 元数据缓存抽象 (Phase 10)
@@ -135,10 +136,10 @@ UmaPlayer/
 │   └── Controls.xaml            # Window / Button / Slider 模板
 │
 ├── Extensions/
-│   └── ServiceCollectionExtensions.cs # AddUmaPlayerServices(...) DI 注册
+│   └── ServiceCollectionExtensions.cs # AddDPlayerServices(...) DI 注册
 │
 ├── Tests/                       # xUnit 测试项目 (Phase 6+，共 77 个测试)
-│   ├── UmaPlayer.Tests.csproj   # 测试项目文件 (xUnit + NSubstitute + Coverlet)
+│   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit + NSubstitute + Coverlet)
 │   ├── Smoke/
 │   │   └── SmokeTests.cs                 # 冒烟测试：Track record 结构相等 (1)
 │   ├── Services/
@@ -180,7 +181,7 @@ UmaPlayer/
    ┌──────────────────────────────────────────────────────┐
    │                       App.xaml.cs                    │
    │   1. 读取 appsettings.json                            │
-   │   2. 构建 ServiceCollection (AddUmaPlayerServices)    │
+   │   2. 构建 ServiceCollection (AddDPlayerServices)    │
    │   3. 解析 MainViewModel + ISettingsPersistence        │
    │      + IPlaylistService                               │
    │   4. new MainWindow(vm, persistence).Show()           │
@@ -263,7 +264,7 @@ UmaPlayer/
 
 9. **持久化 read-modify-write 原子化（Phase 3）**：`ISettingsPersistence` 接口由 `SaveAsync(AppSettings)` 改为 `UpdateAsync(Func<AppSettings, AppSettings> mutator)`，把"读盘 → 应用 mutator → 写盘"整个序列封进 `SemaphoreSlim` 锁内，根治了 VM 写音量与 `Window_Closing` 写窗口尺寸的合并竞态（COUPLING.md 旧债 #3）。注意：`UpdateAsync` 内部 `.ConfigureAwait(false)`，故调用方若需要在 mutator 内读取 WPF DependencyProperty，必须在 await 之前先把值捕获到 UI 线程局部变量（见 `MainWindow.xaml.cs:Window_Closing`）。
 
-10. **队列持久化与 settings 隔离（Phase 4）**：队列状态独立写到 `%LocalAppData%\UmaPlayer\queue.json`。**为什么不复用 settings.json**：(a) 队列条目数量级远大于 settings 字段，混在一起每次拖音量都会让队列 JSON 重新序列化；(b) settings 是高频更新（音量、窗口尺寸），queue 是低频快照（仅关闭时一次），写入节奏不同；(c) 模式失败隔离 —— queue.json 损坏不影响窗口/音量恢复。`IQueuePersistence` 故意比 `ISettingsPersistence` 简化：只有 `LoadAsync()` 与 `SaveAsync(QueueState)`，没有 `UpdateAsync` —— PlaylistViewModel 是唯一权威源（"读队列" = `SnapshotState()`），无需读-改-写原子化。
+10. **队列持久化与 settings 隔离（Phase 4）**：队列状态独立写到 `%LocalAppData%\D-player\queue.json`。**为什么不复用 settings.json**：(a) 队列条目数量级远大于 settings 字段，混在一起每次拖音量都会让队列 JSON 重新序列化；(b) settings 是高频更新（音量、窗口尺寸），queue 是低频快照（仅关闭时一次），写入节奏不同；(c) 模式失败隔离 —— queue.json 损坏不影响窗口/音量恢复。`IQueuePersistence` 故意比 `ISettingsPersistence` 简化：只有 `LoadAsync()` 与 `SaveAsync(QueueState)`，没有 `UpdateAsync` —— PlaylistViewModel 是唯一权威源（"读队列" = `SnapshotState()`），无需读-改-写原子化。
 
 11. **Cancel-and-close 关闭模式（Phase 4）**：`MainWindow.Window_Closing` 是 `async void`；从 Phase 3 的 2 个 await（settings + CleanupAsync）涨到 Phase 4 的 4 个（+ snapshot + queue 写盘）后撞上致命 race —— 第一个 await yield 后 WPF 立即继续关闭流程，`ShutdownMode.OnLastWindowClose` 触发 `Application.Shutdown` → `Dispatcher.InvokeShutdown`，把后续 await 续延 post 到死 dispatcher 上永不运行（settings 通常能抢到，queue 永远丢）。修复：首次进入 `e.Cancel = true` 拦下，跑完所有异步工作后调 `Close()` 重新触发 Closing，第二次进入凭 `_isClosing` 标志直接 fall-through。这是 WPF `async void` Closing 的标准纪律 —— 任何新增 await 都该用此模式。
 
@@ -337,7 +338,7 @@ UmaPlayer/
 
 ### 5.3 `Services/JsonSettingsPersistence`
 
-- 路径：`%LocalAppData%\UmaPlayer\settings.json`
+- 路径：`%LocalAppData%\D-player\settings.json`
 - 启动时若不存在则返回 `new AppSettings()`（默认值由 record 初始化器给出，**与 `appsettings.json` 不重复绑定**）
 - **Phase 3 重构**：接口由 `SaveAsync(AppSettings)` 改为 `UpdateAsync(Func<AppSettings, AppSettings> mutator)`，把整段"读盘 → 应用 mutator → 写盘"封进 `SemaphoreSlim(1,1)` 临界区。调用方仅需提供 `s => s with { Field = newValue }`，再无合并竞态
 - 读盘失败（损坏/权限）→ 以 `new AppSettings()` 为起点喂给 mutator，写盘照常；写盘失败则抛出（关闭流程调用方自行 catch）
@@ -345,7 +346,7 @@ UmaPlayer/
 
 ### 5.3a `Services/JsonPlaylistService`（Phase 6，替换 JsonQueuePersistence，Schema v3）
 
-- 路径：`%LocalAppData%\UmaPlayer\queue.json`
+- 路径：`%LocalAppData%\D-player\queue.json`
 - 与 settings 持久化结构对称：独立 `SemaphoreSlim(1,1)`、`WriteIndented=true`、`JsonStringEnumConverter`（让 `RepeatMode` 序列化成字符串而非整数，跨版本稳定且方便手动调试）
 - 接口仅 `LoadAsync()` / `SaveAsync(QueueState)`，**故意没有 `UpdateAsync`** —— PlaylistsViewModel 是队列状态的唯一权威源，无需读-改-写合并
 - `LoadAsync` 隐式契约：**绝不抛**（catch-all 静默 fallback 到 `new QueueState()`）。文件不存在/JSON 损坏/版本号不匹配/反序列化得 null 全部走同一回退分支；旧文件保留供用户排查。内置 v1→v2 一次性迁移（单条"默认歌单"）+ v2→v3 字段补充（`SourceFolder` 缺失即 null，无需迁移）
@@ -465,7 +466,7 @@ public Task CleanupAsync();
   - 交互：双击播放、Delete 键删除、工具栏按钮触发命令
   - Shuffle / Repeat 按钮**已移到 PlayerBar**（Phase 12 continued）
   - **Phase 5 拖拽（XAML）：** 外层 `<Border AllowDrop="True">` 仅承载 OLE drop 区（覆盖工具栏 + 列表两行的 hit-test）；视觉高亮挂在 Row 1 的圆角 `<Border x:Name="QueueListBorder">`（用户期望仅看到列表区域被框住，不连带工具栏）。**BorderBrush 默认值放进 Style.Setter 而非 local 属性** —— WPF DP 优先级 `local > trigger setter > style setter`，写成 local 会让 `Style.Triggers` 失效（`docs/COUPLING.md §5` 隐式契约）。`ListBox` 加 `SelectionMode="Extended"` + `AllowDrop="True"` + 6 个事件挂接（`PreviewMouseLeftButton{Down,Up}` / `PreviewMouseMove` / `DragOver` / `DragLeave` / `Drop`）
-  - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"UmaPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
+  - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"DPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
   - **Phase 5 高亮纪律：** `Root_DragEnter` 必须先 `FilterAudioPaths` 再决定是否高亮 —— 仅看 `FileDrop` 存在就亮会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）。`Root_Drop` 与 `QueueList_Drop` **都要清高亮** —— `QueueList_Drop` 设 `e.Handled=true` 后 Drop 事件不再冒泡到 `Root_Drop`，否则文件落到列表区高亮卡死
 - **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。
 - **`TrackInfoView`** *(UserControl, Phase 12 continued/13)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。两行 Grid：Row0（`*`）曲目信息 —— 封面用 `Viewbox MaxWidth/MaxHeight=250` 包裹自动缩放（内含 `Border` 180×180 + `Image Stretch="UniformToFill"`），文本元数据（标题/艺术家/专辑/采样率）居中，无曲目时 DataTrigger 显示"播放曲目以查看信息"占位；Row1（`Auto`）**Phase 13 `SpectrumView`**（高 120px，绑 `SpectrumData`/`SpectrumColorTheme`，`Visibility` 绑 `SpectrumEnabled`）。封面 Border 加 `ClipToBounds=True` 圆角裁切（ViewBox 缩放后内容溢出问题）。
@@ -525,14 +526,16 @@ public Task CleanupAsync();
 
 复制到输出目录（`<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>`），通过 `services.Configure<AppSettings>(configuration.GetSection("Player"))` 绑定为 `IOptions<AppSettings>`。
 
-### 6.2 运行时持久化：`%LocalAppData%\UmaPlayer\settings.json`
+### 6.2 运行时持久化：`%LocalAppData%\D-player\settings.json`
 
 由 `JsonSettingsPersistence` 读写，包含与 `AppSettings` 相同的字段；首次启动文件不存在时使用 record 默认值。
+
+**更名数据迁移（UmaPlayer → D-player）**：数据目录从 `%LocalAppData%\UmaPlayer\` 改为 `%LocalAppData%\D-player\`。`App.OnStartup` 最早期调用 `LegacyDataMigration.MigrateIfNeeded()`（在任何持久化服务被 DI 构造前），把旧目录内文件逐个搬到新目录（新目录已有同名文件则跳过 → 幂等；失败静默吞掉不阻断启动，旧数据保留）。
 
 **当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`、**`SpectrumEnabled/SpectrumSensitivity/SpectrumColorTheme/SpectrumSmoothing`（Phase 13）**。
 **已建模但未启用**：`OutputMode`、`PreferredDeviceId`、`LastPlayedPath`。
 
-### 6.3 队列快照：`%LocalAppData%\UmaPlayer\queue.json`（Phase 4/6/10）
+### 6.3 队列快照：`%LocalAppData%\D-player\queue.json`（Phase 4/6/10）
 
 由 `JsonPlaylistService` 读写。Schema v3：
 
@@ -560,7 +563,7 @@ Phase 12 continued: `ShuffleEnabled` / `RepeatMode` 提升到 QueueState 根级�
 
 写时机：`MainWindow.Window_Closing`（每次关闭整队列覆盖一次）。读时机：`PlaylistViewModel` 构造期同步读盘。文件不存在/JSON 损坏/版本不匹配 → 静默 fallback 到空队列（保留旧文件供用户排查）。`Items` 中已被外部移动/删除的路径在加载时自动过滤；`CurrentIndex` 通过"向后滑、再向前回退"的算法映射到过滤后的位置（spec §5.1）。
 
-### 6.4 元数据缓存：`%LocalAppData%\UmaPlayer\library-cache.json`（Phase 10）
+### 6.4 元数据缓存：`%LocalAppData%\D-player\library-cache.json`（Phase 10）
 
 由 `JsonLibraryCache` 读写。缓存文件夹绑定歌单扫描到的音频文件元数据，避免重复解析。Schema 为 `Dictionary<string, LibraryCacheEntry>`（key 为文件绝对路径）。`LibraryCacheEntry` 包含修改时间戳 (`LastWriteTimeUtc`) 与完整 `Track` 元数据。
 
@@ -678,17 +681,17 @@ TrackInfoView → SpectrumView.SpectrumData (DP) → OnSpectrumDataChanged 算 _
 ### 8.2 命令行构建
 
 ```bash
-dotnet restore UmaPlayer.sln
-dotnet build   UmaPlayer.sln -c Debug
-dotnet run     --project UmaPlayer.csproj
+dotnet restore D-player.sln
+dotnet build   D-player.sln -c Debug
+dotnet run     --project D-player.csproj
 ```
 
-输出目录：`bin/Debug/net10.0-windows/`，可执行：`UmaPlayer.exe`。
+输出目录：`bin/Debug/net10.0-windows/`，可执行：`D-player.exe`。
 
 ### 8.3 发布（独立可执行）
 
 ```bash
-dotnet publish UmaPlayer.csproj -c Release -r win-x64 \
+dotnet publish D-player.csproj -c Release -r win-x64 \
     --self-contained false /p:PublishSingleFile=true
 ```
 

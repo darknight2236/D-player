@@ -1,8 +1,8 @@
 using System;
-using UmaPlayer.Models;
+using DPlayer.Models;
 using Xunit;
 
-namespace UmaPlayer.Tests.Smoke;
+namespace DPlayer.Tests.Smoke;
 
 public class SmokeTests
 {

@@ -1,6 +1,6 @@
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 占位实现 —— 始终返回空设备列表。

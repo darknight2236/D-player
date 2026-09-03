@@ -1,6 +1,6 @@
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 音频元数据读取抽象 —— 把"从文件读 Title/Artist/封面"的关注点从 ViewModel 解耦出来。

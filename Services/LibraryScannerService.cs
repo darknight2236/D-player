@@ -1,7 +1,7 @@
 using System.IO;
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// ILibraryScannerService 的默认实现(Phase 10)。

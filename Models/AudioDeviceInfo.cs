@@ -1,4 +1,4 @@
-namespace UmaPlayer.Models;
+namespace DPlayer.Models;
 
 /// <summary>
 /// 音频输出设备的元信息 —— 当前为预留模型，配合未来的多设备切换 UI。

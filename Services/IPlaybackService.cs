@@ -1,6 +1,6 @@
-using UmaPlayer.Models;
+using DPlayer.Models;
 
-namespace UmaPlayer.Services;
+namespace DPlayer.Services;
 
 /// <summary>
 /// 核心播放服务抽象 —— VM 仅依赖此接口，便于替换底层实现（NAudio / BASS / 自研）。

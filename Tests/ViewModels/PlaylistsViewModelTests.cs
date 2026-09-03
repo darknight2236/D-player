@@ -1,12 +1,12 @@
 using System;
 using System.Threading.Tasks;
 using NSubstitute;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
-using UmaPlayer.ViewModels;
+using DPlayer.Models;
+using DPlayer.Services;
+using DPlayer.ViewModels;
 using Xunit;
 
-namespace UmaPlayer.Tests.ViewModels;
+namespace DPlayer.Tests.ViewModels;
 
 /// <summary>
 /// PlaylistsViewModel 单元测试。

@@ -6,10 +6,10 @@
 
     DataContext = PlayerViewModel（由 MainWindow.xaml 注入）；跨域命令通过 RelativeSource AncestorType=Window 访问 Playlist
 -->
-<UserControl x:Class="UmaPlayer.Views.Controls.PlayerBar"
+<UserControl x:Class="DPlayer.Views.Controls.PlayerBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:converters="clr-namespace:UmaPlayer.Converters">
+             xmlns:converters="clr-namespace:DPlayer.Converters">
     <UserControl.Resources>
         <!-- 值转换器：TimeSpan → "m:ss" / "h:mm:ss"，PlayState → ▶/⏸，byte[] → BitmapImage -->
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>

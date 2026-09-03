@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 
-namespace UmaPlayer.Views.Controls;
+namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// 当前播放曲目信息面板 —— 封面 + 标题/艺术家/专辑/采样率。

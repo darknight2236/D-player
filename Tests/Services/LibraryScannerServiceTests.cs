@@ -4,11 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NSubstitute;
-using UmaPlayer.Models;
-using UmaPlayer.Services;
+using DPlayer.Models;
+using DPlayer.Services;
 using Xunit;
 
-namespace UmaPlayer.Tests.Services;
+namespace DPlayer.Tests.Services;
 
 /// <summary>
 /// LibraryScannerService 单元测试 (Phase 10)。
@@ -22,7 +22,7 @@ public class LibraryScannerServiceTests : IDisposable
 
     public LibraryScannerServiceTests()
     {
-        _tempRoot = Path.Combine(Path.GetTempPath(), "UmaPlayerTests_" + Guid.NewGuid().ToString("N"));
+        _tempRoot = Path.Combine(Path.GetTempPath(), "DPlayerTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempRoot);
         _sut = new LibraryScannerService(_reader);
     }

@@ -1,11 +1,11 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
-using UmaPlayer.Services;
-using UmaPlayer.ViewModels;
-using UmaPlayer.Views.Dialogs;
+using DPlayer.Services;
+using DPlayer.ViewModels;
+using DPlayer.Views.Dialogs;
 
-namespace UmaPlayer.Views;
+namespace DPlayer.Views;
 
 /// <summary>
 /// 主窗口 —— 仅作为 PlayerBar 的容器。

@@ -13,6 +13,7 @@ public sealed record EqualizerConfig
     public double PreampDb { get; init; } = 0;
 
     /// <summary>10 段增益 dB（顺序对应 EqualizerPresets.CenterFrequencies），各 Clamp 到 [-12, 12]。</summary>
+    /// <remarks>record 合成的相等对本属性按引用比较（不逐段比较数值）；需要值相等时请自行按序列比较。</remarks>
     public IReadOnlyList<double> BandGainsDb { get; init; } = new double[EqualizerPresets.BandCount];
 
     /// <summary>当前预设名；手动偏离即 EqualizerPresets.Custom。</summary>

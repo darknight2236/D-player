@@ -27,6 +27,16 @@ public class EqualizerConfigTests
     }
 
     [Fact]
+    public void Create_TruncatesExcessBands()
+    {
+        var many = new double[15];
+        Array.Fill(many, 3.0);
+        var c = EqualizerConfig.Create(true, 0, many, "X");
+        Assert.Equal(EqualizerPresets.BandCount, c.BandGainsDb.Count); // 超出 10 段被截断
+        Assert.All(c.BandGainsDb, g => Assert.Equal(3, g));
+    }
+
+    [Fact]
     public void PreampLinearGain_ConvertsDbToLinear()
     {
         Assert.Equal(1f, new EqualizerConfig { PreampDb = 0 }.PreampLinearGain, 3);

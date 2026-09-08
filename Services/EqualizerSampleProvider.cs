@@ -22,7 +22,9 @@ public sealed class EqualizerSampleProvider : ISampleProvider
     private readonly object _lock = new();
 
     private float _preampGain = 1f;
-    private bool _enabled;
+    // 锁外读取（Read 热路径）是刻意为之：bool 读原子，最坏一次陈旧缓冲区，无撕裂风险；
+    // volatile 保证 UI 线程 Update 的写入对音频线程立即可见。
+    private volatile bool _enabled;
 
     public EqualizerSampleProvider(ISampleProvider source, EqualizerConfig config)
     {

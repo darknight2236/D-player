@@ -48,6 +48,8 @@ public class PlayerViewModelEqualizerTests
         CreateVm(settings);
         _player.Received().EqualizerConfig = Arg.Is<EqualizerConfig>(c =>
             c.Enabled && c.PreampDb == -3 && c.Preset == "Rock" && c.BandGainsDb[0] == 5);
+        // 构造期 _isInitializing=true → OnEqualizerEnabledChanged 不应写盘
+        _persistence.DidNotReceive().UpdateAsync(Arg.Any<Func<AppSettings, AppSettings>>());
     }
 
     [Fact]

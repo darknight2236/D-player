@@ -46,6 +46,8 @@ public partial class EqualizerDialog : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        // 回滚基准 = 打开瞬间的实时链状态（权威，且不受 LoadAsync 失败影响）
+        _initialConfig = _playbackService.EqualizerConfig;
         try
         {
             var settings = await _persistence.LoadAsync().ConfigureAwait(true);
@@ -55,16 +57,23 @@ public partial class EqualizerDialog : Window
         }
         catch
         {
-            _initialConfig = new EqualizerConfig();
+            // 读盘失败 → 保留上面的实时链快照作为 UI 初值与回滚基准（不再兜底为"禁用平直"）
         }
 
         BuildBands();
 
-        PresetCombo.Items.Clear();
-        foreach (var n in EqualizerPresets.Names) PresetCombo.Items.Add(n);
-        PresetCombo.Items.Add(EqualizerPresets.Custom);
+        // 填充下拉项时抑制 SelectionChanged：向空 ComboBox 添加首项会自动选中并触发一次
+        // SelectionChanged，若不抑制会误 push 一次 Flat/禁用配置，扰动正在播放的 EQ。
+        try
+        {
+            _suppress = true;
+            PresetCombo.Items.Clear();
+            foreach (var n in EqualizerPresets.Names) PresetCombo.Items.Add(n);
+            PresetCombo.Items.Add(EqualizerPresets.Custom);
+        }
+        finally { _suppress = false; }
 
-        // 链上已是本配置（PlayerViewModel 启动时已应用），仅同步 UI，无需再下发
+        // 链上已是本配置，仅同步 UI，无需再下发
         ApplyConfigToUi(_initialConfig);
     }
 
@@ -153,13 +162,16 @@ public partial class EqualizerDialog : Window
 
     private void ApplyConfigToUi(EqualizerConfig config)
     {
-        _suppress = true;
-        EnableCheckBox.IsChecked = config.Enabled;
-        for (int b = 0; b < EqualizerPresets.BandCount; b++)
-            _bandSliders[b].Value = config.BandGainsDb[b];
-        _preampSlider.Value = config.PreampDb;
-        PresetCombo.SelectedItem = config.Preset;
-        _suppress = false;
+        try
+        {
+            _suppress = true;
+            EnableCheckBox.IsChecked = config.Enabled;
+            for (int b = 0; b < EqualizerPresets.BandCount; b++)
+                _bandSliders[b].Value = config.BandGainsDb[b];
+            _preampSlider.Value = config.PreampDb;
+            PresetCombo.SelectedItem = config.Preset;
+        }
+        finally { _suppress = false; }
         RefreshLabels();
     }
 
@@ -168,9 +180,8 @@ public partial class EqualizerDialog : Window
         if (_suppress) return;
         RefreshLabels();
         var preset = EqualizerPresets.Match(CurrentGains());
-        _suppress = true;
-        PresetCombo.SelectedItem = preset;
-        _suppress = false;
+        try { _suppress = true; PresetCombo.SelectedItem = preset; }
+        finally { _suppress = false; }
         PushToService(preset);
     }
 
@@ -179,11 +190,7 @@ public partial class EqualizerDialog : Window
         if (_suppress) return;
         if (PresetCombo.SelectedItem is not string name || name == EqualizerPresets.Custom) return;
         if (!EqualizerPresets.TryGet(name, out var gains)) return;
-        _suppress = true;
-        for (int b = 0; b < EqualizerPresets.BandCount; b++) _bandSliders[b].Value = gains[b];
-        _suppress = false;
-        RefreshLabels();
-        PushToService(name);
+        ApplyGains(gains, name);
     }
 
     private void Enable_Changed(object sender, RoutedEventArgs e)
@@ -195,13 +202,22 @@ public partial class EqualizerDialog : Window
     private void RestoreFlat_Click(object sender, RoutedEventArgs e)
     {
         if (!EqualizerPresets.TryGet(EqualizerPresets.Flat, out var gains)) return;
-        _suppress = true;
-        for (int b = 0; b < EqualizerPresets.BandCount; b++) _bandSliders[b].Value = gains[b];
-        _preampSlider.Value = 0;
-        PresetCombo.SelectedItem = EqualizerPresets.Flat;
-        _suppress = false;
+        ApplyGains(gains, EqualizerPresets.Flat, preamp: 0);
+    }
+
+    /// <summary>把一组增益(+可选 preamp)应用到滑块并实时下发；供预设选择与"恢复 Flat"共用（DRY）。</summary>
+    private void ApplyGains(double[] gains, string preset, double? preamp = null)
+    {
+        try
+        {
+            _suppress = true;
+            for (int b = 0; b < EqualizerPresets.BandCount; b++) _bandSliders[b].Value = gains[b];
+            if (preamp.HasValue) _preampSlider.Value = preamp.Value;
+            PresetCombo.SelectedItem = preset;
+        }
+        finally { _suppress = false; }
         RefreshLabels();
-        PushToService(EqualizerPresets.Flat);
+        PushToService(preset);
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)

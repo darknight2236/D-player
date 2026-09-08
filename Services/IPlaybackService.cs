@@ -64,4 +64,9 @@ public interface IPlaybackService : IDisposable
     /// 频谱配置（运行时可更新）
     /// </summary>
     SpectrumConfig SpectrumConfig { get; set; }
+
+    /// <summary>
+    /// 均衡器配置（运行时可更新；setter 实时下发到在链 EQ provider）。
+    /// </summary>
+    EqualizerConfig EqualizerConfig { get; set; }
 }

@@ -40,4 +40,18 @@ public sealed record AppSettings
 
     /// <summary>频谱动画平滑度 (0.0 ~ 0.95)</summary>
     public double SpectrumSmoothing { get; init; } = 0.8;
+
+    // ====== Phase 14: 均衡器 ======
+
+    /// <summary>启用均衡器（默认关，透明旁路）。</summary>
+    public bool EqualizerEnabled { get; init; } = false;
+
+    /// <summary>EQ 前置放大 dB（-12 ~ +12）。</summary>
+    public double EqualizerPreamp { get; init; } = 0;
+
+    /// <summary>EQ 10 段增益 dB（各 -12 ~ +12）；序列化为 JSON 数组。</summary>
+    public double[] EqualizerBands { get; init; } = new double[10];
+
+    /// <summary>EQ 当前预设名（手动偏离即 "Custom"）。</summary>
+    public string EqualizerPreset { get; init; } = "Flat";
 }

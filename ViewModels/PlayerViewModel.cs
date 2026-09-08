@@ -76,6 +76,12 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private double _spectrumSmoothing = 0.8;  // 0.0 ~ 0.95
 
+    // ====== Phase 14: 均衡器 ======
+
+    /// <summary>EQ 启用态；供 PlayerBar EQ 按钮激活态高亮（镜像 Shuffle/Repeat）。</summary>
+    [ObservableProperty]
+    private bool _equalizerEnabled;
+
     /// <summary>平滑后的频谱数据（避免 UI 抖动）</summary>
     private float[] _smoothedSpectrum = new float[32];
 
@@ -132,6 +138,9 @@ public partial class PlayerViewModel : ObservableObject
 
         // Phase 13: 加载频谱设置
         LoadSpectrumSettings(settings);
+
+        // Phase 14: 加载均衡器设置并应用到播放链
+        LoadEqualizerSettings(settings);
 
         _isInitializing = false;
     }
@@ -298,6 +307,25 @@ public partial class PlayerViewModel : ObservableObject
         SpectrumSensitivity = settings.SpectrumSensitivity;
         SpectrumColorTheme = settings.SpectrumColorTheme;
         SpectrumSmoothing = settings.SpectrumSmoothing;
+    }
+
+    /// <summary>启动加载 EQ 设置：设启用态 observable + 把完整配置应用到播放服务。</summary>
+    private void LoadEqualizerSettings(AppSettings settings)
+    {
+        // 先设 observable（构造期 _isInitializing=true，OnEqualizerEnabledChanged 不写盘）
+        EqualizerEnabled = settings.EqualizerEnabled;
+        // 再把完整配置（含 preamp/10 段/预设）下发到 service，首次播放即生效
+        _player.EqualizerConfig = EqualizerConfig.Create(
+            settings.EqualizerEnabled, settings.EqualizerPreamp,
+            settings.EqualizerBands, settings.EqualizerPreset);
+    }
+
+    /// <summary>EQ 启用态变更：传播到播放链 + 持久化（构造期跳过写盘）。</summary>
+    partial void OnEqualizerEnabledChanged(bool value)
+    {
+        _player.EqualizerConfig = _player.EqualizerConfig with { Enabled = value };
+        if (_isInitializing) return;
+        _ = _persistence.UpdateAsync(s => s with { EqualizerEnabled = value });
     }
 
     /// <summary>

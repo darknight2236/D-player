@@ -8,8 +8,9 @@ namespace DPlayer.Services;
 /// <summary>
 /// 基于 NAudio 的播放服务实现。
 ///
-/// 播放链路：MediaFoundationReader → SampleAggregator → VolumeSampleProvider → WasapiOut(Shared)
+/// 播放链路：MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiOut(Shared)
 ///   - MediaFoundationReader：调用 Windows Media Foundation 原生解码 MP3/WMA/FLAC/AAC/WAV
+///   - EqualizerSampleProvider：10 段图形均衡器（Phase 14），置于 SampleAggregator 之前 → 频谱反映 EQ 后信号
 ///   - SampleAggregator     ：透明截取 PCM 数据执行 FFT 频谱分析（Phase 13）
 ///   - VolumeSampleProvider ：在样本层做线性音量缩放
 ///   - WasapiOut(Shared)    ：共享模式输出，100ms 缓冲（低延迟与稳定性的折中）
@@ -30,6 +31,10 @@ public sealed class NAudioPlaybackService : IPlaybackService
     // Phase 13: 频谱分析
     private SampleAggregator? _sampleAggregator;
     private SpectrumConfig _spectrumConfig = new();
+
+    // Phase 14: 均衡器
+    private EqualizerSampleProvider? _equalizer;
+    private EqualizerConfig _equalizerConfig = new();
 
     // 位置事件节流：33ms ≈ 30Hz，刚好覆盖 60Hz 屏的"每两帧一次"，再高对感知无帮助
     private static readonly TimeSpan PositionThrottle = TimeSpan.FromMilliseconds(33);
@@ -76,6 +81,17 @@ public sealed class NAudioPlaybackService : IPlaybackService
         }
     }
 
+    // Phase 14: 均衡器配置（setter 语义对齐 SpectrumConfig：存字段 + 在链 provider 实时下发）
+    public EqualizerConfig EqualizerConfig
+    {
+        get => _equalizerConfig;
+        set
+        {
+            _equalizerConfig = value;
+            _equalizer?.Update(value);
+        }
+    }
+
     public NAudioPlaybackService()
     {
         // App.OnStartup 在 UI 线程解析本服务，因此 Current 一定非空；
@@ -97,9 +113,11 @@ public sealed class NAudioPlaybackService : IPlaybackService
             {
                 _reader = new MediaFoundationReader(track.FilePath);
 
-                // Phase 13: 插入 SampleAggregator
+                // Phase 13/14: ToSample → EqualizerSampleProvider → SampleAggregator
+                // EQ 置于 SampleAggregator 之前 → 频谱可视化反映 EQ 处理后的信号
                 var sampleProvider = _reader.ToSampleProvider();
-                _sampleAggregator = new SampleAggregator(sampleProvider, _spectrumConfig);
+                _equalizer = new EqualizerSampleProvider(sampleProvider, _equalizerConfig);
+                _sampleAggregator = new SampleAggregator(_equalizer, _spectrumConfig);
                 _sampleAggregator.SpectrumDataReady += OnSpectrumDataReady;
 
                 _volumeProvider = new VolumeSampleProvider(_sampleAggregator)
@@ -283,6 +301,9 @@ public sealed class NAudioPlaybackService : IPlaybackService
             _sampleAggregator.SpectrumDataReady -= OnSpectrumDataReady;
             _sampleAggregator = null;
         }
+
+        // Phase 14: 清理 EqualizerSampleProvider（无事件订阅，仅置空引用，随播放链释放）
+        _equalizer = null;
 
         if (_wavePlayer != null)
         {

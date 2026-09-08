@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/06/25（对应 HEAD `808fb98`） · 对应分支：`master` · 当前阶段：**Phase 13 完成 + 频谱调优**（音频可视化 - FFT 频谱条形图，参数/布局/主题打磨） · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026/09/08（对应 HEAD `e1bc557`） · 对应分支：`feature/phase14-equalizer` · 当前阶段：**Phase 14 完成（均衡器 - 10 段图形 EQ）** · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 
 ## 1. 项目简介
 
-**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。
+**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerConfig/EqualizerPresets 数据模型 + 9 个内置预设 + 独立 EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + 实时系数更新 + settings.json 持久化；EQ 插在 SampleAggregator 之前，频谱反映 EQ 后信号）。
 
 ### 1.1 关键特性（已实现）
 
@@ -30,6 +30,7 @@
 | 设置 | 模态对话框：默认音量滑块；音频输出占位（Phase 12）；Ctrl+, 快捷键 (Phase 11) |
 | 曲目信息面板 | 右侧独立 TrackInfoView：封面（ViewBox 自动缩放）+ 标题/艺术家/专辑/采样率；BackgroundSecondary 背景 (Phase 12 continued) |
 | 音频可视化 | 32 条垂直频谱柱（8192 点 FFT + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）；4 种颜色主题（紫/蓝/绿/彩虹，彩虹为红→紫水平渐变）；灵敏度/平滑度配置；启用/禁用开关；置于 TrackInfoView 底部（高 120px）；设置持久化 (Phase 13) |
+| 均衡器 | 10 段图形 EQ（ISO 倍频程 31Hz–16kHz ±12dB 峰值滤波 Q≈1.1 + preamp −12~+12dB）；9 个内置预设（Flat/Rock/Pop/Jazz/Classical/Dance/Bass Boost/Treble Boost/Vocal）+ 手动 Custom；实时生效（拖动即时听感）；启用开关（默认关，透明旁路）；独立 EqualizerDialog（PlayerBar 🎚 按钮打开，启用态高亮）；设置持久化 (Phase 14) |
 
 ### 1.2 后续增量（未实现）
 
@@ -79,12 +80,15 @@ D-player/
 │   ├── LibraryCacheEntry.cs      # 缓存条目 record (Phase 10)
 │   ├── LibraryDiff.cs            # 扫描增量同步 record (Phase 10)
 │   ├── SpectrumConfig.cs        # 频谱分析配置 record (FftSize=8192/BarCount=32/Sensitivity/Smoothing) (Phase 13)
+│   ├── EqualizerConfig.cs       # 均衡器运行时配置 record (Enabled/PreampDb/BandGainsDb[10]/Preset + Create 工厂) (Phase 14)
+│   ├── EqualizerPresets.cs      # 均衡器频段常量 + 9 个内置预设 (ISO 倍频程中心频率/Q=1.1/±12dB) (Phase 14)
 │   └── AudioDeviceInfo.cs       # 预留：设备信息
 │
 ├── Services/                    # 业务/基础设施服务（全部基于接口）
 │   ├── IPlaybackService.cs      # 核心播放抽象
 │   ├── NAudioPlaybackService.cs # NAudio 实现（WASAPI + MediaFoundation）
 │   ├── SampleAggregator.cs      # ISampleProvider 透明中间件：FFT 频谱分析 (Phase 13)
+│   ├── EqualizerSampleProvider.cs # ISampleProvider 透明中间件：10 段图形 EQ（每声道 BiQuadFilter 峰值滤波）(Phase 14)
 │   ├── IFileDialogService.cs
 │   ├── Win32FileDialogService.cs# Microsoft.Win32.OpenFileDialog 封装
 │   ├── ISettingsPersistence.cs
@@ -113,9 +117,10 @@ D-player/
 │   ├── MainWindow.xaml(.cs)     # 主窗口；5 列布局(Sidebar | Splitter | Playlist | Splitter | TrackInfo) + PlayerBar 底部
 │   ├── Dialogs/
 │   │   ├── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)
-│   │   └── SettingsDialog.xaml(.cs)  # 设置对话框（音量 + 音频输出占位）(Phase 11)
+│   │   ├── SettingsDialog.xaml(.cs)  # 设置对话框（音量 + 音频输出占位 + 频谱可视化）(Phase 11/13)
+│   │   └── EqualizerDialog.xaml(.cs) # 均衡器对话框（11 根竖直滑块 + 预设下拉 + 启用开关 + 实时预览）(Phase 14)
 │   └── Controls/
-│       ├── PlayerBar.xaml(.cs)  # 播放栏（进度/控制/音量 + 随机/循环按钮）
+│       ├── PlayerBar.xaml(.cs)  # 播放栏（进度/控制/音量 + 随机/循环按钮 + 🎚 均衡器按钮(Phase 14) + ⚙ 设置按钮）
 │       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + #列/表头排序/导入文件夹到当前歌单）
 │       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、📂 文件夹图标、🔄 扫描指示；+ 按钮直接新建歌单）(Phase 6/10/12 continued)
 │       ├── TrackInfoView.xaml(.cs)   # 右侧曲目信息面板（封面 ViewBox 缩放 + 标题/艺术家/专辑/采样率 + 底部 SpectrumView）(Phase 12 continued/13)
@@ -138,16 +143,21 @@ D-player/
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs # AddDPlayerServices(...) DI 注册
 │
-├── Tests/                       # xUnit 测试项目 (Phase 6+，共 77 个测试)
+├── Tests/                       # xUnit 测试项目 (Phase 6+，共 96 个测试)
 │   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit + NSubstitute + Coverlet)
 │   ├── Smoke/
 │   │   └── SmokeTests.cs                 # 冒烟测试：Track record 结构相等 (1)
+│   ├── Models/
+│   │   ├── EqualizerConfigTests.cs       # 均衡器配置 record (4) (Phase 14)
+│   │   └── EqualizerPresetsTests.cs      # 均衡器预设 (5) (Phase 14)
 │   ├── Services/
 │   │   ├── LibraryScannerServiceTests.cs # 库扫描 (17) (Phase 10)
-│   │   └── JsonLibraryCacheTests.cs      # 元数据缓存 (5) (Phase 10)
+│   │   ├── JsonLibraryCacheTests.cs      # 元数据缓存 (5) (Phase 10)
+│   │   └── EqualizerSampleProviderTests.cs # 均衡器中间件（立体声独立 + Nyquist 旁路）(7) (Phase 14)
 │   └── ViewModels/
 │       ├── PlayerViewModelTests.cs        # Transport (15) (Phase 8)
 │       ├── PlayerViewModelSpectrumTests.cs# 频谱 (5) (Phase 13)
+│       ├── PlayerViewModelEqualizerTests.cs # 均衡器（启用态传播 + 构造期抑制写盘）(3) (Phase 14)
 │       ├── PlaylistViewModelTests.cs      # 队列 (13) (Phase 8)
 │       └── PlaylistsViewModelTests.cs     # 多歌单 (21) (Phase 8/12)
 │
@@ -239,10 +249,12 @@ D-player/
 | `ILibraryCache` | **Singleton** (Phase 10) | JSON 元数据缓存 (`library-cache.json`)；内部 `SemaphoreSlim` |
 | `IAudioDeviceManager` | Singleton（Stub） | 预留 |
 | `IAudioOutputFactory` | Transient（Stub） | 预留；语义上由 `IPlaybackService` 创建即释放 |
-| `PlayerViewModel` | **Transient** (Phase 3) | Transport 子 VM；DI 中**必须先于** `PlaylistViewModel` 注册；Phase 13 订阅 `SpectrumDataAvailable` |
+| `PlayerViewModel` | **Transient** (Phase 3) | Transport 子 VM；DI 中**必须先于** `PlaylistViewModel` 注册；Phase 13 订阅 `SpectrumDataAvailable`；Phase 14 仅持有 `EqualizerEnabled` observable（供 PlayerBar 🎚 按钮高亮） |
 | `PlaylistViewModel` | **Transient**（经 `Func<Playlist, PlaylistViewModel>` 工厂） (Phase 3/6) | 队列子 VM；由 `PlaylistsViewModel` 用工厂按需创建，seed 为动态参数 |
 | `PlaylistsViewModel` | **Singleton** (Phase 6) | 多歌单容器；View 层 code-behind 经 `App.GetService<PlaylistsViewModel>()` 取用（双击跨歌单播放），故必须单例 |
 | `MainViewModel` | **Transient** | Strict Facade，构造时聚合两个子 VM |
+
+> **Phase 14 注：** `EqualizerSampleProvider` **不是 DI 服务** —— 与 `SampleAggregator` 同样在 `NAudioPlaybackService.LoadAsync` 内按曲创建（每首新曲重建一条播放链），不注册进容器。`IPlaybackService` 仅新增 `EqualizerConfig` 属性（镜像 Phase 13 的 `SpectrumConfig`），0 新 DI 依赖、 0 新 ViewModel（方案 A：`EqualizerDialog` 直写 `IPlaybackService` + `ISettingsPersistence`）。
 
 ### 4.3 关键设计决策
 
@@ -308,7 +320,7 @@ D-player/
 
 | 成员 | 说明 |
 |------|------|
-| `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `ToSampleProvider` → **`SampleAggregator`（Phase 13 频谱中间件）** → `VolumeSampleProvider` → `WasapiOut(Shared, 100ms)`；触发 `DurationChanged` / `TrackChanged` · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
+| `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `ToSampleProvider` → **`EqualizerSampleProvider`（Phase 14 均衡器中间件）** → **`SampleAggregator`（Phase 13 频谱中间件）** → `VolumeSampleProvider` → `WasapiOut(Shared, 100ms)`；触发 `DurationChanged` / `TrackChanged` · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
 | `Play / Pause / Stop` | 委派给 `IWavePlayer`；`Stop` 同时将 `CurrentTime` 归零（保留底层资源，再 `Play()` 会重播同一首） |
 | `Unload()` | **完全释放**底层 reader/wavePlayer，清掉 `_currentTrack`；之后 `Play()` 是 no-op。**Phase 3：同时广播 `TrackChanged(null) + DurationChanged(Zero) + PositionChanged(Zero)`** 让 VM 清屏（标题/封面/时长/进度全归零）。`PlaylistViewModel.UnloadCurrentTrack` 在清空队列/删当前曲时调用 |
 | `Seek(TimeSpan)` | 写 `reader.CurrentTime` 后**主动广播 PositionChanged**（Phase 3：暂停态下 PollPositionAsync 已退出，否则进度条不刷新，看上去像"没跳转"）；通过 `ClampToDuration` 截到 [0, TotalTime] |
@@ -316,8 +328,9 @@ D-player/
 | `PollPositionAsync` | 仅在 `PlaybackState==Playing` 时循环；每 33ms 派发一次 `PositionChanged` · Phase 3：经 `ClampToDuration` 截断，避免解码器尾部浮点越界 |
 | `OnPlaybackStopped` | 区分 (1) 异常 → `PlaybackError`；(2) 自然播完（距 `TotalTime` ≤ 200ms） → `TrackEnded`；(3) 用户 `Stop` → 仅 `Stopped` |
 | `SpectrumConfig { get; set; }` | Phase 13：运行时可更新；setter 把 `Enabled` 传播到 in-flight `SampleAggregator`（禁用后 FFT 停转，不空耗 CPU） |
+| `EqualizerConfig { get; set; }` | Phase 14：运行时可更新；setter 存字段 + `_equalizer?.Update(value)` 把配置实时下发到在链 EQ provider（语义对齐 `SpectrumConfig`；链未建时仅存字段待 `LoadAsync` 拾取） |
 | `SpectrumDataAvailable` 事件 | Phase 13：`SampleAggregator.SpectrumDataReady`（音频线程）→ `OnSpectrumDataReady` 经 `_syncContext.Post` 封送到 UI 线程再广播 |
-| `Dispose()` | 拆事件、停止、释放 reader/wavePlayer；`DisposePlayback` 先解绑并清空 `_sampleAggregator`（Phase 13） |
+| `Dispose()` | 拆事件、停止、释放 reader/wavePlayer；`DisposePlayback` 先解绑并清空 `_sampleAggregator`（Phase 13），并置空 `_equalizer`（Phase 14，无事件订阅，随播放链释放） |
 
 ### 5.2a `Services/SampleAggregator` + `Models/SpectrumConfig`（Phase 13）
 
@@ -335,6 +348,25 @@ D-player/
 `SpectrumConfig`（不可变 record）：`Enabled` / `BarCount=32` / `Sensitivity`（0.5~2.0）/ `Smoothing`（0.0~0.95）/ `FftSize=8192`。`Enabled` 运行时可切（`NAudioPlaybackService.SpectrumConfig` setter 传播到聚合器）。
 
 **线程边界：** `SpectrumDataReady` 在 **NAudio 音频线程**触发；`NAudioPlaybackService.OnSpectrumDataReady` 负责封送到 UI 线程。灵敏度增益 + 指数平滑在 `PlayerViewModel.HandleSpectrumData`（UI 线程）做，**不在此重复 32-bar 映射**（聚合器已完成）。
+
+### 5.2b `Services/EqualizerSampleProvider` + `Models/EqualizerConfig`（Phase 14）
+
+`EqualizerSampleProvider` 是实现 `ISampleProvider` 的**透明中间件**，插在 `MediaFoundationReader.ToSampleProvider()` 与 `SampleAggregator` 之间（**在 SampleAggregator 之前** → Phase 13 频谱可视化反映 EQ 处理后的信号）。10 段图形均衡器：ISO 倍频程中心频率 31/62/125/250/500/1k/2k/4k/8k/16k Hz，每段 ±12 dB 峰值滤波（`BiQuadFilter.PeakingEQ`，Q≈1.1 约一个倍频程带宽）+ preamp（−12~+12 dB）。
+
+关键实现点：
+1. **插入点（LoadAsync 建链）**：`ToSampleProvider → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiOut`；EQ 在频谱聚合器之前，故频谱与 EQ 后听感一致。
+2. **每声道独立滤波**：`BiQuadFilter?[][] _filters`，索引 `[channel][band]`；立体声左右声道各持一组滤波器，避免共享实例串扰滤波状态（x1/x2/y1/y2 延迟线）。
+3. **preamp 线性增益**：`EqualizerConfig.PreampLinearGain = 10^(PreampDb/20)`，在逐级滤波前对样本统一缩放（多段提升时留余量防削波）。
+4. **`Update` 就地 `SetPeakingEq`**：运行时改配置**不重建** `BiQuadFilter`，而是对已有实例调 `SetPeakingEq(...)` 就地重算系数 —— 保留 x1/x2/y1/y2 状态（延迟线不清空），拖动滑块时无爆音/咔哒声。首次（slot 为 null）才 `PeakingEQ` 新建。
+5. **Nyquist 旁路**：中心频率 ≥ 采样率一半（`sampleRate/2`）的频段置 null slot 旁路 —— PeakingEQ 在 ≥Nyquist 时不稳定（如 44.1kHz 采样下 16kHz 段接近奈奎斯特，低采样率素材则直接旁路）。
+6. **buffer 粒度 `lock` 线程模型**：`Read`（NAudio 音频线程）与 `Update`（UI 线程）共用一把 `object _lock`，锁粒度为一次缓冲区处理，防止撕裂系数。`_enabled` 用 `volatile bool` 且在锁外读取（Read 热路径 bool 读原子，最坏一次陈旧缓冲区，无撕裂风险）。
+7. **`Enabled=false` 透明旁路**：禁用时 `Read` 直接返回源读取数（零处理成本），原样透传 PCM —— 默认关闭保证不影响存量用户既有听感。
+
+`EqualizerConfig`（不可变 record）：`Enabled`（默认 false）/ `PreampDb`（默认 0）/ `BandGainsDb`（`IReadOnlyList<double>`，10 段，默认全 0）/ `Preset`（默认 `Flat`）。派生 `PreampLinearGain`。静态工厂 `EqualizerConfig.Create(enabled, preampDb, bandGainsDb, preset)` 把 preamp 与各段增益 Clamp 到 [−12, 12] 并规整段数（不足补 0、超出截断），用于把持久化/外部输入安全转为运行时配置。**注意 record 相等语义：** `BandGainsDb` 是引用类型，record 合成的相等对该属性按引用比较（不逐段比较数值）；`EqualizerPresets.Match` 需值相等时用 `SequenceEqual` 自行按序列比较。
+
+`EqualizerPresets`（纯静态数据类，无副作用，可脱离 UI 单测）：常量 `BandCount=10` / `MinGainDb=−12` / `MaxGainDb=12` / `Q=1.1f` / `Flat="Flat"` / `Custom="Custom"`；`CenterFrequencies`（10 个 ISO 倍频程中心频率，固定常量、不持久化）；`All`（9 个内置预设有序列表 Flat/Rock/Pop/Jazz/Classical/Dance/Bass Boost/Treble Boost/Vocal，不含 Custom）；`Names`（下拉项名，不含 Custom）；`TryGet(name, out gains)`（按名查曲线，返回副本）；`Match(gains)`（返回精确匹配的预设名，无匹配返回 `Custom`）。
+
+**架构（方案 A）：** 无新 DI 服务、无新 ViewModel。`EqualizerSampleProvider` 在 `NAudioPlaybackService.LoadAsync` 内按曲创建（同 `SampleAggregator`）；`IPlaybackService` 仅增 `EqualizerConfig` 属性；`EqualizerDialog` 直写 `IPlaybackService`（实时预览）+ `ISettingsPersistence`（保存）；`PlayerViewModel` 仅持 `EqualizerEnabled` observable 供 PlayerBar 🎚 按钮高亮。
 
 ### 5.3 `Services/JsonSettingsPersistence`
 
@@ -371,7 +403,7 @@ public Task CleanupAsync();
 
 ### 5.4a `ViewModels/PlayerViewModel`（Transport 子 VM，~320 行）
 
-源生成器属性：`_isSeeking`, `_position`, `_duration`, `_playState`, `_currentTrack`, `_albumArtBytes`（Phase 7：byte[]，非 BitmapImage）, `_volume`, `_isMuted`；**Phase 13 频谱**：`_spectrumData`(float[32]), `_spectrumEnabled`, `_spectrumSensitivity`, `_spectrumColorTheme`, `_spectrumSmoothing` + 私有 `_smoothedSpectrum`。派生：`VolumeIcon`（🔇/🔊）、`SampleRateText`、`PositionNormalized`（0..1）、`SpectrumColorThemes`（["紫色","蓝色","绿色","彩虹"]）。
+源生成器属性：`_isSeeking`, `_position`, `_duration`, `_playState`, `_currentTrack`, `_albumArtBytes`（Phase 7：byte[]，非 BitmapImage）, `_volume`, `_isMuted`；**Phase 13 频谱**：`_spectrumData`(float[32]), `_spectrumEnabled`, `_spectrumSensitivity`, `_spectrumColorTheme`, `_spectrumSmoothing` + 私有 `_smoothedSpectrum`；**Phase 14 均衡器**：`_equalizerEnabled`（供 PlayerBar 🎚 按钮激活态高亮）。派生：`VolumeIcon`（🔇/🔊）、`SampleRateText`、`PositionNormalized`（0..1）、`SpectrumColorThemes`（["紫色","蓝色","绿色","彩虹"]）。
 
 **Phase 10 新增成员：**
 - `SourceFolder`（`string?`，构造时从 `Playlist` seed 传入）：文件夹绑定歌单的源路径；null 表示普通手动歌单
@@ -386,6 +418,8 @@ public Task CleanupAsync();
 `partial void OnVolumeChanged(value)`：同步到 `_player.Volume` → 拖滑块到非零自动取消静音 → `_persistence.UpdateAsync(s => s with { DefaultVolume = value })`。
 
 **Phase 13 频谱管线：**`HandleSpectrumData(float[] rawData)` —— 聚合器已完成 FFT→32-bar 映射，此处仅 `rawData.ToArray()` 复制 → 逐柱乘灵敏度增益（Clamp 0.5~2.0）→ 指数移动平均平滑（`_smoothedSpectrum[i]*smoothing + data[i]*(1-smoothing)`，smoothing Clamp 0~0.95）→ 写 `SpectrumData` 触发绑定；`SpectrumEnabled==false` 时直接 return（不更新）。四个 `OnSpectrum*Changed` 钩子调 `SaveSpectrumSettings()` 持久化；`OnSpectrumEnabledChanged` 额外把 `_player.SpectrumConfig with { Enabled=value }` 回写，禁用后 FFT 停转。
+
+**Phase 14 均衡器：**`LoadEqualizerSettings(AppSettings)`（构造期 `Initialize()` 调用）—— 先设 `EqualizerEnabled` observable（构造期 `_isInitializing=true`，`OnEqualizerEnabledChanged` 不写盘），再把完整配置（preamp/10 段/预设）用 `EqualizerConfig.Create(...)` 下发到 `_player.EqualizerConfig`，首次播放即生效。`OnEqualizerEnabledChanged(value)`：`_player.EqualizerConfig = _player.EqualizerConfig with { Enabled=value }` 传播到播放链，构造期跳过写盘，否则 `UpdateAsync(s => s with { EqualizerEnabled=value })` 持久化。（EQ 的 preamp/各段/预设由 `EqualizerDialog` 直写 service + persistence，不经 VM；VM 仅持启用态供按钮高亮。）
 
 `CleanupAsync()`：解绑 **6 个事件**（含 `SpectrumDataAvailable`）+ 用观察属性 `Volume`（**非**陈旧的 `_settings` 字段）持久化最后一次音量。**不 Dispose `IPlaybackService`**（PlaylistViewModel 还在用，Facade 层统一 Dispose）。
 
@@ -454,10 +488,11 @@ public Task CleanupAsync();
 ### 5.5 `Views`
 
 - **`MainWindow`**：两行 Grid —— Row 0 `ContentGrid`（5 列：Sidebar | Splitter | Playlist | Splitter | TrackInfo）+ Row 1 `PlayerBar`（底部，自适应高度）。`SidebarCol` 和 `TrackInfoCol` 各限制为窗口宽度一半（`ContentGrid_SizeChanged` + `DragDelta` 中到达上限直接锁死）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
-- **`PlayerBar`** *(UserControl)*：播放栏。两行 Grid：①`Position | Slider | Duration` 进度条；②⏮ ▶/⏸ ⏭ 🔀 ⇄/🔁/🔂 按钮组（居中）+ 🔊音量 + ⚙设置（右对齐）。封面/信息已拆到 `TrackInfoView`。
+- **`PlayerBar`** *(UserControl)*：播放栏。两行 Grid：①`Position | Slider | Duration` 进度条；②⏮ ▶/⏸ ⏭ 🔀 ⇄/🔁/🔂 按钮组（居中）+ 🔊音量 + 🎚均衡器（Phase 14）+ ⚙设置（右对齐）。封面/信息已拆到 `TrackInfoView`。
   - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）。Thumb 默认 8px 圆点半透明，悬停/拖拽放大到 14px 不透明
   - `⏮` / `⏭` 通过 `{Binding DataContext.Playlists.ViewedPlaylist.<XxxCommand>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 `PlaylistViewModel`；`🔀` / `⇄/🔁/🔂` 绑到 `Playlists.ToggleShuffleCommand` / `Playlists.CycleRepeatCommand`
   - Stop 按钮和 📂 OpenAndPlay 按钮**已移除**（Phase 12 continued）
+  - **🎚 均衡器按钮（Phase 14）**：`EqualizerBtn_Click` 经 `App.GetService<ISettingsPersistence>()` + `App.GetService<IPlaybackService>()` 取服务，`DataContext as PlayerViewModel` 作可选 VM，调 `EqualizerDialog.Show(Window.GetWindow(this), ...)`（与 ⚙ `SettingsBtn_Click` 同模式）。`TextBlock` 的 `Foreground` 绑 `{Binding EqualizerEnabled, Converter={StaticResource BoolToAccentBrush}}`，EQ 启用时高亮强调色（同 🔀/🔁 按钮）
   - **▶/⏸ 按钮的双绑定（Phase 4）**：默认 `Command={Binding PlayPauseCommand}`（PlayerVM 的 transport 切换）；当 `CurrentTrack==null` 时通过 `<DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">` 切到 `Playlists.ViewedPlaylist.PlayCurrentCommand` —— 启动后队列已恢复但 transport 空闲，第一次按 ▶ 触发首次加载 + 播放，`TrackChanged(track)` 让 trigger 失活，回到 PlayPauseCommand。**注意 inline `<Style TargetType="Button">` 必须 `BasedOn="{StaticResource {x:Type Button}}"`**，否则会替换掉 `Themes/Controls.xaml` 中的隐式主题样式，按钮回退到 OS 原生白底（COUPLING.md §5）
 - **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽 + Phase 12 continued)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空][导入文件夹到当前歌单][刷新]` 左对齐；②`ListBox` 绑 `SortedView`，每项含 ▶ 当前曲标记 + `#` 列（TrackNumber）+ 标题/艺术家/专辑/时长 + `×` 删除按钮
   - **# 列**：显示元数据 `TrackNumber`（Phase 12 continued 新增），从 `ITrackMetadataReader` 读取
@@ -471,6 +506,13 @@ public Task CleanupAsync();
 - **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。
 - **`TrackInfoView`** *(UserControl, Phase 12 continued/13)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。两行 Grid：Row0（`*`）曲目信息 —— 封面用 `Viewbox MaxWidth/MaxHeight=250` 包裹自动缩放（内含 `Border` 180×180 + `Image Stretch="UniformToFill"`），文本元数据（标题/艺术家/专辑/采样率）居中，无曲目时 DataTrigger 显示"播放曲目以查看信息"占位；Row1（`Auto`）**Phase 13 `SpectrumView`**（高 120px，绑 `SpectrumData`/`SpectrumColorTheme`，`Visibility` 绑 `SpectrumEnabled`）。封面 Border 加 `ClipToBounds=True` 圆角裁切（ViewBox 缩放后内容溢出问题）。
 - **`SettingsDialog`** *(Window, Phase 11/13)*：设置对话框。模态 ToolWindow（**420×520**，Phase 13 因可视化区增高），9 行 Grid：通用（音量滑块 0..1）+ 音频输出灰色占位 + **音频可视化（Phase 13：启用 CheckBox + 灵敏度滑块 0.5~2.0 + 颜色主题 ComboBox + 平滑度滑块 0~0.95，DockPanel LastChildFill 布局：标签左/数值右/滑块填充）**。静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂。构造注入 `IPlaybackService`（音量滑块实时调 `_playbackService.Volume`）+ 可选 `PlayerViewModel`（保存后即时同步频谱属性，免重启）。OnLoaded async 读盘加载音量 + 频谱设置并绑定滑块 ValueChanged 实时更新数值标签；Save_Click 通过 `UpdateAsync` 原子写盘后同步 VM —— **故意不 `ConfigureAwait(false)`，留在 UI 线程**才能直接写 `PlayerViewModel` 属性；失败弹 MessageBox（Phase 13）。
+- **`EqualizerDialog`** *(Window, Phase 14)*：均衡器对话框。复用 SettingsDialog 模式（静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂 + 模态 `ShowDialog()`，返回 true = 用户保存）。模态 ToolWindow（**480×400**），三行 Grid：Row0 启用 CheckBox + 预设 ComboBox；Row1（`*`）频段滑块区 `BandsPanel`（UniformGrid）；Row2 恢复 Flat + 取消/保存。
+  - **11 根竖直滑块由 code-behind 动态构建**：`BuildBands()` 在 `BandsPanel` 里生成 10 段 + preamp 共 11 列（每列：dB 值标签 / 竖直滑块 / 频率标签，`MakeSliderColumn` 三行 Grid）。滑块绑 `EqBandSlider` 样式（Min −12 / Max 12）
+  - **自定义 `EqBandSlider` 竖直模板**：`Controls.xaml` 的隐式 Slider 模板是**横向专用**（Height=20 + 填充条 VerticalAlignment=Center），竖直滑块直接用会渲染错位；故对话框资源里自定义 `EqBandSlider`（`Orientation=Vertical` + Width=24 + 填充条 HorizontalAlignment=Center + 14px 圆形 Thumb）
+  - **实时预览**：`BandSlider_ValueChanged` → `RefreshLabels()` 更新数值标签 + `EqualizerPresets.Match(CurrentGains())` 回推预设名（手动偏离即 Custom）→ `PushToService(preset)` 把 `EqualizerConfig.Create(...)` 写 `_playbackService.EqualizerConfig`（拖动即时听感）；`PresetCombo_SelectionChanged` 选预设→`ApplyGains` 写滑块 + 实时下发；`RestoreFlat_Click` 恢复平直（preamp=0）
+  - **`_suppress` 拦截程序化回推**：程序设滑块/下拉时用 `_suppress` 窗口包住，避免 `ValueChanged`/`SelectionChanged` 回推；**尤其 `OnLoaded` 填充预设下拉必须在 `_suppress` 内** —— WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发一次 `SelectionChanged`（Phase 14 code review 拦下的 Critical）
+  - **取消回滚**：`_initialConfig` 取“打开瞬间的实时 `_playbackService.EqualizerConfig`”（权威，不受 LoadAsync 失败影响），再试读盘覆盖；`OnClosed` 若未 `_saved` 则把 `_playbackService.EqualizerConfig = _initialConfig` 撤销实时预览（回滚基准非二次读盘 —— 读盘失败会把基准误置为禁用平直）
+  - **Save_Click**：`UpdateAsync` 原子写 settings.json（EqualizerEnabled/Preamp/Bands/Preset）→ 再确认一次链上配置 → 写 `PlayerViewModel.EqualizerEnabled`（按钮高亮即时更新）—— **故意不 `ConfigureAwait(false)`，留在 UI 线程**；失败弹 MessageBox
 
 ### 5.5a `Views/Controls/DragDropExtensions`（Phase 5）
 
@@ -532,7 +574,7 @@ public Task CleanupAsync();
 
 **更名数据迁移（UmaPlayer → D-player）**：数据目录从 `%LocalAppData%\UmaPlayer\` 改为 `%LocalAppData%\D-player\`。`App.OnStartup` 最早期调用 `LegacyDataMigration.MigrateIfNeeded()`（在任何持久化服务被 DI 构造前），把旧目录内文件逐个搬到新目录（新目录已有同名文件则跳过 → 幂等；失败静默吞掉不阻断启动，旧数据保留）。
 
-**当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`、**`SpectrumEnabled/SpectrumSensitivity/SpectrumColorTheme/SpectrumSmoothing`（Phase 13）**。
+**当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`、**`SpectrumEnabled/SpectrumSensitivity/SpectrumColorTheme/SpectrumSmoothing`（Phase 13）**、**`EqualizerEnabled/EqualizerPreamp/EqualizerBands/EqualizerPreset`（Phase 14）**。
 **已建模但未启用**：`OutputMode`、`PreferredDeviceId`、`LastPlayedPath`。
 
 ### 6.3 队列快照：`%LocalAppData%\D-player\queue.json`（Phase 4/6/10）
@@ -668,6 +710,33 @@ TrackInfoView → SpectrumView.SpectrumData (DP) → OnSpectrumDataChanged 算 _
   → OnSpectrumEnabledChanged 额外回写 _player.SpectrumConfig.Enabled（禁用即停 FFT）
 ```
 
+### 7.6 均衡器数据流（Phase 14）
+
+```
+启动：PlayerViewModel.Initialize → LoadEqualizerSettings(settings)
+  → 先设 EqualizerEnabled observable（构造期 _isInitializing=true，OnEqualizerEnabledChanged 不写盘）
+  → _player.EqualizerConfig = EqualizerConfig.Create(Enabled/Preamp/Bands/Preset)（存字段，待首次 LoadAsync 拾取）
+
+播放：PlaylistViewModel.PlayTrackAtAsync → IPlaybackService.LoadAsync(track)
+  → DisposePlayback 重建链：ToSampleProvider → new EqualizerSampleProvider(sampleProvider, _equalizerConfig)
+    → new SampleAggregator(_equalizer, _spectrumConfig) → VolumeSampleProvider → WasapiOut
+  （EQ 在 SampleAggregator 之前 → 频谱反映 EQ 后信号）
+
+拖动/预设（实时）：EqualizerDialog.BandSlider_ValueChanged / PresetCombo_SelectionChanged / Enable_Changed
+  → PushToService(preset)：_playbackService.EqualizerConfig = EqualizerConfig.Create(...)
+  → setter：存字段 + _equalizer?.Update(value)
+  → Update 在 buffer 粒度 lock 内对每声道每段 existing.SetPeakingEq(...) 就地重算系数（保留 x1/x2/y1/y2）
+  → 下一个 Read 缓冲区即听感生效（且频谱同步反映；链未建时仅存字段待 LoadAsync 拾取）
+
+保存：EqualizerDialog.Save_Click
+  → _persistence.UpdateAsync 写 settings.json（EqualizerEnabled/Preamp/Bands/Preset）
+  → 再确认一次链上 _playbackService.EqualizerConfig
+  → 留在 UI 线程写 PlayerViewModel.EqualizerEnabled（🎚 按钮高亮即时更新）→ DialogResult=true
+
+取消/关闭：EqualizerDialog.OnClosed（未 _saved）
+  → _playbackService.EqualizerConfig = _initialConfig（打开瞬间的实时链快照）→ setter → Update 撤销实时预览
+```
+
 ---
 
 ## 8. 构建与运行
@@ -712,6 +781,9 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **WPF record 结构相等会让 `Queue.IndexOf` / `HashSet<Track>` 塌陷重复占位**（Phase 5）：Track 是 `sealed record`；两个 `CreateFallback("X.mp3")` 在结构上相等。基于相等性的查找/去重会把它们认作同一个，重排时 `Queue.IndexOf(currentTrackObj)` 返回首个结构等价匹配而非原始那一个 → ▶ 跟到错的曲、Shuffle 历史塌陷。修复纪律：所有需要"找回原来那一个 Track 实例"的代码用 `ReferenceEquals` + `ReferenceEqualityComparer.Instance`（见 `PlaylistViewModel.MoveTracks` 与 `PlaylistView.QueueList_PreviewMouseMove`）。
 - **ViewBox + CornerRadius + ClipToBounds（Phase 12 continued）**：`ViewBox` 缩放子元素时会突破父 `Border` 的 `CornerRadius` 圆角裁切区域，导致封面方形直角溢出圆角边框。修复：给封面 `Border` 加 `ClipToBounds=True`，让 WPF 裁切到 Border 边界内。同时封面 `Border` 不能有 `CornerRadius`（与播放时直角不一致），圆角仅在外层容器 Border 上设置。
 - **频谱事件跨线程（Phase 13）**：`SampleAggregator.SpectrumDataReady` 在 NAudio 音频渲染线程触发，`NAudioPlaybackService.OnSpectrumDataReady` 必须经 `_syncContext.Post` 封送到 UI 线程再广播 `SpectrumDataAvailable`；`PlayerViewModel.HandleSpectrumData` 直接在 UI 线程更新 `SpectrumData` 绑定属性。若跳过封送会跨线程触碰 DP 抛异常。`SettingsDialog.Save_Click` 同理故意不用 `ConfigureAwait(false)`，留在 UI 线程才能直接写 `PlayerViewModel` 属性。
+- **EQ 系数实时更新的线程安全（Phase 14）**：`EqualizerSampleProvider.Read`（NAudio 音频线程）与 `Update`（UI 线程）共用 buffer 粒度 `lock` 互斥，防止撕裂系数；`Update` **必须用 `SetPeakingEq` 就地重算**（保留 x1/x2/y1/y2 延迟线状态），若重建 `BiQuadFilter` 会清空延迟线导致拖动时爆音。立体声必须每声道独立 `BiQuadFilter?[channel][band]`（左右共享实例会串扰滤波状态）；中心频率 ≥ 奈奎斯特（`sampleRate/2`）的频段置 null slot 旁路（PeakingEQ 在 ≥Nyquist 时不稳定）。`EqualizerDialog.Save_Click` 同 `SettingsDialog` 故意不用 `ConfigureAwait(false)`，留在 UI 线程才能写 `PlayerViewModel.EqualizerEnabled`。
+- **WPF ComboBox 向空集合添加首项会自动选中 index 0（Phase 14）**：`ComboBox` 在从空集合添加第一个项时会自动选中该项并触发一次 `SelectionChanged`。`EqualizerDialog.OnLoaded` 填充预设下拉必须在 `_suppress` 窗口内进行，否则打开对话框即误 push 一次 Flat/禁用配置，扰动正在播放的 EQ（Phase 14 code review 拦下的 Critical）。
+- **给 `IPlaybackService` 加成员必须同步改 `NullPlaybackService`（Phase 14）**：`PlaylistsViewModel` 内有一个手写的 `NullPlaybackService` 空对象（该接口的第二个生产实现者，供 internal 测试构造器用），NSubstitute 只覆盖测试替身。给 `IPlaybackService` 加 `EqualizerConfig` 时必须同步给 `NullPlaybackService` 补上该成员，否则 CS0535 编译失败。
 
 ---
 
@@ -922,3 +994,15 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
     - `8c4774d` fix(view): rainbow gradient from red (left) to purple (right) without cycling
     - `781d35d` fix(theme): add IsMoveToPointEnabled to Slider style
     - `808fb98` fix(view): fix slider layout in SettingsDialog using DockPanel LastChildFill
+  - **Phase 14**（均衡器）
+    - `ca5242a` feat(models): add EqualizerConfig + EqualizerPresets (Phase 14)
+    - `49fb593` test(models): cover EqualizerConfig.Create truncate path + note equality semantics
+    - `e4c3f40` feat(services): add EqualizerSampleProvider for 10-band graphic EQ (Phase 14)
+    - `1f5be2a` test(services): cover stereo independence + Nyquist bypass; harden _enabled visibility
+    - `160a42d` feat(playback): wire EqualizerSampleProvider into playback chain (Phase 14)
+    - `8eb0de1` feat(config): add equalizer settings to AppSettings (Phase 14)
+    - `a98bb91` feat(vm): add EqualizerEnabled to PlayerViewModel with startup apply (Phase 14)
+    - `7a96162` test(vm): assert PlayerViewModel suppresses persistence during construction
+    - `535a511` feat(view): add EqualizerDialog with 10-band vertical sliders + presets (Phase 14)
+    - `857444b` fix(view): suppress preset-combo init push + robust EQ dialog rollback/DRY (Phase 14)
+    - `e1bc557` feat(view): add EQ button to PlayerBar with active-state highlight (Phase 14)

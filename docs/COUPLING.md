@@ -1,8 +1,8 @@
 # D-player 耦合分析与重构备忘
 
-> 创建日期：2026/06/06 · 更新日期：2026/06/25（对应 HEAD `808fb98`） · 对应分支：`master` · 对应阶段：**Phase 13 完成**（音频可视化 + 频谱调优）
+> 创建日期：2026-06-06 · 更新日期：2026-09-08（对应 HEAD `e1bc557`） · 对应分支：`feature/phase14-equalizer` · 对应阶段：**Phase 14 完成**（均衡器 - 10 段图形 EQ）
 >
-> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）。所有技术债已清零。详见 §6。
+> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。
 
 ---
 
@@ -10,7 +10,7 @@
 
 | 维度 | 评级 | 备注 |
 |------|------|------|
-| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖 |
+| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel |
 | 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5/6/7 沿用既有模式 |
 | 已识别"待还的债" | 0 项剩余（#1/#2/#3/#4/#5 ✅ 全部已偿） | 见 §3 |
 | 已识别"过度抽象" | 2 项 | 见 §4 |
@@ -30,8 +30,9 @@
 ✅ Phase 5 拖拽功能完全在 PlaylistVM 域内：DragDrop 事件 / 命中测试 / 文件过滤 / Adorner 绘制全在 View 层；VM 仅暴露 2 个纯数据 RelayCommand（`DropExternalFiles(paths)` / `MoveTracks(args)`），无 `DataObject` / `DragEventArgs` / `AdornerLayer` 渗透；MainViewModel Facade 维持 ~44 行不变
 ✅ Phase 10 文件夹绑定歌单：`ILibraryScannerService` + `ILibraryCache` 接口 + 实现注入 PlaylistsViewModel；`AudioConstants` 从 View 层提取到 Models 层消除层级违规；启动后台自动增量同步
 ✅ Phase 13 音频可视化：`SampleAggregator` 作为 `ISampleProvider` 透明中间件插入播放链，`IPlaybackService` 仅增 `SpectrumDataAvailable` 事件 + `SpectrumConfig` 属性；VM 层零新依赖（PlayerViewModel 已持有 IPlaybackService）；SpectrumView 纯 code-behind 绘制不进 VM —— 印证“加可视化不触碰核心架构”的判断
+✅ Phase 14 均衡器：`EqualizerSampleProvider` 同样作为 `ISampleProvider` 透明中间件插入播放链（在 SampleAggregator 之前），`IPlaybackService` 仅增 `EqualizerConfig` 1 个属性（镜像 `SpectrumConfig`）；**0 新 DI 服务**（EQ provider 在 `NAudioPlaybackService.LoadAsync` 内按曲创建，同 `SampleAggregator`）、**0 新 ViewModel**（方案 A：`EqualizerDialog` 直写 `IPlaybackService` + `ISettingsPersistence`，PlayerViewModel 仅持 `EqualizerEnabled` 供按钮高亮）—— 同 Phase 13 印证“加功能不触碰核心架构”的判断
 
-**结论：** Phase 13（可视化）已落地并调优，验证了“Phase 10 后继续加功能不会再触碰核心架构”的判断 —— 频谱功能仅给 `IPlaybackService` 加 1 事件 + 1 属性，0 新 DI 依赖，0 新债。
+**结论：** Phase 14（均衡器）已落地，再次验证了“Phase 10 后继续加功能不会再触碰核心架构”的判断 —— EQ 功能仅给 `IPlaybackService` 加 1 个属性（`EqualizerConfig`），0 新 DI 服务，0 新 ViewModel，0 新债（与 Phase 13 频谱同构：透明 ISampleProvider 中间件 + 按曲在 LoadAsync 建链）。
 
 ---
 
@@ -47,10 +48,11 @@
 | `PlaylistsViewModel` | `Func<Playlist, PlaylistViewModel>`, `IPlaybackService`, `ILibraryScannerService`, `ILibraryCache` | `Playlist`、`PlaylistViewModel`、`LibraryDiff` |
 | `MainWindow` | `MainViewModel`, `ISettingsPersistence` | `Window`, `SystemParameters` |
 | `SettingsDialog` | `ISettingsPersistence`, `IPlaybackService`（Phase 13）, `PlayerViewModel?`（可选，保存后同步） | `Window`, `App.GetService<>()` |
+| `EqualizerDialog`（Phase 14） | `ISettingsPersistence`, `IPlaybackService`, `PlayerViewModel?`（可选，保存后同步 EqualizerEnabled） | `Window`, `App.GetService<>()`；直写 `_playbackService.EqualizerConfig` 实时预览 + `EqualizerConfig.Create` / `EqualizerPresets` |
 | `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>`（含 Phase 4 ▶ DataTrigger 的 `PlayCurrentCommand`） |
 | `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信；Phase 6 双击路由走 `App.GetService<PlaylistsViewModel>().HandleDoubleClickPlay` |
 | `PlaylistsSidebarView` | — | `PlaylistsViewModel`（`DataContext as PlaylistsViewModel`）；订阅 `PropertyChanged` / `Playlists.CollectionChanged`；消费 `PromptDialog` |
-| `NAudioPlaybackService` | `IPlaybackService` | `MediaFoundationReader`, `WasapiOut`, `VolumeSampleProvider`, `SampleAggregator`（Phase 13） |
+| `NAudioPlaybackService` | `IPlaybackService` | `MediaFoundationReader`, `WasapiOut`, `VolumeSampleProvider`, `SampleAggregator`（Phase 13）, `EqualizerSampleProvider`（Phase 14，在 `LoadAsync` 内按曲创建） |
 | `Win32FileDialogService` | `IFileDialogService` | `Microsoft.Win32.OpenFileDialog` |
 | `JsonSettingsPersistence` | `ISettingsPersistence` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
 | `JsonPlaylistService` (Phase 6) | `IPlaylistService` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
@@ -246,14 +248,25 @@ private void RemoveTrack(int index)
 | `SpectrumConfig` 是 record（引用类型），mock 需预设实例 | `PlayerViewModelSpectrumTests` 构造函数注释 | NSubstitute 对 record 属性默认返回 null；`OnSpectrumEnabledChanged` 读 `_player.SpectrumConfig with {...}` 会 NRE。测试须 `_player.SpectrumConfig.Returns(new SpectrumConfig())` |
 | `SettingsDialog.Save_Click` 不得 `ConfigureAwait(false)` | `SettingsDialog.xaml.cs:Save_Click` | await 后需直接写 `PlayerViewModel` 属性同步频谱设置；`ConfigureAwait(false)` 会把续延扔到 threadpool，跨线程写 VM 观察属性触发绑定更新会异常（commit `a76d92a` 修） |
 | `SpectrumView` 用 `CompositionTarget.Rendering` 必须在 `Unloaded` 解绑 | `SpectrumView.xaml.cs` 构造函数 | 全局渲染事件持有控件引用；不解绑会导致控件无法回收（内存泄漏） |
+| **Phase 14 新增** | | |
+| `EqualizerSampleProvider.Read`（音频线程）与 `Update`（UI 线程）共用 buffer 粒度 `lock`；`Update` 必须用 `SetPeakingEq` 就地重算（保留 x1/x2/y1/y2 状态） | `Services/EqualizerSampleProvider.cs` | 无锁会撕裂系数；重建 `BiQuadFilter` 会清空延迟线导致拖动爆音 |
+| 立体声必须每声道独立 `BiQuadFilter?[channel][band]` | `EqualizerSampleProvider._filters[channel][band]` | 左右共享滤波器实例会串扰滤波状态 |
+| EQ 插入点必须在 `SampleAggregator` 之前 | `NAudioPlaybackService.LoadAsync` | 移到其后会让频谱与 EQ 后听感脱钩 |
+| `IPlaybackService.EqualizerConfig` setter 语义对齐 `SpectrumConfig`：存字段 + `_equalizer?.Update` | `NAudioPlaybackService.EqualizerConfig` | 链未建时仅存字段待 `LoadAsync` 拾取（不会丢更新） |
+| 给 `IPlaybackService` 加成员必须同步更新 `PlaylistsViewModel` 内的手写 `NullPlaybackService` 空对象 | `PlaylistsViewModel.NullPlaybackService`（该接口的第二个生产实现者，NSubstitute 只覆盖测试替身） | 否则 CS0535 编译失败 |
+| `EqualizerDialog.Save_Click` 不得 `ConfigureAwait(false)` | `Views/Dialogs/EqualizerDialog.xaml.cs:Save_Click` | 保存后需在 UI 线程写 `PlayerViewModel.EqualizerEnabled`（同 SettingsDialog Phase 13 契约） |
+| WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发一次 `SelectionChanged`；`EqualizerDialog.OnLoaded` 填充预设下拉必须在 `_suppress` 窗口内进行 | `EqualizerDialog.xaml.cs:OnLoaded` | 否则打开对话框即误 push 一次 Flat/禁用配置，扰动正在播放的 EQ（Phase 14 code review 拦下的 Critical） |
+| `EqualizerDialog` 的取消回滚基准 `_initialConfig` 取“打开瞬间的实时 `_playbackService.EqualizerConfig`”，非二次读盘 | `EqualizerDialog.xaml.cs:OnLoaded` / `OnClosed` | 读盘失败会把回滚基准误置为禁用平直 |
+| `EqualizerConfig` 是 record，mock 需预设实例 | `PlayerViewModelEqualizerTests` 构造函数 | NSubstitute 对 record 属性默认返回 null；`OnEqualizerEnabledChanged` 读 `_player.EqualizerConfig with {...}` 会 NRE。测试须 `_player.EqualizerConfig.Returns(new EqualizerConfig())`（同 `SpectrumConfig` 契约） |
+| PlayerBar EQ 竖直滑块模板必须自定义（`EqualizerDialog` 的 `EqBandSlider`） | `EqualizerDialog.xaml` `EqBandSlider` | Controls.xaml 隐式 Slider 模板横向专用（Height=20 + 填充条 VerticalAlignment=Center），竖直滑块直接用会渲染错位 |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
 ---
 
-## 6. 启动检查清单（Phase 13 完成）
+## 6. 启动检查清单（Phase 14 完成）
 
-> Phase 13（音频可视化）已完成并调优。所有结构性改造与债务偿还已清零；Phase 11/12/13 均为功能增量，未触碰核心架构。
+> Phase 14（均衡器）已完成。所有结构性改造与债务偿还已清零；Phase 11/12/13/14 均为功能增量，未触碰核心架构（Phase 13/14 同构：透明 ISampleProvider 中间件 + 仅给 IPlaybackService 加 1 属性 + 0 新 DI 服务 + 0 新 ViewModel）。
 
 1. ✅ **VM 拆分**（Phase 3 完成，commit `54edf9a`）—— MainViewModel 643→44 行 Strict Facade；PlayerVM + PlaylistVM 互不持引用
 2. ✅ **`PlayerBar` / `PlaylistView` 去硬转型**（Phase 3 完成）—— DataContext 切到子 VM；跨域命令用 `RelativeSource AncestorType=Window`
@@ -274,6 +287,7 @@ private void RemoveTrack(int index)
 - [x] UI 界面重构（Phase 12）—— PlayerBar 移底 + 圆形播放键 + PlaylistView 优化 + Sidebar 图标 + 色板微调
 - [x] Phase 12 持续优化 —— 全局 Shuffle/Repeat + TrackInfoView + #列 + 表头排序 + 导入文件夹到当前歌单 + 多项 UI 修复
 - [x] 音频可视化（Phase 13 完成）—— SampleAggregator FFT（8192 点 + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）+ SpectrumView 32 柱 60fps + 4 色主题 + 灵敏度/平滑度/启用配置 + settings.json 持久化 + TrackInfoView 底部集成
+- [x] 均衡器（Phase 14 完成）—— EqualizerSampleProvider 10 段图形 EQ（ISO 倍频程 31Hz–16kHz ±12dB 峰值滤波 Q≈1.1 + preamp，插在 SampleAggregator 之前→频谱反映 EQ 后信号）+ 9 个内置预设 + Custom + 实时就地 SetPeakingEq 重算（防爆音）+ EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + settings.json 持久化
 
 ---
 
@@ -299,6 +313,9 @@ private void RemoveTrack(int index)
 - ❌ **让 `SampleAggregator.SpectrumDataReady` 直接更新 UI 绑定属性**（Phase 13）—— 该事件在音频线程触发，必须经 `NAudioPlaybackService` 的 `_syncContext.Post` 封送到 UI 线程
 - ❌ **在 `SettingsDialog.Save_Click` 用 `ConfigureAwait(false)`**（Phase 13）—— await 后要直接写 `PlayerViewModel` 属性同步频谱设置，离开 UI 线程会异常（commit `a76d92a`）
 - ❌ **忘记在 `SpectrumView.Unloaded` 解绑 `CompositionTarget.Rendering`**（Phase 13）—— 全局渲染事件会持有控件引用导致内存泄漏
+- ❌ **让 `EqualizerSampleProvider.Update` 重建 `BiQuadFilter`（而非 `SetPeakingEq` 就地改）**（Phase 14）—— 重建会清空 x1/x2/y1/y2 延迟线，拖动滑块时爆音
+- ❌ **给 `IPlaybackService` 加成员却漏改 `PlaylistsViewModel` 内的手写 `NullPlaybackService`**（Phase 14）—— 它是该接口的第二个生产实现者，漏改会 CS0535 编译失败
+- ❌ **在 `EqualizerDialog.OnLoaded` 未抑制就填充预设下拉**（Phase 14）—— WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发 `SelectionChanged`，打开即误 push 一次 Flat/禁用配置扰动播放中的 EQ
 
 ---
 

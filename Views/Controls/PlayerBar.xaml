@@ -157,6 +157,16 @@
                 <Slider Width="100" VerticalAlignment="Center"
                         Minimum="0" Maximum="1" IsMoveToPointEnabled="True"
                         Value="{Binding Volume, Mode=TwoWay}"/>
+                <!-- 🎚 均衡器按钮：Phase 14；启用态高亮（BoolToAccentBrush，同 Shuffle/Repeat） -->
+                <Button Width="32" Height="32"
+                        Padding="0" Margin="8,0,0,0"
+                        Background="Transparent" BorderThickness="0"
+                        Click="EqualizerBtn_Click"
+                        ToolTip="均衡器">
+                    <TextBlock Text="&#x1F39A;" FontSize="14"
+                               FontFamily="Segoe UI Emoji"
+                               Foreground="{Binding EqualizerEnabled, Converter={StaticResource BoolToAccentBrush}}"/>
+                </Button>
                 <!-- ⚙ 设置按钮：Phase 11 -->
                 <Button Width="32" Height="32"
                         Padding="0" Margin="8,0,0,0"

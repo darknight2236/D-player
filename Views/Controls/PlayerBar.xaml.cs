@@ -72,4 +72,13 @@ public partial class PlayerBar : UserControl
         var playerViewModel = DataContext as PlayerViewModel;
         SettingsDialog.Show(Window.GetWindow(this), persistence, playbackService, playerViewModel);
     }
+
+    /// <summary>点击 🎚 按钮打开均衡器对话框（Phase 14）。</summary>
+    private void EqualizerBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var persistence = App.GetService<ISettingsPersistence>();
+        var playbackService = App.GetService<IPlaybackService>();
+        var playerViewModel = DataContext as PlayerViewModel;
+        EqualizerDialog.Show(Window.GetWindow(this), persistence, playbackService, playerViewModel);
+    }
 }

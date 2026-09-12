@@ -2,6 +2,8 @@
 
 > 审计日期：2026-09-12 · 分支：`feature/phase15-coupling-audit` · 基线 HEAD：`5dd64d7`（本次报告提交前的分支 tip）
 >
+> 注：本报告提交仅含 docs 变更，源码 tree 与基线 `5dd64d7` 一致；脚本输入可用 `git checkout 5dd64d7` 复现。
+>
 > 关联文档：设计规格 [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md`](./2026-09-12-d-player-phase15-coupling-audit-design.md) · 活耦合登记册 [`docs/COUPLING.md`](../../COUPLING.md)（Phase 14 状态）
 >
 > 审计性质：**只读分析 + 报告撰写**，未修改任何功能代码或审计脚本。
@@ -15,6 +17,17 @@
 - 路径：[`tools/coupling-audit/Invoke-CouplingAudit.ps1`](../../../tools/coupling-audit/Invoke-CouplingAudit.ps1)
 - 调用：`powershell -NoProfile -ExecutionPolicy Bypass -File tools/coupling-audit/Invoke-CouplingAudit.ps1`
 - 产出：M1–M6 六项客观指标（M7 为人工核对，脚本仅辅助定位）。
+
+### 复跑指引
+
+- **环境**：Windows PowerShell 5.1+；**无需构建前置**——脚本仅读取 `.cs` 源文件，不依赖编译产物。
+- **命令**（在仓库根目录或任意 cwd 执行均可，脚本内 `$RepoRoot` 会自动解析仓库根）：
+
+  ```powershell
+  powershell -NoProfile -ExecutionPolicy Bypass -File tools/coupling-audit/Invoke-CouplingAudit.ps1
+  ```
+
+- **耗时与确定性**：通常数秒内完成；输出为确定性（边、表项均经排序），同一源码 tree 上重复运行结果完全一致，可直接 diff 比对。
 
 ### 启发式规则（heuristic）
 
@@ -38,7 +51,7 @@
 
 ### 交叉校验
 
-本次脚本输出与任务给定的 known-good 值**逐项一致**（M1 layer 边集合、M2=0、M3=0、M4 各接口宽度、M5 >600 列表与 top-10 前三、M6 两个 stub）。**无差异，无需在报告中记录 discrepancy。**
+本次脚本输出与 Phase 15 实现计划预录的期望基线逐项比对，结果一致（M1 layer 边集合、M2=0、M3=0、M4 各接口宽度、M5 >600 列表与 top-10 前三、M6 两个 stub）。**无差异，无需在报告中记录 discrepancy。**
 
 ---
 
@@ -46,7 +59,7 @@
 
 > 以下为 `Invoke-CouplingAudit.ps1` 在基线 HEAD `5dd64d7` 上的完整原始输出。
 
-### M1 — 命名空间边（namespace edges）
+### M1a — 命名空间原始边（namespace edges）
 
 ```
 DPlayer -> DPlayer.Extensions
@@ -75,7 +88,7 @@ DPlayer.Views.Dialogs -> DPlayer.Services
 DPlayer.Views.Dialogs -> DPlayer.ViewModels
 ```
 
-### M1 — layer 边（namespace-edge count）
+### M1b — layer 聚合边（namespace-edge count）
 
 | layer 边 | 计数 |
 |----------|------|
@@ -99,7 +112,7 @@ DPlayer.Views.Dialogs -> DPlayer.ViewModels
 
 **依赖方向核验：** 存在 `ViewModels->Services`、`Views->ViewModels`、`Views->Services`、`Services->Models`、`ViewModels->Models`（正向）；**不存在** `Services->Views`、`ViewModels->Views`（反向）；`Models` out=0（纯基座）。与 COUPLING.md §2「View → VM → Service → Model」一致。
 
-### M1 — fan-in / fan-out（每命名空间）
+### M1c — fan-in / fan-out（每命名空间）
 
 | in | out | namespace |
 |----|-----|-----------|

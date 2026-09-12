@@ -112,10 +112,10 @@ function Get-InterfaceWidth([string]$name) {
 $loc = foreach ($f in $files) {
     [pscustomobject]@{
         File = $f.FullName.Substring($RepoRoot.Length).TrimStart('\','/')
-        Loc  = (Get-Content -LiteralPath $f.FullName | Measure-Object -Line).Lines
+        Loc  = (Get-Content -LiteralPath $f.FullName).Count
     }
 }
-$big = @($loc | Where-Object { $_.Loc -gt 600 } | Sort-Object -Descending Loc)
+$big = @($loc | Where-Object { $_.Loc -gt 600 } | Sort-Object @{Expression='Loc';Descending=$true}, File)
 
 # ---- M6: DI registered-but-unconsumed ----
 $regFile = Join-Path $RepoRoot 'Extensions\ServiceCollectionExtensions.cs'
@@ -142,6 +142,6 @@ foreach ($n in @('IPlaybackService','IPlaylistService','ISettingsPersistence','I
 "== M5 files >600 LOC =="
 if ($big.Count -eq 0) { "none" } else { $big | ForEach-Object { "{0} : {1}" -f $_.Loc, $_.File } }
 "== M5 top-10 LOC =="
-$loc | Sort-Object -Descending Loc | Select-Object -First 10 | ForEach-Object { "{0} : {1}" -f $_.Loc, $_.File }
+$loc | Sort-Object @{Expression='Loc';Descending=$true}, File | Select-Object -First 10 | ForEach-Object { "{0} : {1}" -f $_.Loc, $_.File }
 "== M6 registered-but-unconsumed services =="
 if ($unconsumed.Count -eq 0) { "none" } else { $unconsumed }

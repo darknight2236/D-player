@@ -95,3 +95,53 @@ foreach ($ns in ($uses.Keys | Sort-Object)) {
 if ($cyclic.Count -eq 0) { "0 cycles" } else { $cyclic | ForEach-Object { "cycle involves: $_" } }
 "== M3 layer violations =="
 if ($violations.Count -eq 0) { "0 violations" } else { $violations }
+
+# ================= Task 2: M4 / M5 / M6 =================
+
+# ---- M4: interface width (member count) ----
+function Get-InterfaceWidth([string]$name) {
+    $f = Get-ChildItem -Path $RepoRoot -Filter "$name.cs" -Recurse -File | Select-Object -First 1
+    if (-not $f) { return -1 }
+    $text = Get-Content -LiteralPath $f.FullName -Raw
+    $props = ([regex]::Matches($text, '\{\s*get;')).Count
+    $meths = ([regex]::Matches($text, '(?m)^    [^\s/].*;\s*$')).Count
+    return $props + $meths
+}
+
+# ---- M5: LOC per file, flag >600 ----
+$loc = foreach ($f in $files) {
+    [pscustomobject]@{
+        File = $f.FullName.Substring($RepoRoot.Length).TrimStart('\','/')
+        Loc  = (Get-Content -LiteralPath $f.FullName | Measure-Object -Line).Lines
+    }
+}
+$big = @($loc | Where-Object { $_.Loc -gt 600 } | Sort-Object -Descending Loc)
+
+# ---- M6: DI registered-but-unconsumed ----
+$regFile = Join-Path $RepoRoot 'Extensions\ServiceCollectionExtensions.cs'
+$regText = Get-Content -LiteralPath $regFile -Raw
+$registered = @([regex]::Matches($regText, 'Add\w+<\s*(I[A-Za-z0-9_]+)') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+$unconsumed = @()
+foreach ($svc in $registered) {
+    $refs = 0
+    foreach ($f in $files) {
+        if ($f.FullName -eq $regFile) { continue }
+        $t = Get-Content -LiteralPath $f.FullName -Raw
+        if ($t -notmatch [regex]::Escape($svc)) { continue }
+        $isInterfaceDecl = ($f.Name -eq "$svc.cs")
+        $isImpl = ($t -match ('(?m)^public\s+(?:sealed\s+|partial\s+)?class\s+[A-Za-z0-9_]+\s*:\s*' + [regex]::Escape($svc) + '\b'))
+        if (-not $isInterfaceDecl -and -not $isImpl) { $refs++ }
+    }
+    if ($refs -eq 0) { $unconsumed += $svc }
+}
+
+"== M4 interface width =="
+foreach ($n in @('IPlaybackService','IPlaylistService','ISettingsPersistence','ITrackMetadataReader','ILibraryScannerService','ILibraryCache')) {
+    "{0} = {1} members" -f $n, (Get-InterfaceWidth $n)
+}
+"== M5 files >600 LOC =="
+if ($big.Count -eq 0) { "none" } else { $big | ForEach-Object { "{0} : {1}" -f $_.Loc, $_.File } }
+"== M5 top-10 LOC =="
+$loc | Sort-Object -Descending Loc | Select-Object -First 10 | ForEach-Object { "{0} : {1}" -f $_.Loc, $_.File }
+"== M6 registered-but-unconsumed services =="
+if ($unconsumed.Count -eq 0) { "none" } else { $unconsumed }

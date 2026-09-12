@@ -1,8 +1,8 @@
 # D-player 耦合分析与重构备忘
 
-> 创建日期：2026-06-06 · 更新日期：2026-09-08（对应 HEAD `e1bc557`） · 对应分支：`feature/phase14-equalizer` · 对应阶段：**Phase 14 完成**（均衡器 - 10 段图形 EQ）
+> 创建日期：2026-06-06 · 更新日期：2026-09-12（对应 HEAD `5dd64d7`） · 对应分支：`feature/phase15-coupling-audit` · 对应阶段：**Phase 15 完成（耦合健康度审计）**
 >
-> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。
+> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。
 
 ---
 
@@ -10,8 +10,8 @@
 
 | 维度 | 评级 | 备注 |
 |------|------|------|
-| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel |
-| 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5/6/7 沿用既有模式 |
+| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel；**Phase 15 审计确认**（M1–M6 客观度量）：0 环 / 0 层级违规 / IPlaybackService=20 成员 / 无 >600 LOC 多职责文件 / 2 stub 已注册未消费 |
+| 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5/6/7 沿用既有模式；Phase 15 审计裁决：D4 无必修项（0 环 / 0 违规）、D1 IPlaybackService 宽度可接受（观察项）、D5 PlaylistViewModel 652 LOC 单职责 cohesive（观察项，不拆分） |
 | 已识别"待还的债" | 0 项剩余（#1/#2/#3/#4/#5 ✅ 全部已偿） | 见 §3 |
 | 已识别"过度抽象" | 2 项 | 见 §4 |
 
@@ -187,6 +187,8 @@ private void RemoveTrack(int index)
 
 **建议：** 暂不删 —— 删了 Phase 3（多设备支持）还要重写。但**别再增加这类预留接口**，等真正需求落地再抽。
 
+**Phase 15 审计再确认（D2）：** 保留这 2 个 stub —— 多设备/输出模式仍在路线图上（PROJECT.md §1.2），删了将来还要写回来。但**别再增加这类预留接口**，等真正需求落地再抽。
+
 ---
 
 ## 5. 隐式契约（注释里有，类型系统里没有）
@@ -262,11 +264,13 @@ private void RemoveTrack(int index)
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
+> **Phase 15 审计核对（M7）：** §5 全部契约与代码一致，无新增未登记契约。
+
 ---
 
-## 6. 启动检查清单（Phase 14 完成）
+## 6. 启动检查清单（Phase 15 完成）
 
-> Phase 14（均衡器）已完成。所有结构性改造与债务偿还已清零；Phase 11/12/13/14 均为功能增量，未触碰核心架构（Phase 13/14 同构：透明 ISampleProvider 中间件 + 仅给 IPlaybackService 加 1 属性 + 0 新 DI 服务 + 0 新 ViewModel）。
+> Phase 15（耦合健康度审计）已完成。所有结构性改造与债务偿还已清零；Phase 11/12/13/14 均为功能增量，未触碰核心架构（Phase 13/14 同构：透明 ISampleProvider 中间件 + 仅给 IPlaybackService 加 1 属性 + 0 新 DI 服务 + 0 新 ViewModel）。Phase 15 以脚本度量 + 人工裁决确认耦合低/健康、无需解耦。
 
 1. ✅ **VM 拆分**（Phase 3 完成，commit `54edf9a`）—— MainViewModel 643→44 行 Strict Facade；PlayerVM + PlaylistVM 互不持引用
 2. ✅ **`PlayerBar` / `PlaylistView` 去硬转型**（Phase 3 完成）—— DataContext 切到子 VM；跨域命令用 `RelativeSource AncestorType=Window`
@@ -288,6 +292,7 @@ private void RemoveTrack(int index)
 - [x] Phase 12 持续优化 —— 全局 Shuffle/Repeat + TrackInfoView + #列 + 表头排序 + 导入文件夹到当前歌单 + 多项 UI 修复
 - [x] 音频可视化（Phase 13 完成）—— SampleAggregator FFT（8192 点 + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）+ SpectrumView 32 柱 60fps + 4 色主题 + 灵敏度/平滑度/启用配置 + settings.json 持久化 + TrackInfoView 底部集成
 - [x] 均衡器（Phase 14 完成）—— EqualizerSampleProvider 10 段图形 EQ（ISO 倍频程 31Hz–16kHz ±12dB 峰值滤波 Q≈1.1 + preamp，插在 SampleAggregator 之前→频谱反映 EQ 后信号）+ 9 个内置预设 + Custom + 实时就地 SetPeakingEq 重算（防爆音）+ EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + settings.json 持久化
+- [x] 耦合健康度审计（Phase 15 完成）—— M1–M6 脚本度量 + M7/D1–D5 裁决；结论：耦合低、无需解耦（D1 观察项、D5 观察项）
 
 ---
 
@@ -329,6 +334,8 @@ private void RemoveTrack(int index)
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5
   - [`docs/superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md`](./superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md) — Phase 6
+  - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md) — Phase 15 设计规格
+  - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md) — Phase 15 审计报告
 - 原始实现计划：
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
@@ -336,3 +343,4 @@ private void RemoveTrack(int index)
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
   - [`docs/superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md`](./superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md) — Phase 6
+  - [`docs/superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md`](./superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md) — Phase 15 实现计划

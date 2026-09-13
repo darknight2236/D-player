@@ -1,13 +1,13 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Shell;
+using System.Windows.Threading;
 
 namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// 自绘无边框标题栏（Phase 17）。依赖属性 Title / ShowMaximize。
-/// 动作经 SystemCommands 作用于父 Window；最大化时给窗口根容器加
-/// WindowResizeBorderThickness 边距防内容贴屏边；Maximized 时切换 Maximize/Restore 图标。
+/// 动作经 SystemCommands 作用于父 Window；最大化时按 WorkArea 差值补边距防内容贴屏边；Maximized 时切换 Maximize/Restore 图标。
 /// </summary>
 public partial class TitleBar : UserControl
 {
@@ -66,11 +66,23 @@ public partial class TitleBar : UserControl
         MaxIcon.Visibility = maximized ? Visibility.Collapsed : Visibility.Visible;
         RestoreIcon.Visibility = maximized ? Visibility.Visible : Visibility.Collapsed;
 
-        // 最大化边距修正：无边框窗最大化时内容会顶到屏边/任务栏下，加 resize 边框厚度补偿
         if (_window.Content is FrameworkElement root)
         {
-            var b = SystemParameters.WindowResizeBorderThickness;
-            root.Margin = maximized ? new Thickness(b.Left, b.Top, b.Right, b.Bottom) : new Thickness(0);
+            if (!maximized)
+            {
+                root.Margin = new Thickness(0);
+                return;
+            }
+            // 无边框窗最大化会铺满整显示器并被 DWM 裁到工作区；按 窗口实际边界 vs 工作区 差值补边距
+            _window.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var wa = SystemParameters.WorkArea;
+                var left = wa.Left - _window.Left;
+                var top = wa.Top - _window.Top;
+                var right = (_window.Left + _window.ActualWidth) - wa.Right;
+                var bottom = (_window.Top + _window.ActualHeight) - wa.Bottom;
+                root.Margin = new Thickness(left < 0 ? 0 : left, top < 0 ? 0 : top, right < 0 ? 0 : right, bottom < 0 ? 0 : bottom);
+            }), DispatcherPriority.Loaded);
         }
     }
 

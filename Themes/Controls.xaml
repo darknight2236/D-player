@@ -122,19 +122,32 @@
         </Setter>
     </Style>
 
-    <!-- ComboBox 深色：toggle 边框 + 箭头 + 深色 popup -->
+    <!-- ComboBox 深色：ToggleButton 提供可点击表面 + 边框 + 箭头，ContentPresenter 叠加显示选中值 -->
     <ControlTemplate x:Key="ComboBoxTemplate" TargetType="ComboBox">
         <Grid>
-            <Border x:Name="border" Background="{StaticResource BackgroundSecondary}"
-                    BorderBrush="{StaticResource BackgroundTertiary}" BorderThickness="1" CornerRadius="4">
-                <Grid>
-                    <ContentPresenter Margin="8,4,24,4" VerticalAlignment="Center"
-                                      Content="{TemplateBinding SelectionBoxItem}"
-                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
-                    <Path Data="M0,0 L4,4 L8,0" Stroke="{StaticResource ForegroundSecondary}" StrokeThickness="1.5"
-                          Width="8" Height="4" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                </Grid>
-            </Border>
+            <ToggleButton x:Name="toggle" Focusable="False" ClickMode="Press"
+                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="tb" Background="{StaticResource BackgroundSecondary}"
+                                BorderBrush="{StaticResource BackgroundTertiary}" BorderThickness="1" CornerRadius="4">
+                            <Path Data="M0,0 L4,4 L8,0" Stroke="{StaticResource ForegroundSecondary}" StrokeThickness="1.5"
+                                  Width="8" Height="4" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="tb" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="tb" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ToggleButton.Template>
+            </ToggleButton>
+            <ContentPresenter IsHitTestVisible="False" Margin="8,4,24,4" VerticalAlignment="Center"
+                              Content="{TemplateBinding SelectionBoxItem}"
+                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
             <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Slide"
                    IsOpen="{TemplateBinding IsDropDownOpen}">
                 <Border Background="{StaticResource BackgroundSecondary}" BorderBrush="{StaticResource BackgroundTertiary}"
@@ -144,14 +157,6 @@
                 </Border>
             </Popup>
         </Grid>
-        <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
-            </Trigger>
-            <Trigger Property="IsDropDownOpen" Value="True">
-                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
-            </Trigger>
-        </ControlTemplate.Triggers>
     </ControlTemplate>
     <Style TargetType="ComboBox">
         <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>

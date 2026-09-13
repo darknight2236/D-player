@@ -16,7 +16,7 @@
         </Grid.ColumnDefinitions>
         <TextBlock Grid.Column="0"
                    Text="{Binding Title, RelativeSource={RelativeSource AncestorType=local:TitleBar}}"
-                   Foreground="{StaticResource ForegroundSecondary}" FontSize="12"
+                   Foreground="{StaticResource ForegroundPrimary}" FontSize="12"
                    VerticalAlignment="Center" Margin="12,0,0,0"/>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
             <Button x:Name="MinButton" Width="40" Height="32" Click="Minimize_Click"

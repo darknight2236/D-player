@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Shell;
-using System.Windows.Threading;
 
 namespace DPlayer.Views.Controls;
 
@@ -73,16 +72,16 @@ public partial class TitleBar : UserControl
                 root.Margin = new Thickness(0);
                 return;
             }
-            // 无边框窗最大化会铺满整显示器并被 DWM 裁到工作区；按 窗口实际边界 vs 工作区 差值补边距
-            _window.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                var wa = SystemParameters.WorkArea;
-                var left = wa.Left - _window.Left;
-                var top = wa.Top - _window.Top;
-                var right = (_window.Left + _window.ActualWidth) - wa.Right;
-                var bottom = (_window.Top + _window.ActualHeight) - wa.Bottom;
-                root.Margin = new Thickness(left < 0 ? 0 : left, top < 0 ? 0 : top, right < 0 ? 0 : right, bottom < 0 ? 0 : bottom);
-            }), DispatcherPriority.Loaded);
+            // 无边框窗最大化会铺满整显示器（四周含隐藏 resize 边框）并被 DWM 裁到工作区。
+            // 用「工作区偏移 + 隐藏边框厚度」的常量式边距，使内容恰好填满工作区；
+            // 不读窗口实际边界，避免布局时序导致 right/bottom 边距偏大（大片留空）。
+            var rb = SystemParameters.WindowResizeBorderThickness;
+            var wa = SystemParameters.WorkArea;
+            root.Margin = new Thickness(
+                wa.Left + rb.Left,
+                wa.Top + rb.Top,
+                SystemParameters.PrimaryScreenWidth - wa.Right + rb.Right,
+                SystemParameters.PrimaryScreenHeight - wa.Bottom + rb.Bottom);
         }
     }
 

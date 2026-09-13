@@ -49,11 +49,9 @@ public partial class PlayerViewModel : ObservableObject
     private byte[]? _albumArtBytes;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(VolumeIcon))]
     private float _volume;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(VolumeIcon))]
     private bool _isMuted;
 
     /// <summary>静音前的音量快照，用于"取消静音"时恢复。</summary>
@@ -89,8 +87,6 @@ public partial class PlayerViewModel : ObservableObject
     public string[] SpectrumColorThemes { get; } = ["紫色", "蓝色", "绿色", "彩虹"];
 
     // —— 派生只读属性，供 XAML 绑定 ——
-
-    public string VolumeIcon => IsMuted ? "\U0001F507" : "\U0001F50A"; // 🔇 / 🔊
 
     public string SampleRateText =>
         CurrentTrack?.SampleRate is { } sr ? $"{sr:N0} Hz" : "";

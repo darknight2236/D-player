@@ -1,26 +1,29 @@
 using System.Globalization;
+using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media;
 using DPlayer.Models;
 
 namespace DPlayer.Converters;
 
 /// <summary>
-/// 将 RepeatMode 转换为循环按钮图标：
-///   Off  → ⇄  (不循环)
-///   List → 🔁 (列表循环)
-///   One  → 🔂 (单曲循环)
+/// 将 RepeatMode 转换为循环按钮图标 Geometry（来自 Themes/Icons.xaml）：
+///   Off  → Icon.RepeatOff
+///   List → Icon.RepeatList
+///   One  → Icon.RepeatOne
 /// </summary>
-[ValueConversion(typeof(RepeatMode), typeof(string))]
+[ValueConversion(typeof(RepeatMode), typeof(Geometry))]
 public sealed class RepeatModeToIconConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        return value switch
+        var key = value switch
         {
-            RepeatMode.List => "\U0001F501", // 🔁
-            RepeatMode.One  => "\U0001F502", // 🔂
-            _               => "⇄",     // ⇄
+            RepeatMode.List => "Icon.RepeatList",
+            RepeatMode.One  => "Icon.RepeatOne",
+            _               => "Icon.RepeatOff",
         };
+        return Application.Current.FindResource(key);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

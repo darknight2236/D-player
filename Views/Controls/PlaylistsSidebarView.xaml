@@ -102,9 +102,10 @@
                               VerticalAlignment="Center"/>
                         <!-- 图标（手动歌单 🎵，文件夹歌单 Folder，扫描中 Refresh） -->
                         <Grid Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock FontSize="12" Foreground="{StaticResource ForegroundSecondary}" Text="🎵">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
+                            <Path Data="{StaticResource Icon.MusicNote}" Stroke="{StaticResource ForegroundSecondary}"
+                                  Width="12" Height="12">
+                                <Path.Style>
+                                    <Style TargetType="Path" BasedOn="{StaticResource IconPath}">
                                         <Setter Property="Visibility" Value="Visible"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding HasSourceFolder}" Value="True">
@@ -112,8 +113,8 @@
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
+                                </Path.Style>
+                            </Path>
                             <Path Data="{StaticResource Icon.Folder}" Stroke="{StaticResource ForegroundSecondary}"
                                   Width="14" Height="14">
                                 <Path.Style>

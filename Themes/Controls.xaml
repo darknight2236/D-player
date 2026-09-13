@@ -121,4 +121,198 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- ComboBox 深色：ToggleButton 提供可点击表面 + 边框 + 箭头，ContentPresenter 叠加显示选中值 -->
+    <ControlTemplate x:Key="ComboBoxTemplate" TargetType="ComboBox">
+        <Grid>
+            <ToggleButton x:Name="toggle" Focusable="False" ClickMode="Press"
+                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="tb" Background="{StaticResource BackgroundSecondary}"
+                                BorderBrush="{StaticResource BackgroundTertiary}" BorderThickness="1" CornerRadius="4">
+                            <Path Data="M0,0 L4,4 L8,0" Stroke="{StaticResource ForegroundSecondary}" StrokeThickness="1.5"
+                                  Width="8" Height="4" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="tb" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="tb" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ToggleButton.Template>
+            </ToggleButton>
+            <ContentPresenter IsHitTestVisible="False" Margin="8,4,24,4" VerticalAlignment="Center"
+                              Content="{TemplateBinding SelectionBoxItem}"
+                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+            <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Slide"
+                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                <Border Background="{StaticResource BackgroundSecondary}" BorderBrush="{StaticResource BackgroundTertiary}"
+                        BorderThickness="1" CornerRadius="4" MinWidth="{TemplateBinding ActualWidth}"
+                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                    <ScrollViewer><ItemsPresenter/></ScrollViewer>
+                </Border>
+            </Popup>
+        </Grid>
+    </ControlTemplate>
+    <Style TargetType="ComboBox">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template" Value="{StaticResource ComboBoxTemplate}"/>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource BackgroundTertiary}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentPrimary}"/>
+                            <Setter Property="Foreground" Value="{StaticResource BackgroundPrimary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- CheckBox 深色：方框 + 选中 accent 勾 -->
+    <Style TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="box" Width="16" Height="16" CornerRadius="3"
+                                Background="{StaticResource BackgroundSecondary}"
+                                BorderBrush="{StaticResource BackgroundTertiary}" BorderThickness="1">
+                            <Path x:Name="check" Data="M3,8 L6.5,11.5 L13,4.5" Stroke="{StaticResource AccentPrimary}"
+                                  StrokeThickness="2" Stretch="Uniform" Width="10" Height="10"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="check" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource AccentHover}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ScrollBar 深色：仅 track+thumb（隐藏箭头按钮） -->
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="thumb" Background="{StaticResource BackgroundTertiary}" CornerRadius="5" Margin="2"/>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="thumb" Property="Background" Value="{StaticResource ForegroundDisabled}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="10"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid Background="Transparent">
+                                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                    <Track.Thumb>
+                                        <Thumb>
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border x:Name="thumb" Background="{StaticResource BackgroundTertiary}" CornerRadius="5" Margin="2"/>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="thumb" Property="Background" Value="{StaticResource ForegroundDisabled}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ToolTip / ContextMenu / MenuItem / Separator 深色 -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundTertiary}"/>
+        <Setter Property="Padding" Value="8,4"/>
+    </Style>
+    <Style TargetType="ContextMenu">
+        <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundTertiary}"/>
+    </Style>
+    <Style TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter ContentSource="Header"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource BackgroundTertiary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="Separator">
+        <Setter Property="Background" Value="{StaticResource BackgroundTertiary}"/>
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Margin" Value="4,2"/>
+    </Style>
 </ResourceDictionary>

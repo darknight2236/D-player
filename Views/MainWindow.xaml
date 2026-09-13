@@ -1,15 +1,18 @@
 <!--
-    主窗口布局 —— Spotify 风格: PlayerBar 在底部
-      Row 0 (*) : Grid 2 列 (主内容区)
+    主窗口布局 —— Spotify 风格: PlayerBar 在底部; Phase 17 自定义无边框标题栏
+      Row 0 (Auto): TitleBar (自绘标题栏, 最小化/最大化/关闭)
+      Row 1 (*) : Grid 2 列 (主内容区)
         Column 0 (160): PlaylistsSidebarView (新建/重命名/删除/▶ 标记)
         Column 1 (*) : PlaylistView, 绑定 Playlists.ViewedPlaylist (UI 选中, 与正在播放可不同)
-      Row 1 (Auto): PlayerBar
+      Row 2 (Auto): PlayerBar
     Closing 事件由 code-behind 处理: 保存窗口几何 + 触发 VM 清理(VM 内 flush queue.json)。
 -->
 <Window x:Class="DPlayer.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:DPlayer.Views.Controls"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        WindowStyle="None"
         Title="D-player"
         Width="800" Height="650"
         MinWidth="600" MinHeight="500"
@@ -18,16 +21,22 @@
         WindowStartupLocation="Manual"
         Closing="Window_Closing"
         KeyDown="MainWindow_KeyDown">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="32" UseAeroCaptionButtons="False" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="ContentGrid" Grid.Row="0" SizeChanged="ContentGrid_SizeChanged">
+        <controls:TitleBar Grid.Row="0" Title="D-player" ShowMaximize="True"/>
+
+        <Grid x:Name="ContentGrid" Grid.Row="1" SizeChanged="ContentGrid_SizeChanged">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarCol" Width="160" MinWidth="120"/>
                 <ColumnDefinition Width="Auto"/>
@@ -59,6 +68,6 @@
                                      DataContext="{Binding Player}"/>
         </Grid>
 
-        <controls:PlayerBar Grid.Row="1" DataContext="{Binding Player}"/>
+        <controls:PlayerBar Grid.Row="2" DataContext="{Binding Player}"/>
     </Grid>
 </Window>

@@ -2,22 +2,19 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
-using DPlayer.Models;
 
 namespace DPlayer.Converters;
 
 /// <summary>
-/// 将 PlayState 转换为播放按钮图标 Geometry（来自 Themes/Icons.xaml）：
-///   - Playing → Icon.Pause（暂停图标，提示点击可暂停）
-///   - 其他    → Icon.Play （播放图标）
-/// 仅单向转换，ConvertBack 不被调用。
+/// 将 IsMuted 转换为音量图标 Geometry：true→Icon.VolumeMuted，false→Icon.Volume。
+/// （替代原 PlayerViewModel.VolumeIcon emoji 字符串，保持 VM 无 WPF/emoji 类型。）
 /// </summary>
-[ValueConversion(typeof(PlayState), typeof(Geometry))]
-public sealed class PlayStateToIconConverter : IValueConverter
+[ValueConversion(typeof(bool), typeof(Geometry))]
+public sealed class BoolToVolumeIconConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        var key = value is PlayState.Playing ? "Icon.Pause" : "Icon.Play";
+        var key = value is true ? "Icon.VolumeMuted" : "Icon.Volume";
         return Application.Current.FindResource(key);
     }
 

@@ -206,7 +206,7 @@ private void RemoveTrack(int index)
 | **Phase 2 新增** | | |
 | `Stop()` vs `Unload()` 语义差异 | `IPlaybackService` 两个独立方法 + 各自 XML 注释 | 用 `Stop()` 替代 `Unload()` 会让"清空队列后按 Play"重播刚才那首；用 `Unload()` 替代 `Stop()` 会让 `Pause→恢复` 失效 |
 | `PlayTrackAtAsync` 必须自增 `_playToken` 后再 `await` | 注释 + `if (myToken != _playToken) return` 守卫 | 任何新增的 `await` 后忘记校验 token 都会留下重入窗口 |
-| `PlaylistView.RefreshCurrentIndicator` 用 `x:Name` 定位 ▶ TextBlock | `FindChildByName<TextBlock>(container, "PART_Marker")` | 不再依赖列序，改名会失效但不会错位 |
+| `PlaylistView.RefreshCurrentIndicator` 用 `x:Name` 定位 ▶ 标记（Phase 16 起为 `Path`） | `FindChildByName<Path>(container, "PART_Marker")` + 切 `Visibility` | 不再依赖列序；Phase 16 标记由 TextBlock 改 Path（实心三角），改名会失效但不会错位 |
 | **Phase 3 新增** | | |
 | `PlayerVM` / `PlaylistVM` 互不持引用 | 注释 + spec §2.1 | 任何一方加入对另一方的字段引用都会让 MainViewModel Facade 退化为转发层；spec 明确此为硬规则 |
 | DI 注册顺序：PlayerVM **先于** PlaylistVM | `Extensions/ServiceCollectionExtensions.cs` 注释 | PlayerVM 在 ctor 中订阅 5 个 transport 事件；若 PlaylistVM 先构造，它的 TrackEnded 订阅会先收到事件，可能让 PlayerVM 错过开头几次 PositionChanged（实践上 LoadAsync 还没开始，未观察到，但显式顺序更稳） |
@@ -231,7 +231,7 @@ private void RemoveTrack(int index)
 | `PlaylistsViewModel.StateChanged` 不因 `IsActivePlaylist` 设值触发 | `PlaylistsViewModel.OnPlaylistVmPropertyChanged` 注释 | `RecomputeIsActiveFlags` 批量设 `IsActivePlaylist` 会触发 `PropertyChanged`；若 `StateChanged` 不过滤会 echo 回 save → 无意义写盘 |
 | `PlaylistView.RefreshCurrentIndicator` 必须检查 `IsActivePlaylist` | `PlaylistView.xaml.cs:RefreshCurrentIndicator` 注释 | 用户切到非播放歌单查看时，`CurrentIndex` 仍是该歌单的本地光标；不 guard 会让 ▶ 在非播放歌单上点亮（视觉与音频脱钩） |
 | `PlaylistView.QueueList_MouseDoubleClick` 走 `PlaylistsViewModel.HandleDoubleClickPlay` | `PlaylistView.xaml.cs:QueueList_MouseDoubleClick` 注释 | 直接调 `_vm.PlayTrackAtCommand` 不会切 `CurrentPlaylistId` → 跨歌单双击时 sidebar ▶ 标记不移动、`IsActivePlaylist` 不更新 |
-| `PlaylistsSidebarView.RefreshActiveMarker` 用 `FindChildByOrder<TextBlock>(container, 0)` 定位 ▶ | `PlaylistsSidebarView.xaml.cs:RefreshActiveMarker` 注释 | 在 `DataTemplate` 里加列会**静默错位**（与 PlaylistView 同规则） |
+| `PlaylistsSidebarView.RefreshActiveMarker` 用 `x:Name` 定位活跃标记（Phase 16 起为 `Path`） | `FindChildByName<Path>(container, "PART_SidebarMarker")` + 切 `Visibility` | Phase 16 移除 `FindChildByOrder<TextBlock>(container,0)`（序数定位），改 x:Name 定位，消除 DataTemplate 加列静默错位隐患 |
 | 删除当前播放歌单会停止播放 | `PlaylistsViewModel.RemovePlaylist` | Phase 12 改为：调 `_player.Stop()` + `_player.Unload()` + 清空 `CurrentPlaylistId`，▶ 标记消失。`PlaylistsViewModel` 新增 `IPlaybackService` 依赖 |
 | **Phase 10 新增** | | |
 | `ILibraryCache.LoadAsync` 隐式契约：绝不抛 | `JsonLibraryCache.LoadAsync` catch-all + 注释 | 与 `IPlaylistService.LoadAsync` 同隐式契约。任何异常逃出会让 `RescanSinglePlaylistAsync` 抛 → 应用启动崩溃或手动刷新失败。文件不存在/JSON 损坏/反序列化得 null 全部走静默 fallback 到空字典 |
@@ -240,7 +240,7 @@ private void RemoveTrack(int index)
 | SettingsDialog.Show 在 Loaded 中 async 读盘 | `SettingsDialog.xaml.cs:OnLoaded` | 与 MainWindow_Loaded 同模式（async void + try/catch）；文件极小（几百字节） |
 | **Phase 12 新增** | | |
 | Shuffle/Repeat 是全局设置（PlaylistsViewModel 持有） | `PlaylistsViewModel.ShuffleEnabled/RepeatMode` + `PlaylistViewModel.Container` | `PlaylistViewModel` 通过 `Container` 属性读取全局状态；`Container` 由 `HookPlaylistVm` 设置，null 时 fallback 到 false/Off |
-| `PlaylistView.RefreshCurrentIndicator` 改用 `FindChildByName` | `PART_Marker` / `PART_Title` x:Name | 不再依赖视觉树列序；DataTemplate 加列不再导致 ▶ 错位 |
+| `PlaylistView.RefreshCurrentIndicator` 改用 `FindChildByName` | `PART_Marker` / `PART_Title` x:Name（Phase 16 起 `PART_Marker` 为 `Path`） | 不再依赖视觉树列序；DataTemplate 加列不再导致 ▶ 错位 |
 | 表头排序物理重排 Queue | `PlaylistViewModel.SortBy` | `Queue.Clear()` + `Queue.Add()` 重排后 `CurrentIndex` 跟踪当前播放曲新位置 |
 | `ApplyCachedMetadataSync` 旧缓存回读 TrackNumber | `PlaylistsViewModel.ApplyCachedMetadataSync` | 缓存条目 `TrackNumber` 为 null 时调 `ReadAsync` 补全，保证 # 列持久化 |
 | GridSplitter DragDelta 实时限制列宽 | `MainWindow.xaml.cs` | 侧边栏/曲目信息列宽不超过窗口宽度一半；`HorizontalChange` 方向判断左右不同 |
@@ -261,6 +261,11 @@ private void RemoveTrack(int index)
 | `EqualizerDialog` 的取消回滚基准 `_initialConfig` 取“打开瞬间的实时 `_playbackService.EqualizerConfig`”，非二次读盘 | `EqualizerDialog.xaml.cs:OnLoaded` / `OnClosed` | 读盘失败会把回滚基准误置为禁用平直 |
 | `EqualizerConfig` 是 record，mock 需预设实例 | `PlayerViewModelEqualizerTests` 构造函数 | NSubstitute 对 record 属性默认返回 null；`OnEqualizerEnabledChanged` 读 `_player.EqualizerConfig with {...}` 会 NRE。测试须 `_player.EqualizerConfig.Returns(new EqualizerConfig())`（同 `SpectrumConfig` 契约） |
 | PlayerBar EQ 竖直滑块模板必须自定义（`EqualizerDialog` 的 `EqBandSlider`） | `EqualizerDialog.xaml` `EqBandSlider` | Controls.xaml 隐式 Slider 模板横向专用（Height=20 + 填充条 VerticalAlignment=Center），竖直滑块直接用会渲染错位 |
+
+| **Phase 16 新增** | | |
+| 应用图标均为 `Themes/Icons.xaml` 矢量 `Geometry`（`Icon.*`），活跃态经 `BoolToAccentBrush` 着 `Path.Stroke` | `Themes/Icons.xaml` + 各 View 的 `Path Style=IconPath` | 不再依赖系统 emoji 字体；改图标须同步 Icons.xaml 键与使用处 |
+| ▶ 当前/活跃标记为 `Path`（`PART_Marker` / `PART_SidebarMarker`），code-behind 切 `Visibility` | `PlaylistView.xaml.cs` / `PlaylistsSidebarView.xaml.cs` | 标记元素类型由 TextBlock 改 Path；`FindChildByName` 泛型须为 `Path` |
+| VM 层无 emoji/图标类型（`VolumeIcon` 已移除） | `PlayerViewModel` | 音量图标改由 View 层 `BoolToVolumeIconConverter` 提供；勿在 VM 重新引入 emoji/Geometry |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 

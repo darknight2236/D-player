@@ -1,8 +1,8 @@
 <!--
-    PlaylistsSidebarView —— 左侧歌单栏（Phase 12: 图标 + 选中态背景色）。
+    PlaylistsSidebarView —— 左侧歌单栏（Phase 16: 矢量图标 + 选中态背景色）。
     布局: 2 行 Grid
-      Row 0 (Auto) : + / − 工具栏
-      Row 1 (*)    : ListBox 显示歌单，每项含 🎵/📂 图标 + 名称
+      Row 0 (Auto) : + / − 工具栏（矢量 Path）
+      Row 1 (*)    : ListBox 显示歌单，每项含 ▶ marker + 图标 + 名称
 -->
 <UserControl x:Class="DPlayer.Views.Controls.PlaylistsSidebarView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -26,23 +26,25 @@
             <Button x:Name="AddBtn"
                     Width="28" Height="28"
                     Padding="0"
-                    Content="+"
-                    FontSize="16"
                     Foreground="{StaticResource ForegroundPrimary}"
                     ToolTip="新建歌单"
-                    Click="AddBtn_Click"/>
+                    Click="AddBtn_Click">
+                <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                      Data="{StaticResource Icon.Plus}" Stroke="{StaticResource ForegroundPrimary}"/>
+            </Button>
             <Button x:Name="RemoveBtn"
                     Width="28" Height="28"
                     Padding="0"
                     Margin="6,0,0,0"
-                    Content="−"
-                    FontSize="16"
                     Foreground="{StaticResource ForegroundPrimary}"
                     ToolTip="删除选中歌单"
-                    Click="RemoveBtn_Click"/>
+                    Click="RemoveBtn_Click">
+                <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                      Data="{StaticResource Icon.Minus}" Stroke="{StaticResource ForegroundPrimary}"/>
+            </Button>
         </StackPanel>
 
-        <!-- 歌单列表（Phase 9: 支持拖拽重排，Phase 12: 选中态背景色 + 图标） -->
+        <!-- 歌单列表（Phase 9: 支持拖拽重排，Phase 16: 矢量图标） -->
         <ListBox x:Name="PlaylistList"
                  Grid.Row="1"
                  ItemsSource="{Binding Playlists}"
@@ -89,34 +91,60 @@
                     <Grid Margin="0,2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="14"/>   <!-- ▶ marker -->
-                            <ColumnDefinition Width="20"/>   <!-- 🎵/📂 icon -->
+                            <ColumnDefinition Width="20"/>   <!-- icon -->
                             <ColumnDefinition Width="*"/>    <!-- Name -->
                         </Grid.ColumnDefinitions>
-                        <!-- ▶ 标记由 code-behind 在 RefreshActiveMarker 中按 IsActivePlaylist 写入 -->
-                        <TextBlock Grid.Column="0"
-                                   FontSize="12"
-                                   Foreground="{StaticResource AccentPrimary}"/>
-                        <!-- 🎵/📂 图标（手动歌单 🎵，文件夹歌单 📂，扫描中 🔄） -->
-                        <TextBlock Grid.Column="1"
-                                   FontSize="12"
-                                   Foreground="{StaticResource ForegroundSecondary}"
-                                   VerticalAlignment="Center">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="🎵"/>
-                                    <Style.Triggers>
-                                        <!-- 文件夹绑定歌单: 显示 📂 -->
-                                        <DataTrigger Binding="{Binding HasSourceFolder}" Value="True">
-                                            <Setter Property="Text" Value="📂"/>
-                                        </DataTrigger>
-                                        <!-- 扫描中(覆盖 📂): 显示 🔄 -->
-                                        <DataTrigger Binding="{Binding IsScanning}" Value="True">
-                                            <Setter Property="Text" Value="🔄"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                        <!-- ▶ 活跃标记由 code-behind RefreshActiveMarker 切换 Visibility -->
+                        <Path x:Name="PART_SidebarMarker"
+                              Grid.Column="0"
+                              Data="{StaticResource Icon.PlayMarker}" Fill="{StaticResource AccentPrimary}"
+                              Width="9" Height="9" Stretch="Uniform" Visibility="Collapsed"
+                              VerticalAlignment="Center"/>
+                        <!-- 图标（手动歌单 🎵，文件夹歌单 Folder，扫描中 Refresh） -->
+                        <Grid Grid.Column="1" VerticalAlignment="Center">
+                            <Path Data="{StaticResource Icon.MusicNote}" Stroke="{StaticResource ForegroundSecondary}"
+                                  Width="12" Height="12">
+                                <Path.Style>
+                                    <Style TargetType="Path" BasedOn="{StaticResource IconPath}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasSourceFolder}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                            <Path Data="{StaticResource Icon.Folder}" Stroke="{StaticResource ForegroundSecondary}"
+                                  Width="14" Height="14">
+                                <Path.Style>
+                                    <Style TargetType="Path" BasedOn="{StaticResource IconPath}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasSourceFolder}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsScanning}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                            <Path Data="{StaticResource Icon.Refresh}" Stroke="{StaticResource ForegroundSecondary}"
+                                  Width="12" Height="12">
+                                <Path.Style>
+                                    <Style TargetType="Path" BasedOn="{StaticResource IconPath}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsScanning}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </Grid>
                         <TextBlock Grid.Column="2"
                                    Text="{Binding Name}"
                                    Foreground="{StaticResource ForegroundPrimary}"

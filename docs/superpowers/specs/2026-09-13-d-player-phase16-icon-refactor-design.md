@@ -56,6 +56,7 @@
 | `Icon.Folder` | Sidebar 📂 文件夹绑定歌单 |
 | `Icon.PlayMarker` | PlaylistView/Sidebar ▶ 当前/活跃标记（**实心**小三角，`Fill=AccentPrimary`；小尺寸下描边不清晰，故为实心例外） |
 | `Icon.Clear` | PlaylistView "清空"（trash） |
+| `Icon.MusicNote` | Sidebar 手动歌单默认图标（描边） |
 
 ## 4. 组件改动
 

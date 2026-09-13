@@ -42,7 +42,11 @@
                 </Button>
                 <Button Padding="12,4" Margin="8,0,0,0"
                         Command="{Binding ImportFolderToCurrentCommand}">
-                    <TextBlock Text="📂 导入文件夹" FontSize="12"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12"
+                              Data="{StaticResource Icon.Folder}" Stroke="{StaticResource ForegroundPrimary}"/>
+                        <TextBlock Text="导入文件夹" FontSize="12" Margin="4,0,0,0"/>
+                    </StackPanel>
                 </Button>
                 <Button Command="{Binding ClearQueueCommand}" Padding="12,4" Margin="8,0,0,0">
                     <Button.Style>
@@ -244,7 +248,7 @@
                                 <Button.Content>
                                     <Path Style="{StaticResource IconPath}" Width="12" Height="12"
                                           Data="{StaticResource Icon.Close}"
-                                          Stroke="{StaticResource ForegroundSecondary}"/>
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                 </Button.Content>
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">

@@ -33,7 +33,12 @@
             <!-- 左侧：添加 / 清空 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <Button Command="{Binding AddToQueueCommand}" Padding="12,4">
-                    <TextBlock Text="+ 添加" FontSize="12"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12"
+                              Data="{StaticResource Icon.Plus}"
+                              Stroke="{StaticResource ForegroundPrimary}"/>
+                        <TextBlock Text="添加" FontSize="12" Margin="4,0,0,0"/>
+                    </StackPanel>
                 </Button>
                 <Button Padding="12,4" Margin="8,0,0,0"
                         Command="{Binding ImportFolderToCurrentCommand}">
@@ -49,7 +54,12 @@
                             </Style.Triggers>
                         </Style>
                     </Button.Style>
-                    <TextBlock Text="清空" FontSize="12"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12"
+                              Data="{StaticResource Icon.Clear}"
+                              Stroke="{StaticResource ForegroundPrimary}"/>
+                        <TextBlock Text="清空" FontSize="12" Margin="4,0,0,0"/>
+                    </StackPanel>
                 </Button>
             </StackPanel>
 
@@ -62,9 +72,10 @@
                     Command="{Binding DataContext.Playlists.RefreshPlaylistCommand,
                              RelativeSource={RelativeSource AncestorType=Window}}"
                     CommandParameter="{Binding}">
-                <TextBlock Text="🔄" FontSize="14"
-                           FontFamily="Segoe UI Emoji"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                      Data="{StaticResource Icon.Refresh}"
+                      Stroke="{StaticResource ForegroundPrimary}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Button>
         </Grid>
 
@@ -192,10 +203,13 @@
                                 <ColumnDefinition Width="50"/>
                                 <ColumnDefinition Width="20"/>
                             </Grid.ColumnDefinitions>
-                            <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 -->
-                            <TextBlock x:Name="PART_Marker" Grid.Column="0" Text="" FontSize="11"
-                                       Foreground="{StaticResource AccentPrimary}"
-                                       VerticalAlignment="Center"/>
+                            <!-- ▶ 标记: 由 code-behind 在 CurrentIndex 变化时切换 Visibility (Phase 16 矢量化) -->
+                            <Path x:Name="PART_Marker" Grid.Column="0"
+                                  Data="{StaticResource Icon.PlayMarker}"
+                                  Fill="{StaticResource AccentPrimary}"
+                                  Width="9" Height="9" Stretch="Uniform"
+                                  Visibility="Collapsed"
+                                  VerticalAlignment="Center"/>
                             <!-- # 曲目编号 -->
                             <TextBlock Grid.Column="1"
                                        Text="{Binding TrackNumber, FallbackValue=''}"
@@ -222,12 +236,16 @@
                                        Foreground="{StaticResource ForegroundSecondary}"
                                        VerticalAlignment="Center"/>
                             <!-- 删除按钮：悬停变红 -->
-                            <Button Grid.Column="6" Content="×"
+                            <Button Grid.Column="6"
                                     Width="20" Height="20" Padding="0"
-                                    FontSize="14"
                                     Tag="{Binding}"
                                     Click="RemoveButton_Click"
                                     ToolTip="移除">
+                                <Button.Content>
+                                    <Path Style="{StaticResource IconPath}" Width="12" Height="12"
+                                          Data="{StaticResource Icon.Close}"
+                                          Stroke="{StaticResource ForegroundSecondary}"/>
+                                </Button.Content>
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                         <Setter Property="Foreground" Value="{StaticResource ForegroundSecondary}"/>

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using DPlayer.Models;
 using DPlayer.ViewModels;
 using DPlayer;
@@ -103,15 +104,16 @@ public partial class PlaylistView : UserControl
             var container = QueueList.ItemContainerGenerator.ContainerFromIndex(i) as ListBoxItem;
             if (container == null) continue;
 
-            var marker = FindChildByName<TextBlock>(container, "PART_Marker");
+            var marker = FindChildByName<Path>(container, "PART_Marker");
             var title  = FindChildByName<TextBlock>(container, "PART_Title");
             if (marker == null || title == null) continue;
 
             // Phase 6: 只在 _vm 是当前正在播放的歌单时才显示 ▶/高亮 ——
             // 用户切到别的歌单查看时, 那个歌单的 CurrentIndex 仍然是它自己的本地光标,
             // 但 ▶ 不应在非播放歌单上点亮(否则视觉与音频脱钩)。
+            // Phase 16: marker 已由 TextBlock("▶") 改为 Path(Icon.PlayMarker)，用 Visibility 切换。
             bool isCurrent = _vm.IsActivePlaylist && (i == _vm.CurrentIndex);
-            marker.Text = isCurrent ? "▶" : "";
+            marker.Visibility = isCurrent ? Visibility.Visible : Visibility.Collapsed;
             title.Foreground = isCurrent
                 ? (Brush)Application.Current.FindResource("AccentPrimary")
                 : (Brush)Application.Current.FindResource("ForegroundPrimary");

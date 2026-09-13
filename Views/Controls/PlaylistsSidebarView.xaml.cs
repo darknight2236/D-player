@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using DPlayer.ViewModels;
 using DPlayer.Views.Dialogs;
 
@@ -12,8 +13,9 @@ namespace DPlayer.Views.Controls;
 
 /// <summary>
 /// Phase 6 左侧歌单容器侧边栏。+ 新建、− 删选中、双击重命名;
-/// "正在播放"行加 ▶ 前缀(模仿 PlaylistView.RefreshCurrentIndicator 的 ItemContainerGenerator 模式)。
+/// 活跃歌单显示矢量 ▶ 标记（PART_SidebarMarker Path, Visibility 切换）。
 /// Phase 9: 拖拽重排歌单顺序（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。
+/// Phase 16: 全部图标矢量化。
 /// </summary>
 public partial class PlaylistsSidebarView : UserControl
 {
@@ -107,8 +109,8 @@ public partial class PlaylistsSidebarView : UserControl
     }
 
     /// <summary>
-    /// 模仿 PlaylistView.RefreshCurrentIndicator: 找每个 container 第 0 个 TextBlock(▶ 列),
-    /// 按目标 VM.IsActivePlaylist 写 "▶" 或 ""。
+    /// 按 x:Name="PART_SidebarMarker" 定位每个 container 中的 Path，
+    /// 根据 VM.IsActivePlaylist 切换 Visibility。
     /// </summary>
     private void RefreshActiveMarker()
     {
@@ -120,15 +122,15 @@ public partial class PlaylistsSidebarView : UserControl
                 continue;
             if (PlaylistList.Items[i] is not PlaylistViewModel vm) continue;
 
-            var marker = FindChildByOrder<TextBlock>(container, 0);
+            var marker = FindChildByName<Path>(container, "PART_SidebarMarker");
             if (marker is null) continue;
-            marker.Text = vm.IsActivePlaylist ? "▶" : string.Empty;
+            marker.Visibility = vm.IsActivePlaylist ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
-    private static T? FindChildByOrder<T>(DependencyObject parent, int n) where T : DependencyObject
+    /// <summary>在 VisualTree 中按 x:Name 查找子元素。</summary>
+    private static T? FindChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
     {
-        int count = 0;
         return Walk(parent);
 
         T? Walk(DependencyObject p)
@@ -136,11 +138,7 @@ public partial class PlaylistsSidebarView : UserControl
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(p); i++)
             {
                 var c = VisualTreeHelper.GetChild(p, i);
-                if (c is T match)
-                {
-                    if (count == n) return match;
-                    count++;
-                }
+                if (c is T fe && fe.Name == name) return fe;
                 var deeper = Walk(c);
                 if (deeper != null) return deeper;
             }

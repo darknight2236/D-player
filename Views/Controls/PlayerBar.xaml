@@ -11,7 +11,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:DPlayer.Converters">
     <UserControl.Resources>
-        <!-- 值转换器：TimeSpan → "m:ss" / "h:mm:ss"，PlayState → ▶/⏸，byte[] → BitmapImage -->
+        <!-- 值转换器：TimeSpan → "m:ss" / "h:mm:ss"，PlayState → 播放/暂停几何，byte[] → BitmapImage -->
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
         <converters:PlayStateToIconConverter x:Key="PlayStateToIcon"/>
         <converters:RepeatModeToIconConverter x:Key="RepeatModeToIcon"/>
@@ -134,7 +134,7 @@
                 </Button>
             </StackPanel>
 
-            <!-- 右对齐：🔊/🔇 静音切换 + 音量滑块（IsMoveToPointEnabled：单击即跳） -->
+            <!-- 右对齐：音量/静音切换 + 音量滑块（IsMoveToPointEnabled：单击即跳） -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button Command="{Binding ToggleMuteCommand}" Width="32" Height="32"
                         Padding="0" Background="Transparent" BorderThickness="0">

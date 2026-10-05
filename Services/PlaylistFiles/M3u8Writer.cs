@@ -25,8 +25,6 @@ internal static class M3u8Writer
         var sb = new StringBuilder();
         sb.Append("#EXTM3U\r\n");
 
-        if (tracks is null) return sb.ToString();
-
         foreach (var track in tracks)
         {
             var seconds = track.Duration > TimeSpan.Zero
@@ -46,8 +44,12 @@ internal static class M3u8Writer
             ? Path.GetFileName(track.FilePath)
             : track.Title;
 
-        return string.IsNullOrWhiteSpace(track.Artist)
+        var name = string.IsNullOrWhiteSpace(track.Artist)
             ? title
             : track.Artist + " - " + title;
+
+        // 标签里可能带换行（ID3/Vorbis 允许，ATL 原样透传），而 #EXTINF 的契约是"每曲两行"：
+        // 注入换行会破坏导出格式与往返一致性。路径在 Windows 上不可能含 CR/LF，只需处理显示名。
+        return name.Replace('\r', ' ').Replace('\n', ' ');
     }
 }

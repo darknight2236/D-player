@@ -289,6 +289,22 @@ public sealed class PlaylistFileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Export_NewlineInTitleAndArtist_Sanitized()
+    {
+        var dest = Path.Combine(_tempDir, "newline.m3u8");
+
+        await _service.ExportAsync(dest, new[]
+        {
+            MakeTrack(@"C:\Music\a.mp3", "Line1\nLine2", "Art\r\nist", TimeSpan.FromSeconds(10)),
+        });
+
+        var text = File.ReadAllText(dest, new UTF8Encoding(false));
+
+        // 每曲仍然只有两行；换行被替换为空格（"Art\r\nist" → "Art  ist"，两个空格）
+        Assert.Equal("#EXTM3U\r\n#EXTINF:10,Art  ist - Line1 Line2\r\nC:\\Music\\a.mp3\r\n", text);
+    }
+
+    [Fact]
     public async Task Export_PreservesQueueOrder()
     {
         var dest = Path.Combine(_tempDir, "order.m3u8");

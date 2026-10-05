@@ -392,6 +392,8 @@ public partial class PlaylistViewModel : ObservableObject
     ///
     /// View 层契约：传入的 paths 已经过 .mp3/.wma/.flac/.aac/.wav 后缀过滤；
     /// 本命令不再二次过滤，避免双重职责。
+    /// 第二调用方：<see cref="ImportPlaylistFileAsync"/> 也走本命令，此时过滤由服务层
+    /// （PlaylistFileService）完成，"paths 已过滤"契约对两个调用方同样成立。
     /// </summary>
     [RelayCommand]
     private async Task DropExternalFiles(IReadOnlyList<string> paths)

@@ -10,7 +10,7 @@ namespace DPlayer.ViewModels;
 /// <param name="SourceFile">列表文件名（含后缀），用于文案里的「来源」。</param>
 /// <param name="PlaylistName">新建时=新歌单名；追加时=目标歌单名；一条都没导入时=null。</param>
 /// <param name="CreatedNewPlaylist">true=容器级新建歌单；false=追加到既有歌单。</param>
-/// <param name="Imported">真正入列的曲目数（元数据读取失败的不计）。</param>
+/// <param name="Imported">入列的曲目数：追加路径 = 通过服务层过滤的条目数，新建路径 = 元数据批量读取返回的曲目数。</param>
 public sealed record PlaylistImportReport(
     string SourceFile,
     string? PlaylistName,

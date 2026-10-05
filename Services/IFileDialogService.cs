@@ -3,7 +3,7 @@ namespace DPlayer.Services;
 /// <summary>
 /// 文件选择对话框抽象，便于单元测试以 Mock 替换。
 ///
-/// [STA Thread Required] —— Win32 OpenFileDialog 必须在 STA 线程调用。
+/// [STA Thread Required] —— Win32 OpenFileDialog / SaveFileDialog 必须在 STA 线程调用。
 /// 当前由 VM 的 RelayCommand 在 UI 线程触发，符合要求；
 /// 若从后台线程调用会抛 InvalidOperationException。
 /// </summary>

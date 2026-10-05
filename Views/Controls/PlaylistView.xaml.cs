@@ -406,7 +406,7 @@ public partial class PlaylistView : UserControl
 
     private void Root_DragEnter(object sender, DragEventArgs e)
     {
-        // 仅在拖入"至少含 1 个白名单音频"的文件集合时高亮；
+        // 仅在拖入"至少含 1 个白名单音频或播放列表文件"的文件集合时高亮；
         // 文件夹 / 全非音频且无播放列表文件 / 内部重排（QueueItemsFormat）都不亮。
         if (e.Data.GetDataPresent(QueueItemsFormat)) return;
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;

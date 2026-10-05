@@ -16,6 +16,8 @@ namespace DPlayer.Views.Controls;
 /// </summary>
 public static class PlaylistImportUi
 {
+    private const string FailurePrefix = "导入失败：";
+
     /// <summary>对话框入口：importOne 传 null 表示让 VM 自己弹文件对话框。</summary>
     public static async Task RunDialogAsync(
         Func<string?, Task<PlaylistImportReport?>> importOne, Window? owner)
@@ -30,7 +32,16 @@ public static class PlaylistImportUi
         }
         catch (Exception ex)
         {
-            ConfirmDialog.ShowError(owner, PlaylistImportReportFormatter.DialogTitle, $"导入失败：{ex.Message}");
+            // 最后一道兜底：ShowInfo 自身抛（例如 owner 已关闭）时，同一个坏 owner 上的
+            // ShowError 也会抛；再逃出去就落进 async void 处理器 = 进程崩溃。
+            try
+            {
+                ConfirmDialog.ShowError(owner, PlaylistImportReportFormatter.DialogTitle, FailurePrefix + ex.Message);
+            }
+            catch
+            {
+                // 无处可报，只能吞掉
+            }
         }
     }
 
@@ -55,7 +66,16 @@ public static class PlaylistImportUi
         }
         catch (Exception ex)
         {
-            ConfirmDialog.ShowError(owner, PlaylistImportReportFormatter.DialogTitle, $"导入失败：{ex.Message}");
+            // 最后一道兜底：ShowInfo 自身抛（例如 owner 已关闭）时，同一个坏 owner 上的
+            // ShowError 也会抛；再逃出去就落进 async void 处理器 = 进程崩溃。
+            try
+            {
+                ConfirmDialog.ShowError(owner, PlaylistImportReportFormatter.DialogTitle, FailurePrefix + ex.Message);
+            }
+            catch
+            {
+                // 无处可报，只能吞掉
+            }
         }
     }
 }

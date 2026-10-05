@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using DPlayer.ViewModels;
 using DPlayer.Views.Controls;
 using Xunit;

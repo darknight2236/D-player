@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using DPlayer.Configuration;
 using DPlayer.Services;
+using DPlayer.Services.PlaylistFiles;
 using DPlayer.ViewModels;
 
 namespace DPlayer.Extensions;
@@ -40,6 +41,9 @@ public static class ServiceCollectionExtensions
         // Phase 10: 库扫描 + 元数据缓存
         services.AddSingleton<ILibraryScannerService, LibraryScannerService>();
         services.AddSingleton<ILibraryCache, JsonLibraryCache>();
+
+        // Phase 18: 播放列表文件导入导出（无状态、纯文件 IO → Singleton）
+        services.AddSingleton<IPlaylistFileService, PlaylistFileService>();
 
         // ViewModel
         services.AddTransient<PlayerViewModel>();

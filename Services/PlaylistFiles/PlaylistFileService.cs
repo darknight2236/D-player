@@ -43,6 +43,18 @@ public sealed class PlaylistFileService : IPlaylistFileService
         }
     }
 
+    public async Task ExportAsync(string destPath, IReadOnlyList<Track> tracks)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(destPath);
+        ArgumentNullException.ThrowIfNull(tracks);
+
+        var text = M3u8Writer.Write(tracks);
+
+        // 写侧必须让异常冒到 VM（设计稿 §4）：VM 捕获后转成错误文案，
+        // View 用 ConfirmDialog.ShowError 弹出。不要在这里 try/catch 吞掉。
+        await File.WriteAllTextAsync(destPath, text, M3u8Writer.Encoding).ConfigureAwait(false);
+    }
+
     private static PlaylistImportResult Classify(IReadOnlyList<string> rawEntries, string baseDir, string suggested)
     {
         var accepted = new List<string>(rawEntries.Count);

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DPlayer.Models;
 using DPlayer.Services.PlaylistFiles;
 using Xunit;
 
@@ -238,5 +239,92 @@ public sealed class PlaylistFileServiceTests : IDisposable
         var result = await _service.ImportAsync(list);
 
         Assert.Equal("我的歌单", result.SuggestedName);
+    }
+
+    // —— 导出 ——
+
+    private static Track MakeTrack(string path, string title, string? artist, TimeSpan duration) =>
+        new(path, title, artist, null, null, null, null, null, duration, null);
+
+    [Fact]
+    public async Task Export_WritesExtm3uHeaderAndExtinfPairs()
+    {
+        var dest = Path.Combine(_tempDir, "out.m3u8");
+        var tracks = new[]
+        {
+            MakeTrack(@"C:\Music\a.mp3", "晴天", "周杰伦", TimeSpan.FromSeconds(269.4)),
+        };
+
+        await _service.ExportAsync(dest, tracks);
+
+        var bytes = File.ReadAllBytes(dest);
+        Assert.False(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF,
+            "导出文件不应带 BOM");
+
+        var text = new UTF8Encoding(false).GetString(bytes);
+        Assert.Equal("#EXTM3U\r\n#EXTINF:269,周杰伦 - 晴天\r\nC:\\Music\\a.mp3\r\n", text);
+    }
+
+    [Fact]
+    public async Task Export_MissingArtistWritesTitleOnly()
+    {
+        var dest = Path.Combine(_tempDir, "noartist.m3u8");
+
+        await _service.ExportAsync(dest, new[] { MakeTrack(@"C:\Music\b.flac", "Instrumental", null, TimeSpan.Zero) });
+
+        var text = File.ReadAllText(dest, new UTF8Encoding(false));
+        Assert.Contains("#EXTINF:-1,Instrumental\r\n", text);
+        // Ordinal：xUnit 字符串断言默认文化敏感比较；导出格式是逐字节规格，按字面子串判定才准确。
+        Assert.DoesNotContain(" - ", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Export_BlankTitleFallsBackToFileName()
+    {
+        var dest = Path.Combine(_tempDir, "notitle.m3u8");
+
+        await _service.ExportAsync(dest, new[] { MakeTrack(@"C:\Music\c.wav", "  ", "Artist", TimeSpan.FromSeconds(10)) });
+
+        Assert.Contains("#EXTINF:10,Artist - c.wav\r\n", File.ReadAllText(dest, new UTF8Encoding(false)));
+    }
+
+    [Fact]
+    public async Task Export_PreservesQueueOrder()
+    {
+        var dest = Path.Combine(_tempDir, "order.m3u8");
+        var tracks = new[]
+        {
+            MakeTrack(@"C:\1.mp3", "One", null, TimeSpan.FromSeconds(1)),
+            MakeTrack(@"C:\2.mp3", "Two", null, TimeSpan.FromSeconds(2)),
+            MakeTrack(@"C:\3.mp3", "Three", null, TimeSpan.FromSeconds(3)),
+        };
+
+        await _service.ExportAsync(dest, tracks);
+
+        var lines = File.ReadAllLines(dest).Where(l => !l.StartsWith('#')).ToArray();
+        Assert.Equal(new[] { @"C:\1.mp3", @"C:\2.mp3", @"C:\3.mp3" }, lines);
+    }
+
+    [Fact]
+    public async Task RoundTrip_ExportThenImport_ReturnsSamePathsInOrder()
+    {
+        var a = MakeAudio(@"Music\a.mp3");
+        var b = MakeAudio(@"Music\b.flac");
+        var c = MakeAudio(@"Music\c.wav");
+        var dest = Path.Combine(_tempDir, "roundtrip.m3u8");
+
+        await _service.ExportAsync(dest, new[]
+        {
+            MakeTrack(a, "A", "Artist A", TimeSpan.FromSeconds(100)),
+            MakeTrack(b, "B", null, TimeSpan.FromSeconds(200)),
+            MakeTrack(c, "C", "Artist C", TimeSpan.Zero),
+        });
+
+        var result = await _service.ImportAsync(dest);
+
+        Assert.Equal(new[] { a, b, c }, result.AcceptedPaths.ToArray());
+        Assert.Equal(3, result.TotalEntries);
+        Assert.Equal(0, result.SkippedMissing);
+        Assert.Equal(0, result.SkippedUnsupported);
     }
 }

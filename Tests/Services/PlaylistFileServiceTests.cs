@@ -154,14 +154,16 @@ public sealed class PlaylistFileServiceTests : IDisposable
     public async Task Import_NonWhitelistedExtensionCountsAsUnsupported()
     {
         var ogg = MakeAudio(@"a.ogg");       // 存在，但后缀不在白名单
-        var txt = MakeAudio(@"notes.txt");
+        var txt = MissingAudio(@"notes.txt"); // 磁盘上不存在，且后缀不在白名单
         var list = WriteList("u.m3u", ogg + "\n" + txt + "\n");
 
         var result = await _service.ImportAsync(list);
 
         Assert.Empty(result.AcceptedPaths);
         Assert.Equal(2, result.SkippedUnsupported);
-        Assert.Equal(0, result.SkippedMissing);   // 后缀判定先于存在性判定
+        // notes.txt 不存在却计入 unsupported 而非 missing：只有后缀判定先于存在性判定才会如此。
+        // 若两者顺序被颠倒，它会先撞上 File.Exists 而计入 missing（unsupported=1, missing=1），此断言即失败。
+        Assert.Equal(0, result.SkippedMissing);
     }
 
     [Fact]

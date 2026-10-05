@@ -18,7 +18,7 @@ public class PlaylistsViewModelTests
     private readonly IFileDialogService _fileDialog = Substitute.For<IFileDialogService>();
     private readonly ITrackMetadataReader _metadataReader = Substitute.For<ITrackMetadataReader>();
 
-    private PlaylistViewModel CreatePlaylistVm(string id = null, string name = "Test")
+    private PlaylistViewModel CreatePlaylistVm(string? id = null, string name = "Test")
     {
         id ??= Guid.NewGuid().ToString();
         var seed = new Playlist(

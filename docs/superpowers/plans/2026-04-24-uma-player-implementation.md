@@ -53,7 +53,7 @@
 - Create: `appsettings.json`
 - Create: `Models/`, `Services/`, `Configuration/`, `ViewModels/`, `Views/Controls/`, `Converters/`, `Themes/`, `Extensions/`
 
-- [ ] **Step 1: Add NuGet packages to csproj**
+- [x] **Step 1: Add NuGet packages to csproj**
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -83,13 +83,13 @@
 </Project>
 ```
 
-- [ ] **Step 2: Create directory structure**
+- [x] **Step 2: Create directory structure**
 
 ```bash
 mkdir -p Models Services Configuration ViewModels Views/Controls Converters Themes Extensions
 ```
 
-- [ ] **Step 3: Create appsettings.json**
+- [x] **Step 3: Create appsettings.json**
 
 ```json
 {
@@ -106,7 +106,7 @@ mkdir -p Models Services Configuration ViewModels Views/Controls Converters Them
 }
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 ```bash
 dotnet build
@@ -114,7 +114,7 @@ dotnet build
 
 Expected: Build succeeds with restored packages.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add UmaPlayer.csproj appsettings.json Models/ Services/ Configuration/ ViewModels/ Views/ Converters/ Themes/ Extensions/
@@ -130,7 +130,7 @@ git commit -m "chore: add NuGet packages and create directory structure"
 - Create: `Models/PlayState.cs`
 - Create: `Models/AudioDeviceInfo.cs`
 
-- [ ] **Step 1: Create PlayState enum**
+- [x] **Step 1: Create PlayState enum**
 
 ```csharp
 // Models/PlayState.cs
@@ -139,7 +139,7 @@ namespace UmaPlayer.Models;
 public enum PlayState { Stopped, Playing, Paused }
 ```
 
-- [ ] **Step 2: Create Track record**
+- [x] **Step 2: Create Track record**
 
 ```csharp
 // Models/Track.cs
@@ -153,7 +153,7 @@ public sealed record Track(
     TimeSpan Duration);
 ```
 
-- [ ] **Step 3: Create AudioDeviceInfo record (reserved)**
+- [x] **Step 3: Create AudioDeviceInfo record (reserved)**
 
 ```csharp
 // Models/AudioDeviceInfo.cs
@@ -165,7 +165,7 @@ public sealed record AudioDeviceInfo(
     bool IsDefault);
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 ```bash
 dotnet build
@@ -173,7 +173,7 @@ dotnet build
 
 Expected: Build succeeds.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Models/
@@ -187,7 +187,7 @@ git commit -m "feat: add data models (Track, PlayState, AudioDeviceInfo)"
 **Files:**
 - Create: `Configuration/AppSettings.cs`
 
-- [ ] **Step 1: Create AppSettings record**
+- [x] **Step 1: Create AppSettings record**
 
 ```csharp
 // Configuration/AppSettings.cs
@@ -206,13 +206,13 @@ public sealed record AppSettings
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Configuration/
@@ -227,7 +227,7 @@ git commit -m "feat: add AppSettings configuration model"
 - Create: `Services/ISettingsPersistence.cs`
 - Create: `Services/JsonSettingsPersistence.cs`
 
-- [ ] **Step 1: Create ISettingsPersistence interface**
+- [x] **Step 1: Create ISettingsPersistence interface**
 
 ```csharp
 // Services/ISettingsPersistence.cs
@@ -240,7 +240,7 @@ public interface ISettingsPersistence
 }
 ```
 
-- [ ] **Step 2: Create JsonSettingsPersistence implementation**
+- [x] **Step 2: Create JsonSettingsPersistence implementation**
 
 ```csharp
 // Services/JsonSettingsPersistence.cs
@@ -298,13 +298,13 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Services/ISettingsPersistence.cs Services/JsonSettingsPersistence.cs
@@ -320,7 +320,7 @@ git commit -m "feat: add settings persistence service with SemaphoreSlim locking
 - Create: `Services/IAudioOutputFactory.cs` (reserved)
 - Create: `Services/IAudioDeviceManager.cs` (reserved)
 
-- [ ] **Step 1: Create IPlaybackService interface**
+- [x] **Step 1: Create IPlaybackService interface**
 
 ```csharp
 // Services/IPlaybackService.cs
@@ -352,7 +352,7 @@ public interface IPlaybackService : IDisposable
 }
 ```
 
-- [ ] **Step 2: Create IAudioOutputFactory interface (reserved)**
+- [x] **Step 2: Create IAudioOutputFactory interface (reserved)**
 
 ```csharp
 // Services/IAudioOutputFactory.cs
@@ -366,7 +366,7 @@ public interface IAudioOutputFactory
 }
 ```
 
-- [ ] **Step 3: Create IAudioDeviceManager interface (reserved)**
+- [x] **Step 3: Create IAudioDeviceManager interface (reserved)**
 
 ```csharp
 // Services/IAudioDeviceManager.cs
@@ -382,13 +382,13 @@ public interface IAudioDeviceManager
 }
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Services/IPlaybackService.cs Services/IAudioOutputFactory.cs Services/IAudioDeviceManager.cs
@@ -402,7 +402,7 @@ git commit -m "feat: add playback service interfaces (core + reserved)"
 **Files:**
 - Create: `Services/NAudioPlaybackService.cs`
 
-- [ ] **Step 1: Create NAudioPlaybackService**
+- [x] **Step 1: Create NAudioPlaybackService**
 
 ```csharp
 // Services/NAudioPlaybackService.cs
@@ -561,13 +561,13 @@ public sealed class NAudioPlaybackService : IPlaybackService
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Services/NAudioPlaybackService.cs
@@ -582,7 +582,7 @@ git commit -m "feat: implement NAudioPlaybackService with throttled position upd
 - Create: `Services/IFileDialogService.cs`
 - Create: `Services/Win32FileDialogService.cs`
 
-- [ ] **Step 1: Create IFileDialogService interface**
+- [x] **Step 1: Create IFileDialogService interface**
 
 ```csharp
 // Services/IFileDialogService.cs
@@ -599,7 +599,7 @@ public interface IFileDialogService
 }
 ```
 
-- [ ] **Step 2: Create Win32FileDialogService implementation**
+- [x] **Step 2: Create Win32FileDialogService implementation**
 
 ```csharp
 // Services/Win32FileDialogService.cs
@@ -624,13 +624,13 @@ public sealed class Win32FileDialogService : IFileDialogService
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Services/IFileDialogService.cs Services/Win32FileDialogService.cs
@@ -644,7 +644,7 @@ git commit -m "feat: add file dialog service with STA thread constraint"
 **Files:**
 - Create: `Extensions/ServiceCollectionExtensions.cs`
 
-- [ ] **Step 1: Create ServiceCollectionExtensions**
+- [x] **Step 1: Create ServiceCollectionExtensions**
 
 ```csharp
 // Extensions/ServiceCollectionExtensions.cs
@@ -684,7 +684,7 @@ public static class ServiceCollectionExtensions
 }
 ```
 
-- [ ] **Step 2: Create stub implementations for reserved interfaces**
+- [x] **Step 2: Create stub implementations for reserved interfaces**
 
 ```csharp
 // Services/StubAudioDeviceManager.cs
@@ -712,13 +712,13 @@ public sealed class StubAudioOutputFactory : IAudioOutputFactory
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Extensions/ Services/StubAudioDeviceManager.cs Services/StubAudioOutputFactory.cs
@@ -733,7 +733,7 @@ git commit -m "feat: add DI registration with stub implementations for reserved 
 - Create: `Converters/TimeSpanToStringConverter.cs`
 - Create: `Converters/PlayStateToIconConverter.cs`
 
-- [ ] **Step 1: Create TimeSpanToStringConverter**
+- [x] **Step 1: Create TimeSpanToStringConverter**
 
 ```csharp
 // Converters/TimeSpanToStringConverter.cs
@@ -759,7 +759,7 @@ public sealed class TimeSpanToStringConverter : IValueConverter
 }
 ```
 
-- [ ] **Step 2: Create PlayStateToIconConverter**
+- [x] **Step 2: Create PlayStateToIconConverter**
 
 ```csharp
 // Converters/PlayStateToIconConverter.cs
@@ -782,13 +782,13 @@ public sealed class PlayStateToIconConverter : IValueConverter
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Converters/
@@ -804,7 +804,7 @@ git commit -m "feat: add value converters for TimeSpan display and PlayState ico
 - Create: `Themes/Fonts.xaml`
 - Create: `Themes/Controls.xaml`
 
-- [ ] **Step 1: Create Colors.xaml**
+- [x] **Step 1: Create Colors.xaml**
 
 ```xml
 <!-- Themes/Colors.xaml -->
@@ -831,7 +831,7 @@ git commit -m "feat: add value converters for TimeSpan display and PlayState ico
 </ResourceDictionary>
 ```
 
-- [ ] **Step 2: Create Fonts.xaml**
+- [x] **Step 2: Create Fonts.xaml**
 
 ```xml
 <!-- Themes/Fonts.xaml -->
@@ -861,7 +861,7 @@ git commit -m "feat: add value converters for TimeSpan display and PlayState ico
 </ResourceDictionary>
 ```
 
-- [ ] **Step 3: Create Controls.xaml**
+- [x] **Step 3: Create Controls.xaml**
 
 ```xml
 <!-- Themes/Controls.xaml -->
@@ -949,13 +949,13 @@ git commit -m "feat: add value converters for TimeSpan display and PlayState ico
 </ResourceDictionary>
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Themes/
@@ -969,7 +969,7 @@ git commit -m "feat: add dark theme ResourceDictionaries (Colors, Fonts, Control
 **Files:**
 - Create: `ViewModels/MainViewModel.cs`
 
-- [ ] **Step 1: Create MainViewModel**
+- [x] **Step 1: Create MainViewModel**
 
 ```csharp
 // ViewModels/MainViewModel.cs
@@ -1123,13 +1123,13 @@ public partial class MainViewModel : ObservableObject
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add ViewModels/
@@ -1144,7 +1144,7 @@ git commit -m "feat: implement MainViewModel with playback commands and seek han
 - Create: `Views/Controls/PlayerBar.xaml`
 - Create: `Views/Controls/PlayerBar.xaml.cs`
 
-- [ ] **Step 1: Create PlayerBar.xaml**
+- [x] **Step 1: Create PlayerBar.xaml**
 
 ```xml
 <!-- Views/Controls/PlayerBar.xaml -->
@@ -1217,7 +1217,7 @@ git commit -m "feat: implement MainViewModel with playback commands and seek han
 </UserControl>
 ```
 
-- [ ] **Step 2: Create PlayerBar.xaml.cs**
+- [x] **Step 2: Create PlayerBar.xaml.cs**
 
 ```csharp
 // Views/Controls/PlayerBar.xaml.cs
@@ -1244,13 +1244,13 @@ public partial class PlayerBar : UserControl
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Views/Controls/
@@ -1265,7 +1265,7 @@ git commit -m "feat: add PlayerBar control with seek slider and playback buttons
 - Create: `Views/MainWindow.xaml`
 - Create: `Views/MainWindow.xaml.cs`
 
-- [ ] **Step 1: Create MainWindow.xaml**
+- [x] **Step 1: Create MainWindow.xaml**
 
 ```xml
 <!-- Views/MainWindow.xaml -->
@@ -1283,7 +1283,7 @@ git commit -m "feat: add PlayerBar control with seek slider and playback buttons
 </Window>
 ```
 
-- [ ] **Step 2: Create MainWindow.xaml.cs**
+- [x] **Step 2: Create MainWindow.xaml.cs**
 
 ```csharp
 // Views/MainWindow.xaml.cs
@@ -1361,13 +1361,13 @@ public partial class MainWindow : Window
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Views/MainWindow.xaml Views/MainWindow.xaml.cs
@@ -1382,7 +1382,7 @@ git commit -m "feat: add MainWindow with geometry persistence and multi-monitor 
 - Modify: `App.xaml`
 - Modify: `App.xaml.cs`
 
-- [ ] **Step 1: Update App.xaml — remove StartupUri, add theme resources**
+- [x] **Step 1: Update App.xaml — remove StartupUri, add theme resources**
 
 ```xml
 <!-- App.xaml -->
@@ -1403,7 +1403,7 @@ git commit -m "feat: add MainWindow with geometry persistence and multi-monitor 
 
 Note: `StartupUri` is intentionally removed. Window is created via DI in `OnStartup`.
 
-- [ ] **Step 2: Update App.xaml.cs — DI bootstrap**
+- [x] **Step 2: Update App.xaml.cs — DI bootstrap**
 
 ```csharp
 // App.xaml.cs
@@ -1447,13 +1447,13 @@ public partial class App : Application
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 dotnet build
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add App.xaml App.xaml.cs
@@ -1468,13 +1468,13 @@ git commit -m "feat: wire DI bootstrap, remove StartupUri, add theme resources"
 - Modify: `MainWindow.xaml` (delete — replaced by Views/MainWindow.xaml)
 - Modify: `MainWindow.xaml.cs` (delete — replaced by Views/MainWindow.xaml.cs)
 
-- [ ] **Step 1: Delete old template files**
+- [x] **Step 1: Delete old template files**
 
 ```bash
 rm -f MainWindow.xaml MainWindow.xaml.cs
 ```
 
-- [ ] **Step 2: Full build verification**
+- [x] **Step 2: Full build verification**
 
 ```bash
 dotnet build
@@ -1482,7 +1482,7 @@ dotnet build
 
 Expected: Build succeeds with zero errors.
 
-- [ ] **Step 3: Run the application**
+- [x] **Step 3: Run the application**
 
 ```bash
 dotnet run
@@ -1490,7 +1490,7 @@ dotnet run
 
 Expected: Dark-themed window appears at configured position. No crash on startup.
 
-- [ ] **Step 4: Final commit**
+- [x] **Step 4: Final commit**
 
 ```bash
 git add -A

@@ -33,19 +33,19 @@
 **Files:**
 - Modify: `Themes/Icons.xaml`
 
-- [ ] **Step 1: 在 `Icon.Clear` 之后追加两条 Geometry**
+- [x] **Step 1: 在 `Icon.Clear` 之后追加两条 Geometry**
 
 ```xml
     <Geometry x:Key="Icon.Maximize">M6,6 H18 V18 H6 Z</Geometry>
     <Geometry x:Key="Icon.Restore">M7,7 H14 V14 H7 Z M10,7 V4 H17 V11 H14</Geometry>
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误（Geometry path markup 可解析）。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Themes/Icons.xaml
@@ -60,7 +60,7 @@ git commit -m "feat(theme): add maximize/restore icons (Phase 17)"
 - Create: `Views/Controls/TitleBar.xaml`
 - Create: `Views/Controls/TitleBar.xaml.cs`
 
-- [ ] **Step 1: 创建 `Views/Controls/TitleBar.xaml`**
+- [x] **Step 1: 创建 `Views/Controls/TitleBar.xaml`**
 
 ```xml
 <!--
@@ -109,7 +109,7 @@ git commit -m "feat(theme): add maximize/restore icons (Phase 17)"
 </UserControl>
 ```
 
-- [ ] **Step 2: 创建 `Views/Controls/TitleBar.xaml.cs`**
+- [x] **Step 2: 创建 `Views/Controls/TitleBar.xaml.cs`**
 
 ```csharp
 using System.Windows;
@@ -207,12 +207,12 @@ public partial class TitleBar : UserControl
 }
 ```
 
-- [ ] **Step 3: 构建验证**
+- [x] **Step 3: 构建验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Views/Controls/TitleBar.xaml Views/Controls/TitleBar.xaml.cs
@@ -226,7 +226,7 @@ git commit -m "feat(view): add reusable custom TitleBar control (Phase 17)"
 **Files:**
 - Modify: `Views/MainWindow.xaml`
 
-- [ ] **Step 1: Window 标签加 shell xmlns + WindowStyle=None**
+- [x] **Step 1: Window 标签加 shell xmlns + WindowStyle=None**
 
 before:
 ```xml
@@ -241,7 +241,7 @@ after:
         Title="D-player"
 ```
 
-- [ ] **Step 2: 加 WindowChrome（在 Window.Resources 之前）**
+- [x] **Step 2: 加 WindowChrome（在 Window.Resources 之前）**
 
 before:
 ```xml
@@ -257,7 +257,7 @@ after:
     <Window.Resources>
 ```
 
-- [ ] **Step 3: 根 Grid 加 TitleBar 行**
+- [x] **Step 3: 根 Grid 加 TitleBar 行**
 
 before:
 ```xml
@@ -283,15 +283,15 @@ after:
         <Grid x:Name="ContentGrid" Grid.Row="1" SizeChanged="ContentGrid_SizeChanged">
 ```
 
-- [ ] **Step 4: PlayerBar 行号 1→2**
+- [x] **Step 4: PlayerBar 行号 1→2**
 
 定位 `<controls:PlayerBar` 元素，把其 `Grid.Row="1"` 改为 `Grid.Row="2"`。
 
-- [ ] **Step 5: 构建验证**
+- [x] **Step 5: 构建验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q` → 0 错误。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Views/MainWindow.xaml
@@ -309,16 +309,16 @@ git commit -m "feat(view): MainWindow custom borderless chrome with TitleBar (Ph
 
 对每个对话框重复以下 4 步（Title 分别为：设置 / 均衡器 / 输入）：
 
-- [ ] **Step 1: Window 标签：加 shell+controls xmlns；`WindowStyle="ToolWindow"` → `WindowStyle="None"`**（保留 ResizeMode/ShowInTaskbar/WindowStartupLocation）。
+- [x] **Step 1: Window 标签：加 shell+controls xmlns；`WindowStyle="ToolWindow"` → `WindowStyle="None"`**（保留 ResizeMode/ShowInTaskbar/WindowStartupLocation）。
 
-- [ ] **Step 2: 加 WindowChrome（Window  opening 标签后、Window.Resources 或根 Grid 之前）**
+- [x] **Step 2: 加 WindowChrome（Window  opening 标签后、Window.Resources 或根 Grid 之前）**
 ```xml
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="32" UseAeroCaptionButtons="False" GlassFrameThickness="0"/>
     </shell:WindowChrome.WindowChrome>
 ```
 
-- [ ] **Step 3: 包裹根 Grid：外层 Grid(Row0=TitleBar, Row1=内层)**
+- [x] **Step 3: 包裹根 Grid：外层 Grid(Row0=TitleBar, Row1=内层)**
 
 before（根 Grid 开标签，保留其原 Margin 值 M）：
 ```xml
@@ -336,7 +336,7 @@ after：
 ```
 并在 `</Window>` 之前补一个 `</Grid>`（关闭新外层）。
 
-- [ ] **Step 4: 构建验证 + 提交（三个对话框一起）**
+- [x] **Step 4: 构建验证 + 提交（三个对话框一起）**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q` → 0 错误。
 ```bash
@@ -351,7 +351,7 @@ git commit -m "feat(view): dialogs custom borderless chrome with TitleBar (Phase
 **Files:**
 - Modify: `Themes/Controls.xaml`（在 `</ResourceDictionary>` 之前追加）
 
-- [ ] **Step 1: 追加 ComboBox + ComboBoxItem 深色模板**
+- [x] **Step 1: 追加 ComboBox + ComboBoxItem 深色模板**
 
 ```xml
     <!-- ComboBox 深色：toggle 边框 + 箭头 + 深色 popup -->
@@ -416,7 +416,7 @@ git commit -m "feat(view): dialogs custom borderless chrome with TitleBar (Phase
     </Style>
 ```
 
-- [ ] **Step 2: 追加 CheckBox 深色模板**
+- [x] **Step 2: 追加 CheckBox 深色模板**
 
 ```xml
     <Style TargetType="CheckBox">
@@ -450,7 +450,7 @@ git commit -m "feat(view): dialogs custom borderless chrome with TitleBar (Phase
     </Style>
 ```
 
-- [ ] **Step 3: 追加 ScrollBar 深色模板（竖+横，隐藏箭头按钮）**
+- [x] **Step 3: 追加 ScrollBar 深色模板（竖+横，隐藏箭头按钮）**
 
 ```xml
     <Style TargetType="ScrollBar">
@@ -513,7 +513,7 @@ git commit -m "feat(view): dialogs custom borderless chrome with TitleBar (Phase
     </Style>
 ```
 
-- [ ] **Step 4: 追加 ToolTip / ContextMenu / MenuItem / Separator 深色样式**
+- [x] **Step 4: 追加 ToolTip / ContextMenu / MenuItem / Separator 深色样式**
 
 ```xml
     <Style TargetType="ToolTip">
@@ -553,12 +553,12 @@ git commit -m "feat(view): dialogs custom borderless chrome with TitleBar (Phase
     </Style>
 ```
 
-- [ ] **Step 5: 构建 + 测试验证**
+- [x] **Step 5: 构建 + 测试验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q` → 0 错误。
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 96 通过 / 0 失败。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Themes/Controls.xaml
@@ -571,11 +571,11 @@ git commit -m "feat(theme): dark implicit styles for ComboBox/CheckBox/ScrollBar
 
 **Files:** 无代码改动（验证）
 
-- [ ] **Step 1: 构建 + 全量测试**
+- [x] **Step 1: 构建 + 全量测试**
 
 Run: `dotnet build …` → 0 错误；`dotnet test …` → 96 通过。
 
-- [ ] **Step 2: 启动应用 + ComputerUse 截图核对**
+- [x] **Step 2: 启动应用 + ComputerUse 截图核对**
 
 启动 `bin\Debug\net10.0-windows\D-player.exe`，核对：
 1. 主窗/设置/均衡器/输入窗标题栏为深色自绘（含矢量最小化/最大化/关闭按钮）；
@@ -586,7 +586,7 @@ Run: `dotnet build …` → 0 错误；`dotnet test …` → 96 通过。
 6. 无残留浅色原生元素。
 返回截图路径；主代理独立读取≥ 2 张复核。验收完恢复状态并关闭应用。
 
-- [ ] **Step 3: （仅当有文档微调）提交**
+- [x] **Step 3: （仅当有文档微调）提交**
 
 ---
 

@@ -59,7 +59,7 @@ Files this plan creates or modifies, with single-responsibility blurbs:
 **Files:**
 - Create: `Tests/UmaPlayer.Tests.csproj`
 
-- [ ] **Step 1: Create the csproj**
+- [x] **Step 1: Create the csproj**
 
 Write `Tests/UmaPlayer.Tests.csproj`:
 
@@ -91,7 +91,7 @@ Write `Tests/UmaPlayer.Tests.csproj`:
 </Project>
 ```
 
-- [ ] **Step 2: Run `dotnet restore` to fetch packages**
+- [x] **Step 2: Run `dotnet restore` to fetch packages**
 
 Run: `dotnet restore Tests/UmaPlayer.Tests.csproj`
 Expected: `Restored ... Tests\UmaPlayer.Tests.csproj` with no errors.
@@ -101,12 +101,12 @@ Expected: `Restored ... Tests\UmaPlayer.Tests.csproj` with no errors.
 **Files:**
 - Modify: `UmaPlayer.sln`
 
-- [ ] **Step 1: Add test project via dotnet CLI**
+- [x] **Step 1: Add test project via dotnet CLI**
 
 Run: `dotnet sln UmaPlayer.sln add Tests/UmaPlayer.Tests.csproj`
 Expected: `Project ... added to the solution.`
 
-- [ ] **Step 2: Verify both projects build from solution**
+- [x] **Step 2: Verify both projects build from solution**
 
 Run: `dotnet build UmaPlayer.sln`
 Expected: `Build succeeded.` with both `UmaPlayer` and `UmaPlayer.Tests` listed.
@@ -116,7 +116,7 @@ Expected: `Build succeeded.` with both `UmaPlayer` and `UmaPlayer.Tests` listed.
 **Files:**
 - Create: `Tests/Smoke/SmokeTests.cs`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Write `Tests/Smoke/SmokeTests.cs`:
 
@@ -139,12 +139,12 @@ public class SmokeTests
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it passes**
+- [x] **Step 2: Run the test to verify it passes**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj`
 Expected: `Passed: 1, Failed: 0, Skipped: 0`. The test passes immediately because Track is already a `record` (Phase 1) — this is a smoke test, not red→green TDD. Failure here means the test project plumbing is broken, not the model.
 
-- [ ] **Step 3: Run with coverage to confirm Coverlet works**
+- [x] **Step 3: Run with coverage to confirm Coverlet works**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --collect:"XPlat Code Coverage"`
 Expected: Output mentions `Attachments:` followed by a path ending in `coverage.cobertura.xml`.
@@ -154,7 +154,7 @@ Expected: Output mentions `Attachments:` followed by a path ending in `coverage.
 **Files:**
 - Modify: `.gitignore`
 
-- [ ] **Step 1: Append test artifacts**
+- [x] **Step 1: Append test artifacts**
 
 Append to `.gitignore`:
 
@@ -165,14 +165,14 @@ coverage.cobertura.xml
 TestResults/
 ```
 
-- [ ] **Step 2: Verify ignore works**
+- [x] **Step 2: Verify ignore works**
 
 Run: `git status Tests/`
 Expected: only `Tests/Smoke/SmokeTests.cs` and `Tests/UmaPlayer.Tests.csproj` listed; no `bin/` or `obj/` entries.
 
 ### Task A5: Commit sub-project A
 
-- [ ] **Step 1: Stage and commit**
+- [x] **Step 1: Stage and commit**
 
 Run:
 ```bash
@@ -191,7 +191,7 @@ Expected: commit succeeds with 4-5 files changed.
 **Files:**
 - Create: `Models/Playlist.cs`
 
-- [ ] **Step 1: Create the record**
+- [x] **Step 1: Create the record**
 
 Write `Models/Playlist.cs`:
 
@@ -212,12 +212,12 @@ public sealed record Playlist(
     RepeatMode RepeatMode);
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: `Build succeeded.` (no consumers yet, just adds the type).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Models/Playlist.cs
@@ -229,7 +229,7 @@ git commit -m "feat(models): add Playlist record (Phase 6 B1)"
 **Files:**
 - Modify: `Models/QueueState.cs`
 
-- [ ] **Step 1: Replace the file with v2 schema**
+- [x] **Step 1: Replace the file with v2 schema**
 
 Replace entire `Models/QueueState.cs` with:
 
@@ -249,7 +249,7 @@ public sealed record QueueState
 }
 ```
 
-- [ ] **Step 2: Verify build fails (consumers reference old fields)**
+- [x] **Step 2: Verify build fails (consumers reference old fields)**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: errors like `'QueueState' does not contain a definition for 'Items'` in `JsonQueuePersistence.cs` and `PlaylistViewModel.cs`. **This is intentional** — old persistence and VM read paths get removed/replaced in B3-B7. Build goes green again at B12. Do **NOT** commit.
@@ -259,7 +259,7 @@ Expected: errors like `'QueueState' does not contain a definition for 'Items'` i
 **Files:**
 - Create: `Services/IPlaylistService.cs`
 
-- [ ] **Step 1: Create the interface**
+- [x] **Step 1: Create the interface**
 
 Write `Services/IPlaylistService.cs`:
 
@@ -281,7 +281,7 @@ public interface IPlaylistService
 }
 ```
 
-- [ ] **Step 2: No build yet (still red from B2)**
+- [x] **Step 2: No build yet (still red from B2)**
 
 Continue to B4.
 
@@ -290,7 +290,7 @@ Continue to B4.
 **Files:**
 - Create: `Services/JsonPlaylistService.cs`
 
-- [ ] **Step 1: Create the implementation**
+- [x] **Step 1: Create the implementation**
 
 Write `Services/JsonPlaylistService.cs`:
 
@@ -453,7 +453,7 @@ public sealed class JsonPlaylistService : IPlaylistService
 }
 ```
 
-- [ ] **Step 2: Build still red, continue to B5**
+- [x] **Step 2: Build still red, continue to B5**
 
 ### Task B5: Delete `IQueuePersistence` and `JsonQueuePersistence`
 
@@ -461,19 +461,19 @@ public sealed class JsonPlaylistService : IPlaylistService
 - Delete: `Services/IQueuePersistence.cs`
 - Delete: `Services/JsonQueuePersistence.cs`
 
-- [ ] **Step 1: Remove old persistence files**
+- [x] **Step 1: Remove old persistence files**
 
 Run: `git rm Services/IQueuePersistence.cs Services/JsonQueuePersistence.cs`
 Expected: both files removed; listed as deleted in `git status`.
 
-- [ ] **Step 2: Build still red on consumers, continue to B6**
+- [x] **Step 2: Build still red on consumers, continue to B6**
 
 ### Task B6: Update DI registration
 
 **Files:**
 - Modify: `Extensions/ServiceCollectionExtensions.cs`
 
-- [ ] **Step 1: Replace registrations**
+- [x] **Step 1: Replace registrations**
 
 In `Extensions/ServiceCollectionExtensions.cs`, **delete** the line:
 ```csharp
@@ -499,14 +499,14 @@ In `Extensions/ServiceCollectionExtensions.cs`, **delete** the line:
         services.AddTransient<MainViewModel>();
 ```
 
-- [ ] **Step 2: Build still red, continue to B7**
+- [x] **Step 2: Build still red, continue to B7**
 
 ### Task B7: Rewrite `ViewModels/PlaylistViewModel.cs` to Phase 6 model
 
 **Files:**
 - Modify: `ViewModels/PlaylistViewModel.cs`
 
-- [ ] **Step 1: Replace constructor signature and add Phase 6 surface**
+- [x] **Step 1: Replace constructor signature and add Phase 6 surface**
 
 In `ViewModels/PlaylistViewModel.cs`:
 
@@ -573,7 +573,7 @@ public Models.Playlist ToRecord() => new(
     RepeatMode: RepeatMode);
 ```
 
-- [ ] **Step 2: Delete obsolete persistence methods**
+- [x] **Step 2: Delete obsolete persistence methods**
 
 In `ViewModels/PlaylistViewModel.cs`:
 
@@ -583,11 +583,11 @@ In `ViewModels/PlaylistViewModel.cs`:
 
 `MapCurrentIndexAfterFilter(...)` 静态助手保留不动 —— ctor 还在用。
 
-- [ ] **Step 3: Remove `IQueuePersistence` references**
+- [x] **Step 3: Remove `IQueuePersistence` references**
 
 Search `ViewModels/PlaylistViewModel.cs` for `IQueuePersistence` and `_queuePersistence` —— 应已经全部跟 ctor 一起删干净。剩余的 `using UmaPlayer.Services;` 可能仍需要 (ITrackMetadataReader 等), 别动。
 
-- [ ] **Step 4: Verify build is now closer to green**
+- [x] **Step 4: Verify build is now closer to green**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: 仍然红, 但错误从 `QueueState` 字段缺失转移到 `MainViewModel` / `MainWindow.xaml.cs` / `App.xaml.cs` 仍引用旧 `Playlist` facade、旧 `IQueuePersistence`。下一步 B8-B11 把这些消化掉。
@@ -598,7 +598,7 @@ Expected: 仍然红, 但错误从 `QueueState` 字段缺失转移到 `MainViewMo
 **Files:**
 - Create: `ViewModels/PlaylistsViewModel.cs`
 
-- [ ] **Step 1: Create the container ViewModel**
+- [x] **Step 1: Create the container ViewModel**
 
 Write `ViewModels/PlaylistsViewModel.cs`:
 
@@ -809,7 +809,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
 > **注意:** 现有 `PlaylistViewModel` 在 Phase 5 已暴露 `[RelayCommand] private async Task PlayTrackAt(int index)` (源生成器导出 `PlayTrackAtCommand` 实现 `IAsyncRelayCommand`)。本 task 直接复用; 不要新加方法。
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: 仍然红 —— `MainViewModel` / `App.xaml.cs` / `MainWindow.xaml.cs` 还没改。继续 B9。
@@ -820,7 +820,7 @@ Expected: 仍然红 —— `MainViewModel` / `App.xaml.cs` / `MainWindow.xaml.cs
 **Files:**
 - Modify: `ViewModels/MainViewModel.cs`
 
-- [ ] **Step 1: Replace entire file**
+- [x] **Step 1: Replace entire file**
 
 Replace `ViewModels/MainViewModel.cs` content with:
 
@@ -935,7 +935,7 @@ public sealed class MainViewModel : IAsyncDisposable
 
 > **重要:** 旧版本里有 `Playlist.Cleanup()` 解绑 TrackEnded —— 在 Phase 6 这条解绑由 PlaylistsViewModel 容器在 Hydrate / RemovePlaylist / 析构 时统一处理(`UnhookPlaylistVm`), 所以这里不再需要单独调用。如果发现 PlaylistViewModel 自己还在订阅 `IPlaybackService.TrackEnded`, 需要在 PlaylistViewModel 析构/容器换出时 unhook —— 实操中查清后再补。
 
-- [ ] **Step 2: Build still red**
+- [x] **Step 2: Build still red**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: 错误现在集中在 `App.xaml.cs` (旧 IQueuePersistence 解析) 和 `MainWindow.xaml.cs` (旧 ctor 签名)。继续 B10。
@@ -946,7 +946,7 @@ Expected: 错误现在集中在 `App.xaml.cs` (旧 IQueuePersistence 解析) 和
 **Files:**
 - Modify: `App.xaml.cs`
 
-- [ ] **Step 1: Replace OnStartup body and add static accessor**
+- [x] **Step 1: Replace OnStartup body and add static accessor**
 
 Replace `App.xaml.cs` content with:
 
@@ -1012,14 +1012,14 @@ public partial class App : Application
 }
 ```
 
-- [ ] **Step 2: Build still red on MainWindow ctor mismatch, continue to B11**
+- [x] **Step 2: Build still red on MainWindow ctor mismatch, continue to B11**
 
 ### Task B11: Update `Views/MainWindow.xaml.cs` — drop IQueuePersistence, move queue save into VM
 
 **Files:**
 - Modify: `Views/MainWindow.xaml.cs`
 
-- [ ] **Step 1: Remove `IQueuePersistence` field + ctor parameter**
+- [x] **Step 1: Remove `IQueuePersistence` field + ctor parameter**
 
 In `Views/MainWindow.xaml.cs`:
 
@@ -1042,7 +1042,7 @@ and
 public MainWindow(MainViewModel vm, ISettingsPersistence persistence)
 ```
 
-- [ ] **Step 2: Add Loaded handler that calls InitializeAsync**
+- [x] **Step 2: Add Loaded handler that calls InitializeAsync**
 
 In `Views/MainWindow.xaml.cs` at end of constructor (after `WindowStartupLocation = WindowStartupLocation.CenterScreen;` catch block), add:
 
@@ -1068,7 +1068,7 @@ Then add the handler method:
     }
 ```
 
-- [ ] **Step 3: Strip queue.json save out of `Window_Closing`**
+- [x] **Step 3: Strip queue.json save out of `Window_Closing`**
 
 In `Views/MainWindow.xaml.cs`, **delete** these lines from `Window_Closing`:
 
@@ -1086,7 +1086,7 @@ In `Views/MainWindow.xaml.cs`, **delete** these lines from `Window_Closing`:
 
 `MainViewModel.CleanupAsync` 内已经 flush 一次 SaveAsync, 不再在 View 层写盘。
 
-- [ ] **Step 4: Update the doc comment on `Window_Closing`**
+- [x] **Step 4: Update the doc comment on `Window_Closing`**
 
 `Window_Closing` 顶部的 XML doc 提到 "Phase 4 加入 queue.json 写盘后 await 链变深"。Phase 6 把 queue 写盘下沉进 VM, 但 cancel-and-close 模式仍有效(settings UpdateAsync + CleanupAsync 加起来仍是 2 个 await)。把段落最后一句改为:
 
@@ -1095,12 +1095,12 @@ In `Views/MainWindow.xaml.cs`, **delete** these lines from `Window_Closing`:
     /// 此处 await 链变成 settings UpdateAsync + CleanupAsync 两段, cancel-and-close 模式继续保护。
 ```
 
-- [ ] **Step 5: Verify build is green**
+- [x] **Step 5: Verify build is green**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: `Build succeeded.` —— 此时所有源文件应当兼容 v2 schema。**这是 Phase 6 第一次 build 转绿。**
 
-- [ ] **Step 6: Commit a green checkpoint**
+- [x] **Step 6: Commit a green checkpoint**
 
 ```bash
 git add Models/Playlist.cs Models/QueueState.cs \
@@ -1121,7 +1121,7 @@ git commit -m "feat(playlists): Phase 6 multi-playlist core — schema v2 + cont
 - Create: `Views/Dialogs/PromptDialog.xaml`
 - Create: `Views/Dialogs/PromptDialog.xaml.cs`
 
-- [ ] **Step 1: Create the dialog XAML**
+- [x] **Step 1: Create the dialog XAML**
 
 Write `Views/Dialogs/PromptDialog.xaml`:
 
@@ -1172,7 +1172,7 @@ Write `Views/Dialogs/PromptDialog.xaml`:
 </Window>
 ```
 
-- [ ] **Step 2: Create the code-behind with static `Show` helper**
+- [x] **Step 2: Create the code-behind with static `Show` helper**
 
 Write `Views/Dialogs/PromptDialog.xaml.cs`:
 
@@ -1233,7 +1233,7 @@ public partial class PromptDialog : Window
 }
 ```
 
-- [ ] **Step 3: Build still green**
+- [x] **Step 3: Build still green**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: `Build succeeded.` (新增的 dialog 还没有 caller, 不会破坏现有引用)。
@@ -1244,7 +1244,7 @@ Expected: `Build succeeded.` (新增的 dialog 还没有 caller, 不会破坏现
 - Create: `Views/Controls/PlaylistsSidebarView.xaml`
 - Create: `Views/Controls/PlaylistsSidebarView.xaml.cs`
 
-- [ ] **Step 1: Create the sidebar XAML**
+- [x] **Step 1: Create the sidebar XAML**
 
 Write `Views/Controls/PlaylistsSidebarView.xaml`:
 
@@ -1312,7 +1312,7 @@ Write `Views/Controls/PlaylistsSidebarView.xaml`:
 </UserControl>
 ```
 
-- [ ] **Step 2: Create the sidebar code-behind**
+- [x] **Step 2: Create the sidebar code-behind**
 
 Write `Views/Controls/PlaylistsSidebarView.xaml.cs`:
 
@@ -1476,7 +1476,7 @@ public partial class PlaylistsSidebarView : UserControl
 }
 ```
 
-- [ ] **Step 3: Build still green (sidebar still not wired into MainWindow)**
+- [x] **Step 3: Build still green (sidebar still not wired into MainWindow)**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: `Build succeeded.`
@@ -1487,7 +1487,7 @@ Expected: `Build succeeded.`
 - Modify: `Views/MainWindow.xaml`
 - Modify: `Views/Controls/PlaylistView.xaml.cs`
 
-- [ ] **Step 1: Update `Views/MainWindow.xaml` — Row 1 split into 2 columns**
+- [x] **Step 1: Update `Views/MainWindow.xaml` — Row 1 split into 2 columns**
 
 Replace the `<Grid>` block in `Views/MainWindow.xaml` with:
 
@@ -1527,7 +1527,7 @@ Replace the `<Grid>` block in `Views/MainWindow.xaml` with:
 -->
 ```
 
-- [ ] **Step 2: Update `Views/Controls/PlaylistView.xaml.cs` — route double-click through PlaylistsViewModel**
+- [x] **Step 2: Update `Views/Controls/PlaylistView.xaml.cs` — route double-click through PlaylistsViewModel**
 
 In `Views/Controls/PlaylistView.xaml.cs`:
 
@@ -1596,7 +1596,7 @@ In `OnVmPropertyChanged`, replace the body with:
     }
 ```
 
-- [ ] **Step 3: Verify build + run**
+- [x] **Step 3: Verify build + run**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: `Build succeeded.`
@@ -1604,7 +1604,7 @@ Expected: `Build succeeded.`
 Run: `dotnet run --project UmaPlayer.csproj`
 Expected: 应用启动; 出现左侧侧边栏 (空 / 仅 "默认歌单") + 右侧 PlaylistView。点击 + 创建新歌单, 切换查看, 双击播放跨歌单切换 —— 全部应当工作。
 
-- [ ] **Step 4: Commit Sub-project B 完整**
+- [x] **Step 4: Commit Sub-project B 完整**
 
 ```bash
 git add Views/Dialogs/PromptDialog.xaml Views/Dialogs/PromptDialog.xaml.cs \
@@ -1626,7 +1626,7 @@ git commit -m "feat(views): Phase 6 sidebar + prompt dialog + dual-state Playlis
 **Files:**
 - Create: `Converters/BytesToBitmapImageConverter.cs`
 
-- [ ] **Step 1: Create the converter**
+- [x] **Step 1: Create the converter**
 
 Write `Converters/BytesToBitmapImageConverter.cs`:
 
@@ -1674,7 +1674,7 @@ public sealed class BytesToBitmapImageConverter : IValueConverter
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: `Build succeeded.`
@@ -1684,7 +1684,7 @@ Expected: `Build succeeded.`
 **Files:**
 - Modify: `App.xaml`
 
-- [ ] **Step 1: Add Converter resource**
+- [x] **Step 1: Add Converter resource**
 
 In `App.xaml`, add `xmlns:conv` namespace and a Converter resource entry. Replace the file with:
 
@@ -1714,7 +1714,7 @@ In `App.xaml`, add `xmlns:conv` namespace and a Converter resource entry. Replac
 </Application>
 ```
 
-- [ ] **Step 2: Verify build + commit Sub-project C**
+- [x] **Step 2: Verify build + commit Sub-project C**
 
 Run: `dotnet build UmaPlayer.csproj`
 Expected: `Build succeeded.`
@@ -1735,11 +1735,11 @@ git commit -m "feat(converters): add BytesToBitmapImageConverter (Phase 6 sub-pr
 **Files:**
 - Modify: `docs/PROJECT.md`
 
-- [ ] **Step 1: Bump phase header + status**
+- [x] **Step 1: Bump phase header + status**
 
 Search `docs/PROJECT.md` for "Phase 5"(头部状态行)。把当前 Phase 标记为 **Phase 6 — Named Playlists + Debt #1 + xUnit Skeleton**, 并把 Phase 5 移入 "已完成"段落。
 
-- [ ] **Step 2: Update directory tree**
+- [x] **Step 2: Update directory tree**
 
 在 PROJECT.md 的目录树章节中, 加入新增文件:
 
@@ -1762,7 +1762,7 @@ Services/IQueuePersistence.cs        (Phase 6 移除, 由 IPlaylistService 替�
 Services/JsonQueuePersistence.cs     (Phase 6 移除, 由 JsonPlaylistService 替代)
 ```
 
-- [ ] **Step 3: Add Phase 6 design decisions**
+- [x] **Step 3: Add Phase 6 design decisions**
 
 在 "设计决策"(Design Decisions)章节末尾追加:
 
@@ -1777,7 +1777,7 @@ Services/JsonQueuePersistence.cs     (Phase 6 移除, 由 JsonPlaylistService �
 - **debt #1 部分偿还**: 仅交付 BytesToBitmapImageConverter, PlayerViewModel.CurrentCover 仍是 BitmapImage。完整切换 byte[] 数据流推迟到 Phase 7+。
 ```
 
-- [ ] **Step 4: Add walkthroughs**
+- [x] **Step 4: Add walkthroughs**
 
 在 "Walkthroughs"章节追加 4 段:
 
@@ -1803,7 +1803,7 @@ HandleDoubleClickPlay(target, index) → 若 target.Id != CurrentPlaylistId 先�
 sidebar ▶ 标记跟随 CurrentPlaylistId 移动; PlaylistView ▶ 标记按 IsActivePlaylist 显隐。
 ```
 
-- [ ] **Step 5: Verify build/lint of doc**
+- [x] **Step 5: Verify build/lint of doc**
 
 无需 build, 但快速预览确认 Markdown 缩进/标题层级一致。
 
@@ -1812,31 +1812,31 @@ sidebar ▶ 标记跟随 CurrentPlaylistId 移动; PlaylistView ▶ 标记按 Is
 **Files:**
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: Update debt table**
+- [x] **Step 1: Update debt table**
 
 把 debt #1 状态从 "Open" 改成 "Partial(Phase 6 added Converter; data-flow swap pending)"。
 
-- [ ] **Step 2: Update contracts section**
+- [x] **Step 2: Update contracts section**
 
 在 "Contracts"章节:
 - 删除 `IQueuePersistence` 条目
 - 新增 `IPlaylistService`: "Load/Save 整个 v2 QueueState; LoadAsync 永不抛(失败回 seed); Save IO 失败抛 IOException; v1→v2 迁移在 LoadAsync 内一次性完成, 失败吞掉, 下次重迁(幂等)"
 - 新增 `PlaylistsViewModel.StateChanged`: "任意子 VM 内部状态/容器结构/CurrentPlaylistId 变化触发; MainViewModel 订阅做 500ms debounce save; IsActivePlaylist 设值不触发(防 echo)"
 
-- [ ] **Step 3: Add "Phase 7 startup checklist"**
+- [x] **Step 3: Add "Phase 7 startup checklist"**
 
 在文档末尾追加:
 
 ```markdown
 ## Phase 7 startup checklist
 
-- [ ] 全跑一遍 Phase 6 acceptance(spec §9)前再开新 phase
-- [ ] 评估债务 #1 完整偿还: Track.Cover BitmapImage → byte[]?(替 PlayerViewModel.CurrentCover 为 byte[] + XAML 用 BytesToBitmapImage)
-- [ ] 评估 PlaylistsViewModel 测试覆盖: HandleDoubleClickPlay / RemovePlaylist 边界 / StateChanged 节流回归
-- [ ] 评估 sidebar 拖拽重排歌单顺序(目前只支持新建/重命名/删除, 不支持调序)
+- [x] 全跑一遍 Phase 6 acceptance(spec §9)前再开新 phase
+- [x] 评估债务 #1 完整偿还: Track.Cover BitmapImage → byte[]?(替 PlayerViewModel.CurrentCover 为 byte[] + XAML 用 BytesToBitmapImage)
+- [x] 评估 PlaylistsViewModel 测试覆盖: HandleDoubleClickPlay / RemovePlaylist 边界 / StateChanged 节流回归
+- [x] 评估 sidebar 拖拽重排歌单顺序(目前只支持新建/重命名/删除, 不支持调序)
 ```
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md
@@ -1849,7 +1849,7 @@ git commit -m "docs: update PROJECT.md and COUPLING.md for Phase 6"
 
 > 写完计划后,看一遍 spec, 检查覆盖、占位符、类型一致性。把发现的问题就地修, 不必再 review 一次。
 
-- [ ] **Spec coverage**:
+- [x] **Spec coverage**:
   - §3 Schema v2 → B2 + B4 迁移路径 ✓
   - §4 IPlaylistService → B3 (interface), B4 (impl), B5 (delete旧), B6 (DI) ✓
   - §5 PlaylistsViewModel 容器 → B8 ✓
@@ -1861,9 +1861,9 @@ git commit -m "docs: update PROJECT.md and COUPLING.md for Phase 6"
   - §11 Risks → 已经在 B4(JsonPlaylistService) 注释 + B11(cancel-and-close) 备注里覆盖 ✓
   - §12 Docs → D1, D2 ✓
 
-- [ ] **Placeholder scan**: 全文 grep `TBD|TODO|fill in|TBD|implement later`. 期望: 0 命中。
+- [x] **Placeholder scan**: 全文 grep `TBD|TODO|fill in|TBD|implement later`. 期望: 0 命中。
 
-- [ ] **Type consistency**:
+- [x] **Type consistency**:
   - `Playlist` record 字段顺序 (Id, Name, Items, CurrentIndex, ShuffleEnabled, RepeatMode) — B1 定义, B4 / B7 / B8 / B14 一致 ✓
   - `IPlaylistService.LoadAsync()` / `SaveAsync(QueueState)` 签名 — B3 / B4 / B6 / B9 一致 ✓
   - `PlaylistsViewModel.HandleDoubleClickPlay(PlaylistViewModel, int)` — B8 / B14 一致 ✓
@@ -1871,7 +1871,7 @@ git commit -m "docs: update PROJECT.md and COUPLING.md for Phase 6"
   - `PlaylistView.RefreshCurrentIndicator` ▶ 标记由 B14 加 IsActivePlaylist guard, 与 B7 加的 ObservableProperty 名 `IsActivePlaylist` 一致 ✓
   - `MainViewModel(PlayerViewModel, PlaylistsViewModel, IPlaybackService, IPlaylistService)` 构造 — B6 DI 注册需要全部 4 项 ✓
 
-- [ ] **Build green points**: A5 (commit A), B6 之后 build 仍红 (B2 起的 schema 错误未 close), B11 Step 5 (Phase 6 第一次绿), B14 Step 3 (UI 完整后绿), C2 Step 2 (绿)。
+- [x] **Build green points**: A5 (commit A), B6 之后 build 仍红 (B2 起的 schema 错误未 close), B11 Step 5 (Phase 6 第一次绿), B14 Step 3 (UI 完整后绿), C2 Step 2 (绿)。
 
 > 自审完成。
 

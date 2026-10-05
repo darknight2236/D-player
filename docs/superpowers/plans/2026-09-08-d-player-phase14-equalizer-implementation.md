@@ -50,7 +50,7 @@
 - Test: `Tests/Models/EqualizerPresetsTests.cs`
 - Test: `Tests/Models/EqualizerConfigTests.cs`
 
-- [ ] **Step 1: 写失败测试（预设表 + 配置 Clamp）**
+- [x] **Step 1: 写失败测试（预设表 + 配置 Clamp）**
 
 创建 `Tests/Models/EqualizerPresetsTests.cs`：
 
@@ -145,12 +145,12 @@ public class EqualizerConfigTests
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败（编译错误）**
+- [x] **Step 2: 运行测试确认失败（编译错误）**
 
 Run: `dotnet test D-player.sln --filter "FullyQualifiedName~Equalizer" --nologo -v q`
 Expected: **编译失败** —— `CS0246: 找不到类型或命名空间名"EqualizerPresets"/"EqualizerConfig"`（尚未创建）。
 
-- [ ] **Step 3: 实现 EqualizerPresets**
+- [x] **Step 3: 实现 EqualizerPresets**
 
 创建 `Models/EqualizerPresets.cs`：
 
@@ -224,7 +224,7 @@ public static class EqualizerPresets
 }
 ```
 
-- [ ] **Step 4: 实现 EqualizerConfig**
+- [x] **Step 4: 实现 EqualizerConfig**
 
 创建 `Models/EqualizerConfig.cs`：
 
@@ -276,12 +276,12 @@ public sealed record EqualizerConfig
 }
 ```
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln --filter "FullyQualifiedName~Equalizer" --nologo -v q`
 Expected: **PASS** —— 8 个测试（EqualizerPresetsTests 5 + EqualizerConfigTests 3）全绿。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Models/EqualizerPresets.cs Models/EqualizerConfig.cs Tests/Models/EqualizerPresetsTests.cs Tests/Models/EqualizerConfigTests.cs
@@ -301,7 +301,7 @@ git commit -m "feat(models): add EqualizerConfig + EqualizerPresets (Phase 14)"
 > - `void BiQuadFilter.SetPeakingEq(float sampleRate, float centreFrequency, float q, float dbGain)`（就地重算，保留滤波状态）
 > - `float BiQuadFilter.Transform(float sample)`（逐样本处理）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `Tests/Services/EqualizerSampleProviderTests.cs`：
 
@@ -411,12 +411,12 @@ public class EqualizerSampleProviderTests
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败（编译错误）**
+- [x] **Step 2: 运行测试确认失败（编译错误）**
 
 Run: `dotnet test D-player.sln --filter "FullyQualifiedName~EqualizerSampleProvider" --nologo -v q`
 Expected: **编译失败** —— `CS0246: 找不到类型或命名空间名"EqualizerSampleProvider"`。
 
-- [ ] **Step 3: 实现 EqualizerSampleProvider**
+- [x] **Step 3: 实现 EqualizerSampleProvider**
 
 创建 `Services/EqualizerSampleProvider.cs`：
 
@@ -517,12 +517,12 @@ public sealed class EqualizerSampleProvider : ISampleProvider
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln --filter "FullyQualifiedName~EqualizerSampleProvider" --nologo -v q`
 Expected: **PASS** —— 5 个测试全绿（透传/WaveFormat/unity/低音增强/Update）。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add Services/EqualizerSampleProvider.cs Tests/Services/EqualizerSampleProviderTests.cs
@@ -539,7 +539,7 @@ git commit -m "feat(services): add EqualizerSampleProvider for 10-band graphic E
 
 > NAudioPlaybackService 依赖真实音频设备，项目现有惯例**不对其单测**（Tests/Services 仅覆盖 Scanner/Cache）。本任务由**编译**验证；运行时行为在 Task 9 手动听感验收。
 
-- [ ] **Step 1: IPlaybackService 加 EqualizerConfig 属性**
+- [x] **Step 1: IPlaybackService 加 EqualizerConfig 属性**
 
 在 `Services/IPlaybackService.cs` 的 `SpectrumConfig` 属性之后（第 66 行后）追加：
 
@@ -552,7 +552,7 @@ git commit -m "feat(services): add EqualizerSampleProvider for 10-band graphic E
 
 （文件顶部已有 `using DPlayer.Models;`，无需新增 using。）
 
-- [ ] **Step 2: NAudioPlaybackService 加字段**
+- [x] **Step 2: NAudioPlaybackService 加字段**
 
 在 `Services/NAudioPlaybackService.cs` 的 Phase 13 频谱字段之后（第 32 行 `private SpectrumConfig _spectrumConfig = new();` 后）追加：
 
@@ -562,7 +562,7 @@ git commit -m "feat(services): add EqualizerSampleProvider for 10-band graphic E
     private EqualizerConfig _equalizerConfig = new();
 ```
 
-- [ ] **Step 3: NAudioPlaybackService 加 EqualizerConfig 属性**
+- [x] **Step 3: NAudioPlaybackService 加 EqualizerConfig 属性**
 
 在 `SpectrumConfig` 属性块之后（第 77 行 `}` 后）追加：
 
@@ -579,7 +579,7 @@ git commit -m "feat(services): add EqualizerSampleProvider for 10-band graphic E
     }
 ```
 
-- [ ] **Step 4: LoadAsync 建链插入 EQ provider**
+- [x] **Step 4: LoadAsync 建链插入 EQ provider**
 
 把 `LoadAsync` 中的建链段（第 100-104 行）：
 
@@ -600,7 +600,7 @@ git commit -m "feat(services): add EqualizerSampleProvider for 10-band graphic E
                 _sampleAggregator.SpectrumDataReady += OnSpectrumDataReady;
 ```
 
-- [ ] **Step 5: DisposePlayback 清理 _equalizer**
+- [x] **Step 5: DisposePlayback 清理 _equalizer**
 
 在 `DisposePlayback` 的 SampleAggregator 清理块之后（第 285 行 `}` 后）追加：
 
@@ -609,12 +609,12 @@ git commit -m "feat(services): add EqualizerSampleProvider for 10-band graphic E
         _equalizer = null;
 ```
 
-- [ ] **Step 6: 编译验证**
+- [x] **Step 6: 编译验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: **0 个错误**（现有 77 测试仍编译通过——NSubstitute 自动实现新接口成员）。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add Services/IPlaybackService.cs Services/NAudioPlaybackService.cs
@@ -628,7 +628,7 @@ git commit -m "feat(playback): wire EqualizerSampleProvider into playback chain 
 **Files:**
 - Modify: `Configuration/AppSettings.cs`
 
-- [ ] **Step 1: 加 4 个持久化字段**
+- [x] **Step 1: 加 4 个持久化字段**
 
 在 `Configuration/AppSettings.cs` 的 Phase 13 频谱字段之后（第 42 行 `SpectrumSmoothing` 后、`}` 前）追加：
 
@@ -648,12 +648,12 @@ git commit -m "feat(playback): wire EqualizerSampleProvider into playback chain 
     public string EqualizerPreset { get; init; } = "Flat";
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: **0 个错误**。旧 settings.json 缺这些字段 → 反序列化为 record 默认值（Enabled=false/全 0/Flat），无需迁移。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Configuration/AppSettings.cs
@@ -671,7 +671,7 @@ git commit -m "feat(config): add equalizer settings to AppSettings (Phase 14)"
 > **record-mock 契约（同 COUPLING.md §5 SpectrumConfig）：** `EqualizerConfig` 是 record（引用类型），NSubstitute 默认返回 null；测试构造函数须 `_player.EqualizerConfig.Returns(new EqualizerConfig())`，否则 `OnEqualizerEnabledChanged` 里 `_player.EqualizerConfig with {...}` 会 NRE。
 > 现有 `PlayerViewModelTests`/`PlayerViewModelSpectrumTests` 用默认 settings（EqualizerEnabled=false），构造期 `OnEqualizerEnabledChanged` **不触发**（值未变），故无需改动。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `Tests/ViewModels/PlayerViewModelEqualizerTests.cs`：
 
@@ -740,12 +740,12 @@ public class PlayerViewModelEqualizerTests
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln --filter "FullyQualifiedName~PlayerViewModelEqualizer" --nologo -v q`
 Expected: **编译失败** —— `PlayerViewModel` 无 `EqualizerEnabled` 成员（CS1061）。
 
-- [ ] **Step 3: PlayerViewModel 加 observable 字段**
+- [x] **Step 3: PlayerViewModel 加 observable 字段**
 
 在 `ViewModels/PlayerViewModel.cs` 的 Phase 13 频谱属性块之后（第 77 行 `_spectrumSmoothing` 后）追加：
 
@@ -757,7 +757,7 @@ Expected: **编译失败** —— `PlayerViewModel` 无 `EqualizerEnabled` 成�
     private bool _equalizerEnabled;
 ```
 
-- [ ] **Step 4: Initialize 里加载 EQ 设置**
+- [x] **Step 4: Initialize 里加载 EQ 设置**
 
 在 `Initialize()` 中 `LoadSpectrumSettings(settings);`（第 134 行）之后、`_isInitializing = false;` 之前追加：
 
@@ -766,7 +766,7 @@ Expected: **编译失败** —— `PlayerViewModel` 无 `EqualizerEnabled` 成�
         LoadEqualizerSettings(settings);
 ```
 
-- [ ] **Step 5: 加 Load/OnChanged 方法**
+- [x] **Step 5: 加 Load/OnChanged 方法**
 
 在 `LoadSpectrumSettings` 方法（第 295-301 行）之后追加：
 
@@ -791,17 +791,17 @@ Expected: **编译失败** —— `PlayerViewModel` 无 `EqualizerEnabled` 成�
     }
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln --filter "FullyQualifiedName~PlayerViewModelEqualizer" --nologo -v q`
 Expected: **PASS** —— 3 个测试全绿。
 
-- [ ] **Step 7: 跑全量测试确认无回归**
+- [x] **Step 7: 跑全量测试确认无回归**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: **通过 93，失败 0**（77 原有 + 8 Models + 5 Provider + 3 VM = 16 新增）。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add ViewModels/PlayerViewModel.cs Tests/ViewModels/PlayerViewModelEqualizerTests.cs
@@ -818,7 +818,7 @@ git commit -m "feat(vm): add EqualizerEnabled to PlayerViewModel with startup ap
 
 > 对话框为 View 层，项目惯例**不单测**（同 SettingsDialog）；由**编译 + 手动验收**（Task 9）验证。11 根竖直滑块由 code-behind 动态构建（DRY，避免 11 块重复 XAML）。
 
-- [ ] **Step 1: 写 EqualizerDialog.xaml**
+- [x] **Step 1: 写 EqualizerDialog.xaml**
 
 创建 `Views/Dialogs/EqualizerDialog.xaml`：
 
@@ -934,7 +934,7 @@ git commit -m "feat(vm): add EqualizerEnabled to PlayerViewModel with startup ap
 </Window>
 ```
 
-- [ ] **Step 2: 写 EqualizerDialog.xaml.cs**
+- [x] **Step 2: 写 EqualizerDialog.xaml.cs**
 
 创建 `Views/Dialogs/EqualizerDialog.xaml.cs`：
 
@@ -1187,12 +1187,12 @@ public partial class EqualizerDialog : Window
 }
 ```
 
-- [ ] **Step 3: 编译验证**
+- [x] **Step 3: 编译验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: **0 个错误**。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Views/Dialogs/EqualizerDialog.xaml Views/Dialogs/EqualizerDialog.xaml.cs
@@ -1207,7 +1207,7 @@ git commit -m "feat(view): add EqualizerDialog with 10-band vertical sliders + p
 - Modify: `Views/Controls/PlayerBar.xaml`
 - Modify: `Views/Controls/PlayerBar.xaml.cs`
 
-- [ ] **Step 1: XAML 加 EQ 按钮**
+- [x] **Step 1: XAML 加 EQ 按钮**
 
 在 `Views/Controls/PlayerBar.xaml` 右侧 StackPanel 的 ⚙ 设置按钮**之前**（第 160 行 `<!-- ⚙ 设置按钮 -->` 前）插入：
 
@@ -1226,7 +1226,7 @@ git commit -m "feat(view): add EqualizerDialog with 10-band vertical sliders + p
 
 （`BoolToAccentBrush` 已在 PlayerBar.Resources 第 18 行声明；`EqualizerEnabled` 在 DataContext=PlayerViewModel 上，直接绑定无需 RelativeSource。）
 
-- [ ] **Step 2: code-behind 加点击 handler**
+- [x] **Step 2: code-behind 加点击 handler**
 
 在 `Views/Controls/PlayerBar.xaml.cs` 的 `SettingsBtn_Click` 方法之后（第 74 行 `}` 后）追加：
 
@@ -1243,12 +1243,12 @@ git commit -m "feat(view): add EqualizerDialog with 10-band vertical sliders + p
 
 （文件已有 `using DPlayer.Services;` / `using DPlayer.ViewModels;` / `using DPlayer.Views.Dialogs;`，无需新增 using。）
 
-- [ ] **Step 3: 编译验证**
+- [x] **Step 3: 编译验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: **0 个错误**。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Views/Controls/PlayerBar.xaml Views/Controls/PlayerBar.xaml.cs
@@ -1263,7 +1263,7 @@ git commit -m "feat(view): add EQ button to PlayerBar with active-state highligh
 - Modify: `docs/PROJECT.md`
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: PROJECT.md 特性表加一行**
+- [x] **Step 1: PROJECT.md 特性表加一行**
 
 在 §1.1 关键特性表末尾（音频可视化行之后）追加：
 
@@ -1271,22 +1271,22 @@ git commit -m "feat(view): add EQ button to PlayerBar with active-state highligh
 | 均衡器 | 10 段图形 EQ（31Hz–16kHz ±12dB 峰值滤波 + preamp）；9 个内置预设（Flat/Rock/Pop/Jazz/Classical/Dance/Bass Boost/Treble Boost/Vocal）+ 手动 Custom；实时生效；启用开关；独立对话框；设置持久化 (Phase 14) |
 ```
 
-- [ ] **Step 2: PROJECT.md 目录结构补新文件**
+- [x] **Step 2: PROJECT.md 目录结构补新文件**
 
 在 §3 目录树对应位置补：`Models/EqualizerConfig.cs`、`Models/EqualizerPresets.cs`（Models 段）；`Services/EqualizerSampleProvider.cs`（Services 段）；`Views/Dialogs/EqualizerDialog.xaml(.cs)`（Dialogs 段）；`Tests/Models/` 两个测试文件 + `Tests/Services/EqualizerSampleProviderTests.cs` + `Tests/ViewModels/PlayerViewModelEqualizerTests.cs`（Tests 段，测试总数 77 → 93）。
 
-- [ ] **Step 3: PROJECT.md 加模块详解小节**
+- [x] **Step 3: PROJECT.md 加模块详解小节**
 
 在 §5.2a（SampleAggregator）之后新增 `### 5.2b Services/EqualizerSampleProvider + Models/EqualizerConfig（Phase 14）`，说明：插入点（ToSample 与 SampleAggregator 之间）、每声道独立 `BiQuadFilter[10]` 峰值滤波、preamp、`Update` 就地 `SetPeakingEq` 重算（保留状态防爆音）、Nyquist 旁路、buffer 粒度 lock 线程模型、`Enabled=false` 透明旁路。并在 §5.5 Views 补 `EqualizerDialog` 说明（竖直滑块模板为何必须自定义、实时预览、取消回滚）。
 
-- [ ] **Step 4: PROJECT.md 持久化 + 数据流 + 约束**
+- [x] **Step 4: PROJECT.md 持久化 + 数据流 + 约束**
 
 - §6.2 被持久化字段追加：`EqualizerEnabled/EqualizerPreamp/EqualizerBands/EqualizerPreset（Phase 14）`。
 - §7 加一条数据流 `7.6 均衡器数据流（Phase 14）`：启动 load→apply、拖动实时 `EqualizerConfig` setter→`provider.Update`、Save 写盘+同步 VM、取消回滚。
 - §9 已知约束加：EQ 系数实时更新的跨线程一致性（buffer 粒度 lock + 就地重算保留状态）。
 - §10 历史加 Phase 14 里程碑提交列表。
 
-- [ ] **Step 5: COUPLING.md 登记新增隐式契约**
+- [x] **Step 5: COUPLING.md 登记新增隐式契约**
 
 在 §5 隐式契约表新增「Phase 14 新增」小节，逐条登记（来自设计稿 §15）：
 
@@ -1303,7 +1303,7 @@ git commit -m "feat(view): add EQ button to PlayerBar with active-state highligh
 
 并在 §7「不要做的事」加：❌ 让 `EqualizerSampleProvider.Update` 重建 `BiQuadFilter`（而非 `SetPeakingEq` 就地改）—— 拖动时爆音。TL;DR 与 §1 结论同步为「Phase 14 完成」。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md
@@ -1316,17 +1316,17 @@ git commit -m "docs: update PROJECT.md and COUPLING.md for Phase 14 equalizer"
 
 **Files:** 无（仅验证）
 
-- [ ] **Step 1: 全量构建**
+- [x] **Step 1: 全量构建**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: **0 个错误**（1 个既有测试 null 警告可忽略）。
 
-- [ ] **Step 2: 全量测试**
+- [x] **Step 2: 全量测试**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: **通过 93，失败 0，跳过 0**。
 
-- [ ] **Step 3: 运行应用手动验收**
+- [x] **Step 3: 运行应用手动验收**
 
 Run: `dotnet run --project D-player.csproj`
 手动核对清单：
@@ -1339,7 +1339,7 @@ Run: `dotnet run --project D-player.csproj`
 7. 取消勾选「启用」并保存 → 🎚 按钮恢复常态，音频透明（与未加 EQ 一致）。
 8. 「恢复 Flat」按钮 → 所有滑块归 0、preamp 归 0、预设显示 Flat。
 
-- [ ] **Step 4: 收尾提交（如手动验收期有微调）**
+- [x] **Step 4: 收尾提交（如手动验收期有微调）**
 
 ```bash
 git add -A

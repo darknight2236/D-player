@@ -45,7 +45,7 @@
 **Interfaces:**
 - Produces: `SpectrumConfig` record，供 Task 2 (SampleAggregator) 和 Task 4 (PlayerViewModel) 使用
 
-- [ ] **Step 1: 创建 SpectrumConfig record**
+- [x] **Step 1: 创建 SpectrumConfig record**
 
 ```csharp
 // Models/SpectrumConfig.cs
@@ -73,11 +73,11 @@ public record SpectrumConfig
 }
 ```
 
-- [ ] **Step 2: 验证编译通过**
+- [x] **Step 2: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Models/SpectrumConfig.cs
@@ -95,7 +95,7 @@ git commit -m "feat(models): add SpectrumConfig record for audio visualization"
 - Consumes: `SpectrumConfig` (from Task 1)
 - Produces: `SampleAggregator` class，供 Task 3 (NAudioPlaybackService) 使用
 
-- [ ] **Step 1: 创建 SampleAggregator 实现**
+- [x] **Step 1: 创建 SampleAggregator 实现**
 
 ```csharp
 // Services/SampleAggregator.cs
@@ -209,11 +209,11 @@ public sealed class SampleAggregator : ISampleProvider
 }
 ```
 
-- [ ] **Step 2: 验证编译通过**
+- [x] **Step 2: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Services/SampleAggregator.cs
@@ -232,7 +232,7 @@ git commit -m "feat(services): add SampleAggregator for FFT spectrum analysis"
 - Consumes: `SampleAggregator` (from Task 2), `SpectrumConfig` (from Task 1)
 - Produces: `IPlaybackService.SpectrumDataAvailable` event, `IPlaybackService.SpectrumConfig` property，供 Task 4 (PlayerViewModel) 使用
 
-- [ ] **Step 1: 扩展 IPlaybackService 接口**
+- [x] **Step 1: 扩展 IPlaybackService 接口**
 
 ```csharp
 // Services/IPlaybackService.cs - 新增成员
@@ -254,7 +254,7 @@ public interface IPlaybackService : IDisposable
 }
 ```
 
-- [ ] **Step 2: 实现 NAudioPlaybackService 频谱集成**
+- [x] **Step 2: 实现 NAudioPlaybackService 频谱集成**
 
 ```csharp
 // Services/NAudioPlaybackService.cs - 新增字段和修改
@@ -335,11 +335,11 @@ public sealed class NAudioPlaybackService : IPlaybackService
 }
 ```
 
-- [ ] **Step 3: 验证编译通过**
+- [x] **Step 3: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Services/IPlaybackService.cs Services/NAudioPlaybackService.cs
@@ -356,7 +356,7 @@ git commit -m "feat(services): integrate SampleAggregator into NAudioPlaybackSer
 **Interfaces:**
 - Produces: `AppSettings.SpectrumEnabled`, `AppSettings.SpectrumSensitivity`, `AppSettings.SpectrumColorTheme`, `AppSettings.SpectrumSmoothing`，供 Task 4 (PlayerViewModel) 和 Task 8 (SettingsDialog) 使用
 
-- [ ] **Step 1: 扩展 AppSettings**
+- [x] **Step 1: 扩展 AppSettings**
 
 ```csharp
 // Configuration/AppSettings.cs - 新增字段
@@ -380,11 +380,11 @@ public sealed record AppSettings
 }
 ```
 
-- [ ] **Step 2: 验证编译通过**
+- [x] **Step 2: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Configuration/AppSettings.cs
@@ -402,7 +402,7 @@ git commit -m "feat(config): add spectrum visualization settings to AppSettings"
 - Consumes: `IPlaybackService.SpectrumDataAvailable` (from Task 3), `AppSettings.Spectrum*` (from Task 4)
 - Produces: `PlayerViewModel.SpectrumData`, `SpectrumEnabled`, `SpectrumSensitivity`, `SpectrumColorTheme`, `SpectrumSmoothing`，供 Task 7 (SpectrumView) 使用
 
-- [ ] **Step 1: 添加频谱属性和字段**
+- [x] **Step 1: 添加频谱属性和字段**
 
 ```csharp
 // ViewModels/PlayerViewModel.cs - 新增成员
@@ -435,7 +435,7 @@ public partial class PlayerViewModel : ObservableObject
 }
 ```
 
-- [ ] **Step 2: 添加频谱数据处理方法**
+- [x] **Step 2: 添加频谱数据处理方法**
 
 ```csharp
 // ViewModels/PlayerViewModel.cs - 新增方法
@@ -507,7 +507,7 @@ public partial class PlayerViewModel : ObservableObject
 }
 ```
 
-- [ ] **Step 3: 添加命令和属性变更处理**
+- [x] **Step 3: 添加命令和属性变更处理**
 
 ```csharp
 // ViewModels/PlayerViewModel.cs - 新增命令和钩子
@@ -561,7 +561,7 @@ public partial class PlayerViewModel : ObservableObject
 }
 ```
 
-- [ ] **Step 4: 修改 Initialize 和 CleanupAsync**
+- [x] **Step 4: 修改 Initialize 和 CleanupAsync**
 
 ```csharp
 // ViewModels/PlayerViewModel.cs - 修改现有方法
@@ -605,11 +605,11 @@ public partial class PlayerViewModel : ObservableObject
 }
 ```
 
-- [ ] **Step 5: 验证编译通过**
+- [x] **Step 5: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add ViewModels/PlayerViewModel.cs
@@ -628,7 +628,7 @@ git commit -m "feat(vm): add spectrum visualization properties and data processi
 - Consumes: `PlayerViewModel.SpectrumData`, `SpectrumColorTheme` (from Task 5)
 - Produces: `SpectrumView` UserControl，供 Task 7 (TrackInfoView) 使用
 
-- [ ] **Step 1: 创建 SpectrumView.xaml**
+- [x] **Step 1: 创建 SpectrumView.xaml**
 
 ```xml
 <!-- Views/Controls/SpectrumView.xaml -->
@@ -642,7 +642,7 @@ git commit -m "feat(vm): add spectrum visualization properties and data processi
 </UserControl>
 ```
 
-- [ ] **Step 2: 创建 SpectrumView.xaml.cs**
+- [x] **Step 2: 创建 SpectrumView.xaml.cs**
 
 ```csharp
 // Views/Controls/SpectrumView.xaml.cs
@@ -824,11 +824,11 @@ public partial class SpectrumView : UserControl
 }
 ```
 
-- [ ] **Step 3: 验证编译通过**
+- [x] **Step 3: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Views/Controls/SpectrumView.xaml Views/Controls/SpectrumView.xaml.cs
@@ -845,7 +845,7 @@ git commit -m "feat(view): add SpectrumView custom control for audio visualizati
 **Interfaces:**
 - Consumes: `SpectrumView` (from Task 6), `PlayerViewModel.SpectrumData`, `SpectrumColorTheme`, `SpectrumEnabled` (from Task 5)
 
-- [ ] **Step 1: 修改 TrackInfoView.xaml 集成频谱控件**
+- [x] **Step 1: 修改 TrackInfoView.xaml 集成频谱控件**
 
 ```xml
 <!-- Views/Controls/TrackInfoView.xaml -->
@@ -915,11 +915,11 @@ git commit -m "feat(view): add SpectrumView custom control for audio visualizati
 </UserControl>
 ```
 
-- [ ] **Step 2: 验证编译通过**
+- [x] **Step 2: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Views/Controls/TrackInfoView.xaml
@@ -938,7 +938,7 @@ git commit -m "feat(view): integrate SpectrumView into TrackInfoView"
 - Consumes: `AppSettings.Spectrum*` (from Task 4)
 - Produces: 持久化频谱配置到 settings.json
 
-- [ ] **Step 1: 修改 SettingsDialog.xaml 添加频谱配置区域**
+- [x] **Step 1: 修改 SettingsDialog.xaml 添加频谱配置区域**
 
 ```xml
 <!-- Views/Dialogs/SettingsDialog.xaml -->
@@ -1099,7 +1099,7 @@ git commit -m "feat(view): integrate SpectrumView into TrackInfoView"
 </Window>
 ```
 
-- [ ] **Step 2: 修改 SettingsDialog.xaml.cs 添加频谱配置逻辑**
+- [x] **Step 2: 修改 SettingsDialog.xaml.cs 添加频谱配置逻辑**
 
 ```csharp
 // Views/Dialogs/SettingsDialog.xaml.cs - 新增代码
@@ -1143,11 +1143,11 @@ public partial class SettingsDialog : Window
 }
 ```
 
-- [ ] **Step 3: 验证编译通过**
+- [x] **Step 3: 验证编译通过**
 
 Run: `dotnet build UmaPlayer.csproj`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Views/Dialogs/SettingsDialog.xaml Views/Dialogs/SettingsDialog.xaml.cs
@@ -1164,7 +1164,7 @@ git commit -m "feat(view): add spectrum visualization settings to SettingsDialog
 **Interfaces:**
 - Consumes: `PlayerViewModel` (from Task 5), `IPlaybackService`, `ISettingsPersistence`
 
-- [ ] **Step 1: 创建频谱相关单元测试**
+- [x] **Step 1: 创建频谱相关单元测试**
 
 ```csharp
 // Tests/ViewModels/PlayerViewModelSpectrumTests.cs
@@ -1270,11 +1270,11 @@ public class PlayerViewModelSpectrumTests
 }
 ```
 
-- [ ] **Step 2: 运行测试验证通过**
+- [x] **Step 2: 运行测试验证通过**
 
 Run: `dotnet test UmaPlayer.Tests.csproj --filter "PlayerViewModelSpectrumTests"`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Tests/ViewModels/PlayerViewModelSpectrumTests.cs
@@ -1285,32 +1285,32 @@ git commit -m "test: add unit tests for spectrum visualization in PlayerViewMode
 
 ### Task 10: 验收测试
 
-- [ ] **Step 1: 构建并运行应用**
+- [x] **Step 1: 构建并运行应用**
 
 Run: `dotnet run --project UmaPlayer.csproj`
 
-- [ ] **Step 2: 手动验收测试**
+- [x] **Step 2: 手动验收测试**
 
 验收清单：
-- [ ] 频谱随音频实时变化
-- [ ] 32 条频谱柱对数分布（低频更密集）
-- [ ] 平滑度设置生效（调节滑块观察动画变化）
-- [ ] 灵敏度设置生效（调节滑块观察频谱幅度）
-- [ ] 颜色主题切换生效（下拉框切换 4 种主题）
-- [ ] 启用/禁用开关生效（勾选/取消勾选）
-- [ ] 暂停时频谱静止
-- [ ] 设置持久化（重启应用验证）
-- [ ] CPU 占用 < 5%（任务管理器监控）
-- [ ] 无音频播放时不显示（DataTrigger 隐藏）
+- [x] 频谱随音频实时变化
+- [x] 32 条频谱柱对数分布（低频更密集）
+- [x] 平滑度设置生效（调节滑块观察动画变化）
+- [x] 灵敏度设置生效（调节滑块观察频谱幅度）
+- [x] 颜色主题切换生效（下拉框切换 4 种主题）
+- [x] 启用/禁用开关生效（勾选/取消勾选）
+- [x] 暂停时频谱静止
+- [x] 设置持久化（重启应用验证）
+- [x] CPU 占用 < 5%（任务管理器监控）
+- [x] 无音频播放时不显示（DataTrigger 隐藏）
 
-- [ ] **Step 3: 更新 PROJECT.md**
+- [x] **Step 3: 更新 PROJECT.md**
 
 ```bash
 git add PROJECT.md
 git commit -m "docs: update PROJECT.md for Phase 13 audio visualization"
 ```
 
-- [ ] **Step 4: 最终提交**
+- [x] **Step 4: 最终提交**
 
 ```bash
 git add .

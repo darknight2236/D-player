@@ -43,7 +43,7 @@
 **Files:**
 - Create: `Models/MoveTracksArgs.cs`
 
-- [ ] **Step 1: 创建 `Models/MoveTracksArgs.cs`**
+- [x] **Step 1: 创建 `Models/MoveTracksArgs.cs`**
 
 ```csharp
 namespace UmaPlayer.Models;
@@ -66,12 +66,12 @@ public sealed record MoveTracksArgs(
     int TargetIndex);
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug --nologo -v quiet`
 Expected: `已成功生成。 0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Models/MoveTracksArgs.cs
@@ -85,7 +85,7 @@ git commit -m "feat(models): add MoveTracksArgs record (Phase 5 reorder command 
 **Files:**
 - Modify: `ViewModels/PlaylistViewModel.cs`（在现有 `AddToQueue` 命令之后插入新命令；与 `AddToQueue` 同语义但入口为 OS DragDrop）
 
-- [ ] **Step 1: 在 `AddToQueueCommand` 之后（约第 256 行后，紧接 `RemoveTrack` 之前）插入新命令**
+- [x] **Step 1: 在 `AddToQueueCommand` 之后（约第 256 行后，紧接 `RemoveTrack` 之前）插入新命令**
 
 ```csharp
     /// <summary>
@@ -108,12 +108,12 @@ git commit -m "feat(models): add MoveTracksArgs record (Phase 5 reorder command 
     }
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug --nologo -v quiet`
 Expected: `已成功生成。 0 个警告 0 个错误`（命令源生成器会自动产出 `DropExternalFilesCommand` 属性）
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add ViewModels/PlaylistViewModel.cs
@@ -127,7 +127,7 @@ git commit -m "feat(vm): add PlaylistViewModel.DropExternalFiles command"
 **Files:**
 - Modify: `ViewModels/PlaylistViewModel.cs`
 
-- [ ] **Step 1: 在 `RemoveTrack(int index)` 方法体最顶端加 `_playToken++`（COUPLING.md §5 残留债偿还）**
+- [x] **Step 1: 在 `RemoveTrack(int index)` 方法体最顶端加 `_playToken++`（COUPLING.md §5 残留债偿还）**
 
 把 `RemoveTrack` 方法（约第 260 行）的开头改成：
 
@@ -151,7 +151,7 @@ git commit -m "feat(vm): add PlaylistViewModel.DropExternalFiles command"
 
 注意：仅在 `if (index < 0 ...) return;` **之后**自增，避免无效调用浪费 token；其余代码不动。
 
-- [ ] **Step 2: 在 `using` 区域加 `using UmaPlayer.Models;`（如未引用）+ 文件顶部确认有 `using System.Linq;`（已有）**
+- [x] **Step 2: 在 `using` 区域加 `using UmaPlayer.Models;`（如未引用）+ 文件顶部确认有 `using System.Linq;`（已有）**
 
 `MoveTracksArgs` 在 `UmaPlayer.Models` 命名空间。检查文件顶部 5 行附近的 `using` 列表，确认包含：
 ```
@@ -160,7 +160,7 @@ using System.Linq;
 ```
 若已经存在，跳过；否则补上。
 
-- [ ] **Step 3: 在 `AddToQueueCommand` 与 `DropExternalFilesCommand`（Task 2 已加）之后，紧接 `RemoveTrack` 之前插入 `MoveTracks` 命令**
+- [x] **Step 3: 在 `AddToQueueCommand` 与 `DropExternalFilesCommand`（Task 2 已加）之后，紧接 `RemoveTrack` 之前插入 `MoveTracks` 命令**
 
 ```csharp
     /// <summary>
@@ -234,12 +234,12 @@ using System.Linq;
     }
 ```
 
-- [ ] **Step 4: 构建验证**
+- [x] **Step 4: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug --nologo -v quiet`
 Expected: `已成功生成。 0 个警告 0 个错误`
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add ViewModels/PlaylistViewModel.cs
@@ -263,7 +263,7 @@ during the await window)."
 **Files:**
 - Create: `Views/Controls/DragDropExtensions.cs`
 
-- [ ] **Step 1: 创建 `Views/Controls/DragDropExtensions.cs`**
+- [x] **Step 1: 创建 `Views/Controls/DragDropExtensions.cs`**
 
 ```csharp
 using System.IO;
@@ -329,12 +329,12 @@ public static class DragDropExtensions
 }
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug --nologo -v quiet`
 Expected: `已成功生成。 0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Views/Controls/DragDropExtensions.cs
@@ -348,7 +348,7 @@ git commit -m "feat(view): add DragDropExtensions (IsDragOver attached prop + au
 **Files:**
 - Create: `Views/Controls/DropInsertionAdorner.cs`
 
-- [ ] **Step 1: 创建 `Views/Controls/DropInsertionAdorner.cs`**
+- [x] **Step 1: 创建 `Views/Controls/DropInsertionAdorner.cs`**
 
 ```csharp
 using System.Windows;
@@ -427,12 +427,12 @@ public sealed class DropInsertionAdorner : Adorner
 }
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug --nologo -v quiet`
 Expected: `已成功生成。 0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Views/Controls/DropInsertionAdorner.cs
@@ -446,7 +446,7 @@ git commit -m "feat(view): add DropInsertionAdorner (1px accent-color insertion 
 **Files:**
 - Modify: `Views/Controls/PlaylistView.xaml`
 
-- [ ] **Step 1: 在 `<UserControl ...>` 根标签添加 `xmlns:local` 命名空间**
+- [x] **Step 1: 在 `<UserControl ...>` 根标签添加 `xmlns:local` 命名空间**
 
 把 `<UserControl x:Class="UmaPlayer.Views.Controls.PlaylistView" ...>` 修改为包含一个新 xmlns：
 
@@ -458,7 +458,7 @@ git commit -m "feat(view): add DropInsertionAdorner (1px accent-color insertion 
              xmlns:local="clr-namespace:UmaPlayer.Views.Controls">
 ```
 
-- [ ] **Step 2: 用根 Border 包裹整个 Grid，承载 IsDragOver 高亮**
+- [x] **Step 2: 用根 Border 包裹整个 Grid，承载 IsDragOver 高亮**
 
 把 `<Grid Margin="16,0,16,16">` 改为外层包一个 Border：
 
@@ -486,7 +486,7 @@ git commit -m "feat(view): add DropInsertionAdorner (1px accent-color insertion 
 
 把当前 `Views/Controls/PlaylistView.xaml` 中第 18 行起的整段 `<Grid Margin="16,0,16,16"> ... </Grid>` 包进上述 `<Border>...<Grid>...</Grid></Border>` 中。最外层 `<UserControl>` 的根 child 由 Grid 改成 Border。
 
-- [ ] **Step 3: 给 ListBox 加 `AllowDrop` + 5 个事件挂接**
+- [x] **Step 3: 给 ListBox 加 `AllowDrop` + 5 个事件挂接**
 
 将现有 `<ListBox x:Name="QueueList" ...>` 标签（第 62-69 行附近）改为：
 
@@ -511,11 +511,11 @@ git commit -m "feat(view): add DropInsertionAdorner (1px accent-color insertion 
 
 新增点：`SelectionMode="Extended"`（多选）、`AllowDrop="True"`、6 个事件 hook。**保留** `MouseDoubleClick` 与 `KeyDown` 两个原有 hook。
 
-- [ ] **Step 4: 构建验证（仅 XAML，预期 code-behind 缺方法会报编译错 —— 跳过此步直接到 Task 7）**
+- [x] **Step 4: 构建验证（仅 XAML，预期 code-behind 缺方法会报编译错 —— 跳过此步直接到 Task 7）**
 
 XAML 引用的事件 handler 会在 Task 7 加上；本任务只做 XAML 改动。**先不构建**，否则会因 handler 缺失报错。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add Views/Controls/PlaylistView.xaml
@@ -531,7 +531,7 @@ Note: code-behind handlers wired up in next task; build will fail until Task 7."
 **Files:**
 - Modify: `Views/Controls/PlaylistView.xaml.cs`
 
-- [ ] **Step 1: 在文件顶部 `using` 列表中加：**
+- [x] **Step 1: 在文件顶部 `using` 列表中加：**
 
 确保以下 using 都在（按字母序，去重）：
 
@@ -547,7 +547,7 @@ using UmaPlayer.Models;
 using UmaPlayer.ViewModels;
 ```
 
-- [ ] **Step 2: 在类内部增加拖拽相关字段**
+- [x] **Step 2: 在类内部增加拖拽相关字段**
 
 在类 `PlaylistView` 内（紧跟 `private PlaylistViewModel? _vm;` 字段下方）增加：
 
@@ -562,7 +562,7 @@ using UmaPlayer.ViewModels;
     private DropInsertionAdorner? _currentAdorner;
 ```
 
-- [ ] **Step 3: 在 `RemoveButton_Click` 之后追加拖拽启动 handler 与外部拖入 handler**
+- [x] **Step 3: 在 `RemoveButton_Click` 之后追加拖拽启动 handler 与外部拖入 handler**
 
 ```csharp
     // —— Phase 5：拖拽启动（PreviewMouseLeftButton* + MouseMove） ——
@@ -766,19 +766,19 @@ using UmaPlayer.ViewModels;
     }
 ```
 
-- [ ] **Step 4: 构建验证**
+- [x] **Step 4: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug --nologo -v quiet`
 Expected: `已成功生成。 0 个警告 0 个错误`
 
-- [ ] **Step 5: 启动并冒烟**
+- [x] **Step 5: 启动并冒烟**
 
 Run: `dotnet run --project UmaPlayer.csproj`
 冒烟项（不算正式验收，仅确认拖拽路径不崩）：
 - 从资源管理器拖一个 .mp3 进 PlaylistView → 边框高亮 → 末尾入队
 - 队列内拖第 1 项到第 3 项后 → 出现紫色 1px 插入线 → 松开后顺序变化
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Views/Controls/PlaylistView.xaml.cs
@@ -806,24 +806,24 @@ rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"
 
 按 spec §7.1 清单逐项验证：
 
-- [ ] **Scenario 1：** 资源管理器拖 1 个 .mp3 → 末尾入队，不播放，▶ 不亮起
-- [ ] **Scenario 2：** 资源管理器拖 5 个文件（4 mp3 + 1 .txt）→ 仅 4 个音频入队
-- [ ] **Scenario 3：** 资源管理器拖 1 个文件夹 → 边框不高亮（光标显示禁止），松开后队列无变化
-- [ ] **Scenario 4：** 队列里单选第 3 项拖到第 1 项前 → 出现插入线 → 松开后该曲到位置 0；CurrentIndex 跟随，播放不中断
-- [ ] **Scenario 5：** 队列里 Ctrl+点选第 1、3 项拖到第 5 项前 → 聚成连续块到位置 3，块内顺序保留 [1→3, 3→4]，原 2 滑到 1，原 4 滑到 2
-- [ ] **Scenario 6：** 拖动当前正在播放的曲到末尾 → 音频继续播，▶ 标记跟到末尾，Position 不归零
-- [ ] **Scenario 7：** 拖动时按 Esc → 队列无变化，Adorner 立即消失
-- [ ] **Scenario 8：** 单选拖到原位置 → 队列无变化（幂等）
-- [ ] **Scenario 9：** Shuffle 开 + 已播过两首 → 重排后再 Next，已播过两首仍不会被随机到（_shuffleHistory 跟随重映射）
-- [ ] **Scenario 10：** 拖入 + 重排后关窗 → 重启 → queue.json 与启动后队列均反映新顺序
+- [x] **Scenario 1：** 资源管理器拖 1 个 .mp3 → 末尾入队，不播放，▶ 不亮起
+- [x] **Scenario 2：** 资源管理器拖 5 个文件（4 mp3 + 1 .txt）→ 仅 4 个音频入队
+- [x] **Scenario 3：** 资源管理器拖 1 个文件夹 → 边框不高亮（光标显示禁止），松开后队列无变化
+- [x] **Scenario 4：** 队列里单选第 3 项拖到第 1 项前 → 出现插入线 → 松开后该曲到位置 0；CurrentIndex 跟随，播放不中断
+- [x] **Scenario 5：** 队列里 Ctrl+点选第 1、3 项拖到第 5 项前 → 聚成连续块到位置 3，块内顺序保留 [1→3, 3→4]，原 2 滑到 1，原 4 滑到 2
+- [x] **Scenario 6：** 拖动当前正在播放的曲到末尾 → 音频继续播，▶ 标记跟到末尾，Position 不归零
+- [x] **Scenario 7：** 拖动时按 Esc → 队列无变化，Adorner 立即消失
+- [x] **Scenario 8：** 单选拖到原位置 → 队列无变化（幂等）
+- [x] **Scenario 9：** Shuffle 开 + 已播过两首 → 重排后再 Next，已播过两首仍不会被随机到（_shuffleHistory 跟随重映射）
+- [x] **Scenario 10：** 拖入 + 重排后关窗 → 重启 → queue.json 与启动后队列均反映新顺序
 
 回归（spec §7.2）：
 
-- [ ] **Regression A：** 启动恢复有当前曲（CurrentIndex≥0）→ 首次按 ▶ 触发 PlayCurrent，不卡死
-- [ ] **Regression B：** 关闭后查看 queue.json，包含完整状态（cancel-and-close 仍生效）
-- [ ] **Regression C：** ▶ 按钮、Slider、Shuffle/Repeat 图标外观正常（无 Aero 白底回退）
+- [x] **Regression A：** 启动恢复有当前曲（CurrentIndex≥0）→ 首次按 ▶ 触发 PlayCurrent，不卡死
+- [x] **Regression B：** 关闭后查看 queue.json，包含完整状态（cancel-and-close 仍生效）
+- [x] **Regression C：** ▶ 按钮、Slider、Shuffle/Repeat 图标外观正常（无 Aero 白底回退）
 
-- [ ] **Step 1: 全部 13 项通过后提交空 commit**
+- [x] **Step 1: 全部 13 项通过后提交空 commit**
 
 ```bash
 git commit --allow-empty -m "test: Phase 5 manual acceptance pass
@@ -843,7 +843,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 - Modify: `docs/PROJECT.md`
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: PROJECT.md — 文档头日期 + 阶段**
+- [x] **Step 1: PROJECT.md — 文档头日期 + 阶段**
 
 把 `docs/PROJECT.md` 第 5 行的：
 ```
@@ -854,21 +854,21 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 > 文档日期：2026/06/12 · 对应分支：`master` · 当前阶段：**Phase 5 完成**（拖拽支持）
 ```
 
-- [ ] **Step 2: PROJECT.md — §1 项目简介尾段**
+- [x] **Step 2: PROJECT.md — §1 项目简介尾段**
 
 把第 11 行（"**UmaPlayer** 是一款..." 那段）末尾改为：
 ```
 ... Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排、多选拖拽、1px 插入线 + 边框高亮）。可视化、库扫描、多命名播放列表等放在 Phase 6+。
 ```
 
-- [ ] **Step 3: PROJECT.md — §1.1 关键特性表追加 1 行**
+- [x] **Step 3: PROJECT.md — §1.1 关键特性表追加 1 行**
 
 在"队列持久化"行下方追加：
 ```
 | 拖拽支持 | 外部音频文件拖入入队、队列内单/多选拖拽重排、紫色 1px 插入线（Phase 5） |
 ```
 
-- [ ] **Step 4: PROJECT.md — §3 目录结构两处增补**
+- [x] **Step 4: PROJECT.md — §3 目录结构两处增补**
 
 在 `├── Models/` 块的 `QueueState.cs` 下追加：
 ```
@@ -892,7 +892,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 
 （具体行用现有 Phase 4 那行作为锚点替换；保持表格对齐。）
 
-- [ ] **Step 5: PROJECT.md — §4.3 关键设计决策追加第 12 项**
+- [x] **Step 5: PROJECT.md — §4.3 关键设计决策追加第 12 项**
 
 在 `11. **Cancel-and-close 关闭模式（Phase 4）**：...` 段落之后追加：
 
@@ -900,7 +900,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 12. **拖拽职责分层（Phase 5）**：所有 DragDrop 事件、命中测试、文件后缀过滤、Adorner 绘制都在 View 层（PlaylistView.xaml.cs / DragDropExtensions / DropInsertionAdorner）；VM 仅暴露纯数据命令 `DropExternalFilesCommand(IReadOnlyList<string>)` 与 `MoveTracksCommand(MoveTracksArgs)`，不依赖 WPF DragDrop 原语。重排时 `CurrentIndex` 与 `_shuffleHistory` 用对象身份（Track record 引用相等）回找新位置 —— 不做索引算术，避免多源多目标插入时前移/后移混合错误，且让"拖动当前曲"天然不中断播放（NAudio 不知道 Queue 重排，currentTrackObj 仍是同一个 record）。外部 FileDrop 与内部重排通过 DataObject 格式区分（`FileDrop` vs `"UmaPlayer.QueueItems"`），DragOver / Drop 内先判内部再判外部。
 ```
 
-- [ ] **Step 6: PROJECT.md — §5.5 Views 段 PlaylistView 子项追加拖拽说明**
+- [x] **Step 6: PROJECT.md — §5.5 Views 段 PlaylistView 子项追加拖拽说明**
 
 在 `- **`PlaylistView`** *(UserControl, Phase 2)*：...` 行之后追加一行（保持原有缩进）：
 
@@ -908,7 +908,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
   - **拖拽（Phase 5）**：根 Border 持 `local:DragDropExtensions.IsDragOver` 触发器，外部 FileDrop 时整框高亮紫色边框；ListBox 内部拖拽通过 `PreviewMouseLeftButtonDown` + 4px 阈值启动 `DragDrop.DoDragDrop(... QueueItemsFormat ...)`，DragOver 期间在 AdornerLayer 上画紫色 1px 插入线。`SelectionMode="Extended"` 启用多选，拖出的源索引按 Queue 升序整理后传给 VM
 ```
 
-- [ ] **Step 7: PROJECT.md — §9 已知约束追加 1 项**
+- [x] **Step 7: PROJECT.md — §9 已知约束追加 1 项**
 
 在 `- **WPF inline Style 必须 `BasedOn`...` 那段之后追加：
 
@@ -916,7 +916,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 - **OLE DragDrop 模态期间 UI 线程阻塞**（Phase 5）：`DragDrop.DoDragDrop` 是同步 OLE modal 调用，期间 UI 线程被卡住，进度条不刷新（NAudio 在另一线程继续推流，音频不停）。这是 WPF 的固有行为，用户操作上感知不到（拖拽期间本来就不需要看进度）；不要尝试在 UI 线程外启动 DragDrop —— OLE 拒绝。
 ```
 
-- [ ] **Step 8: PROJECT.md — §10 历史与参考追加 Phase 5 设计/计划链接 + 里程碑**
+- [x] **Step 8: PROJECT.md — §10 历史与参考追加 Phase 5 设计/计划链接 + 里程碑**
 
 在 §10 设计稿列表末尾追加：
 ```
@@ -934,7 +934,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
     - 见 `git log --oneline feature/phase5-drag-drop` —— 9 commits（spec/plan/QA × 1 + impl × 7）
 ```
 
-- [ ] **Step 9: COUPLING.md — 头部日期 + 阶段**
+- [x] **Step 9: COUPLING.md — 头部日期 + 阶段**
 
 把 `docs/COUPLING.md` 第 3 行的：
 ```
@@ -950,14 +950,14 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4；Phase 4 加入队列持久化；Phase 5 加入拖拽 + 偿还 §5 残留 in-flight `RemoveTrack`/`MoveTracks` 债。剩余债与后续工作详见 §6。
 ```
 
-- [ ] **Step 10: COUPLING.md — TL;DR 表更新 Phase 5 行**
+- [x] **Step 10: COUPLING.md — TL;DR 表更新 Phase 5 行**
 
 把 `| Phase 5 是否会变痛 | ⚠️ **多命名播放列表会改 queue.json schema** | ...` 行替换为：
 ```
 | Phase 6 是否会变痛 | ⚠️ **多命名播放列表会改 queue.json schema** | 当前 schema 仅一个队列；多列表需 schema v2 + 迁移 |
 ```
 
-- [ ] **Step 11: COUPLING.md — §1 健康度结尾段追加 Phase 5 结论**
+- [x] **Step 11: COUPLING.md — §1 健康度结尾段追加 Phase 5 结论**
 
 在 `✅ Phase 4 队列持久化沿用相同模式：...` 行下方追加：
 ```
@@ -969,7 +969,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 **结论：** Phase 5 后约 ~1900 行代码（含拖拽相关 ~200 行 View / ~100 行 VM 命令）。MainViewModel 仍维持 44 行 Strict Facade；继续加功能（多命名播放列表 / 库扫描）不会再触碰核心架构。
 ```
 
-- [ ] **Step 12: COUPLING.md — §2 依赖图新增行**
+- [x] **Step 12: COUPLING.md — §2 依赖图新增行**
 
 在 | `PlaylistViewModel` | ... | 行末增加 `MoveTracksArgs`：
 ```
@@ -982,7 +982,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 ```
 （替换原 PlaylistView 行）
 
-- [ ] **Step 13: COUPLING.md — §5 隐式契约表把 in-flight RemoveTrack 那条标记为已偿，并新增 Phase 5 项**
+- [x] **Step 13: COUPLING.md — §5 隐式契约表把 in-flight RemoveTrack 那条标记为已偿，并新增 Phase 5 项**
 
 把 `| `PlaylistViewModel.PlayTrackAtAsync` 期间 `RemoveTrack` 非当前曲未自增 `_playToken` | 代码审查发现，未修复（继承自 Phase 2） | ...Phase 5 重构时一并修 |` 那行替换为：
 ```
@@ -999,7 +999,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 | `DropInsertionAdorner` 生命周期由 PlaylistView code-behind 集中管理 | `_currentAdorner` 字段 + `ShowAdorner/HideAdorner` 配对 | DragOver / Drop / DragLeave / OLE 取消任一路径漏调 `HideAdorner` 都会让 1px 紫线残留在 ListBox 上 |
 ```
 
-- [ ] **Step 14: COUPLING.md — §6 启动检查清单更新到 Phase 6**
+- [x] **Step 14: COUPLING.md — §6 启动检查清单更新到 Phase 6**
 
 把第 6 行起的整段标题与段落改为：
 ```
@@ -1023,7 +1023,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 **Phase 6+ 候选范围预估：** 多命名播放列表 ~10h+；库扫描 ~12h+。
 ```
 
-- [ ] **Step 15: COUPLING.md — §7 不要做的事追加 3 项**
+- [x] **Step 15: COUPLING.md — §7 不要做的事追加 3 项**
 
 在末尾追加：
 ```
@@ -1032,7 +1032,7 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 - ❌ **让 VM 直接消费 WPF `DragEventArgs`/`DataObject`**（Phase 5）—— View 层负责拖拽机制；VM 只接收已过滤好的 paths / 索引
 ```
 
-- [ ] **Step 16: COUPLING.md — §8 参考链接追加 Phase 5**
+- [x] **Step 16: COUPLING.md — §8 参考链接追加 Phase 5**
 
 在 specs/ 列表末尾追加：
 ```
@@ -1043,12 +1043,12 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
 ```
 
-- [ ] **Step 17: 构建验证（确认文档改动未触发任何代码错）**
+- [x] **Step 17: 构建验证（确认文档改动未触发任何代码错）**
 
 Run: `dotnet build UmaPlayer.sln -c Debug --nologo -v quiet`
 Expected: `已成功生成。 0 个警告 0 个错误`
 
-- [ ] **Step 18: 提交**
+- [x] **Step 18: 提交**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md

@@ -42,17 +42,17 @@
 **Files:**
 - 无文件改动
 
-- [ ] **Step 1: 确认起点干净**
+- [x] **Step 1: 确认起点干净**
 
 Run: `git status -sb`
 Expected: 只看到 `## master` 和 untracked 项（`.idea/`、`.superpowers/`），无 modified/staged 文件。
 
-- [ ] **Step 2: 拉取 / 确认与远端同步**
+- [x] **Step 2: 拉取 / 确认与远端同步**
 
 Run: `git log --oneline -1`
 Expected: 顶部是 `485c137 docs: add Phase 3 tech-debt cleanup design spec`
 
-- [ ] **Step 3: 创建并切换到 feature 分支**
+- [x] **Step 3: 创建并切换到 feature 分支**
 
 ```bash
 git checkout -b feature/phase3-tech-debt
@@ -60,7 +60,7 @@ git checkout -b feature/phase3-tech-debt
 
 Expected: `Switched to a new branch 'feature/phase3-tech-debt'`
 
-- [ ] **Step 4: 验证分支已切换**
+- [x] **Step 4: 验证分支已切换**
 
 Run: `git branch --show-current`
 Expected: `feature/phase3-tech-debt`
@@ -72,7 +72,7 @@ Expected: `feature/phase3-tech-debt`
 **Files:**
 - Create: `Services/ITrackMetadataReader.cs`
 
-- [ ] **Step 1: 创建接口文件**
+- [x] **Step 1: 创建接口文件**
 
 Write the following to `D:\CodingProjects\UmaPlayer\Services\ITrackMetadataReader.cs`:
 
@@ -99,13 +99,13 @@ public interface ITrackMetadataReader
 }
 ```
 
-- [ ] **Step 2: 编译确认接口语法正确（尚无实现，会因 DI 缺注册不报错——本步只验语法）**
+- [x] **Step 2: 编译确认接口语法正确（尚无实现，会因 DI 缺注册不报错——本步只验语法）**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 （接口暂无实现引用，编译器不会报错）
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Services/ITrackMetadataReader.cs
@@ -119,7 +119,7 @@ git commit -m "feat(services): add ITrackMetadataReader interface"
 **Files:**
 - Create: `Services/AtlMetadataReader.cs`
 
-- [ ] **Step 1: 创建实现文件**
+- [x] **Step 1: 创建实现文件**
 
 Write the following to `D:\CodingProjects\UmaPlayer\Services\AtlMetadataReader.cs`:
 
@@ -198,12 +198,12 @@ public sealed class AtlMetadataReader : ITrackMetadataReader
 }
 ```
 
-- [ ] **Step 2: 编译**
+- [x] **Step 2: 编译**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Services/AtlMetadataReader.cs
@@ -217,7 +217,7 @@ git commit -m "feat(services): add AtlMetadataReader (ATL-based metadata reader)
 **Files:**
 - Modify: `Extensions/ServiceCollectionExtensions.cs`
 
-- [ ] **Step 1: 在 Stub 服务行之后、ViewModel 行之前插入注册**
+- [x] **Step 1: 在 Stub 服务行之后、ViewModel 行之前插入注册**
 
 Edit `D:\CodingProjects\UmaPlayer\Extensions\ServiceCollectionExtensions.cs`:
 
@@ -244,12 +244,12 @@ Edit `D:\CodingProjects\UmaPlayer\Extensions\ServiceCollectionExtensions.cs`:
         services.AddTransient<MainViewModel>();
 ```
 
-- [ ] **Step 2: 编译**
+- [x] **Step 2: 编译**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Extensions/ServiceCollectionExtensions.cs
@@ -265,7 +265,7 @@ git commit -m "feat(di): register ITrackMetadataReader"
 **Files:**
 - Modify: `ViewModels/MainViewModel.cs`
 
-- [ ] **Step 1: 注入 `ITrackMetadataReader` 到构造器**
+- [x] **Step 1: 注入 `ITrackMetadataReader` 到构造器**
 
 Edit `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs`:
 
@@ -320,7 +320,7 @@ Edit `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs`:
         _settings = options.Value;
 ```
 
-- [ ] **Step 2: 把队列内 `CreateFallbackTrack(path)` 调用切到接口**
+- [x] **Step 2: 把队列内 `CreateFallbackTrack(path)` 调用切到接口**
 
 在 `AddToQueue`（约第 252 行）中：
 ```csharp
@@ -340,7 +340,7 @@ Edit `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs`:
             Queue.Add(_metadataReader.CreateFallback(path));
 ```
 
-- [ ] **Step 3: 把 `PlayTrackAtAsync` 的元数据读切到接口**
+- [x] **Step 3: 把 `PlayTrackAtAsync` 的元数据读切到接口**
 
 在 `PlayTrackAtAsync`（约第 214 行）中：
 ```csharp
@@ -351,7 +351,7 @@ Edit `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs`:
             var meta = await _metadataReader.ReadAsync(Queue[index].FilePath);
 ```
 
-- [ ] **Step 4: 删除 VM 中已无人调用的两个 static 方法**
+- [x] **Step 4: 删除 VM 中已无人调用的两个 static 方法**
 
 删除整个 `ReadTrackMetadataAsync` 方法（约第 537-574 行）和整个 `CreateFallbackTrack` 方法（约第 577-589 行）。
 
@@ -361,18 +361,18 @@ Edit `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs`:
     private static Track CreateFallbackTrack(string filePath) { ... }
 ```
 
-- [ ] **Step 5: 删除现已无用的 `using System.IO;`（如已无 IO 用途）和 `using System.Linq;` 仍在用则保留**
+- [x] **Step 5: 删除现已无用的 `using System.IO;`（如已无 IO 用途）和 `using System.Linq;` 仍在用则保留**
 
 检查文件开头 `using` —— 删除 `ReadTrackMetadataAsync` 和 `CreateFallbackTrack` 后，`System.IO` 仍被 `CreateAlbumArtImage` 中的 `MemoryStream` 使用，**保留**。
 
 无需改动 using 块。
 
-- [ ] **Step 6: 编译**
+- [x] **Step 6: 编译**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 
-- [ ] **Step 7: 手动 smoke**
+- [x] **Step 7: 手动 smoke**
 
 启动应用：
 ```bash
@@ -385,7 +385,7 @@ dotnet run
 
 Expected: 元数据读取行为与重构前完全一致。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add ViewModels/MainViewModel.cs
@@ -408,7 +408,7 @@ later PlaylistViewModel split which will own the reader field."
 - Modify: `ViewModels/MainViewModel.cs`
 - Modify: `Views/MainWindow.xaml.cs`
 
-- [ ] **Step 1: 改写接口定义**
+- [x] **Step 1: 改写接口定义**
 
 Edit `D:\CodingProjects\UmaPlayer\Services\ISettingsPersistence.cs` —— 替换整个文件为：
 
@@ -446,7 +446,7 @@ public interface ISettingsPersistence
 }
 ```
 
-- [ ] **Step 2: 改写 JSON 实现**
+- [x] **Step 2: 改写 JSON 实现**
 
 Edit `D:\CodingProjects\UmaPlayer\Services\JsonSettingsPersistence.cs` —— 替换整个文件为：
 
@@ -543,7 +543,7 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
 }
 ```
 
-- [ ] **Step 3: 改写 `MainViewModel.OnVolumeChanged` 与 `CleanupAsync`**
+- [x] **Step 3: 改写 `MainViewModel.OnVolumeChanged` 与 `CleanupAsync`**
 
 Edit `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs`:
 
@@ -610,7 +610,7 @@ Edit `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs`:
     }
 ```
 
-- [ ] **Step 4: 改写 `MainWindow.Window_Closing`**
+- [x] **Step 4: 改写 `MainWindow.Window_Closing`**
 
 Edit `D:\CodingProjects\UmaPlayer\Views\MainWindow.xaml.cs`:
 
@@ -654,19 +654,19 @@ Edit `D:\CodingProjects\UmaPlayer\Views\MainWindow.xaml.cs`:
     }
 ```
 
-- [ ] **Step 5: 编译**
+- [x] **Step 5: 编译**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 
 如果出现 `SaveAsync` 仍被引用的错误：仓库内 `grep -r "SaveAsync"` 应为 0 结果。
 
-- [ ] **Step 6: 验证 grep**
+- [x] **Step 6: 验证 grep**
 
 Run: `grep -r "SaveAsync" Services/ ViewModels/ Views/`
 Expected: 无输出（0 行）。
 
-- [ ] **Step 7: 手动 smoke（验证合并纪律）**
+- [x] **Step 7: 手动 smoke（验证合并纪律）**
 
 启动应用：
 ```bash
@@ -681,7 +681,7 @@ dotnet run
 
 Expected: 步骤 4 两个字段都生效。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add Services/ISettingsPersistence.cs Services/JsonSettingsPersistence.cs \
@@ -702,7 +702,7 @@ Callers no longer hold an AppSettings snapshot. Closes coupling debt #3
 **Files:**
 - Create: `ViewModels/PlayerViewModel.cs`
 
-- [ ] **Step 1: 创建 PlayerViewModel 文件**
+- [x] **Step 1: 创建 PlayerViewModel 文件**
 
 Write the following to `D:\CodingProjects\UmaPlayer\ViewModels\PlayerViewModel.cs`:
 
@@ -939,13 +939,13 @@ public partial class PlayerViewModel : ObservableObject
 }
 ```
 
-- [ ] **Step 2: 编译（PlayerViewModel 应能独立编译）**
+- [x] **Step 2: 编译（PlayerViewModel 应能独立编译）**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 （此时 MainViewModel 中的双份代码还在，但因为 DI 还没解析 PlayerViewModel，无运行时冲突。）
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add ViewModels/PlayerViewModel.cs
@@ -964,7 +964,7 @@ to facade and remove them."
 **Files:**
 - Create: `ViewModels/PlaylistViewModel.cs`
 
-- [ ] **Step 1: 创建 PlaylistViewModel 文件**
+- [x] **Step 1: 创建 PlaylistViewModel 文件**
 
 Write the following to `D:\CodingProjects\UmaPlayer\ViewModels\PlaylistViewModel.cs`:
 
@@ -1355,13 +1355,13 @@ public partial class PlaylistViewModel : ObservableObject
 }
 ```
 
-- [ ] **Step 2: 编译**
+- [x] **Step 2: 编译**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 （PlaylistViewModel 暂未被任何东西引用，但应能独立编译。）
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add ViewModels/PlaylistViewModel.cs
@@ -1383,7 +1383,7 @@ MainViewModel still holds duplicates; Task 9 will swap to facade."
 - Modify: `ViewModels/MainViewModel.cs`
 - Modify: `Extensions/ServiceCollectionExtensions.cs`
 
-- [ ] **Step 1: 先在 DI 中注册两个子 VM**
+- [x] **Step 1: 先在 DI 中注册两个子 VM**
 
 Edit `D:\CodingProjects\UmaPlayer\Extensions\ServiceCollectionExtensions.cs`:
 
@@ -1401,7 +1401,7 @@ Edit `D:\CodingProjects\UmaPlayer\Extensions\ServiceCollectionExtensions.cs`:
         services.AddTransient<MainViewModel>();
 ```
 
-- [ ] **Step 2: 整体重写 MainViewModel.cs**
+- [x] **Step 2: 整体重写 MainViewModel.cs**
 
 Replace the entire contents of `D:\CodingProjects\UmaPlayer\ViewModels\MainViewModel.cs` with:
 
@@ -1453,7 +1453,7 @@ public sealed class MainViewModel
 }
 ```
 
-- [ ] **Step 3: 编译（预期 View 层会报错）**
+- [x] **Step 3: 编译（预期 View 层会报错）**
 
 Run: `dotnet build`
 Expected: **预期失败**。错误应集中在：
@@ -1471,7 +1471,7 @@ Expected: **预期失败**。错误应集中在：
 - Modify: `Views/Controls/PlayerBar.xaml.cs`
 - Modify: `Views/MainWindow.xaml`
 
-- [ ] **Step 1: 改 MainWindow.xaml 把 PlayerBar 的 DataContext 指向 Player 子 VM**
+- [x] **Step 1: 改 MainWindow.xaml 把 PlayerBar 的 DataContext 指向 Player 子 VM**
 
 Edit `D:\CodingProjects\UmaPlayer\Views\MainWindow.xaml`:
 
@@ -1487,7 +1487,7 @@ Edit `D:\CodingProjects\UmaPlayer\Views\MainWindow.xaml`:
         <controls:PlaylistView Grid.Row="1" DataContext="{Binding Playlist}"/>
 ```
 
-- [ ] **Step 2: 改 PlayerBar.xaml 的 📂 按钮为跨级绑定**
+- [x] **Step 2: 改 PlayerBar.xaml 的 📂 按钮为跨级绑定**
 
 Edit `D:\CodingProjects\UmaPlayer\Views\Controls\PlayerBar.xaml`:
 
@@ -1506,7 +1506,7 @@ Edit `D:\CodingProjects\UmaPlayer\Views\Controls\PlayerBar.xaml`:
                 </Button>
 ```
 
-- [ ] **Step 3: 改 PlayerBar.xaml.cs 把硬转型从 `MainViewModel` 换成 `PlayerViewModel`**
+- [x] **Step 3: 改 PlayerBar.xaml.cs 把硬转型从 `MainViewModel` 换成 `PlayerViewModel`**
 
 Edit `D:\CodingProjects\UmaPlayer\Views\Controls\PlayerBar.xaml.cs`:
 
@@ -1544,7 +1544,7 @@ Edit `D:\CodingProjects\UmaPlayer\Views\Controls\PlayerBar.xaml.cs`:
 - old: `DataContext as MainViewModel`
 - new: `DataContext as PlayerViewModel`
 
-- [ ] **Step 4: 编译（PlayerBar 已修，PlaylistView 仍报错）**
+- [x] **Step 4: 编译（PlayerBar 已修，PlaylistView 仍报错）**
 
 Run: `dotnet build`
 Expected: 错误集中在 `PlaylistView.xaml.cs`（`MainViewModel.PropertyChanged` / `Queue` / `PlayTrackAtCommand` / `RemoveTrackCommand` / `CurrentIndex` 找不到）。其他文件已干净。
@@ -1556,7 +1556,7 @@ Expected: 错误集中在 `PlaylistView.xaml.cs`（`MainViewModel.PropertyChange
 **Files:**
 - Modify: `Views/Controls/PlaylistView.xaml.cs`
 
-- [ ] **Step 1: 把字段、订阅、转发都从 `MainViewModel` 换成 `PlaylistViewModel`**
+- [x] **Step 1: 把字段、订阅、转发都从 `MainViewModel` 换成 `PlaylistViewModel`**
 
 Edit `D:\CodingProjects\UmaPlayer\Views\Controls\PlaylistView.xaml.cs`:
 
@@ -1591,12 +1591,12 @@ Edit `D:\CodingProjects\UmaPlayer\Views\Controls\PlaylistView.xaml.cs`:
 
 `OnQueueChanged`、`RefreshCurrentIndicator`、`QueueList_MouseDoubleClick`、`QueueList_KeyDown`、`RemoveButton_Click` 内部用到的 `_vm.Queue`、`_vm.CurrentIndex`、`_vm.PlayTrackAtCommand`、`_vm.RemoveTrackCommand` 字段名都不变（`PlaylistViewModel` 上同名存在），无需改动。
 
-- [ ] **Step 2: 编译**
+- [x] **Step 2: 编译**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 
-- [ ] **Step 3: 验证关键 grep**
+- [x] **Step 3: 验证关键 grep**
 
 Run: `grep -rn "as MainViewModel" Views/`
 Expected: 无输出（0 行）。
@@ -1604,7 +1604,7 @@ Expected: 无输出（0 行）。
 Run: `grep -rn "MainViewModel\." ViewModels/ Views/ Extensions/`
 Expected: 只剩 DI 注册和构造器类型引用，**绝无属性 / 命令访问**。
 
-- [ ] **Step 4: 手动 smoke（完整回归 Phase 2 主路径）**
+- [x] **Step 4: 手动 smoke（完整回归 Phase 2 主路径）**
 
 启动应用：
 ```bash
@@ -1623,7 +1623,7 @@ dotnet run
 
 Expected: 全部功能行为与 Phase 2 一致。
 
-- [ ] **Step 5: 提交（覆盖 Task 9、10、11 的完整改动）**
+- [x] **Step 5: 提交（覆盖 Task 9、10、11 的完整改动）**
 
 ```bash
 git add ViewModels/MainViewModel.cs ViewModels/PlayerViewModel.cs ViewModels/PlaylistViewModel.cs \
@@ -1649,22 +1649,22 @@ Closes coupling debts #1 (VM bloat) and #2 (View hard-cast)."
 **Files:**
 - 仅查询，不修改
 
-- [ ] **Step 1: 验证 `new ATL.Track` 仅出现在 AtlMetadataReader**
+- [x] **Step 1: 验证 `new ATL.Track` 仅出现在 AtlMetadataReader**
 
 Run: `grep -rn "new ATL.Track" .`
 Expected: 仅匹配 `Services/AtlMetadataReader.cs` 中的一行。
 
-- [ ] **Step 2: 验证 `SaveAsync(` 已无任何调用**
+- [x] **Step 2: 验证 `SaveAsync(` 已无任何调用**
 
 Run: `grep -rn "SaveAsync(" Services/ ViewModels/ Views/`
 Expected: 无输出（0 行）。
 
-- [ ] **Step 3: 验证 `MainViewModel.cs` 文件行数 ≤ 50**
+- [x] **Step 3: 验证 `MainViewModel.cs` 文件行数 ≤ 50**
 
 Run: `wc -l ViewModels/MainViewModel.cs`
 Expected: 行数 ≤ 50（spec §1.3 成功标准）。
 
-- [ ] **Step 4: 验证仓库内 `as MainViewModel` 为 0**
+- [x] **Step 4: 验证仓库内 `as MainViewModel` 为 0**
 
 Run: `grep -rn "as MainViewModel" .`
 Expected: 仅可能匹配 docs/（历史文档），不应有任何 `.cs` 文件命中。
@@ -1680,7 +1680,7 @@ Expected: 仅可能匹配 docs/（历史文档），不应有任何 `.cs` 文件
 **Files:**
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: 在 TL;DR 表格中标记债 #1/#2/#3/#4 已偿**
+- [x] **Step 1: 在 TL;DR 表格中标记债 #1/#2/#3/#4 已偿**
 
 Edit `D:\CodingProjects\UmaPlayer\docs\COUPLING.md`:
 
@@ -1715,7 +1715,7 @@ Edit `D:\CodingProjects\UmaPlayer\docs\COUPLING.md`:
 > **更新（Phase 3 完成）：** 项 1 (VM 拆分)、2 (View 去硬转型)、3 (ITrackMetadataReader)、4 (settings 合并纪律) 已完成。后续 Phase 4+ 仍待办：5、6、7。
 ```
 
-- [ ] **Step 2: 提交**
+- [x] **Step 2: 提交**
 
 ```bash
 git add docs/COUPLING.md
@@ -1731,13 +1731,13 @@ git commit -m "docs(coupling): mark debts #3 and #4 as paid (Phase 3)"
 **Files:**
 - 无文件改动；记录结果用
 
-- [ ] **Step 1: 启动应用**
+- [x] **Step 1: 启动应用**
 
 ```bash
 dotnet run
 ```
 
-- [ ] **Step 2: 跑通完整验收清单**
+- [x] **Step 2: 跑通完整验收清单**
 
 下面 25 项按顺序操作，每项都应通过：
 
@@ -1773,7 +1773,7 @@ dotnet run
 **Phase 3 新验收点：**
 26. ✅ 拖音量到 0.3 → 调整窗口大小 → 关闭 → 重启 → 音量 0.3 且窗口大小都保留（race 修复）
 
-- [ ] **Step 3: 如全部通过，记录结果**
+- [x] **Step 3: 如全部通过，记录结果**
 
 将本次验收结果以 commit 形式归档：
 
@@ -1784,7 +1784,7 @@ All 25 Phase 2 cases + 1 Phase 3 race-fix case verified.
 Behavior is byte-identical with Phase 2 from the user's perspective."
 ```
 
-- [ ] **Step 4: 如有任何项失败 — 不可合并**
+- [x] **Step 4: 如有任何项失败 — 不可合并**
 
 如果上述 26 项中任一失败：
 1. 记录失败项与现象
@@ -1798,17 +1798,17 @@ Behavior is byte-identical with Phase 2 from the user's perspective."
 **Files:**
 - 无文件改动；git 操作
 
-- [ ] **Step 1: 确认分支状态干净**
+- [x] **Step 1: 确认分支状态干净**
 
 Run: `git status -sb`
 Expected: `## feature/phase3-tech-debt`，无 modified/staged 文件。
 
-- [ ] **Step 2: 查看本期提交历史**
+- [x] **Step 2: 查看本期提交历史**
 
 Run: `git log master..feature/phase3-tech-debt --oneline`
 Expected: 应看到约 9 个提交（Task 2、3、4、5、6、7、8、Task 9-11 合并、Task 13、Task 14 共约 9-10 条）。
 
-- [ ] **Step 3: 切到 master 并合并（保留合并 commit）**
+- [x] **Step 3: 切到 master 并合并（保留合并 commit）**
 
 ```bash
 git checkout master
@@ -1824,12 +1824,12 @@ Pays coupling debts #1, #2, #3, #4 from docs/COUPLING.md."
 
 Expected: `Merge made by the 'ort' strategy.`
 
-- [ ] **Step 4: 最后构建验证**
+- [x] **Step 4: 最后构建验证**
 
 Run: `dotnet build`
 Expected: Build succeeded. 0 Error(s), 0 Warning(s)。
 
-- [ ] **Step 5: 保留 feature 分支作为参考**
+- [x] **Step 5: 保留 feature 分支作为参考**
 
 不删除 `feature/phase3-tech-debt` 分支（与 Phase 2 的约定一致 — "保留作为参考"）。
 

@@ -45,7 +45,7 @@
 **Files:**
 - Create: `Models/QueueState.cs`
 
-- [ ] **Step 1: 创建 `Models/QueueState.cs`**
+- [x] **Step 1: 创建 `Models/QueueState.cs`**
 
 ```csharp
 namespace UmaPlayer.Models;
@@ -77,12 +77,12 @@ public sealed record QueueState
 }
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Models/QueueState.cs
@@ -96,7 +96,7 @@ git commit -m "feat(models): add QueueState record (Phase 4 schema)"
 **Files:**
 - Create: `Services/IQueuePersistence.cs`
 
-- [ ] **Step 1: 创建 `Services/IQueuePersistence.cs`**
+- [x] **Step 1: 创建 `Services/IQueuePersistence.cs`**
 
 ```csharp
 using UmaPlayer.Models;
@@ -132,12 +132,12 @@ public interface IQueuePersistence
 }
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Services/IQueuePersistence.cs
@@ -151,7 +151,7 @@ git commit -m "feat(services): add IQueuePersistence interface"
 **Files:**
 - Create: `Services/JsonQueuePersistence.cs`
 
-- [ ] **Step 1: 创建 `Services/JsonQueuePersistence.cs`**
+- [x] **Step 1: 创建 `Services/JsonQueuePersistence.cs`**
 
 ```csharp
 using System.IO;
@@ -251,12 +251,12 @@ public sealed class JsonQueuePersistence : IQueuePersistence
 }
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Services/JsonQueuePersistence.cs
@@ -270,7 +270,7 @@ git commit -m "feat(services): add JsonQueuePersistence (queue.json read/write w
 **Files:**
 - Modify: `Extensions/ServiceCollectionExtensions.cs`
 
-- [ ] **Step 1: 在 `AddUmaPlayerServices` 中追加 `IQueuePersistence` 注册**
+- [x] **Step 1: 在 `AddUmaPlayerServices` 中追加 `IQueuePersistence` 注册**
 
 定位 `Extensions/ServiceCollectionExtensions.cs:25` 附近这一行：
 
@@ -294,12 +294,12 @@ git commit -m "feat(services): add JsonQueuePersistence (queue.json read/write w
         services.AddSingleton<IQueuePersistence, JsonQueuePersistence>();
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Extensions/ServiceCollectionExtensions.cs
@@ -315,7 +315,7 @@ git commit -m "feat(di): register IQueuePersistence singleton"
 **Files:**
 - Modify: `ViewModels/PlaylistViewModel.cs`
 
-- [ ] **Step 1: 在 `using` 区追加 `System.IO`**
+- [x] **Step 1: 在 `using` 区追加 `System.IO`**
 
 定位 `ViewModels/PlaylistViewModel.cs:1-7` 顶部 using 区：
 
@@ -340,7 +340,7 @@ using UmaPlayer.Models;
 using UmaPlayer.Services;
 ```
 
-- [ ] **Step 2: 在私有字段区追加 `_queuePersistence`**
+- [x] **Step 2: 在私有字段区追加 `_queuePersistence`**
 
 定位 `ViewModels/PlaylistViewModel.cs:23-25` 的字段声明：
 
@@ -359,7 +359,7 @@ using UmaPlayer.Services;
     private readonly IQueuePersistence _queuePersistence;
 ```
 
-- [ ] **Step 3: 修改构造函数签名 + 在末尾调用 `LoadFromDisk()`**
+- [x] **Step 3: 修改构造函数签名 + 在末尾调用 `LoadFromDisk()`**
 
 定位 `ViewModels/PlaylistViewModel.cs:70-88` 的构造函数：
 
@@ -415,7 +415,7 @@ using UmaPlayer.Services;
     }
 ```
 
-- [ ] **Step 4: 在文件末尾（`Cleanup()` 之后、最末尾大括号 `}` 之前）追加 LoadFromDisk + MapCurrentIndexAfterFilter**
+- [x] **Step 4: 在文件末尾（`Cleanup()` 之后、最末尾大括号 `}` 之前）追加 LoadFromDisk + MapCurrentIndexAfterFilter**
 
 定位 `ViewModels/PlaylistViewModel.cs:380-383`：
 
@@ -530,7 +530,7 @@ using UmaPlayer.Services;
 }
 ```
 
-- [ ] **Step 5: 构建验证**
+- [x] **Step 5: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: 失败 —— DI 容器尚未提供 `IQueuePersistence`（在 Task 4 已注册），本任务**应当**通过编译；若失败则因为 `App.xaml.cs` / `MainWindow` 依然只传旧的构造参数集。复检编译错误：
@@ -546,7 +546,7 @@ Expected: 无输出（DI 容器是唯一调用方）
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ViewModels/PlaylistViewModel.cs
@@ -560,7 +560,7 @@ git commit -m "feat(vm): inject IQueuePersistence into PlaylistViewModel + LoadF
 **Files:**
 - Modify: `ViewModels/PlaylistViewModel.cs`
 
-- [ ] **Step 1: 追加 SnapshotState 与 PlayCurrentCommand**
+- [x] **Step 1: 追加 SnapshotState 与 PlayCurrentCommand**
 
 定位 `ViewModels/PlaylistViewModel.cs` 末尾的 `MapCurrentIndexAfterFilter` 方法（Task 5 添加的）。在它之后、最末 `}` 之前**追加**：
 
@@ -596,7 +596,7 @@ git commit -m "feat(vm): inject IQueuePersistence into PlaylistViewModel + LoadF
     }
 ```
 
-- [ ] **Step 2: 在 `Queue.CollectionChanged` 订阅中加入 PlayCurrentCommand 的 Notify**
+- [x] **Step 2: 在 `Queue.CollectionChanged` 订阅中加入 PlayCurrentCommand 的 Notify**
 
 定位 Task 5 已修改的构造函数中的这段：
 
@@ -621,7 +621,7 @@ git commit -m "feat(vm): inject IQueuePersistence into PlaylistViewModel + LoadF
         };
 ```
 
-- [ ] **Step 3: 让 `OnCurrentIndexChanged` 也刷新 PlayCurrentCommand**
+- [x] **Step 3: 让 `OnCurrentIndexChanged` 也刷新 PlayCurrentCommand**
 
 定位 `_currentIndex` 字段的 `[ObservableProperty]` 声明（约 `:31-33`）：
 
@@ -646,12 +646,12 @@ git commit -m "feat(vm): inject IQueuePersistence into PlaylistViewModel + LoadF
 
 > 这同时把 Phase 3 既存的 Next/Prev 通知由 lambda 改为声明式，行为等价；放进同一改动让 PlayCurrentCommand 与现有命令风格一致。
 
-- [ ] **Step 4: 构建验证**
+- [x] **Step 4: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ViewModels/PlaylistViewModel.cs
@@ -666,7 +666,7 @@ git commit -m "feat(vm): add PlaylistViewModel.SnapshotState() + PlayCurrentComm
 - Modify: `Views/MainWindow.xaml.cs`
 - Modify: `App.xaml.cs`
 
-- [ ] **Step 1: MainWindow 增加 `_queuePersistence` 字段与构造参数**
+- [x] **Step 1: MainWindow 增加 `_queuePersistence` 字段与构造参数**
 
 定位 `Views/MainWindow.xaml.cs:18-26` 的字段与构造函数头：
 
@@ -701,7 +701,7 @@ git commit -m "feat(vm): add PlaylistViewModel.SnapshotState() + PlayCurrentComm
         DataContext = _vm;
 ```
 
-- [ ] **Step 2: 在 Window_Closing 末尾追加队列写盘**
+- [x] **Step 2: 在 Window_Closing 末尾追加队列写盘**
 
 定位 `Views/MainWindow.xaml.cs:50-72` 的 `Window_Closing`：
 
@@ -771,7 +771,7 @@ git commit -m "feat(vm): add PlaylistViewModel.SnapshotState() + PlayCurrentComm
     }
 ```
 
-- [ ] **Step 3: App.xaml.cs 解析 IQueuePersistence 并传入 MainWindow**
+- [x] **Step 3: App.xaml.cs 解析 IQueuePersistence 并传入 MainWindow**
 
 定位 `App.xaml.cs:36-41`：
 
@@ -797,12 +797,12 @@ git commit -m "feat(vm): add PlaylistViewModel.SnapshotState() + PlayCurrentComm
         mainWindow.Show();
 ```
 
-- [ ] **Step 4: 构建验证**
+- [x] **Step 4: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Views/MainWindow.xaml.cs App.xaml.cs
@@ -816,7 +816,7 @@ git commit -m "feat(view): wire MainWindow.Window_Closing to write queue.json"
 **Files:**
 - Modify: `Views/Controls/PlayerBar.xaml`
 
-- [ ] **Step 1: 把 ▶/⏸ 按钮的 Command 从静态绑定改为 Style + DataTrigger**
+- [x] **Step 1: 把 ▶/⏸ 按钮的 Command 从静态绑定改为 Style + DataTrigger**
 
 定位 `Views/Controls/PlayerBar.xaml:83-86`：
 
@@ -856,12 +856,12 @@ git commit -m "feat(view): wire MainWindow.Window_Closing to write queue.json"
                 </Button>
 ```
 
-- [ ] **Step 2: 构建验证**
+- [x] **Step 2: 构建验证**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 3: 启动一次烟雾测试（确认按钮在空队列时禁用、在曲目加载后可用）**
+- [x] **Step 3: 启动一次烟雾测试（确认按钮在空队列时禁用、在曲目加载后可用）**
 
 Run: `dotnet run --project UmaPlayer.csproj`
 
@@ -871,7 +871,7 @@ Run: `dotnet run --project UmaPlayer.csproj`
 - 点 📂 选一个文件 → 入队 + 播放 → ▶ 变为 ⏸（已加载，回到 `PlayPauseCommand`）
 - 关闭窗口；下一步 commit 之后 Task 9 会做完整 acceptance
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Views/Controls/PlayerBar.xaml
@@ -884,13 +884,13 @@ git commit -m "feat(view): PlayerBar ▶ button DataTrigger for null CurrentTrac
 
 **Files:** 无代码改动（仅人工验证 + commit 一个空标记）
 
-- [ ] **Step 1: 准备一个干净的 queue.json 起点**
+- [x] **Step 1: 准备一个干净的 queue.json 起点**
 
 为了让"首次启动"场景可重复，先关闭应用，并删除旧 queue.json（如果存在）：
 
 Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管理器中删除 `%LOCALAPPDATA%\UmaPlayer\queue.json`
 
-- [ ] **Step 2: 场景 1 —— 基础队列恢复**
+- [x] **Step 2: 场景 1 —— 基础队列恢复**
 
 操作：
 1. `dotnet run --project UmaPlayer.csproj` 启动
@@ -911,7 +911,7 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 - PlayerBar 显示 "No track loaded"，位置 0:00 / 0:00
 - ▶ 按钮**可用**（PlayCurrentCommand.CanExecute = HasCurrentTrack = true）
 
-- [ ] **Step 3: 场景 2 —— 启动后按 ▶ 触发 PlayCurrentCommand**
+- [x] **Step 3: 场景 2 —— 启动后按 ▶ 触发 PlayCurrentCommand**
 
 接着场景 1 的状态：
 1. 在重启后的窗口按 ▶
@@ -922,7 +922,7 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 
 期望：与 Phase 3 一次双击播放后的行为完全一致；切换时无闪烁/异常。
 
-- [ ] **Step 4: 场景 3 —— Shuffle/Repeat 状态恢复**
+- [x] **Step 4: 场景 3 —— Shuffle/Repeat 状态恢复**
 
 操作：
 1. 在当前窗口点 🔀 启用 Shuffle，点 ⇄ 把循环切到 🔂 (RepeatOne)
@@ -933,7 +933,7 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 - 队列项不变；Shuffle 按钮高亮、Repeat 显示 🔂
 - queue.json 中 `"ShuffleEnabled": true, "RepeatMode": "One"`
 
-- [ ] **Step 5: 场景 4 —— 单文件丢失静默跳过**
+- [x] **Step 5: 场景 4 —— 单文件丢失静默跳过**
 
 操作：
 1. 关闭窗口（确保 queue.json 含 5 条）
@@ -945,7 +945,7 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 - ▶ 标记仍指向"原第 3 首"对应的曲目（向后/向前滑算法）—— 在 4 项列表中位置可能是第 2 行
 - 应用未弹错误对话框，未崩溃
 
-- [ ] **Step 6: 场景 5 —— queue.json 损坏 fallback**
+- [x] **Step 6: 场景 5 —— queue.json 损坏 fallback**
 
 操作：
 1. 关闭窗口
@@ -958,7 +958,7 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 - 旧 queue.json 文件**仍存在不动**（用户可手工诊断）—— 用 ls 验证：`ls -la "$LOCALAPPDATA/UmaPlayer/queue.json"`
 - 关闭窗口后 queue.json 被覆盖为合法的空队列 JSON
 
-- [ ] **Step 7: 场景 6 —— 空队列状态保留**
+- [x] **Step 7: 场景 6 —— 空队列状态保留**
 
 操作：
 1. 启动（接续场景 5 的空状态）
@@ -975,7 +975,7 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 - 列表仍为空
 - Shuffle 按钮高亮、Repeat 显示 🔁
 
-- [ ] **Step 8: 场景 7 —— 关闭时 in-flight 播放**
+- [x] **Step 8: 场景 7 —— 关闭时 in-flight 播放**
 
 操作：
 1. 用 [+ 添加] 入队 3 首
@@ -990,7 +990,7 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 
 > 由于 `_playToken` 哨兵 + `Cleanup()` 已解绑 TrackEnded，关闭时 in-flight `PlayTrackAtAsync` 即便 await 完成回到 `_player.LoadAsync`，最坏情况下被新创建的 `WasapiOut` 在 `Window.OnExit` 时 Dispose；不影响 queue.json 的写入（SnapshotState 是同步纯读）。
 
-- [ ] **Step 9: 兼容性回归 —— 与 Phase 3 的 settings.json 共存**
+- [x] **Step 9: 兼容性回归 —— 与 Phase 3 的 settings.json 共存**
 
 操作：
 1. 关闭应用
@@ -1001,12 +1001,12 @@ Run: `rm -f "$LOCALAPPDATA/UmaPlayer/queue.json"`（Git Bash）或在资源管�
 
 期望：settings.json 字段未被新增 queue 字段污染；queue.json 的写入与 settings.json 互不影响。
 
-- [ ] **Step 10: 构建零警告确认**
+- [x] **Step 10: 构建零警告确认**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 11: Commit acceptance 标记**
+- [x] **Step 11: Commit acceptance 标记**
 
 ```bash
 git commit --allow-empty -m "test: Phase 4 manual acceptance pass
@@ -1030,7 +1030,7 @@ scenarios verified:
 - Modify: `docs/PROJECT.md`
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: PROJECT.md 顶部状态块**
+- [x] **Step 1: PROJECT.md 顶部状态块**
 
 定位 `docs/PROJECT.md:1-7`：
 
@@ -1056,7 +1056,7 @@ scenarios verified:
 ---
 ```
 
-- [ ] **Step 2: PROJECT.md §1 项目简介**
+- [x] **Step 2: PROJECT.md §1 项目简介**
 
 定位 `docs/PROJECT.md:11`（"## 1. 项目简介" 之后的段落）。
 
@@ -1086,7 +1086,7 @@ scenarios verified:
 | 队列持久化 | 关闭时保存到 `%LocalAppData%\UmaPlayer\queue.json`：路径 + 当前曲位置 + Shuffle + Repeat；启动时恢复（不预加载、不自动播）|
 ```
 
-- [ ] **Step 3: PROJECT.md §1.2 后续增量**
+- [x] **Step 3: PROJECT.md §1.2 后续增量**
 
 定位 §1.2 第一行（PROJECT.md `:29-30` 附近）：
 
@@ -1101,7 +1101,7 @@ scenarios verified:
 - 多个命名播放列表（创建 / 保存 / 加载 / 切换）—— 当前仅支持单个内存队列
 ```
 
-- [ ] **Step 4: PROJECT.md §3 目录结构追加新文件**
+- [x] **Step 4: PROJECT.md §3 目录结构追加新文件**
 
 定位 `Models/` 子树（`docs/PROJECT.md:68-72`）：
 
@@ -1142,7 +1142,7 @@ scenarios verified:
 │   ├── IAudioDeviceManager.cs   # 预留：设备枚举/切换
 ```
 
-- [ ] **Step 5: PROJECT.md §4.2 服务生命周期表追加 IQueuePersistence**
+- [x] **Step 5: PROJECT.md §4.2 服务生命周期表追加 IQueuePersistence**
 
 定位 `docs/PROJECT.md:177-178`（`ISettingsPersistence` 那一行附近）：
 
@@ -1159,7 +1159,7 @@ scenarios verified:
 | `ITrackMetadataReader` | Singleton (Phase 3) | 无状态，封装 z440.atl.core；`ReadAsync` 不抛 |
 ```
 
-- [ ] **Step 6: PROJECT.md §4.3 关键设计决策追加第 10 条**
+- [x] **Step 6: PROJECT.md §4.3 关键设计决策追加第 10 条**
 
 定位 §4.3 末尾（PROJECT.md `:201-203` 附近，第 9 条之后）。在第 9 条 "持久化 read-modify-write 原子化" 块结束后追加：
 
@@ -1167,7 +1167,7 @@ scenarios verified:
 10. **队列持久化（Phase 4）**：新增 `IQueuePersistence` + `JsonQueuePersistence`，平行于 `ISettingsPersistence`，文件 `%LocalAppData%\UmaPlayer\queue.json`。仅存路径 + `CurrentIndex` + `Shuffle` + `RepeatMode`（不存元数据/封面），启动时 `PlaylistViewModel` 在 ctor 同步段读盘并填占位 `Track`，关闭时 `MainWindow.Window_Closing` 调 `Playlist.SnapshotState() → SaveAsync()`。启动后**不预加载**当前曲；`PlayerBar` 的 ▶ 按钮通过 XAML `DataTrigger` 在 `PlayerVM.CurrentTrack==null` 时跨级绑定到新增的 `Playlist.PlayCurrentCommand`，懒加载 + 播放。文件丢失静默跳过；schema 损坏 fallback 空队列。`SchemaVersion=1` 预留未来破坏式升级位。
 ```
 
-- [ ] **Step 7: PROJECT.md §5.4b 列出新方法/命令**
+- [x] **Step 7: PROJECT.md §5.4b 列出新方法/命令**
 
 定位 `docs/PROJECT.md:266-282`（PlaylistViewModel 描述块）。在 `[RelayCommand]` 列表那一行（`:272`）：
 
@@ -1206,7 +1206,7 @@ scenarios verified:
 - **`SnapshotState()` 公开 (Phase 4)**：仅读、无副作用；由 `MainWindow.Window_Closing` 调用打包 `QueueState`
 ```
 
-- [ ] **Step 8: PROJECT.md §6.2 运行时持久化追加 queue.json**
+- [x] **Step 8: PROJECT.md §6.2 运行时持久化追加 queue.json**
 
 定位 `docs/PROJECT.md:322-328`：
 
@@ -1246,7 +1246,7 @@ scenarios verified:
 **仅持久化路径**（不含元数据/封面）。启动时 PlaylistVM 同步读盘并填占位 Track；用户首次按 ▶ / 双击列表项时由 `PlayTrackAtAsync` 升级为完整 Track。文件丢失静默跳过；JSON 损坏 / `SchemaVersion` 不匹配 fallback 空队列且不删旧文件。
 ```
 
-- [ ] **Step 9: PROJECT.md §10 历史与参考追加 Phase 4 设计/计划**
+- [x] **Step 9: PROJECT.md §10 历史与参考追加 Phase 4 设计/计划**
 
 定位 `docs/PROJECT.md:415-424`（设计稿与实现计划列表）。
 
@@ -1299,7 +1299,7 @@ scenarios verified:
 
 > 实际 hash 在每个 commit 之后用 `git log --oneline -15` 获取并填入。
 
-- [ ] **Step 10: COUPLING.md 顶部状态块**
+- [x] **Step 10: COUPLING.md 顶部状态块**
 
 定位 `docs/COUPLING.md:1-5`：
 
@@ -1321,7 +1321,7 @@ scenarios verified:
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4-1 加入队列持久化。剩余债与后续工作详见 §6。
 ```
 
-- [ ] **Step 11: COUPLING.md TL;DR 表格**
+- [x] **Step 11: COUPLING.md TL;DR 表格**
 
 定位 `docs/COUPLING.md:11-17`：
 
@@ -1347,7 +1347,7 @@ scenarios verified:
 | 已识别"过度抽象" | 2 项 | 见 §4 |
 ```
 
-- [ ] **Step 12: COUPLING.md §1 当前架构为什么是健康的 追加一行**
+- [x] **Step 12: COUPLING.md §1 当前架构为什么是健康的 追加一行**
 
 定位 `docs/COUPLING.md:23-29`：
 
@@ -1374,7 +1374,7 @@ scenarios verified:
 ✅ Phase 4-1 队列持久化复用 settings 持久化纪律：独立文件、独立 SemaphoreSlim、catch-all fallback；PlaylistVM ctor 同步段读盘 + Window_Closing 异步写盘单点写者；未引入新抽象层
 ```
 
-- [ ] **Step 13: COUPLING.md §2 依赖图追加 IQueuePersistence**
+- [x] **Step 13: COUPLING.md §2 依赖图追加 IQueuePersistence**
 
 定位 `docs/COUPLING.md:42-43`：
 
@@ -1406,7 +1406,7 @@ scenarios verified:
 | `JsonQueuePersistence` | `IQueuePersistence` (Phase 4) | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
 ```
 
-- [ ] **Step 14: COUPLING.md §5 隐式契约追加 Phase 4 项**
+- [x] **Step 14: COUPLING.md §5 隐式契约追加 Phase 4 项**
 
 定位 `docs/COUPLING.md:184-189`（Phase 3 新增契约块结尾，最后那一项 `IPlaybackService.TrackChanged` 携带 `Track?`）。在 Phase 3 块结束后**追加**：
 
@@ -1419,7 +1419,7 @@ scenarios verified:
 | PlayerBar ▶ 按钮在 `PlayerVM.CurrentTrack==null` 时跨级绑到 `Playlist.PlayCurrentCommand` | XAML DataTrigger 注释 | TrackChanged(null) 触发后 trigger 重新激活；任何让 `CurrentTrack` 短暂为 null 的逻辑都会让按钮闪一下命令变化（Phase 4-1 行为可接受） |
 ```
 
-- [ ] **Step 15: COUPLING.md §6 启动检查清单勾选第 5 项**
+- [x] **Step 15: COUPLING.md §6 启动检查清单勾选第 5 项**
 
 定位 `docs/COUPLING.md:204-208`：
 
@@ -1457,19 +1457,19 @@ scenarios verified:
 **Phase 4+ 候选范围预估：** 拖拽支持 ~4h；多命名播放列表 ~10h+。
 ```
 
-- [ ] **Step 16: 构建验证（仅文档变更，仅检查项目仍可构建）**
+- [x] **Step 16: 构建验证（仅文档变更，仅检查项目仍可构建）**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`
 
-- [ ] **Step 17: Commit**
+- [x] **Step 17: Commit**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md
 git commit -m "docs: update PROJECT.md and COUPLING.md to Phase 4 state"
 ```
 
-- [ ] **Step 18: 回填 Phase 4 commit hashes 到 PROJECT.md（可选搭车修）**
+- [x] **Step 18: 回填 Phase 4 commit hashes 到 PROJECT.md（可选搭车修）**
 
 Run: `git log --oneline -15`
 
@@ -1486,9 +1486,9 @@ git commit -m "docs: backfill Phase 4 commit hashes in PROJECT.md"
 
 ## 完成后建议
 
-- [ ] 运行 `git log --oneline master..HEAD` 检查分支：应有 11 个 commit（spec 1 + 实现 8 + manual acceptance 1 + docs 1，可能 +1 hash backfill）
-- [ ] 切回 master fast-forward 合并：`git checkout master && git merge --ff-only feature/phase4-queue-persistence`，或开 PR
-- [ ] 删除 feature 分支：`git branch -d feature/phase4-queue-persistence`
+- [x] 运行 `git log --oneline master..HEAD` 检查分支：应有 11 个 commit（spec 1 + 实现 8 + manual acceptance 1 + docs 1，可能 +1 hash backfill）
+- [x] 切回 master fast-forward 合并：`git checkout master && git merge --ff-only feature/phase4-queue-persistence`，或开 PR
+- [x] 删除 feature 分支：`git branch -d feature/phase4-queue-persistence`
 
 ---
 

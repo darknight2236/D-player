@@ -16,7 +16,7 @@
 - Create: `Views/Dialogs/SettingsDialog.xaml`
 - Create: `Views/Dialogs/SettingsDialog.xaml.cs`
 
-- [ ] **Step 1: Create SettingsDialog.xaml**
+- [x] **Step 1: Create SettingsDialog.xaml**
 
 ```xml
 <!-- Views/Dialogs/SettingsDialog.xaml -->
@@ -117,7 +117,7 @@
 </Window>
 ```
 
-- [ ] **Step 2: Create SettingsDialog.xaml.cs**
+- [x] **Step 2: Create SettingsDialog.xaml.cs**
 
 ```csharp
 // Views/Dialogs/SettingsDialog.xaml.cs
@@ -185,12 +185,12 @@ public partial class SettingsDialog : Window
 }
 ```
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded, 0 errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Views/Dialogs/SettingsDialog.xaml Views/Dialogs/SettingsDialog.xaml.cs
@@ -205,7 +205,7 @@ git commit -m "feat(view): add SettingsDialog with volume slider (Phase 11)"
 - Modify: `Views/Controls/PlayerBar.xaml:124-134`
 - Modify: `Views/Controls/PlayerBar.xaml.cs`
 
-- [ ] **Step 1: Add gear button to PlayerBar.xaml**
+- [x] **Step 1: Add gear button to PlayerBar.xaml**
 
 在 `Views/Controls/PlayerBar.xaml` 的 Row 2 右侧 `StackPanel`（line 124）中，在 `</StackPanel>` 结束标签之前（line 134 之前）添加 ⚙ 按钮：
 
@@ -246,7 +246,7 @@ git commit -m "feat(view): add SettingsDialog with volume slider (Phase 11)"
             </StackPanel>
 ```
 
-- [ ] **Step 2: Add SettingsBtn_Click handler to PlayerBar.xaml.cs**
+- [x] **Step 2: Add SettingsBtn_Click handler to PlayerBar.xaml.cs**
 
 在 `Views/Controls/PlayerBar.xaml.cs` 的 `using` 区域添加：
 ```csharp
@@ -264,12 +264,12 @@ using UmaPlayer.Views.Dialogs;
     }
 ```
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded, 0 errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Views/Controls/PlayerBar.xaml Views/Controls/PlayerBar.xaml.cs
@@ -284,7 +284,7 @@ git commit -m "feat(view): PlayerBar adds gear button for settings (Phase 11)"
 - Modify: `Views/MainWindow.xaml`
 - Modify: `Views/MainWindow.xaml.cs`
 
-- [ ] **Step 1: Add KeyDown event to MainWindow.xaml**
+- [x] **Step 1: Add KeyDown event to MainWindow.xaml**
 
 在 `Views/MainWindow.xaml` 的 `<Window>` 元素上，在 `Closing="Window_Closing"` 之后添加：
 
@@ -308,7 +308,7 @@ git commit -m "feat(view): PlayerBar adds gear button for settings (Phase 11)"
         KeyDown="MainWindow_KeyDown">
 ```
 
-- [ ] **Step 2: Add MainWindow_KeyDown handler**
+- [x] **Step 2: Add MainWindow_KeyDown handler**
 
 在 `Views/MainWindow.xaml.cs` 的 `using` 区域添加（如果尚不存在）：
 ```csharp
@@ -331,12 +331,12 @@ using UmaPlayer.Views.Dialogs;
     }
 ```
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded, 0 errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Views/MainWindow.xaml Views/MainWindow.xaml.cs
@@ -351,7 +351,7 @@ git commit -m "feat(view): MainWindow adds Ctrl+, shortcut for settings (Phase 1
 - Modify: `docs/PROJECT.md`
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: Update PROJECT.md**
+- [x] **Step 1: Update PROJECT.md**
 
 在 §1 项目简介末尾添加：
 ```
@@ -381,7 +381,7 @@ Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 +
 
 在 §10 历史中添加 Phase 11 条目。
 
-- [ ] **Step 2: Update COUPLING.md**
+- [x] **Step 2: Update COUPLING.md**
 
 在 §2 依赖表中添加行：
 ```
@@ -403,7 +403,7 @@ Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 +
 - ❌ **为 Phase 11 设置对话框加 SettingsViewModel** —— 仅 DefaultVolume 可编辑，对话框直接读写 ISettingsPersistence；Phase 12 音频设置有复杂交互时再加
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md
@@ -414,22 +414,22 @@ git commit -m "docs: update PROJECT.md and COUPLING.md for Phase 11"
 
 ### Task 5: Build + Run + Manual Acceptance
 
-- [ ] **Step 1: Full build**
+- [x] **Step 1: Full build**
 
 Run: `dotnet build UmaPlayer.sln -c Debug`
 Expected: Build succeeded, 0 errors, 0 warnings
 
-- [ ] **Step 2: Run existing tests**
+- [x] **Step 2: Run existing tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj -v minimal`
 Expected: All 76 tests pass (no regressions)
 
-- [ ] **Step 3: Run the app**
+- [x] **Step 3: Run the app**
 
 Run: `dotnet run --project UmaPlayer.csproj`
 Expected: App launches, PlayerBar shows ⚙ button after volume slider
 
-- [ ] **Step 4: Manual acceptance**
+- [x] **Step 4: Manual acceptance**
 
 1. 点击 ⚙ 按钮 → 设置对话框打开，居中显示在主窗口上
 2. 对话框显示当前默认音量（与 PlayerBar 滑块一致）
@@ -441,7 +441,7 @@ Expected: App launches, PlayerBar shows ⚙ button after volume slider
 8. Audio Output 区域显示灰色 "System default — WASAPI Shared"
 9. 工具栏/侧边栏/播放栏所有按钮图标完整显示（无裁切）
 
-- [ ] **Step 5: Final commit (if any fixes needed)**
+- [x] **Step 5: Final commit (if any fixes needed)**
 
 ```bash
 git add -A

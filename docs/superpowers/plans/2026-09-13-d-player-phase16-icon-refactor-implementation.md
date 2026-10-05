@@ -37,7 +37,7 @@
 - Create: `Themes/Icons.xaml`
 - Modify: `App.xaml`
 
-- [ ] **Step 1: 创建 `Themes/Icons.xaml`**（完整内容；几何为 Feather/Lucide 描边路径，24 viewbox）
+- [x] **Step 1: 创建 `Themes/Icons.xaml`**（完整内容；几何为 Feather/Lucide 描边路径，24 viewbox）
 
 ```xml
 <!--
@@ -95,19 +95,19 @@
 </ResourceDictionary>
 ```
 
-- [ ] **Step 2: 在 `App.xaml` 合并 Icons.xaml**
+- [x] **Step 2: 在 `App.xaml` 合并 Icons.xaml**
 
 在 `App.xaml` 的 `<Application.Resources>` / `MergedDictionaries` 中，与 Colors/Fonts/Controls 同级追加：
 ```xml
 <ResourceDictionary Source="Themes/Icons.xaml"/>
 ```
 
-- [ ] **Step 3: 构建验证**
+- [x] **Step 3: 构建验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误（XAML 资源可解析；Geometry path markup 合法）。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Themes/Icons.xaml App.xaml
@@ -124,7 +124,7 @@ git commit -m "feat(theme): add vector icon set Icons.xaml (Phase 16)"
 - Create: `Converters/BoolToVolumeIconConverter.cs`
 - Modify: `ViewModels/PlayerViewModel.cs`
 
-- [ ] **Step 1: `PlayStateToIconConverter` 返回 Geometry**
+- [x] **Step 1: `PlayStateToIconConverter` 返回 Geometry**
 
 把 `Convert` 的返回改为查 Icons 资源：
 ```csharp
@@ -136,7 +136,7 @@ public object Convert(object value, Type targetType, object parameter, CultureIn
 ```
 并在文件顶加 `using System.Windows;`；把类注释与 `[ValueConversion(typeof(PlayState), typeof(string))]` 的目标类型改为 `typeof(Geometry)`（加 `using System.Windows.Media;`）。
 
-- [ ] **Step 2: `RepeatModeToIconConverter` 返回 Geometry**
+- [x] **Step 2: `RepeatModeToIconConverter` 返回 Geometry**
 
 ```csharp
 public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -152,7 +152,7 @@ public object Convert(object value, Type targetType, object parameter, CultureIn
 ```
 同样加 `using System.Windows;` / `using System.Windows.Media;`，`[ValueConversion(typeof(RepeatMode), typeof(Geometry))]`。
 
-- [ ] **Step 3: 新建 `Converters/BoolToVolumeIconConverter.cs`**
+- [x] **Step 3: 新建 `Converters/BoolToVolumeIconConverter.cs`**
 
 ```csharp
 using System.Globalization;
@@ -179,17 +179,17 @@ public sealed class BoolToVolumeIconConverter : IValueConverter
 }
 ```
 
-- [ ] **Step 4: 移除 `PlayerViewModel.VolumeIcon`**
+- [x] **Step 4: 移除 `PlayerViewModel.VolumeIcon`**
 
 在 `ViewModels/PlayerViewModel.cs`：删除 `public string VolumeIcon => IsMuted ? "\U0001F507" : "\U0001F50A";` 一行，以及 `_volume` 与 `_isMuted` 上两处 `[NotifyPropertyChangedFor(nameof(VolumeIcon))]` 特性。
 
-- [ ] **Step 5: 构建 + 测试验证**
+- [x] **Step 5: 构建 + 测试验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q` → 0 错误。
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 96 通过 / 0 失败。
 （注：此时 PlayerBar.xaml 仍绑定旧 VolumeIcon 会编译失败——故本 Task 与 Task 3 需连续完成；若构建因 XAML 绑定 VolumeIcon 报错，属预期，继续 Task 3 即修复。）
 
-- [ ] **Step 6: 提交**（与 Task 3 合并提交亦可；若分开则本步先不提交，待 Task 3 一起）
+- [x] **Step 6: 提交**（与 Task 3 合并提交亦可；若分开则本步先不提交，待 Task 3 一起）
 
 ---
 
@@ -198,14 +198,14 @@ Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 96 通过 / 0 失败�
 **Files:**
 - Modify: `Views/Controls/PlayerBar.xaml`
 
-- [ ] **Step 1: 在 PlayerBar.Resources 注册新转换器**
+- [x] **Step 1: 在 PlayerBar.Resources 注册新转换器**
 
 在 `<UserControl.Resources>` 内（BoolToAccentBrush 之后）追加：
 ```xml
 <converters:BoolToVolumeIconConverter x:Key="BoolToVolumeIcon"/>
 ```
 
-- [ ] **Step 2: 逐个替换 emoji TextBlock 为 Path**（before → after）
+- [x] **Step 2: 逐个替换 emoji TextBlock 为 Path**（before → after）
 
 | before | after |
 |--------|-------|
@@ -220,12 +220,12 @@ Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 96 通过 / 0 失败�
 
 （保留各 Button 的 Width/Height/Margin/ToolTip/Click 不变；仅换内部图标元素。删除被换掉 TextBlock 上的 `FontFamily="Segoe UI Emoji"`。）
 
-- [ ] **Step 3: 构建 + 测试验证**
+- [x] **Step 3: 构建 + 测试验证**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q` → 0 错误（此时 Task 2 的 VolumeIcon 移除不再报错，因 XAML 已改绑 IsMuted+BoolToVolumeIcon）。
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 96 通过 / 0 失败。
 
-- [ ] **Step 4: 提交**（含 Task 2 改动一起）
+- [x] **Step 4: 提交**（含 Task 2 改动一起）
 
 ```bash
 git add Converters/ ViewModels/PlayerViewModel.cs Views/Controls/PlayerBar.xaml
@@ -240,7 +240,7 @@ git commit -m "refactor(view): vector icons for PlayerBar + converters return Ge
 - Modify: `Views/Controls/PlaylistView.xaml`
 - Modify: `Views/Controls/PlaylistView.xaml.cs`
 
-- [ ] **Step 1: marker TextBlock → Path**
+- [x] **Step 1: marker TextBlock → Path**
 
 把 `<TextBlock x:Name="PART_Marker" Grid.Column="0" Text="" FontSize="11" Foreground="{StaticResource AccentPrimary}" …/>` 替换为：
 ```xml
@@ -250,24 +250,24 @@ git commit -m "refactor(view): vector icons for PlayerBar + converters return Ge
       VerticalAlignment="Center"/>
 ```
 
-- [ ] **Step 2: code-behind marker 逻辑改 Visibility + 泛型改 Path**
+- [x] **Step 2: code-behind marker 逻辑改 Visibility + 泛型改 Path**
 
 在 `PlaylistView.xaml.cs`：
 - `RefreshCurrentIndicator` 中 `FindChildByName<TextBlock>(container, "PART_Marker")` → `FindChildByName<Path>(container, "PART_Marker")`（变量类型改 `Path`）。
 - `marker.Text = isCurrent ? "▶" : "";` → `marker.Visibility = isCurrent ? Visibility.Visible : Visibility.Collapsed;`
 
-- [ ] **Step 3: 其余图标替换**
+- [x] **Step 3: 其余图标替换**
 
 - 🔄 刷新：`<TextBlock Text="🔄" FontSize="14" …/>` → `<Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Refresh}" Stroke="{StaticResource ForegroundPrimary}"/>`
 - × 删除：`<Button Grid.Column="6" Content="×" …/>` 的 Content 改为 `<Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Close}" Stroke="{StaticResource ForegroundSecondary}"/>`
 - “+ 添加”：`<TextBlock Text="+ 添加" FontSize="12"/>` → `<StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Plus}" Stroke="{StaticResource ForegroundPrimary}"/><TextBlock Text="添加" FontSize="12" Margin="4,0,0,0"/></StackPanel>`
 - “清空”：`<TextBlock Text="清空" FontSize="12"/>` → `<StackPanel Orientation="Horizontal"><Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Clear}" Stroke="{StaticResource ForegroundPrimary}"/><TextBlock Text="清空" FontSize="12" Margin="4,0,0,0"/></StackPanel>`
 
-- [ ] **Step 4: 构建 + 测试验证**
+- [x] **Step 4: 构建 + 测试验证**
 
 Run: `dotnet build …` → 0 错误；`dotnet test …` → 96 通过。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add Views/Controls/PlaylistView.xaml Views/Controls/PlaylistView.xaml.cs
@@ -282,12 +282,12 @@ git commit -m "refactor(view): vector icons for PlaylistView incl. play marker (
 - Modify: `Views/Controls/PlaylistsSidebarView.xaml`
 - Modify: `Views/Controls/PlaylistsSidebarView.xaml.cs`
 
-- [ ] **Step 1: +/− 按钮 Content → Path**
+- [x] **Step 1: +/− 按钮 Content → Path**
 
 - `Content="+"` → `Content` 改为 `<Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Plus}" Stroke="{StaticResource ForegroundPrimary}"/>`
 - `Content="−"` → `<Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Minus}" Stroke="{StaticResource ForegroundPrimary}"/>`
 
-- [ ] **Step 2: 活跃标记 marker TextBlock → Path（x:Name）**
+- [x] **Step 2: 活跃标记 marker TextBlock → Path（x:Name）**
 
 在歌单 DataTemplate 中，把作为第 0 列的 marker `TextBlock` 替换为：
 ```xml
@@ -297,21 +297,21 @@ git commit -m "refactor(view): vector icons for PlaylistView incl. play marker (
       VerticalAlignment="Center"/>
 ```
 
-- [ ] **Step 3: folder / scanning 图标 → Path**
+- [x] **Step 3: folder / scanning 图标 → Path**
 
 在 DataTemplate 中定位 `Text="📂"` 与 `Text="🔄"` 的 TextBlock，分别替换为：
 - `<Path Style="{StaticResource IconPath}" Width="14" Height="14" Data="{StaticResource Icon.Folder}" Stroke="{StaticResource ForegroundSecondary}"/>`
 - `<Path Style="{StaticResource IconPath}" Width="12" Height="12" Data="{StaticResource Icon.Refresh}" Stroke="{StaticResource ForegroundSecondary}"/>`
 
-- [ ] **Step 4: code-behind RefreshActiveMarker 改 Path + Visibility**
+- [x] **Step 4: code-behind RefreshActiveMarker 改 Path + Visibility**
 
 在 `PlaylistsSidebarView.xaml.cs`：`FindChildByOrder<TextBlock>(container, 0)` → 改用 `FindChildByName<Path>(container, "PART_SidebarMarker")`；`marker.Text = vm.IsActivePlaylist ? "▶" : string.Empty;` → `marker.Visibility = vm.IsActivePlaylist ? Visibility.Visible : Visibility.Collapsed;`。
 
-- [ ] **Step 5: 构建 + 测试验证**
+- [x] **Step 5: 构建 + 测试验证**
 
 Run: `dotnet build …` → 0 错误；`dotnet test …` → 96 通过。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Views/Controls/PlaylistsSidebarView.xaml Views/Controls/PlaylistsSidebarView.xaml.cs
@@ -325,13 +325,13 @@ git commit -m "refactor(view): vector icons for sidebar incl. active marker (Pha
 **Files:**
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: 更新 §5 两条 marker 契约**
+- [x] **Step 1: 更新 §5 两条 marker 契约**
 
 把 §5 中「`PlaylistView.RefreshCurrentIndicator` 改用 `FindChildByName`（PART_Marker / PART_Title）」与「`PlaylistsSidebarView.RefreshActiveMarker` 用 `FindChildByOrder<TextBlock>(container, 0)`」两条契约更新为 Phase 16 后现状：
 - marker 元素类型由 `TextBlock` 改为 `Path`（`PART_Marker` / `PART_SidebarMarker`），code-behind 用 `FindChildByName<Path>` 定位并切 `Visibility`（不再写 `Text`）；Sidebar 不再用 `FindChildByOrder`（改 x:Name）。
 - 补一句：图标均为 `Themes/Icons.xaml` 矢量 `Geometry`，活跃态经 `BoolToAccentBrush` 着 `Path.Stroke`；VM 无 emoji/图标类型（`VolumeIcon` 已移除）。
 
-- [ ] **Step 2: 提交**
+- [x] **Step 2: 提交**
 
 ```bash
 git add docs/COUPLING.md
@@ -344,12 +344,12 @@ git commit -m "docs: update COUPLING.md marker/icon contracts for Phase 16"
 
 **Files:** 无代码改动（验证）
 
-- [ ] **Step 1: 构建 + 全量测试**
+- [x] **Step 1: 构建 + 全量测试**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q` → 0 错误。
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 96 通过 / 0 失败。
 
-- [ ] **Step 2: 启动应用 + ComputerUse 截图验收**
+- [x] **Step 2: 启动应用 + ComputerUse 截图验收**
 
 启动 `bin\Debug\net10.0-windows\D-player.exe`，用 ComputerUse 子代理截图并核对：
 1. PlayerBar：⏮ ▶/⏸ ⏭ 🔀 🔁 🎚 ⚙ 均为**描边矢量图标**（非 emoji），尺寸协调；
@@ -360,7 +360,7 @@ Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 96 通过 / 0 失败�
 6. **无 emoji 残留**（全窗口截图检查）。
 返回截图路径；主代理独立读取≥ 2 张复核。
 
-- [ ] **Step 3: 关闭应用；如有文档微调则提交**
+- [x] **Step 3: 关闭应用；如有文档微调则提交**
 
 ```bash
 git add -A

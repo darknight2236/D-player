@@ -29,7 +29,7 @@
 **Files:**
 - Modify: `Themes/Colors.xaml`
 
-- [ ] **Step 1: 更新色板**
+- [x] **Step 1: 更新色板**
 
 将 `Colors.xaml` 的完整内容替换为：
 
@@ -70,12 +70,12 @@
 - `ForegroundDisabled`: `#606070` → `#6C6C80`（禁用态可见性提升）
 - 新增 `DangerHover`: `#FF6B6B`（删除按钮悬停红）
 
-- [ ] **Step 2: 确认编译通过**
+- [x] **Step 2: 确认编译通过**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug --no-restore`
 Expected: BUILD SUCCEEDED
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Themes/Colors.xaml
@@ -89,7 +89,7 @@ git commit -m "feat(theme): adjust color palette — improve selected/disabled c
 **Files:**
 - Modify: `Themes/Controls.xaml`
 
-- [ ] **Step 1: 替换 Button 样式，添加动画过渡**
+- [x] **Step 1: 替换 Button 样式，添加动画过渡**
 
 将 `Controls.xaml` 中的 Button 样式（从 `<Style TargetType="Button">` 到对应的 `</Style>`）替换为：
 
@@ -132,12 +132,12 @@ git commit -m "feat(theme): adjust color palette — improve selected/disabled c
 
 注意：WPF Trigger 的 Setter 无法直接做动画（需要 EventTrigger + Storyboard）。当前方案用 Trigger 实现即时切换。如果需要真正的 0.15s 过渡，需要改用 EventTrigger + ColorAnimation，但这会让模板显著复杂化（每个 Trigger 需要 Enter/Exit 两个 EventTrigger + Storyboard），且 `BasedOn` 链会断裂。**当前方案不做动画，保持即时切换。** 后续可通过 Behavior 或自定义控件实现。
 
-- [ ] **Step 2: 确认编译通过**
+- [x] **Step 2: 确认编译通过**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug --no-restore`
 Expected: BUILD SUCCEEDED
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Themes/Controls.xaml
@@ -151,7 +151,7 @@ git commit -m "feat(theme): Button style — improved hover/pressed states"
 **Files:**
 - Modify: `Views/MainWindow.xaml`
 
-- [ ] **Step 1: 调整 Grid 行顺序，PlayerBar 移到底部**
+- [x] **Step 1: 调整 Grid 行顺序，PlayerBar 移到底部**
 
 将 `MainWindow.xaml` 的 Grid 内容替换为：
 
@@ -190,12 +190,12 @@ git commit -m "feat(theme): Button style — improved hover/pressed states"
 - Row 1: `*` → `Auto`（PlayerBar 底部自适应高度）
 - PlayerBar 从 Grid.Row="0" 移到 Grid.Row="1"
 
-- [ ] **Step 2: 确认编译通过**
+- [x] **Step 2: 确认编译通过**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug --no-restore`
 Expected: BUILD SUCCEEDED
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Views/MainWindow.xaml
@@ -209,7 +209,7 @@ git commit -m "feat(view): move PlayerBar to bottom (Spotify-style layout)"
 **Files:**
 - Modify: `Views/Controls/PlayerBar.xaml`
 
-- [ ] **Step 1: 替换完整 PlayerBar XAML**
+- [x] **Step 1: 替换完整 PlayerBar XAML**
 
 将 `PlayerBar.xaml` 的完整内容替换为：
 
@@ -385,12 +385,12 @@ git commit -m "feat(view): move PlayerBar to bottom (Spotify-style layout)"
 - 停止/下一首/打开按钮：统一 `Margin="8,0,0,0"`
 - ⚙ ToolTip: `Settings (Ctrl+,)` → `设置 (Ctrl+,)`
 
-- [ ] **Step 2: 确认编译通过**
+- [x] **Step 2: 确认编译通过**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug --no-restore`
 Expected: BUILD SUCCEEDED
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Views/Controls/PlayerBar.xaml
@@ -404,7 +404,7 @@ git commit -m "feat(view): PlayerBar — round play button, unified spacing, cor
 **Files:**
 - Modify: `Views/Controls/PlaylistView.xaml`
 
-- [ ] **Step 1: 替换完整 PlaylistView XAML**
+- [x] **Step 1: 替换完整 PlaylistView XAML**
 
 将 `PlaylistView.xaml` 的完整内容替换为：
 
@@ -629,12 +629,12 @@ git commit -m "feat(view): PlayerBar — round play button, unified spacing, cor
 - 删除按钮悬停变红（`DangerHover`）
 - Resources 新增 `TimeSpanToString` 转换器
 
-- [ ] **Step 2: 确认编译通过**
+- [x] **Step 2: 确认编译通过**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug --no-restore`
 Expected: BUILD SUCCEEDED
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Views/Controls/PlaylistView.xaml
@@ -648,7 +648,7 @@ git commit -m "feat(view): PlaylistView — header row, duration column, row div
 **Files:**
 - Modify: `Views/Controls/PlaylistsSidebarView.xaml`
 
-- [ ] **Step 1: 替换完整 PlaylistsSidebarView XAML**
+- [x] **Step 1: 替换完整 PlaylistsSidebarView XAML**
 
 将 `PlaylistsSidebarView.xaml` 的完整内容替换为：
 
@@ -781,12 +781,12 @@ git commit -m "feat(view): PlaylistView — header row, duration column, row div
 - 图标列宽从 16 → 20
 - 默认图标从空 → 🎵（手动歌单），📂 保留（文件夹歌单），🔄 保留（扫描中）
 
-- [ ] **Step 2: 确认编译通过**
+- [x] **Step 2: 确认编译通过**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug --no-restore`
 Expected: BUILD SUCCEEDED
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Views/Controls/PlaylistsSidebarView.xaml
@@ -801,7 +801,7 @@ git commit -m "feat(view): Sidebar — music/folder icons, selected state backgr
 - Modify: `docs/PROJECT.md`
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: 更新 PROJECT.md**
+- [x] **Step 1: 更新 PROJECT.md**
 
 在 §1.1 表格中更新 UI 相关描述。
 
@@ -809,11 +809,11 @@ git commit -m "feat(view): Sidebar — music/folder icons, selected state backgr
 
 更新 header 日期和阶段。
 
-- [ ] **Step 2: 更新 COUPLING.md**
+- [x] **Step 2: 更新 COUPLING.md**
 
 更新 header 日期和阶段。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md
@@ -826,27 +826,27 @@ git commit -m "docs: update PROJECT.md and COUPLING.md for Phase 12 UI refactor"
 
 **无文件变更**
 
-- [ ] **Step 1: 启动应用，检查 PlayerBar 位置**
+- [x] **Step 1: 启动应用，检查 PlayerBar 位置**
 
 确认 PlayerBar 在窗口底部显示。
 
-- [ ] **Step 2: 检查圆形播放键**
+- [x] **Step 2: 检查圆形播放键**
 
 确认播放/暂停按钮为圆形紫色背景，悬停/按下有视觉反馈。
 
-- [ ] **Step 3: 检查 PlaylistView**
+- [x] **Step 3: 检查 PlaylistView**
 
 确认有表头行、时长列、行分隔线、删除按钮悬停变红。
 
-- [ ] **Step 4: 检查 Sidebar**
+- [x] **Step 4: 检查 Sidebar**
 
 确认每项有 🎵/📂 图标，选中态有完整背景色。
 
-- [ ] **Step 5: 检查整体视觉**
+- [x] **Step 5: 检查整体视觉**
 
 确认间距/圆角统一，按钮悬停有视觉反馈。
 
-- [ ] **Step 6: Commit 验收状态**
+- [x] **Step 6: Commit 验收状态**
 
 ```bash
 git commit --allow-empty -m "test: Phase 12 UI refactor manual acceptance pass"

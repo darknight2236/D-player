@@ -20,7 +20,7 @@
 - Modify: `Services/JsonPlaylistService.cs:107-121` (Seed 构造)
 - Modify: `Services/JsonPlaylistService.cs:137-144` (MigrateV1ToV2 构造)
 
-- [ ] **Step 1: Add SourceFolder to Playlist record**
+- [x] **Step 1: Add SourceFolder to Playlist record**
 
 ```csharp
 // Models/Playlist.cs — 替换整个文件
@@ -42,7 +42,7 @@ public sealed record Playlist(
     string? SourceFolder = null);
 ```
 
-- [ ] **Step 2: Update QueueState to schema v3**
+- [x] **Step 2: Update QueueState to schema v3**
 
 ```csharp
 // Models/QueueState.cs — 替换整个文件
@@ -62,7 +62,7 @@ public sealed record QueueState
 }
 ```
 
-- [ ] **Step 3: Update JsonPlaylistService for v3**
+- [x] **Step 3: Update JsonPlaylistService for v3**
 
 在 `Services/JsonPlaylistService.cs` 中：
 1. 把 `CurrentSchemaVersion` 从 `2` 改为 `3`
@@ -90,23 +90,23 @@ if (version is 2 or 3)
 }
 ```
 
-- [ ] **Step 4: Update all Playlist construction sites**
+- [x] **Step 4: Update all Playlist construction sites**
 
 PlaylistsViewModel.cs 中有两处 `new Playlist(...)` 构造（AddPlaylist 和 RemovePlaylist 的 defaultSeed）。它们已经用了命名参数，`SourceFolder` 有默认值 `null`，所以**不需要修改**——编译器会自动应用默认值。
 
 同样，JsonPlaylistService.cs 的 Seed() 和 MigrateV1ToV2 中的构造也不需要改。
 
-- [ ] **Step 5: Build and verify compilation**
+- [x] **Step 5: Build and verify compilation**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded, 0 errors
 
-- [ ] **Step 6: Run existing tests**
+- [x] **Step 6: Run existing tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj -v minimal`
 Expected: All 54 tests pass (no regressions)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Models/Playlist.cs Models/QueueState.cs Services/JsonPlaylistService.cs
@@ -121,7 +121,7 @@ git commit -m "feat(models): add Playlist.SourceFolder + QueueState v3 (Phase 10
 - Create: `Models/LibraryCacheEntry.cs`
 - Create: `Models/LibraryDiff.cs`
 
-- [ ] **Step 1: Create LibraryCacheEntry record**
+- [x] **Step 1: Create LibraryCacheEntry record**
 
 ```csharp
 // Models/LibraryCacheEntry.cs
@@ -143,7 +143,7 @@ public sealed record LibraryCacheEntry(
     int? SampleRate);
 ```
 
-- [ ] **Step 2: Create LibraryDiff record**
+- [x] **Step 2: Create LibraryDiff record**
 
 ```csharp
 // Models/LibraryDiff.cs
@@ -161,12 +161,12 @@ public sealed record LibraryDiff(
     IReadOnlyList<LibraryCacheEntry> Unchanged);
 ```
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Models/LibraryCacheEntry.cs Models/LibraryDiff.cs
@@ -182,7 +182,7 @@ git commit -m "feat(models): add LibraryCacheEntry + LibraryDiff records (Phase 
 - Create: `Services/LibraryScannerService.cs`
 - Create: `Tests/Services/LibraryScannerServiceTests.cs`
 
-- [ ] **Step 1: Write ScanFolder tests**
+- [x] **Step 1: Write ScanFolder tests**
 
 ```csharp
 // Tests/Services/LibraryScannerServiceTests.cs
@@ -272,12 +272,12 @@ public class LibraryScannerServiceTests : IDisposable
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~LibraryScannerServiceTests" -v minimal`
 Expected: FAIL — `LibraryScannerService` does not exist
 
-- [ ] **Step 3: Create ILibraryScannerService interface**
+- [x] **Step 3: Create ILibraryScannerService interface**
 
 ```csharp
 // Services/ILibraryScannerService.cs
@@ -309,7 +309,7 @@ public interface ILibraryScannerService
 }
 ```
 
-- [ ] **Step 4: Implement LibraryScannerService**
+- [x] **Step 4: Implement LibraryScannerService**
 
 ```csharp
 // Services/LibraryScannerService.cs
@@ -451,12 +451,12 @@ public sealed class LibraryScannerService : ILibraryScannerService
 }
 ```
 
-- [ ] **Step 5: Run ScanFolder tests**
+- [x] **Step 5: Run ScanFolder tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~LibraryScannerServiceTests" -v minimal`
 Expected: All 5 ScanFolder tests pass
 
-- [ ] **Step 6: Write ComputeDiff tests**
+- [x] **Step 6: Write ComputeDiff tests**
 
 追加到 `Tests/Services/LibraryScannerServiceTests.cs`：
 
@@ -568,12 +568,12 @@ Expected: All 5 ScanFolder tests pass
     }
 ```
 
-- [ ] **Step 7: Run ComputeDiff tests**
+- [x] **Step 7: Run ComputeDiff tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~LibraryScannerServiceTests" -v minimal`
 Expected: All tests pass
 
-- [ ] **Step 8: Write ReadMetadataBatchAsync tests**
+- [x] **Step 8: Write ReadMetadataBatchAsync tests**
 
 追加到测试文件：
 
@@ -618,12 +618,12 @@ Expected: All tests pass
     }
 ```
 
-- [ ] **Step 9: Run all LibraryScannerService tests**
+- [x] **Step 9: Run all LibraryScannerService tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~LibraryScannerServiceTests" -v minimal`
 Expected: All tests pass
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add Services/ILibraryScannerService.cs Services/LibraryScannerService.cs Tests/Services/LibraryScannerServiceTests.cs
@@ -639,7 +639,7 @@ git commit -m "feat(services): add ILibraryScannerService + LibraryScannerServic
 - Create: `Services/JsonLibraryCache.cs`
 - Create: `Tests/Services/JsonLibraryCacheTests.cs`
 
-- [ ] **Step 1: Write tests**
+- [x] **Step 1: Write tests**
 
 ```csharp
 // Tests/Services/JsonLibraryCacheTests.cs
@@ -765,12 +765,12 @@ public class JsonLibraryCacheTests : IDisposable
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~JsonLibraryCacheTests" -v minimal`
 Expected: FAIL — `JsonLibraryCache` does not exist
 
-- [ ] **Step 3: Create ILibraryCache interface**
+- [x] **Step 3: Create ILibraryCache interface**
 
 ```csharp
 // Services/ILibraryCache.cs
@@ -790,7 +790,7 @@ public interface ILibraryCache
 }
 ```
 
-- [ ] **Step 4: Implement JsonLibraryCache**
+- [x] **Step 4: Implement JsonLibraryCache**
 
 ```csharp
 // Services/JsonLibraryCache.cs
@@ -906,12 +906,12 @@ public sealed class JsonLibraryCache : ILibraryCache
 }
 ```
 
-- [ ] **Step 5: Run all JsonLibraryCache tests**
+- [x] **Step 5: Run all JsonLibraryCache tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~JsonLibraryCacheTests" -v minimal`
 Expected: All tests pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Services/ILibraryCache.cs Services/JsonLibraryCache.cs Tests/Services/JsonLibraryCacheTests.cs
@@ -926,7 +926,7 @@ git commit -m "feat(services): add ILibraryCache + JsonLibraryCache (Phase 10)"
 - Modify: `Services/IFileDialogService.cs`
 - Modify: `Services/Win32FileDialogService.cs`
 
-- [ ] **Step 1: Add OpenFolder to IFileDialogService**
+- [x] **Step 1: Add OpenFolder to IFileDialogService**
 
 ```csharp
 // Services/IFileDialogService.cs — 替换整个文件
@@ -957,7 +957,7 @@ public interface IFileDialogService
 }
 ```
 
-- [ ] **Step 2: Implement OpenFolder in Win32FileDialogService**
+- [x] **Step 2: Implement OpenFolder in Win32FileDialogService**
 
 ```csharp
 // Services/Win32FileDialogService.cs — 替换整个文件
@@ -1002,17 +1002,17 @@ public sealed class Win32FileDialogService : IFileDialogService
 
 > **注意**: `OpenFolderDialog` 是 .NET 8+ WPF 内置的。如果目标框架不支持，需改用 `System.Windows.Forms.FolderBrowserDialog`（需引用 `Microsoft.Windows.Compatibility` NuGet 包）。当前项目用 `net10.0-windows`，应直接可用。
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded
 
-- [ ] **Step 4: Run existing tests (确保 mock 接口兼容)**
+- [x] **Step 4: Run existing tests (确保 mock 接口兼容)**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj -v minimal`
 Expected: All tests pass（NSubstitute 自动 mock 新方法，无需改测试）
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Services/IFileDialogService.cs Services/Win32FileDialogService.cs
@@ -1026,7 +1026,7 @@ git commit -m "feat(services): add IFileDialogService.OpenFolder (Phase 10)"
 **Files:**
 - Modify: `Extensions/ServiceCollectionExtensions.cs`
 
-- [ ] **Step 1: Add registrations**
+- [x] **Step 1: Add registrations**
 
 ```csharp
 // Extensions/ServiceCollectionExtensions.cs — 在 ITrackMetadataReader 注册之后、ViewModel 之前插入
@@ -1103,12 +1103,12 @@ public static class ServiceCollectionExtensions
 }
 ```
 
-- [ ] **Step 2: Build and verify**
+- [x] **Step 2: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Extensions/ServiceCollectionExtensions.cs
@@ -1123,7 +1123,7 @@ git commit -m "feat(di): register ILibraryScannerService + ILibraryCache (Phase 
 - Modify: `ViewModels/PlaylistViewModel.cs`
 - Create: `Tests/ViewModels/PlaylistViewModelLibraryTests.cs`
 
-- [ ] **Step 1: Write tests**
+- [x] **Step 1: Write tests**
 
 ```csharp
 // Tests/ViewModels/PlaylistViewModelLibraryTests.cs
@@ -1197,12 +1197,12 @@ public class PlaylistViewModelLibraryTests
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~PlaylistViewModelLibraryTests" -v minimal`
 Expected: FAIL — `IsScanning` / `HasScanError` not found
 
-- [ ] **Step 3: Add properties to PlaylistViewModel**
+- [x] **Step 3: Add properties to PlaylistViewModel**
 
 在 `ViewModels/PlaylistViewModel.cs` 中：
 
@@ -1251,17 +1251,17 @@ Expected: FAIL — `IsScanning` / `HasScanError` not found
     public bool HasSourceFolder => SourceFolder is not null;
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~PlaylistViewModelLibraryTests" -v minimal`
 Expected: All 4 tests pass
 
-- [ ] **Step 5: Run all tests**
+- [x] **Step 5: Run all tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj -v minimal`
 Expected: All tests pass (no regressions)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ViewModels/PlaylistViewModel.cs Tests/ViewModels/PlaylistViewModelLibraryTests.cs
@@ -1276,7 +1276,7 @@ git commit -m "feat(vm): add PlaylistViewModel.IsScanning/HasScanError (Phase 10
 - Modify: `ViewModels/PlaylistsViewModel.cs`
 - Create: `Tests/ViewModels/PlaylistsViewModelLibraryTests.cs`
 
-- [ ] **Step 1: Write ImportFolder tests**
+- [x] **Step 1: Write ImportFolder tests**
 
 ```csharp
 // Tests/ViewModels/PlaylistsViewModelLibraryTests.cs
@@ -1454,12 +1454,12 @@ public class PlaylistsViewModelLibraryTests
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj --filter "FullyQualifiedName~PlaylistsViewModelLibraryTests" -v minimal`
 Expected: FAIL — constructor / methods not found
 
-- [ ] **Step 3: Modify PlaylistsViewModel constructor and add fields**
+- [x] **Step 3: Modify PlaylistsViewModel constructor and add fields**
 
 在 `ViewModels/PlaylistsViewModel.cs` 中：
 
@@ -1923,16 +1923,16 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
 > **注意**: `RescanSinglePlaylistAsync` 中直接操作 `vm.Queue.RemoveAt(idx)` + 手动调整 `vm.CurrentIndex`，不通过 `RemoveTrackCommand`（后者会 `_playToken++` 且是 private）。后台扫描是同步批量操作，不需要顶替 playToken。
 
-- [ ] **Step 4: Update existing PlaylistsViewModelTests**
+- [x] **Step 4: Update existing PlaylistsViewModelTests**
 
 现有测试使用 `new PlaylistsViewModel(seed => CreatePlaylistVm(seed.Id, seed.Name))` —— 这是无注入构造函数，已通过 `Null*` 实现保留兼容。无需修改现有测试。
 
-- [ ] **Step 5: Run all tests**
+- [x] **Step 5: Run all tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj -v minimal`
 Expected: All tests pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ViewModels/PlaylistsViewModel.cs Tests/ViewModels/PlaylistsViewModelLibraryTests.cs
@@ -1946,7 +1946,7 @@ git commit -m "feat(vm): add PlaylistsViewModel ImportFolder/Rescan/Refresh (Pha
 **Files:**
 - Modify: `ViewModels/MainViewModel.cs`
 
-- [ ] **Step 1: Add RescanFolderBoundPlaylistsAsync call**
+- [x] **Step 1: Add RescanFolderBoundPlaylistsAsync call**
 
 在 `ViewModels/MainViewModel.cs` 的 `InitializeAsync` 方法中，`_hydrated = true;` 之前添加：
 
@@ -1971,17 +1971,17 @@ git commit -m "feat(vm): add PlaylistsViewModel ImportFolder/Rescan/Refresh (Pha
     }
 ```
 
-- [ ] **Step 2: Build and verify**
+- [x] **Step 2: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded
 
-- [ ] **Step 3: Run all tests**
+- [x] **Step 3: Run all tests**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj -v minimal`
 Expected: All tests pass
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add ViewModels/MainViewModel.cs
@@ -1995,7 +1995,7 @@ git commit -m "feat(vm): MainViewModel.InitializeAsync triggers background resca
 **Files:**
 - Modify: `Views/Controls/PlaylistView.xaml`
 
-- [ ] **Step 1: Add ImportFolder button to toolbar**
+- [x] **Step 1: Add ImportFolder button to toolbar**
 
 在 `Views/Controls/PlaylistView.xaml` 中，工具栏左侧 StackPanel 内，在「清空」按钮之后添加「📂 导入文件夹」按钮：
 
@@ -2016,7 +2016,7 @@ git commit -m "feat(vm): MainViewModel.InitializeAsync triggers background resca
             </StackPanel>
 ```
 
-- [ ] **Step 2: Add Refresh button to right side toolbar**
+- [x] **Step 2: Add Refresh button to right side toolbar**
 
 在右侧 StackPanel（随机/循环按钮）之前，添加一个刷新按钮，仅在文件夹绑定歌单时显示：
 
@@ -2078,12 +2078,12 @@ git commit -m "feat(vm): MainViewModel.InitializeAsync triggers background resca
                 </Button>
 ```
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Views/Controls/PlaylistView.xaml ViewModels/PlaylistViewModel.cs
@@ -2097,7 +2097,7 @@ git commit -m "feat(view): PlaylistView toolbar adds ImportFolder + Refresh butt
 **Files:**
 - Modify: `Views/Controls/PlaylistsSidebarView.xaml`
 
-- [ ] **Step 1: Add 📂 prefix and 🔄 scanning indicator**
+- [x] **Step 1: Add 📂 prefix and 🔄 scanning indicator**
 
 在 `PlaylistsSidebarView.xaml` 的 DataTemplate 中，修改列布局为 3 列：▶ 标记 | 📂/🔄 前缀 | 歌单名。
 
@@ -2160,12 +2160,12 @@ git commit -m "feat(view): PlaylistView toolbar adds ImportFolder + Refresh butt
                             </Style.Triggers>
 ```
 
-- [ ] **Step 2: Build and verify**
+- [x] **Step 2: Build and verify**
 
 Run: `dotnet build UmaPlayer.csproj -c Debug`
 Expected: Build succeeded
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Views/Controls/PlaylistsSidebarView.xaml
@@ -2180,7 +2180,7 @@ git commit -m "feat(view): sidebar shows 📂 for folder-bound playlists + 🔄 
 - Modify: `docs/PROJECT.md`
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: Update PROJECT.md**
+- [x] **Step 1: Update PROJECT.md**
 
 在 §1.1 关键特性表格中添加 Phase 10 行：
 
@@ -2204,13 +2204,13 @@ git commit -m "feat(view): sidebar shows 📂 for folder-bound playlists + 🔄 
 
 在 §10 历史中添加 Phase 10 commit。
 
-- [ ] **Step 2: Update COUPLING.md**
+- [x] **Step 2: Update COUPLING.md**
 
 在 §5 隐式契约表中添加 Phase 10 新契约。
 
 在 §6 Phase 7 启动检查清单中更新 Phase 10 候选状态。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md
@@ -2221,17 +2221,17 @@ git commit -m "docs: update PROJECT.md and COUPLING.md for Phase 10"
 
 ### Task 13: Full test suite + manual acceptance
 
-- [ ] **Step 1: Run complete test suite**
+- [x] **Step 1: Run complete test suite**
 
 Run: `dotnet test Tests/UmaPlayer.Tests.csproj -v normal`
 Expected: All tests pass (existing 54 + new ~25 = ~79 tests)
 
-- [ ] **Step 2: Build and run the app**
+- [x] **Step 2: Build and run the app**
 
 Run: `dotnet run --project UmaPlayer.csproj`
 Expected: App launches, sidebar shows existing playlists, PlaylistView toolbar has 「📂 导入文件夹」button
 
-- [ ] **Step 3: Manual acceptance test**
+- [x] **Step 3: Manual acceptance test**
 
 1. 点击「📂 导入文件夹」→ 选择一个包含音频文件的文件夹
 2. 验证：sidebar 出现新歌单（带 📂 前缀），PlaylistView 显示扫描到的曲目
@@ -2239,7 +2239,7 @@ Expected: App launches, sidebar shows existing playlists, PlaylistView toolbar h
 4. 验证：文件夹绑定歌单仍存在，曲目从缓存加载
 5. 验证：sidebar 🔄 指示短暂出现后消失（后台扫描完成）
 
-- [ ] **Step 4: Final commit (if any fixes needed)**
+- [x] **Step 4: Final commit (if any fixes needed)**
 
 ```bash
 git add -A

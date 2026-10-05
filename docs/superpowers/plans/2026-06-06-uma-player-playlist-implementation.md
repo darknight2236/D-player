@@ -72,7 +72,7 @@
 - Modify: `Services/IFileDialogService.cs`
 - Modify: `Services/Win32FileDialogService.cs`
 
-- [ ] **Step 1: 修改接口签名（保持向下兼容）**
+- [x] **Step 1: 修改接口签名（保持向下兼容）**
 
 替换 `Services/IFileDialogService.cs` 的整个 interface 定义：
 
@@ -98,7 +98,7 @@ public interface IFileDialogService
 }
 ```
 
-- [ ] **Step 2: 修改实现类**
+- [x] **Step 2: 修改实现类**
 
 替换 `Services/Win32FileDialogService.cs` 中 `OpenFiles` 方法：
 
@@ -118,7 +118,7 @@ public IReadOnlyList<string> OpenFiles(string filter, bool multiselect = false)
 }
 ```
 
-- [ ] **Step 3: 编译验证**
+- [x] **Step 3: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -128,7 +128,7 @@ Expected: `已成功生成。0 个警告 0 个错误`
 
 注意：现有 `MainViewModel.OpenFilesAsync` 调用 `OpenFiles("Audio Files|...")` 不传第二参数，由默认值 `false` 兜底，行为不变。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Services/IFileDialogService.cs Services/Win32FileDialogService.cs
@@ -146,7 +146,7 @@ git commit -m "feat(file-dialog): support multiselect via optional parameter
 - Modify: `Services/IPlaybackService.cs`
 - Modify: `Services/NAudioPlaybackService.cs`
 
-- [ ] **Step 1: 接口加事件声明**
+- [x] **Step 1: 接口加事件声明**
 
 在 `Services/IPlaybackService.cs` 的事件列表底部（最后一个 `event` 行后）添加：
 
@@ -175,7 +175,7 @@ git commit -m "feat(file-dialog): support multiselect via optional parameter
     event Action? TrackEnded;
 ```
 
-- [ ] **Step 2: 实现类加字段**
+- [x] **Step 2: 实现类加字段**
 
 在 `Services/NAudioPlaybackService.cs` 的事件字段块（`public event Action<string>? PlaybackError;` 之后）追加：
 
@@ -183,7 +183,7 @@ git commit -m "feat(file-dialog): support multiselect via optional parameter
     public event Action? TrackEnded;
 ```
 
-- [ ] **Step 3: 加 RaiseOnUIThread 无参重载**
+- [x] **Step 3: 加 RaiseOnUIThread 无参重载**
 
 `NAudioPlaybackService` 现有 `RaiseOnUIThread<T>(Action<T>?, T)` 只支持带参事件。`TrackEnded` 是无参事件，需要新重载。
 
@@ -198,7 +198,7 @@ git commit -m "feat(file-dialog): support multiselect via optional parameter
     }
 ```
 
-- [ ] **Step 4: 修改 OnPlaybackStopped 加入自然播完判定**
+- [x] **Step 4: 修改 OnPlaybackStopped 加入自然播完判定**
 
 完整替换 `OnPlaybackStopped` 方法及其上方的 doc-comment：
 
@@ -236,7 +236,7 @@ git commit -m "feat(file-dialog): support multiselect via optional parameter
     }
 ```
 
-- [ ] **Step 5: 编译验证**
+- [x] **Step 5: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -244,7 +244,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Services/IPlaybackService.cs Services/NAudioPlaybackService.cs
@@ -261,7 +261,7 @@ OnPlaybackStopped 中用 200ms 容差区分自然播完与用户 Stop。
 **Files:**
 - Create: `Models/RepeatMode.cs`
 
-- [ ] **Step 1: 创建枚举文件**
+- [x] **Step 1: 创建枚举文件**
 
 新建 `Models/RepeatMode.cs`：
 
@@ -277,7 +277,7 @@ namespace UmaPlayer.Models;
 public enum RepeatMode { Off, List, One }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -285,7 +285,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Models/RepeatMode.cs
@@ -300,7 +300,7 @@ git commit -m "feat(models): add RepeatMode enum (Off/List/One)"
 - Create: `Converters/RepeatModeToIconConverter.cs`
 - Create: `Converters/BoolToAccentBrushConverter.cs`
 
-- [ ] **Step 1: 创建 RepeatModeToIconConverter**
+- [x] **Step 1: 创建 RepeatModeToIconConverter**
 
 新建 `Converters/RepeatModeToIconConverter.cs`：
 
@@ -335,7 +335,7 @@ public sealed class RepeatModeToIconConverter : IValueConverter
 }
 ```
 
-- [ ] **Step 2: 创建 BoolToAccentBrushConverter**
+- [x] **Step 2: 创建 BoolToAccentBrushConverter**
 
 新建 `Converters/BoolToAccentBrushConverter.cs`：
 
@@ -368,7 +368,7 @@ public sealed class BoolToAccentBrushConverter : IValueConverter
 }
 ```
 
-- [ ] **Step 3: 编译验证**
+- [x] **Step 3: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -376,7 +376,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add Converters/RepeatModeToIconConverter.cs Converters/BoolToAccentBrushConverter.cs
@@ -392,7 +392,7 @@ git commit -m "feat(converters): add RepeatModeToIcon + BoolToAccentBrush
 **Files:**
 - Modify: `ViewModels/MainViewModel.cs`
 
-- [ ] **Step 1: 加 using**
+- [x] **Step 1: 加 using**
 
 在 `ViewModels/MainViewModel.cs` 顶部 using 块中追加：
 
@@ -414,7 +414,7 @@ using UmaPlayer.Models;
 using UmaPlayer.Services;
 ```
 
-- [ ] **Step 2: 加 Phase 2 字段**
+- [x] **Step 2: 加 Phase 2 字段**
 
 在 `MainViewModel` 类内、`_volumeBeforeMute` 字段之后、`public string VolumeIcon =>` 之前，插入一段 `#region Phase 2 — Playlist Queue`：
 
@@ -461,7 +461,7 @@ using UmaPlayer.Services;
     #endregion
 ```
 
-- [ ] **Step 3: 编译验证**
+- [x] **Step 3: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -469,7 +469,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add ViewModels/MainViewModel.cs
@@ -485,7 +485,7 @@ git commit -m "feat(vm): add Phase 2 queue fields (Queue, CurrentIndex, Shuffle,
 **Files:**
 - Modify: `ViewModels/MainViewModel.cs`
 
-- [ ] **Step 1: 在 Phase 2 region 内追加核心算法方法**
+- [x] **Step 1: 在 Phase 2 region 内追加核心算法方法**
 
 在 Task 5 创建的 `#endregion` 之前插入两个 private 方法：
 
@@ -606,7 +606,7 @@ git commit -m "feat(vm): add Phase 2 queue fields (Queue, CurrentIndex, Shuffle,
     }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -614,7 +614,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add ViewModels/MainViewModel.cs
@@ -631,7 +631,7 @@ CalculateNextIndex 处理 Shuffle × Repeat 全部组合; RepeatOne 由调用方
 **Files:**
 - Modify: `ViewModels/MainViewModel.cs`
 
-- [ ] **Step 1: 在 PlayTrackAtAsync 方法之后、`#endregion` 之前追加全部命令**
+- [x] **Step 1: 在 PlayTrackAtAsync 方法之后、`#endregion` 之前追加全部命令**
 
 ```csharp
     // —— Phase 2 命令 ——
@@ -742,7 +742,7 @@ CalculateNextIndex 处理 Shuffle × Repeat 全部组合; RepeatOne 由调用方
     }
 ```
 
-- [ ] **Step 2: 添加 HandleTrackEnded 事件处理方法**
+- [x] **Step 2: 添加 HandleTrackEnded 事件处理方法**
 
 紧接上一步追加：
 
@@ -769,7 +769,7 @@ CalculateNextIndex 处理 Shuffle × Repeat 全部组合; RepeatOne 由调用方
     }
 ```
 
-- [ ] **Step 3: 在构造函数订阅 TrackEnded 事件**
+- [x] **Step 3: 在构造函数订阅 TrackEnded 事件**
 
 找到现有构造函数中订阅事件的块：
 
@@ -803,7 +803,7 @@ CalculateNextIndex 处理 Shuffle × Repeat 全部组合; RepeatOne 由调用方
         _player.TrackEnded -= HandleTrackEnded;
 ```
 
-- [ ] **Step 4: 修复 HasCurrentTrack 的 CanExecute 联动**
+- [x] **Step 4: 修复 HasCurrentTrack 的 CanExecute 联动**
 
 `NextTrackCommand` / `PrevTrackCommand` 用 `CanExecute = nameof(HasCurrentTrack)`。CommunityToolkit 不会自动监听 `Queue.Count` 变化。
 
@@ -823,7 +823,7 @@ CalculateNextIndex 处理 Shuffle × Repeat 全部组合; RepeatOne 由调用方
         };
 ```
 
-- [ ] **Step 5: 编译验证**
+- [x] **Step 5: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -833,7 +833,7 @@ Expected: `0 个警告 0 个错误`
 
 如果报 `NextTrackCommand` / `PrevTrackCommand` 找不到 `NotifyCanExecuteChanged`，确认 Task 7 Step 1 中两个命令的 `[RelayCommand(CanExecute = nameof(HasCurrentTrack))]` 写对了（带 CanExecute 才会生成支持该方法的 IRelayCommand）。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add ViewModels/MainViewModel.cs
@@ -855,7 +855,7 @@ Next/Prev CanExecute 联动 Queue.CollectionChanged。"
 
 **说明：** 现有 `PlayerBar.xaml` 有个 📂 按钮绑 `OpenFilesCommand`。Phase 2 添加 `AddToQueueCommand` 后，📂 按钮**改为入队 + 立即播放首项**的语义，保持向下兼容、不再"替换当前播放曲"的旧行为，避免和 PlaylistView 的 [+ 添加] 重复。
 
-- [ ] **Step 1: 替换 OpenFilesAsync 方法体**
+- [x] **Step 1: 替换 OpenFilesAsync 方法体**
 
 找到现有：
 
@@ -900,7 +900,7 @@ Next/Prev CanExecute 联动 Queue.CollectionChanged。"
     }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -908,7 +908,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add ViewModels/MainViewModel.cs
@@ -927,7 +927,7 @@ PlayerBar 上的 📂 按钮语义升级: 多文件入队 + 从第一首新加�
 **Files:**
 - Create: `Views/Controls/PlaylistView.xaml`
 
-- [ ] **Step 1: 创建 XAML 文件**
+- [x] **Step 1: 创建 XAML 文件**
 
 新建 `Views/Controls/PlaylistView.xaml`：
 
@@ -1055,7 +1055,7 @@ PlayerBar 上的 📂 按钮语义升级: 多文件入队 + 从第一首新加�
 
 **关于 ▶ 当前曲标记：** 为简化 MVP，DataTemplate 中的 ▶ 列保留占位空 TextBlock，**Task 10 在 code-behind 通过监听 `CurrentIndex` 变化遍历更新**。这种做法不优雅但避免引入 MultiBinding 或 IndexConverter，保持 MVP 简洁。
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -1067,7 +1067,7 @@ Expected: `0 个警告 0 个错误`
 
 如果 build 报错涉及 `MissingMethodException`，请直接进入 Task 10。
 
-- [ ] **Step 3: 暂不提交（待 Task 10 一起）**
+- [x] **Step 3: 暂不提交（待 Task 10 一起）**
 
 Task 9 的 XAML 依赖 Task 10 的 code-behind 才能编译通过。两个 task 合并为一个 commit。
 
@@ -1078,7 +1078,7 @@ Task 9 的 XAML 依赖 Task 10 的 code-behind 才能编译通过。两个 task 
 **Files:**
 - Create: `Views/Controls/PlaylistView.xaml.cs`
 
-- [ ] **Step 1: 创建 code-behind 文件**
+- [x] **Step 1: 创建 code-behind 文件**
 
 新建 `Views/Controls/PlaylistView.xaml.cs`：
 
@@ -1238,7 +1238,7 @@ public partial class PlaylistView : UserControl
 }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -1246,7 +1246,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交 PlaylistView 整体（XAML + code-behind 一起）**
+- [x] **Step 3: 提交 PlaylistView 整体（XAML + code-behind 一起）**
 
 ```bash
 git add Views/Controls/PlaylistView.xaml Views/Controls/PlaylistView.xaml.cs
@@ -1270,7 +1270,7 @@ Code-behind 职责:
 **Files:**
 - Modify: `Views/MainWindow.xaml`
 
-- [ ] **Step 1: 替换整个 MainWindow.xaml**
+- [x] **Step 1: 替换整个 MainWindow.xaml**
 
 ```xml
 <!--
@@ -1303,7 +1303,7 @@ Code-behind 职责:
 </Window>
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -1311,7 +1311,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Views/MainWindow.xaml
@@ -1329,7 +1329,7 @@ git commit -m "feat(view): integrate PlaylistView into MainWindow
 **Files:**
 - Modify: `Views/MainWindow.xaml.cs`
 
-- [ ] **Step 1: 在窗口几何恢复块中加入一次性迁移**
+- [x] **Step 1: 在窗口几何恢复块中加入一次性迁移**
 
 找到现有 try 块：
 
@@ -1363,7 +1363,7 @@ git commit -m "feat(view): integrate PlaylistView into MainWindow
         }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -1371,7 +1371,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add Views/MainWindow.xaml.cs
@@ -1387,7 +1387,7 @@ Phase 1 用户持久化的 WindowHeight 可能 < 500, 此时 PlaylistView 几乎
 
 **Files:** 无（运行性验证）
 
-- [ ] **Step 1: 启动应用**
+- [x] **Step 1: 启动应用**
 
 ```bash
 dotnet run --project UmaPlayer.csproj
@@ -1401,7 +1401,7 @@ Expected:
 
 如果窗口尺寸异常、PlaylistView 不显示，回到 Task 9 / 11 检查 XAML。
 
-- [ ] **Step 2: 冒烟测试 — 加入并播放**
+- [x] **Step 2: 冒烟测试 — 加入并播放**
 
 手动操作：
 1. 点 [+ 添加] → 文件对话框 → **多选** 2-3 个 mp3
@@ -1412,7 +1412,7 @@ Expected:
 如果双击无反应，检查 Task 10 的 `QueueList_MouseDoubleClick`。
 如果自动推进无反应，检查 Task 2 (TrackEnded) + Task 7 (HandleTrackEnded)。
 
-- [ ] **Step 3: 不 commit，仅验证基础回路畅通**
+- [x] **Step 3: 不 commit，仅验证基础回路畅通**
 
 完整验收清单留给 Task 14。
 
@@ -1425,46 +1425,46 @@ Expected:
 逐项手动执行并打勾。建议准备 5+ 个真实音频文件 + 1 个故意损坏的文件（如把 .txt 改名 .mp3）。
 
 #### 基础队列
-- [ ] [+ 添加] 单击 → 文件对话框可多选 → 所选文件按顺序加入队列底部
-- [ ] 加入 5 个文件后队列显示 5 行
-- [ ] 双击第 3 行 → 第 3 首立即播放，行首出现 ▶ 标记
-- [ ] [清空] → 队列空，播放停止，PlayerBar 显示 "No track loaded"
+- [x] [+ 添加] 单击 → 文件对话框可多选 → 所选文件按顺序加入队列底部
+- [x] 加入 5 个文件后队列显示 5 行
+- [x] 双击第 3 行 → 第 3 首立即播放，行首出现 ▶ 标记
+- [x] [清空] → 队列空，播放停止，PlayerBar 显示 "No track loaded"
 
 #### 单项删除
-- [ ] 点击单项右侧 × → 该项移除
-- [ ] 选中某项按 Delete 键 → 该项移除
-- [ ] 删除当前播放曲 → 播放停止
-- [ ] 删除非当前曲（之前/之后）→ 当前曲继续播
+- [x] 点击单项右侧 × → 该项移除
+- [x] 选中某项按 Delete 键 → 该项移除
+- [x] 删除当前播放曲 → 播放停止
+- [x] 删除非当前曲（之前/之后）→ 当前曲继续播
 
 #### 自动推进 — 顺序模式
-- [ ] 顺序 + RepeatOff：第 N 首播完 → 第 N+1 首
-- [ ] 顺序 + RepeatOff：最后一首播完 → 停止
-- [ ] 顺序 + RepeatList：最后一首播完 → 跳回第一首
-- [ ] 顺序 + RepeatOne：当前曲反复播
+- [x] 顺序 + RepeatOff：第 N 首播完 → 第 N+1 首
+- [x] 顺序 + RepeatOff：最后一首播完 → 停止
+- [x] 顺序 + RepeatList：最后一首播完 → 跳回第一首
+- [x] 顺序 + RepeatOne：当前曲反复播
 
 #### 自动推进 — 随机模式
-- [ ] Shuffle ON + RepeatOff：所有曲随机播完一遍后停止
-- [ ] Shuffle ON + RepeatList：全播完后重置随机历史继续随机
-- [ ] Shuffle ON + RepeatOne：随机选一首后反复播该首
+- [x] Shuffle ON + RepeatOff：所有曲随机播完一遍后停止
+- [x] Shuffle ON + RepeatList：全播完后重置随机历史继续随机
+- [x] Shuffle ON + RepeatOne：随机选一首后反复播该首
 
 #### 手动控制
-- [ ] Next 按钮在 RepeatOne 下也跳下一首
-- [ ] Queue 为空时 Next/Prev 按钮置灰
-- [ ] PlayerBar 的 Play/Pause/Stop/Seek/Volume 全部正常工作
+- [x] Next 按钮在 RepeatOne 下也跳下一首
+- [x] Queue 为空时 Next/Prev 按钮置灰
+- [x] PlayerBar 的 Play/Pause/Stop/Seek/Volume 全部正常工作
 
 #### 容错
-- [ ] 加入一个损坏文件 + 几个正常文件，播到损坏文件时自动跳过到下一首
-- [ ] 连续 3 个损坏文件 → 停止，不无限循环
-- [ ] 切换 Shuffle 不报错
+- [x] 加入一个损坏文件 + 几个正常文件，播到损坏文件时自动跳过到下一首
+- [x] 连续 3 个损坏文件 → 停止，不无限循环
+- [x] 切换 Shuffle 不报错
 
 #### 窗口
-- [ ] 启动时窗口高 650
-- [ ] 如果有旧 settings.json（高 < 500），启动自动提升到 650
+- [x] 启动时窗口高 650
+- [x] 如果有旧 settings.json（高 < 500），启动自动提升到 650
 
 #### Phase 1 回归
-- [ ] PlayerBar 上的 📂 按钮：多选文件 → 全部入队 + 第一新加项开始播
-- [ ] 关闭窗口再打开，窗口位置/大小/音量保留
-- [ ] 进度条拖动、单击跳转正常
+- [x] PlayerBar 上的 📂 按钮：多选文件 → 全部入队 + 第一新加项开始播
+- [x] 关闭窗口再打开，窗口位置/大小/音量保留
+- [x] 进度条拖动、单击跳转正常
 
 **若任一项失败：**
 - 记录失败的复现步骤
@@ -1487,7 +1487,7 @@ git commit --allow-empty -m "test: manual acceptance pass for Phase 2 playlist q
 - Modify: `docs/PROJECT.md`
 - Modify: `docs/COUPLING.md`
 
-- [ ] **Step 1: 更新 PROJECT.md §1.1（"已实现"清单）**
+- [x] **Step 1: 更新 PROJECT.md §1.1（"已实现"清单）**
 
 在 `docs/PROJECT.md` 的 §1.1 表格末尾追加一行：
 
@@ -1495,7 +1495,7 @@ git commit --allow-empty -m "test: manual acceptance pass for Phase 2 playlist q
 | 播放列表 | 内存队列：多选入队、单项删除、上/下一首、自动推进、随机/循环模式（关闭即丢） |
 ```
 
-- [ ] **Step 2: 更新 PROJECT.md §1.2（"未实现"清单）**
+- [x] **Step 2: 更新 PROJECT.md §1.2（"未实现"清单）**
 
 把以下两行从 §1.2 移除（它们的部分能力已在 Phase 2 实现）：
 
@@ -1513,7 +1513,7 @@ git commit --allow-empty -m "test: manual acceptance pass for Phase 2 playlist q
 - M3U / PLS 等播放列表格式导入导出
 ```
 
-- [ ] **Step 3: 更新 PROJECT.md §3 目录结构**
+- [x] **Step 3: 更新 PROJECT.md §3 目录结构**
 
 在 `Models/` 块加入 RepeatMode：
 
@@ -1543,7 +1543,7 @@ git commit --allow-empty -m "test: manual acceptance pass for Phase 2 playlist q
 │   └── BoolToAccentBrushConverter.cs     # 强调色/次要色画刷 (Phase 2)
 ```
 
-- [ ] **Step 4: 更新 COUPLING.md：标记债 #2 已偿**
+- [x] **Step 4: 更新 COUPLING.md：标记债 #2 已偿**
 
 在 `docs/COUPLING.md` §3 的"债 #2 — IPlaybackService 缺自然播完信号"小节标题旁添加 ✅ 已偿，并在该节末尾追加：
 
@@ -1552,7 +1552,7 @@ git commit --allow-empty -m "test: manual acceptance pass for Phase 2 playlist q
 通过 200ms 容差判定"自然播完"。
 ```
 
-- [ ] **Step 5: 更新 COUPLING.md §6（Phase 2 启动检查清单 → Phase 3 启动检查清单）**
+- [x] **Step 5: 更新 COUPLING.md §6（Phase 2 启动检查清单 → Phase 3 启动检查清单）**
 
 把 §6 的标题从 `## 6. Phase 2 启动检查清单` 改为：
 
@@ -1580,7 +1580,7 @@ git commit --allow-empty -m "test: manual acceptance pass for Phase 2 playlist q
 **预估总工作量：** 10~14 小时（不含 L3 多命名列表本身的功能开发）
 ```
 
-- [ ] **Step 6: 编译验证（文档不影响编译，但跑一遍确认未误改源码）**
+- [x] **Step 6: 编译验证（文档不影响编译，但跑一遍确认未误改源码）**
 
 ```bash
 dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
@@ -1588,7 +1588,7 @@ dotnet build UmaPlayer.csproj -c Debug -nologo --verbosity quiet
 
 Expected: `0 个警告 0 个错误`
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add docs/PROJECT.md docs/COUPLING.md

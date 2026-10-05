@@ -1,8 +1,8 @@
 # D-player 耦合分析与重构备忘
 
-> 创建日期：2026-06-06 · 更新日期：2026-10-05（对应 HEAD `d86694b`） · 对应分支：`master` · 对应阶段：**Phase 17 完成（UI 深度深色定制）**
+> 创建日期：2026-06-06 · 更新日期：2026-10-06（对应 HEAD `1bff9dd`） · 对应分支：`master` · 对应阶段：**Phase 18 完成（M3U/M3U8/PLS 播放列表文件导入导出）**
 >
-> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。Phase 16 图标矢量化（emoji/字形图标 → `Themes/Icons.xaml` 统一描边矢量 Geometry 集，转换器返回 Geometry，▶ 标记 TextBlock→Path；纯表现层，0 新依赖）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式；纯表现层，0 新依赖）。
+> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。Phase 16 图标矢量化（emoji/字形图标 → `Themes/Icons.xaml` 统一描边矢量 Geometry 集，转换器返回 Geometry，▶ 标记 TextBlock→Path；纯表现层，0 新依赖）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式；纯表现层，0 新依赖）。Phase 18 播放列表文件导入导出（新增 `Services/PlaylistFiles` 门面模块 + `IPlaylistFileService` 1 个新 Singleton DI 服务；两个 VM 各加 1 个依赖 + 可 await 公开方法；追加路径复用既有 `DropExternalFiles` 不加新元数据依赖；无新架构债，新增 7 条隐式契约，详见 §5）。
 
 ---
 
@@ -10,7 +10,7 @@
 
 | 维度 | 评级 | 备注 |
 |------|------|------|
-| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel；**Phase 15 审计确认**（M1–M6 客观度量）：0 环 / 0 层级违规 / IPlaybackService=20 成员 / 无 >600 LOC 多职责文件 / 2 stub 已注册未消费；Phase 16/17 均为纯表现层（0 新依赖 / 0 新 DI / 0 新 ViewModel） |
+| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel；**Phase 15 审计确认**（M1–M6 客观度量）：0 环 / 0 层级违规 / IPlaybackService=20 成员 / 无 >600 LOC 多职责文件 / 2 stub 已注册未消费；Phase 16/17 均为纯表现层（0 新依赖 / 0 新 DI / 0 新 ViewModel）；Phase 18 播放列表文件导入导出仅新增 1 个无状态门面服务（`IPlaylistFileService` Singleton）+ 1 个 View 层文案格式化器，两个 VM 各加 1 个依赖，追加路径复用既有 `DropExternalFiles` |
 | 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5/6/7 沿用既有模式；Phase 15 审计裁决：D4 无必修项（0 环 / 0 违规）、D1 IPlaybackService 宽度可接受（观察项）、D5 PlaylistViewModel 652 LOC 单职责 cohesive（观察项，不拆分） |
 | 已识别"待还的债" | 0 项剩余（#1/#2/#3/#4/#5 ✅ 全部已偿） | 见 §3 |
 | 已识别"过度抽象" | 2 项 | 见 §4 |
@@ -33,6 +33,7 @@
 ✅ Phase 14 均衡器：`EqualizerSampleProvider` 同样作为 `ISampleProvider` 透明中间件插入播放链（在 SampleAggregator 之前），`IPlaybackService` 仅增 `EqualizerConfig` 1 个属性（镜像 `SpectrumConfig`）；**0 新 DI 服务**（EQ provider 在 `NAudioPlaybackService.LoadAsync` 内按曲创建，同 `SampleAggregator`）、**0 新 ViewModel**（方案 A：`EqualizerDialog` 直写 `IPlaybackService` + `ISettingsPersistence`，PlayerViewModel 仅持 `EqualizerEnabled` 供按钮高亮）—— 同 Phase 13 印证“加功能不触碰核心架构”的判断
 ✅ Phase 16 图标矢量化：`Themes/Icons.xaml` 资源字典 + 转换器签名 string→Geometry + ▶ 标记 TextBlock→Path；View 层局部重构，VM 层零新依赖（反而移除 `VolumeIcon`），App.xaml 仅多合并一个字典
 ✅ Phase 17 UI 深度深色定制：`Views/Controls/TitleBar` 新 UserControl + 4 个 Window 的 WindowChrome 配置 + Controls.xaml 深色模板扩充；0 新 DI 服务、0 新 ViewModel、0 业务逻辑变更
+✅ Phase 18 播放列表文件导入导出：新增 `Services/PlaylistFiles` 门面模块（`IPlaylistFileService` Singleton，无状态），依赖方向仍单向（VM → 服务 → Models；View → VM）；`PlaylistViewModel` / `PlaylistsViewModel` 各注入 1 个依赖、各暴露可 await 公开方法而非新命令；追加路径复用既有 `DropExternalFiles`（不为导入引入 `ILibraryScannerService`）；导入报告文案由 View 层 `PlaylistImportReportFormatter` 组装（四个入口共用），守住"VM 不拼展示文案"分层纪律（唯一例外：导出错误文案 VM 直传，单一分支、单一调用方，设计稿 §7.5）；后缀白名单单一来源（`PlaylistFileFormats.Extensions`，View 层 `DragDropExtensions` 只代理）
 
 **结论：** Phase 14（均衡器）已落地，再次验证了“Phase 10 后继续加功能不会再触碰核心架构”的判断 —— EQ 功能仅给 `IPlaybackService` 加 1 个属性（`EqualizerConfig`），0 新 DI 服务，0 新 ViewModel，0 新债（与 Phase 13 频谱同构：透明 ISampleProvider 中间件 + 按曲在 LoadAsync 建链）。Phase 16/17 进一步验证：两阶段均为纯表现层（View/Themes 资源与控件），未触碰 VM/Service/Model 分层，0 新依赖、0 新债。
 
@@ -43,24 +44,25 @@
 | 消费方 | 依赖的抽象 | 依赖的具体类型 |
 |--------|------------|----------------|
 | `App` | `MainViewModel`, `ISettingsPersistence` | `Views.MainWindow`, `ServiceProvider`, `LegacyDataMigration`（启动一次性数据目录迁移，更名 UmaPlayer→D-player） |
-| `ServiceCollectionExtensions` | — | 8 个 Service 实现 + `MainViewModel` + `PlaylistsViewModel` + `Func<Playlist, PlaylistVM>`（注册绑定） |
+| `ServiceCollectionExtensions` | — | 10 个 Service 实现 + `MainViewModel` + `PlaylistsViewModel` + `Func<Playlist, PlaylistVM>`（注册绑定） |
 | `MainViewModel` (Facade) | `PlayerViewModel`, `PlaylistsViewModel`, `IPlaybackService`, `IPlaylistService` | — |
 | `PlayerViewModel` | `IPlaybackService`, `ISettingsPersistence`, `IOptions<AppSettings>` | — |
-| `PlaylistViewModel` | `IPlaybackService`, `IFileDialogService`, `ITrackMetadataReader` | `Track`、`RepeatMode`、`QueueState`、`MoveTracksArgs`、`File.Exists` |
-| `PlaylistsViewModel` | `Func<Playlist, PlaylistViewModel>`, `IPlaybackService`, `ILibraryScannerService`, `ILibraryCache` | `Playlist`、`PlaylistViewModel`、`LibraryDiff` |
+| `PlaylistViewModel` | `IPlaybackService`, `IFileDialogService`, `ITrackMetadataReader`, `IPlaylistFileService`（Phase 18） | `Track`、`RepeatMode`、`QueueState`、`MoveTracksArgs`、`PlaylistImportReport`、`File.Exists` |
+| `PlaylistsViewModel` | `Func<Playlist, PlaylistViewModel>`, `IPlaybackService`, `ILibraryScannerService`, `ILibraryCache`, `IPlaylistFileService`（Phase 18） | `Playlist`、`PlaylistViewModel`、`LibraryDiff`、`PlaylistImportReport` |
 | `MainWindow` | `MainViewModel`, `ISettingsPersistence` | `Window`, `SystemParameters` |
 | `SettingsDialog` | `ISettingsPersistence`, `IPlaybackService`（Phase 13）, `PlayerViewModel?`（可选，保存后同步） | `Window`, `App.GetService<>()` |
 | `EqualizerDialog`（Phase 14） | `ISettingsPersistence`, `IPlaybackService`, `PlayerViewModel?`（可选，保存后同步 EqualizerEnabled） | `Window`, `App.GetService<>()`；直写 `_playbackService.EqualizerConfig` 实时预览 + `EqualizerConfig.Create` / `EqualizerPresets` |
 | `TitleBar`（Phase 17） | — | `SystemCommands` / `WindowChrome` / `SystemParameters` / `Window.GetWindow(this)`；作用于宿主 Window 的 chrome 行为 |
 | `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>`（含 Phase 4 ▶ DataTrigger 的 `PlayCurrentCommand`） |
-| `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信；Phase 6 双击路由走 `App.GetService<PlaylistsViewModel>().HandleDoubleClickPlay` |
-| `PlaylistsSidebarView` | — | `PlaylistsViewModel`（`DataContext as PlaylistsViewModel`）；订阅 `PropertyChanged` / `Playlists.CollectionChanged`；消费 `PromptDialog` |
+| `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信；Phase 6 双击路由走 `App.GetService<PlaylistsViewModel>().HandleDoubleClickPlay`；Phase 18 消费 `PlaylistImportUi` / `DragDropExtensions.FilterPlaylistPaths` + await VM 公开方法（导入/导出，非命令），导出错误经 `ConfirmDialog.ShowError` |
+| `PlaylistsSidebarView` | — | `PlaylistsViewModel`（`DataContext as PlaylistsViewModel`）；订阅 `PropertyChanged` / `Playlists.CollectionChanged`；消费 `PromptDialog`；Phase 18 消费 `PlaylistImportUi` / `DragDropExtensions.FilterPlaylistPaths` + await `ImportPlaylistFileAsync`（导入按钮与列表文件拖拽） |
 | `NAudioPlaybackService` | `IPlaybackService` | `MediaFoundationReader`, `WasapiOut`, `VolumeSampleProvider`, `SampleAggregator`（Phase 13）, `EqualizerSampleProvider`（Phase 14，在 `LoadAsync` 内按曲创建） |
-| `Win32FileDialogService` | `IFileDialogService` | `Microsoft.Win32.OpenFileDialog` |
+| `Win32FileDialogService` | `IFileDialogService` | `Microsoft.Win32.OpenFileDialog` / `OpenFolderDialog` / `SaveFileDialog`（Phase 18 导出） |
 | `JsonSettingsPersistence` | `ISettingsPersistence` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
 | `JsonPlaylistService` (Phase 6) | `IPlaylistService` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
 | `LibraryScannerService` (Phase 10) | `ILibraryScannerService` | `Directory.EnumerateFiles`, `AudioConstants.Extensions` |
 | `JsonLibraryCache` (Phase 10) | `ILibraryCache` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
+| `PlaylistFileService` (Phase 18) | `IPlaylistFileService` | `File`, `Path`, `Encoding`（CodePages/GBK 经 internal `PlaylistFileEncoding`）, `AudioConstants.AudioExtensions`；内部编排 `M3uParser` / `PlsParser` / `M3u8Writer`（均 internal，不出模块） |
 | `AtlMetadataReader` | `ITrackMetadataReader` | `ATL.Track`（封装隔离） |
 | `PlayStateToIconConverter` / `RepeatModeToIconConverter` / `BoolToVolumeIconConverter`（Phase 16） | — | `Application.Current.FindResource` 查 `Themes/Icons.xaml` 的 `Icon.*` Geometry（依赖 App.xaml 已合并该字典） |
 
@@ -281,6 +283,15 @@ private void RemoveTrack(int index)
 | 单击进度条跳转必须用 `AddHandler(PreviewMouseLeftButtonDownEvent, ..., handledEventsToo: true)` 代码挂接，不能用 XAML 属性 | `PlayerBar.xaml.cs` 构造函数 | 隐式 Slider 样式开启 `IsMoveToPointEnabled`（Phase 13 `781d35d`）后，Slider 类处理器按轨道时先置 `e.Handled=true`；XAML 附加的实例处理器（不接收已处理事件）被静默跳过 → 单击跳转整体失效。SeekBar 的 Value 是 OneWay，类处理器的本地改值不再回传 VM（音量滑块 TwoWay 故不受影响） |
 | `PlaylistViewModel.UnloadCurrentTrack` 必须先检查 `IsActivePlaylist` 再操作 `_player` | `PlaylistViewModel.UnloadCurrentTrack` | `IPlaybackService` 是全局单例：清空/删除非播放中歌单的曲目不得停掉正在播放的歌。`_playToken++` 与 `CurrentIndex=-1` 仍无条件执行 |
 
+| **Phase 18 新增** | | |
+| 拖拽双轨白名单：`FilterAudioPaths` 与 `FilterPlaylistPaths` 互不重叠，Drop 处理器必须两个都查 | `Views/Controls/DragDropExtensions` + `PlaylistView` / `PlaylistsSidebarView` 的 DragOver/Drop 处理器 | 只查音频白名单会让 `.m3u/.m3u8/.pls` 被静默丢弃（回到 Phase 18 之前的行为——用户看不到任何反馈）；混合拖入（音频 + 列表文件）时两条管道都要跑 |
+| CodePages provider 注册点在 `PlaylistFileEncoding` 的**静态构造函数**里 | `Services/PlaylistFiles/PlaylistFileEncoding.cs`（`Encoding.GetEncoding(936)` 只出现在该类内部） | 静态构造函数保证注册永远早于本类任何解码调用——这是类型不变量，不依赖 App 启动顺序（`RegisterProvider` 幂等，csproj 无需加包：net10.0 框架隐含，显式引用触发 NU1510）。**不要**把 GBK 解码搬到别的类型里——搬走就等于把注册时机重新变成一条口头约定 |
+| Import 不抛 / Export 抛 | `IPlaylistFileService` 接口 XML 注释 + `PlaylistFileService` 实现 | `ImportAsync` 吞掉 IO/权限/路径异常返回空结果（由 View 的"没有可导入的条目"报告兜住）；`ExportAsync` 必须让异常冒到 VM 转错误文案。把读侧改成会抛 = 崩溃面扩大；把写侧包成不抛 = 用户丢失导出失败反馈 |
+| `#EXTINF` / PLS `Title=` / `Length=` 刻意忽略 | `M3uParser` / `PlsParser` XML 注释 | 标题与时长只信音频文件（ATL 读取结果）；要用列表文件的元数据得先定"两个真相来源谁优先"的规则，本阶段刻意不做 |
+| 导入报告文案由 View 组装（`PlaylistImportReportFormatter`），导出错误文案是 VM 直传的单一分支例外（设计稿 §7.5） | `Views/Controls/PlaylistImportReportFormatter` + `PlaylistViewModel.ExportPlaylistFileAsync` 的 `$"导出失败：{ex.Message}"` | 四个入口（侧边栏按钮/侧边栏拖拽/工具栏按钮/列表区拖拽）共用同一份文案规则，VM 只返回结构化 `PlaylistImportReport`；导出错误是单分支直传、恰好一个调用方，抽 formatter 属于过度仪式。在 VM 里给导入拼中文句子 = 破坏该纪律 |
+| `SourceFolder = null` 是导入歌单的身份标记 | `PlaylistsViewModel.ImportPlaylistFileAsync` 的 `Playlist` seed | 设成非 null 会被当作文件夹绑定歌单，触发 library cache 读写与"刷新文件夹"按钮；导入歌单重启后必须走 `LoadMetadataForNormalPlaylistSync` 普通加载路径 |
+| `DropExternalFilesCommand` 的"paths 已过滤"契约新增调用方 | `PlaylistViewModel.ImportPlaylistFileAsync`（原本只有 View 拖拽入口） | VM 信任入参已过滤、不二次过滤；导入路径天然满足（过滤在服务层 `Classify` 完成）。任何新增调用方必须自己保证路径已过滤 |
+
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
 > **Phase 15 审计核对（M7）：** §5 全部契约与代码一致，无新增未登记契约。
@@ -301,6 +312,7 @@ private void RemoveTrack(int index)
 8. ✅ **偿还债 #1 (`BitmapImage`)** —— Phase 7 已完成：`AlbumArtImage` → `AlbumArtBytes` (byte[])，VM 层无 WPF 类型
 9. ✅ **图标矢量化**（Phase 16 完成）—— `Themes/Icons.xaml` 矢量图标集 + 转换器返回 Geometry + ▶ 标记改 Path；VM 层移除 `VolumeIcon`
 10. ✅ **UI 深度深色定制**（Phase 17 完成）—— 无边框 WindowChrome + 自绘 TitleBar（主窗三键 / 对话框仅关闭键）+ ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式
+11. ✅ **播放列表文件导入导出**（Phase 18 完成）—— `Services/PlaylistFiles` 门面模块（`IPlaylistFileService`：编码探测 → 解析 → 归一化 → 过滤计数，读侧不抛/写侧抛）+ 双入口分层（侧边栏新建歌单 / 工具栏追加当前）+ 拖拽按落点分流 + `.m3u8` 导出（绝对路径 + `#EXTINF`）
 
 **Phase 11+ 候选范围：**
 - [x] PlayerViewModel 单元测试（Phase 8 完成，15 个测试）
@@ -316,6 +328,7 @@ private void RemoveTrack(int index)
 - [x] 耦合健康度审计（Phase 15 完成）—— M1–M6 脚本度量 + M7/D1–D5 裁决；结论：耦合低、无需解耦（D1 观察项、D5 观察项）
 - [x] 图标矢量化（Phase 16 完成）—— Icons.xaml 矢量 Geometry 集 + IconPath 样式；转换器 string→Geometry；▶ 标记与 sidebar 活跃标记改 Path（Fill=AccentPrimary 实心）
 - [x] UI 深度深色定制（Phase 17 完成）—— 自定义无边框标题栏（TitleBar + WindowChrome，含最大化常量边距）+ ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu/MenuItem 深色模板
+- [x] 播放列表文件导入导出（Phase 18 完成）—— 导入 M3U/M3U8/PLS（相对路径解析 + UTF-8/UTF-16(BOM)/GBK 编码探测 + URL/后缀/存在性过滤计数报告）+ 导出 M3U8（绝对路径 + `#EXTINF`，UTF-8 无 BOM + CRLF）；无新 NuGet 包（CodePages 在 net10.0 框架隐含）
 
 ---
 
@@ -350,6 +363,8 @@ private void RemoveTrack(int index)
 - ❌ **把最大化边距改回"读窗口实际边界"实现**（Phase 17）—— 布局时序导致 right/bottom 留空（commit `d86694b`；用 WorkArea 偏移 + 隐藏边框厚度的常量式边距）
 - ❌ **在 SeekBar 上用 XAML 属性挂接 `PreviewMouseLeftButtonDown`**（2026-10-05 修复）—— `IsMoveToPointEnabled` 的 Slider 类处理器会先消费事件，XAML 实例处理器被静默跳过导致单击跳转失效；必须 `handledEventsToo: true`（见 §5）
 - ❌ **让 `UnloadCurrentTrack`（经 `ClearQueue`/`RemoveTrack`）无条件操作全局 `IPlaybackService`**（2026-10-05 修复）—— 只有 `IsActivePlaylist` 歌单才有权 `Unload()`，否则清空另一歌单会误停当前播放
+- ❌ **为导入给 `PlaylistViewModel` 注入 `ILibraryScannerService`**（Phase 18）—— 追加路径复用既有 `DropExternalFiles`（服务层已过滤 + 逐个读元数据入队）；引入扫描服务会让歌单级 VM 背上容器级依赖，违反双 VM 互不持引用的既有拓扑
+- ❌ **把导出入口放到侧边栏**（Phase 18）—— 侧边栏按钮作用于"选中项"，导出语义是"当前查看的歌单"（`ViewedPlaylist`），两个指针在键盘导航下可能不同步，放侧边栏会产生"到底导出哪个"的歧义
 
 ---
 
@@ -367,6 +382,7 @@ private void RemoveTrack(int index)
   - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md) — Phase 15 审计报告
   - [`docs/superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md`](./superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md) — Phase 16 图标矢量化设计规格
   - [`docs/superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md`](./superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md) — Phase 17 UI 深度深色定制设计规格
+  - [`docs/superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md`](./superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md) — Phase 18 播放列表文件导入导出设计规格
 - 原始实现计划：
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
@@ -377,3 +393,4 @@ private void RemoveTrack(int index)
   - [`docs/superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md`](./superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md) — Phase 15 实现计划
   - [`docs/superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md) — Phase 16 实现计划
   - [`docs/superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md) — Phase 17 实现计划
+  - [`docs/superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md`](./superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md) — Phase 18 实现计划

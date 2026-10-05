@@ -35,7 +35,7 @@
 
 | 文件 | 责任 | Task |
 |------|------|------|
-| `D-player.csproj`（改） | 加 `System.Text.Encoding.CodePages` 包引用 | 1 |
+| `D-player.csproj`（**最终未改动**） | 原计划加 `System.Text.Encoding.CodePages` 包引用；该包在 net10.0 框架隐含（显式引用触发 NU1510），无需改动（见 Task 1 Step 1 执行记录） | 1 |
 | `Services/PlaylistFiles/PlaylistFileEncoding.cs`（新） | 字节 → 文本：BOM 判定 / 严格 UTF-8 试解码 / GBK 回退；静态构造函数注册 CodePages provider | 1 |
 | `Services/PlaylistFiles/PlaylistFileFormats.cs`（新） | 后缀白名单 + `IsPlaylistFile` + 对话框过滤器字符串（public，供 View 拖拽判定） | 2 |
 | `Services/PlaylistFiles/M3uParser.cs`（新） | M3U/M3U8 文本 → 原始条目行 | 2 |
@@ -80,20 +80,24 @@
 
 > **与设计稿 §8 的偏离（有意）**：设计稿写"在 `App.OnStartup` 最早期注册 `CodePagesEncodingProvider`"。实现改为在 `PlaylistFileEncoding` 的**静态构造函数**里注册——静态构造函数保证在该类型任何成员被调用前执行，而 `Encoding.GetEncoding(936)` 只在这个类里出现，于是"注册必须早于解码"从一条需要人记住的启动顺序契约，变成类型自身保证的不变量，`App.xaml.cs` 也不用改。Task 11 会把设计稿 §8 与 COUPLING 条目改成这个口径。
 
-- [ ] **Step 1: 加包引用**
+- [x] **Step 1: 加包引用**
 
-在 `D-player.csproj` 的 `<ItemGroup>`（含其它 `PackageReference` 的那组）末尾，`z440.atl.core` 之后追加一行：
+> **执行记录（实现期修订，Task 11 回写）**：本步骤最终**未执行**——`System.Text.Encoding.CodePages` 在 net10.0 上是**框架隐含**（framework-implicit）的，`CodePagesEncodingProvider` / `Encoding.GetEncoding(936)` 开箱可用；显式 `PackageReference` 会被 SDK 判定冗余并触发 **NU1510** 警告，破坏本项目 0 警告门禁。因此 `D-player.csproj` **未改动**，没有新增任何包引用（见 commit `27ed09c` 与设计稿决策记录 #8）。
+
+原计划（已作废）：在 `D-player.csproj` 的 `<ItemGroup>`（含其它 `PackageReference` 的那组）末尾，`z440.atl.core` 之后追加一行：
 
 ```xml
         <PackageReference Include="System.Text.Encoding.CodePages" Version="10.*" />
 ```
 
-- [ ] **Step 2: 验证还原成功**
+- [x] **Step 2: 验证还原成功**
 
-Run: `dotnet restore D-player.sln --nologo -v q`
+> **执行记录**：随 Step 1 作废——未加包引用，无需验证还原。
+
+原计划（已作废）：Run: `dotnet restore D-player.sln --nologo -v q`
 Expected: 无错误。若报 `10.*` 无法解析（该包版本节奏偶有滞后），改为 `Version="9.*"` 再 restore 一次，并在提交信息里记一句实际采用的版本。
 
-- [ ] **Step 3: 写失败测试**
+- [x] **Step 3: 写失败测试**
 
 创建 `Tests/Services/PlaylistFileEncodingTests.cs`：
 
@@ -186,12 +190,12 @@ public sealed class PlaylistFileEncodingTests
 }
 ```
 
-- [ ] **Step 4: 运行测试确认失败**
+- [x] **Step 4: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileEncodingTests"`
 Expected: 编译失败 —— `DPlayer.Services.PlaylistFiles` 命名空间/类型不存在（CS0246）。
 
-- [ ] **Step 5: 实现 `PlaylistFileEncoding`**
+- [x] **Step 5: 实现 `PlaylistFileEncoding`**
 
 创建 `Services/PlaylistFiles/PlaylistFileEncoding.cs`：
 
@@ -246,14 +250,14 @@ internal static class PlaylistFileEncoding
 }
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileEncodingTests"`
 Expected: 6 通过 / 0 失败。
 
 再跑全量确认无回归：`dotnet test D-player.sln -c Debug --nologo -v q` → 102 通过（96 + 6）。
 
-- [ ] **Step 7: 转 CRLF 并提交**
+- [x] **Step 7: 转 CRLF 并提交**
 
 ```bash
 unix2dos Services/PlaylistFiles/PlaylistFileEncoding.cs Tests/Services/PlaylistFileEncodingTests.cs
@@ -283,7 +287,7 @@ git commit -m "feat(services): playlist file encoding probe with GBK fallback (P
   - `internal static class M3uParser`：`static IReadOnlyList<string> Parse(string text)`
   - `internal static class PlsParser`：`static IReadOnlyList<string> Parse(string text)`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `Tests/Services/PlaylistFileParserTests.cs`：
 
@@ -403,12 +407,12 @@ public sealed class PlaylistFileParserTests
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileParserTests"`
 Expected: 编译失败 —— `PlaylistFileFormats` / `M3uParser` / `PlsParser` 不存在（CS0246）。
 
-- [ ] **Step 3: 实现 `PlaylistFileFormats`**
+- [x] **Step 3: 实现 `PlaylistFileFormats`**
 
 创建 `Services/PlaylistFiles/PlaylistFileFormats.cs`：
 
@@ -454,7 +458,7 @@ public static class PlaylistFileFormats
 }
 ```
 
-- [ ] **Step 4: 实现两个解析器**
+- [x] **Step 4: 实现两个解析器**
 
 创建 `Services/PlaylistFiles/M3uParser.cs`：
 
@@ -545,14 +549,14 @@ internal static class PlsParser
 }
 ```
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileParserTests"`
 Expected: 16 通过 / 0 失败（`IsPlaylistFile` 的 Theory 展开 8 例 + 8 个 Fact）。
 
 全量：`dotnet test D-player.sln -c Debug --nologo -v q` → 96 + 6（Task 1）+ 16（本 Task）= 118 通过，全绿。
 
-- [ ] **Step 6: 转 CRLF 并提交**
+- [x] **Step 6: 转 CRLF 并提交**
 
 ```bash
 unix2dos Services/PlaylistFiles/PlaylistFileFormats.cs Services/PlaylistFiles/M3uParser.cs Services/PlaylistFiles/PlsParser.cs Tests/Services/PlaylistFileParserTests.cs
@@ -584,7 +588,7 @@ git commit -m "feat(services): playlist formats + M3U/PLS parsers (Phase 18)
   - `public interface IPlaylistFileService { Task<PlaylistImportResult> ImportAsync(string playlistFilePath); }`（`ExportAsync` 在 Task 4 追加，本 Task 不留占位实现）
   - `public sealed class PlaylistFileService : IPlaylistFileService`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `Tests/Services/PlaylistFileServiceTests.cs`：
 
@@ -831,12 +835,12 @@ public sealed class PlaylistFileServiceTests : IDisposable
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileServiceTests"`
 Expected: 编译失败 —— `PlaylistFileService` / `PlaylistImportResult` 不存在（CS0246）。
 
-- [ ] **Step 3: 实现结果 record 与接口**
+- [x] **Step 3: 实现结果 record 与接口**
 
 创建 `Services/PlaylistFiles/PlaylistImportResult.cs`：
 
@@ -887,7 +891,7 @@ public interface IPlaylistFileService
 
 > `ExportAsync` 在 Task 4 与 `M3u8Writer` 一起追加到本接口——**不要**在本 Task 先塞一个 `throw new NotImplementedException` 占位，那会把半成品带进提交历史。
 
-- [ ] **Step 4: 实现 `PlaylistFileService`（本 Task 只做导入侧）**
+- [x] **Step 4: 实现 `PlaylistFileService`（本 Task 只做导入侧）**
 
 创建 `Services/PlaylistFiles/PlaylistFileService.cs`：
 
@@ -995,7 +999,7 @@ public sealed class PlaylistFileService : IPlaylistFileService
 
 > 本 Task 结束时 `IPlaylistFileService` 只有 `ImportAsync` 一个成员，`PlaylistFileService` 完整实现它——不留任何占位实现。`ExportAsync` 的接口声明与实现一起在 Task 4 追加。
 
-- [ ] **Step 5: 注册到 DI**
+- [x] **Step 5: 注册到 DI**
 
 修改 `Extensions/ServiceCollectionExtensions.cs`：在文件顶部 using 区加
 
@@ -1011,7 +1015,7 @@ using DPlayer.Services.PlaylistFiles;
         services.AddSingleton<IPlaylistFileService, PlaylistFileService>();
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileServiceTests"`
 Expected: 14 通过 / 0 失败。
@@ -1019,7 +1023,7 @@ Expected: 14 通过 / 0 失败。
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。
 
-- [ ] **Step 7: 转 CRLF 并提交**
+- [x] **Step 7: 转 CRLF 并提交**
 
 ```bash
 unix2dos Services/PlaylistFiles/PlaylistImportResult.cs Services/PlaylistFiles/IPlaylistFileService.cs Services/PlaylistFiles/PlaylistFileService.cs Tests/Services/PlaylistFileServiceTests.cs
@@ -1048,7 +1052,7 @@ git commit -m "feat(services): IPlaylistFileService import pipeline (Phase 18)
 - Consumes: `Models.Track`（`FilePath` `Title` `Artist` `Duration`）、`IPlaylistFileService`（Task 3）
 - Produces: `internal static class M3u8Writer`，成员 `static readonly Encoding Encoding`（UTF-8 无 BOM）、`static string Write(IReadOnlyList<Track> tracks)`；`IPlaylistFileService.ExportAsync(string destPath, IReadOnlyList<Track> tracks) → Task`（写侧可抛，Task 6 的导出路径依赖它）。
 
-- [ ] **Step 1: 追加失败测试**
+- [x] **Step 1: 追加失败测试**
 
 在 `Tests/Services/PlaylistFileServiceTests.cs` 类内末尾追加（文件顶部 using 已含 `System.Linq` / `System.Text` / `DPlayer.Models` 需要补一行）：
 
@@ -1144,12 +1148,12 @@ using DPlayer.Models;
     }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileServiceTests.Export"`
 Expected: 编译失败 —— `PlaylistFileService` 上没有 `ExportAsync`（CS1061）。
 
-- [ ] **Step 3: 实现 `M3u8Writer`**
+- [x] **Step 3: 实现 `M3u8Writer`**
 
 创建 `Services/PlaylistFiles/M3u8Writer.cs`：
 
@@ -1209,7 +1213,7 @@ internal static class M3u8Writer
 }
 ```
 
-- [ ] **Step 4: 接口加 `ExportAsync` 声明**
+- [x] **Step 4: 接口加 `ExportAsync` 声明**
 
 `Services/PlaylistFiles/IPlaylistFileService.cs`：using 区补 `using System.Collections.Generic;` 与 `using DPlayer.Models;`，类注释追加写侧策略一行，接口体追加成员：
 
@@ -1223,7 +1227,7 @@ internal static class M3u8Writer
     Task ExportAsync(string destPath, IReadOnlyList<Track> tracks);
 ```
 
-- [ ] **Step 5: 实现 `PlaylistFileService.ExportAsync`**
+- [x] **Step 5: 实现 `PlaylistFileService.ExportAsync`**
 
 在 `Services/PlaylistFiles/PlaylistFileService.cs` 的 `ImportAsync` 之后追加：
 
@@ -1241,14 +1245,14 @@ internal static class M3u8Writer
     }
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistFileServiceTests"`
 Expected: 19 通过 / 0 失败（14 导入 + 5 导出/往返）。
 
 全量：`dotnet test D-player.sln -c Debug --nologo -v q` → 96 + 6 + 16 + 14 + 5 = 137 通过，全绿。
 
-- [ ] **Step 7: 转 CRLF 并提交**
+- [x] **Step 7: 转 CRLF 并提交**
 
 ```bash
 unix2dos Services/PlaylistFiles/M3u8Writer.cs
@@ -1275,7 +1279,7 @@ git commit -m "feat(services): M3U8 export + import/export round trip (Phase 18)
 - Consumes: 无
 - Produces: `IFileDialogService.SaveFile(string filter, string defaultFileName, string defaultExtension) → string?`（取消返回 `null`）。Task 6 的导出路径依赖它。
 
-- [ ] **Step 1: 接口加方法**
+- [x] **Step 1: 接口加方法**
 
 在 `Services/IFileDialogService.cs` 的 `OpenFolder()` 之后追加：
 
@@ -1291,7 +1295,7 @@ git commit -m "feat(services): M3U8 export + import/export round trip (Phase 18)
     string? SaveFile(string filter, string defaultFileName, string defaultExtension);
 ```
 
-- [ ] **Step 2: Win32 实现**
+- [x] **Step 2: Win32 实现**
 
 在 `Services/Win32FileDialogService.cs` 的 `OpenFolder()` 之后追加：
 
@@ -1317,7 +1321,7 @@ git commit -m "feat(services): M3U8 export + import/export round trip (Phase 18)
 
 `SaveFileDialog` 与已有的 `OpenFileDialog` 同在 `Microsoft.Win32`，文件顶部已有该 using。
 
-- [ ] **Step 3: 补测试桩（否则接口实现不全，编译失败）**
+- [x] **Step 3: 补测试桩（否则接口实现不全，编译失败）**
 
 在 `ViewModels/PlaylistsViewModel.cs` 末尾的 `private sealed class NullFileDialogService` 里补一行：
 
@@ -1325,7 +1329,7 @@ git commit -m "feat(services): M3U8 export + import/export round trip (Phase 18)
         public string? SaveFile(string filter, string defaultFileName, string defaultExtension) => null;
 ```
 
-- [ ] **Step 4: 构建 + 全量测试**
+- [x] **Step 4: 构建 + 全量测试**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。若报"未实现接口成员"，说明还有别的 `IFileDialogService` 实现类没补——用 `grep -rn ": IFileDialogService" --include=*.cs .` 找全。
@@ -1333,7 +1337,7 @@ Expected: 0 错误 0 警告。若报"未实现接口成员"，说明还有别的
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: 全绿（对话框本身无法单测，本 Task 只验证接线不破坏现有测试）。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add Services/IFileDialogService.cs Services/Win32FileDialogService.cs ViewModels/PlaylistsViewModel.cs
@@ -1361,7 +1365,7 @@ git commit -m "feat(services): SaveFile on IFileDialogService for playlist expor
   - `public Task<string?> PlaylistViewModel.ExportPlaylistFileAsync()`
   - `PlaylistViewModel` ctor 新签名：`(Models.Playlist seed, IPlaybackService player, IFileDialogService fileDialog, ITrackMetadataReader metadataReader, IPlaylistFileService playlistFiles)`
 
-- [ ] **Step 1: 修测试构造 + 写失败测试**
+- [x] **Step 1: 修测试构造 + 写失败测试**
 
 `Tests/ViewModels/PlaylistViewModelTests.cs`：在字段区（`_metadataReader` 那几行旁）加
 
@@ -1513,12 +1517,12 @@ using DPlayer.Services.PlaylistFiles;
     }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistViewModelTests"`
 Expected: 编译失败 —— ctor 参数不匹配（CS1503）、`ImportPlaylistFileAsync` / `ExportPlaylistFileAsync` / `PlaylistImportReport` 不存在（CS1061/CS0246）。
 
-- [ ] **Step 3: 创建报告 record**
+- [x] **Step 3: 创建报告 record**
 
 创建 `ViewModels/PlaylistImportReport.cs`：
 
@@ -1551,7 +1555,7 @@ public sealed record PlaylistImportReport(
 }
 ```
 
-- [ ] **Step 4: `PlaylistViewModel` ctor 接线**
+- [x] **Step 4: `PlaylistViewModel` ctor 接线**
 
 在 `ViewModels/PlaylistViewModel.cs` 顶部 using 区加
 
@@ -1596,7 +1600,7 @@ ctor 其余部分不动。
                 sp.GetRequiredService<IPlaylistFileService>()));
 ```
 
-- [ ] **Step 5: 实现两个方法**
+- [x] **Step 5: 实现两个方法**
 
 在 `ViewModels/PlaylistViewModel.cs` 的 `DropExternalFiles` 之后追加：
 
@@ -1670,7 +1674,7 @@ ctor 其余部分不动。
     }
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistViewModelTests"`
 Expected: 全通过（原有 + 新增 8 例）。
@@ -1678,7 +1682,7 @@ Expected: 全通过（原有 + 新增 8 例）。
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。此时 `PlaylistsViewModelTests.cs:35` 还在用 4 参构造 —— 若报 CS1503，说明该文件也要跟着改：把 `_playlistFiles` 桩加进 `Tests/ViewModels/PlaylistsViewModelTests.cs` 并在其 `CreatePlaylistVm` 里补第 5 个实参（`Substitute.For<IPlaylistFileService>()`），这是 Task 7 的前置修复，一并做掉以保持编译绿色。
 
-- [ ] **Step 7: 转 CRLF 并提交**
+- [x] **Step 7: 转 CRLF 并提交**
 
 ```bash
 unix2dos ViewModels/PlaylistImportReport.cs
@@ -1706,7 +1710,7 @@ git commit -m "feat(vm): playlist-level import (append) and M3U8 export (Phase 1
 - Consumes: `IPlaylistFileService`、`ILibraryScannerService.ReadMetadataBatchAsync`、既有 `HookPlaylistVm` / `_factory` / `Playlist` record、`PlaylistImportReport`（Task 6）
 - Produces: `public Task<PlaylistImportReport?> PlaylistsViewModel.ImportPlaylistFileAsync(string? presetPath = null)`；`PlaylistsViewModel` ctor 新签名（末尾追加 `IPlaylistFileService playlistFiles`）。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `Tests/ViewModels/PlaylistsViewModelTests.cs`：字段区补
 
@@ -1828,12 +1832,12 @@ using 区补 `using DPlayer.Services.PlaylistFiles;` 与 `using System.Collectio
     }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistsViewModelTests"`
 Expected: 编译失败 —— `PlaylistsViewModel` 没有 7 参 ctor（CS1503）、没有 `ImportPlaylistFileAsync`（CS1061）。
 
-- [ ] **Step 3: ctor 接线**
+- [x] **Step 3: ctor 接线**
 
 `ViewModels/PlaylistsViewModel.cs`：using 区加 `using DPlayer.Services.PlaylistFiles;`；字段区（`_metadataReader` 之后）加
 
@@ -1881,7 +1885,7 @@ Expected: 编译失败 —— `PlaylistsViewModel` 没有 7 参 ctor（CS1503）
     }
 ```
 
-- [ ] **Step 4: 实现容器级导入**
+- [x] **Step 4: 实现容器级导入**
 
 在 `ImportFolderAsync` 之后追加：
 
@@ -1943,14 +1947,14 @@ Expected: 编译失败 —— `PlaylistsViewModel` 没有 7 参 ctor（CS1503）
     }
 ```
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistsViewModelTests"`
 Expected: 全通过（原有 + 新增 5 例）。
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 全绿；`dotnet build D-player.sln -c Debug --nologo -v q` → 0 错误 0 警告。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add ViewModels/PlaylistsViewModel.cs Tests/ViewModels/PlaylistsViewModelTests.cs
@@ -1986,7 +1990,7 @@ git commit -m "feat(vm): container-level playlist import creates a normal playli
   - `PlaylistImportUi.RunDialogAsync(Func<string?, Task<PlaylistImportReport?>>, Window?) → Task`、`PlaylistImportUi.RunForDroppedFilesAsync(Func<string?, Task<PlaylistImportReport?>>, Window?, IReadOnlyList<string>) → Task`
   - 资源键 `Icon.Import`、`Icon.Export`
 
-- [ ] **Step 1: 写文案失败测试**
+- [x] **Step 1: 写文案失败测试**
 
 创建 `Tests/Views/PlaylistImportReportFormatterTests.cs`：
 
@@ -2060,12 +2064,12 @@ public sealed class PlaylistImportReportFormatterTests
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistImportReportFormatterTests"`
 Expected: 编译失败 —— `PlaylistImportReportFormatter` 不存在（CS0246）。
 
-- [ ] **Step 3: 实现文案格式化**
+- [x] **Step 3: 实现文案格式化**
 
 创建 `Views/Controls/PlaylistImportReportFormatter.cs`（文案逐字符对齐设计稿 §9.3，也就是 Step 1 测试里的期望字符串）：
 
@@ -2140,12 +2144,12 @@ public static class PlaylistImportReportFormatter
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q --filter "FullyQualifiedName~PlaylistImportReportFormatterTests"`
 Expected: 5 通过 / 0 失败。若某个断言因全角/半角标点不一致失败，**改实现去对齐测试**（测试里的字符串就是设计稿 §9.3 的文案）。
 
-- [ ] **Step 5: `ConfirmDialog.ShowInfo`**
+- [x] **Step 5: `ConfirmDialog.ShowInfo`**
 
 在 `Views/Dialogs/ConfirmDialog.xaml.cs` 的 `ShowError` 之后追加，并把类注释里的模式说明补上 ShowInfo：
 
@@ -2155,7 +2159,7 @@ Expected: 5 通过 / 0 失败。若某个断言因全角/半角标点不一致�
         => ShowCore(owner, title, message, showCancel: false);
 ```
 
-- [ ] **Step 6: `DragDropExtensions` 加播放列表过滤**
+- [x] **Step 6: `DragDropExtensions` 加播放列表过滤**
 
 在 `Views/Controls/DragDropExtensions.cs` 顶部 using 区加 `using DPlayer.Services.PlaylistFiles;`，在 `AudioExtensions` / `FilterAudioPaths` 之后追加：
 
@@ -2179,7 +2183,7 @@ Expected: 5 通过 / 0 失败。若某个断言因全角/半角标点不一致�
 
 同时把类注释里"AudioExtensions: 代理到 Models.AudioConstants…"那段补一句：Phase 18 起 Drop 目标必须**同时**查 `FilterAudioPaths` 与 `FilterPlaylistPaths`，两个白名单互不重叠。
 
-- [ ] **Step 7: 两个新图标**
+- [x] **Step 7: 两个新图标**
 
 在 `Themes/Icons.xaml` 的 `Icon.MusicNote` 之后、`Icon.PlayMarker` 之前追加（Lucide download/upload，转成本文件的绝对坐标风格）：
 
@@ -2189,7 +2193,7 @@ Expected: 5 通过 / 0 失败。若某个断言因全角/半角标点不一致�
     <Geometry x:Key="Icon.Export">M21,15 V19 A2,2 0 0 1 19,21 H5 A2,2 0 0 1 3,19 V15 M17,8 L12,3 L7,8 M12,3 V15</Geometry>
 ```
 
-- [ ] **Step 8: 共用执行器**
+- [x] **Step 8: 共用执行器**
 
 创建 `Views/Controls/PlaylistImportUi.cs`：
 
@@ -2257,7 +2261,7 @@ public static class PlaylistImportUi
 }
 ```
 
-- [ ] **Step 9: 构建 + 全量测试**
+- [x] **Step 9: 构建 + 全量测试**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。
@@ -2265,7 +2269,7 @@ Expected: 0 错误 0 警告。
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: 全绿。
 
-- [ ] **Step 10: 转 CRLF 并提交**
+- [x] **Step 10: 转 CRLF 并提交**
 
 ```bash
 unix2dos Views/Controls/PlaylistImportReportFormatter.cs Views/Controls/PlaylistImportUi.cs Tests/Views/PlaylistImportReportFormatterTests.cs
@@ -2294,7 +2298,7 @@ git commit -m "feat(view): import report plumbing for playlist files (Phase 18)
 - Consumes: `PlaylistsViewModel.ImportPlaylistFileAsync`（Task 7）、`PlaylistImportUi`（Task 8）、`DragDropExtensions.FilterPlaylistPaths`、`Icon.Import`
 - Produces: 侧边栏第三个按钮 `ImportBtn` + `ImportBtn_Click`；`PlaylistList_DragOver` / `PlaylistList_Drop` 支持外部播放列表文件。
 
-- [ ] **Step 1: XAML 加按钮**
+- [x] **Step 1: XAML 加按钮**
 
 在 `Views/Controls/PlaylistsSidebarView.xaml` 的 `RemoveBtn` 结束标签之后、`</StackPanel>` 之前插入：
 
@@ -2312,7 +2316,7 @@ git commit -m "feat(view): import report plumbing for playlist files (Phase 18)
             </Button>
 ```
 
-- [ ] **Step 2: code-behind 加 Click 处理器**
+- [x] **Step 2: code-behind 加 Click 处理器**
 
 在 `Views/Controls/PlaylistsSidebarView.xaml.cs` 的 `RemoveBtn_Click` 之后插入：
 
@@ -2325,7 +2329,7 @@ git commit -m "feat(view): import report plumbing for playlist files (Phase 18)
     }
 ```
 
-- [ ] **Step 3: DragOver 支持外部播放列表文件**
+- [x] **Step 3: DragOver 支持外部播放列表文件**
 
 把 `PlaylistList_DragOver` 的 `else` 分支替换为两个分支（内部重排分支不动）：
 
@@ -2343,7 +2347,7 @@ git commit -m "feat(view): import report plumbing for playlist files (Phase 18)
         }
 ```
 
-- [ ] **Step 4: Drop 支持外部播放列表文件**
+- [x] **Step 4: Drop 支持外部播放列表文件**
 
 在 `PlaylistList_Drop` 的 `try` 块里，内部重排分支之后加 `else if`（`finally` 不动）：
 
@@ -2362,14 +2366,14 @@ git commit -m "feat(view): import report plumbing for playlist files (Phase 18)
             }
 ```
 
-- [ ] **Step 5: 构建 + 全量测试**
+- [x] **Step 5: 构建 + 全量测试**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告（XAML 里 `Icon.Import` 键存在、`ImportBtn_Click` 签名匹配）。
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 全绿（UI 行为在 Task 11 用 GUI 验收）。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Views/Controls/PlaylistsSidebarView.xaml Views/Controls/PlaylistsSidebarView.xaml.cs
@@ -2394,7 +2398,7 @@ git commit -m "feat(view): sidebar playlist-file import creates a new playlist (
 - Consumes: `PlaylistViewModel.ImportPlaylistFileAsync` / `ExportPlaylistFileAsync`（Task 6）、`PlaylistImportUi`、`DragDropExtensions.FilterPlaylistPaths`、`ConfirmDialog.ShowError`、`Icon.Import` / `Icon.Export`
 - Produces: 工具栏"导入列表"/"导出列表"两个按钮及其处理器；`QueueList_DragOver` / `QueueList_Drop` / `Root_DragEnter` / `Root_DragOver` / `Root_Drop` 的播放列表文件分流。
 
-- [ ] **Step 1: XAML 加两个按钮**
+- [x] **Step 1: XAML 加两个按钮**
 
 在 `Views/Controls/PlaylistView.xaml` 工具栏左侧 `StackPanel` 中，"导入文件夹"按钮之后、"清空"按钮之前插入：
 
@@ -2419,7 +2423,7 @@ git commit -m "feat(view): sidebar playlist-file import creates a new playlist (
                 </Button>
 ```
 
-- [ ] **Step 2: code-behind 加两个 Click 处理器**
+- [x] **Step 2: code-behind 加两个 Click 处理器**
 
 在 `Views/Controls/PlaylistView.xaml.cs` 的 `ClearButton_Click` 之后插入（文件已有 `using DPlayer.Views.Dialogs;`）：
 
@@ -2451,7 +2455,7 @@ git commit -m "feat(view): sidebar playlist-file import creates a new playlist (
     }
 ```
 
-- [ ] **Step 3: 列表区 DragOver / DragEnter 认播放列表文件**
+- [x] **Step 3: 列表区 DragOver / DragEnter 认播放列表文件**
 
 把 `QueueList_DragOver` 的外部文件分支替换为：
 
@@ -2492,7 +2496,7 @@ git commit -m "feat(view): sidebar playlist-file import creates a new playlist (
         }
 ```
 
-- [ ] **Step 4: 两个 Drop 处理器分流**
+- [x] **Step 4: 两个 Drop 处理器分流**
 
 `QueueList_Drop` 的外部文件分支替换为：
 
@@ -2542,14 +2546,14 @@ git commit -m "feat(view): sidebar playlist-file import creates a new playlist (
         }
 ```
 
-- [ ] **Step 5: 构建 + 全量测试**
+- [x] **Step 5: 构建 + 全量测试**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → 全绿。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add Views/Controls/PlaylistView.xaml Views/Controls/PlaylistView.xaml.cs
@@ -2576,7 +2580,7 @@ git commit -m "feat(view): playlist toolbar import/export + drop routing (Phase 
 - Consumes: Task 1–10 的最终代码形态（写文档前用 `git log --stat` 与实读代码核对，不要凭记忆）
 - Produces: 文档与代码一致；GUI 验收记录。
 
-- [ ] **Step 1: 全量构建与测试**
+- [x] **Step 1: 全量构建与测试**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。
@@ -2584,13 +2588,13 @@ Expected: 0 错误 0 警告。
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: 全绿。**记下实际通过数**（基线 96 + 本阶段新增 59 = 155 左右；以实际输出为准），下一步文档里要写真实数字。
 
-- [ ] **Step 2: 更新 `docs/PROJECT.md`**
+- [x] **Step 2: 更新 `docs/PROJECT.md`**
 
 - 目录树：在 `Services/` 下加 `PlaylistFiles/` 子树（7 个新文件），`ViewModels/` 下加 `PlaylistImportReport.cs`，`Views/Controls/` 下加 `PlaylistImportReportFormatter.cs` / `PlaylistImportUi.cs`，`Tests/` 下加 `Views/`。
 - 新增 Phase 18 小节：服务层职责与"读侧不抛/写侧抛"的不对称、双入口分层（容器级新建 vs 歌单级追加）、`presetPath` 是拖拽与对话框的共用接点、编码探测链、导出的 M3U8 形状。
 - 若 PROJECT.md 有测试计数/阶段状态一类的汇总处，同步为新数字。
 
-- [ ] **Step 3: 更新 `docs/COUPLING.md`**
+- [x] **Step 3: 更新 `docs/COUPLING.md`**
 
 §5 追加"Phase 18 新增"块，逐条登记（措辞与设计稿 §11 一致，第 2 条按实际实现改为静态构造函数口径）：
 
@@ -2607,16 +2611,16 @@ Expected: 全绿。**记下实际通过数**（基线 96 + 本阶段新增 59 = 
 - ❌ 不要为导入给 `PlaylistViewModel` 注入 `ILibraryScannerService`——追加路径复用既有 `DropExternalFiles`。
 - ❌ 不要把导出入口放到侧边栏——侧边栏作用于"选中项"，导出语义是"当前查看的歌单"，两个指针在键盘导航下可能不同步。
 
-- [ ] **Step 4: 更新 `README.md`**
+- [x] **Step 4: 更新 `README.md`**
 
 功能列表加一条：播放列表导入（M3U / M3U8 / PLS，支持相对路径与 GBK/UTF-8/UTF-16 编码）与导出（M3U8，绝对路径 + `#EXTINF`）。构建/测试命令段落里的测试数字同步。
 
-- [ ] **Step 5: 修正设计稿 §8 与状态**
+- [x] **Step 5: 修正设计稿 §8 与状态**
 
 - §8 改为：provider 在 `PlaylistFileEncoding` 静态构造函数注册，`App.xaml.cs` 不需改动；保留"重复注册无害"的说明，删掉"必须在 OnStartup 最早期"的要求。
 - 顶部状态 `**待实现**` → `**已实现**`，并在决策记录表补一行：#8 CodePages 注册点从 App 启动改为类型静态构造（理由：把启动顺序契约变成类型不变量）。
 
-- [ ] **Step 6: 勾选本计划所有步骤**
+- [x] **Step 6: 勾选本计划所有步骤**
 
 把本文件所有 `- [ ]` 改成 `- [x]`（用 Edit 工具逐处改，**不要**用 `sed -i`：它会剥掉 CRLF）。改完确认：
 
@@ -2624,6 +2628,8 @@ Run: `git ls-files --eol docs/superpowers/plans/2026-10-05-d-player-phase18-play
 Expected: `i/lf    w/crlf`。若是 `w/lf`，执行 `unix2dos <该文件>` 后重新 `git add`。
 
 - [ ] **Step 7: GUI 验收（ComputerUse）**
+
+> **执行记录（Task 11 文档部分）**：本步骤由 controller 另行执行并留档，不在文档同步提交（Step 8）范围内；故此处保留未勾选，待 GUI 走查完成后由执行方勾选。
 
 先 `dotnet build D-player.sln -c Debug` 后启动 exe（或 `dotnet run --project D-player.csproj`）。
 
@@ -2674,7 +2680,7 @@ Get-ChildItem $dir | Select-Object Name, Length
 Run: `grep -rn "MessageBox" --include=*.cs . | grep -v "/obj/\|/bin/"`
 Expected: 无输出（全应用仍无系统 MessageBox）。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 unix2dos docs/PROJECT.md docs/COUPLING.md README.md docs/superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md docs/superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md

@@ -1,6 +1,6 @@
 # Phase 18：播放列表文件导入导出（M3U / M3U8 / PLS）设计
 
-> 设计日期：2026-10-05 · 对应分支：`master` · 状态：**待实现**
+> 设计日期：2026-10-05 · 对应分支：`master` · 状态：**已实现**
 >
 > 目标：让歌单能与外部世界互通——**导入** `.m3u` / `.m3u8` / `.pls` 建歌单或追加到当前歌单，**导出**当前歌单为 `.m3u8`（绝对路径 + 完整 `#EXTINF`）。导入侧严格过滤不可用条目并给出结果报告；编码支持 UTF-8 / UTF-16(BOM) / GBK 回退，保证中文路径不乱码。
 
@@ -50,6 +50,7 @@
 | 5 | 导出形状 | 绝对路径 + 完整 `#EXTINF` | 项目已有标题/艺术家/时长，零额外成本；绝对路径对本地播放器与车机最稳 |
 | 6 | 拖拽 | 支持，按拖放区域分语义 | 与双入口分层一致，且直接复用同一条"解析→过滤→入列→报告"管道 |
 | 7 | 架构形状 | 新增门面服务 `IPlaylistFileService`（方案 A） | 两个 VM 共用同一条管道，过滤与计数必须集中；服务可纯单测；与 `JsonPlaylistService` / `JsonLibraryCache` 风格一致 |
+| 8 | CodePages 注册点（实现期修订） | 从 `App.OnStartup` 改为 `PlaylistFileEncoding` **静态构造函数**；`D-player.csproj` 不加包引用 | `Encoding.GetEncoding(936)` 只出现在该类内部，静态构造函数把"注册早于解码"从启动顺序契约变成类型不变量；且 `System.Text.Encoding.CodePages` 在 net10.0 框架隐含，显式 `PackageReference` 触发 NU1510 警告、破坏 0 警告门禁 |
 
 被否掉的方案：**B. 静态 helper 不进 DI**（过滤与报告计数在两个 VM 重复，且无法 mock，VM 测试必须真碰磁盘）；**C. 扩展 `ILibraryScannerService`**（把"文件夹→音频文件"与"列表文件→条目"两种职责混进一个已在 COUPLING 登记契约的类型，放大风险面）。
 
@@ -72,8 +73,8 @@ ViewModels/PlaylistImportReport.cs      ← 新增：VM 层报告 record（View 
 
 | 文件 | 改动 |
 |------|------|
-| `D-player.csproj` | 加 `PackageReference System.Text.Encoding.CodePages` |
-| `App.xaml.cs` | `OnStartup` 最早期注册 `CodePagesEncodingProvider` |
+| `D-player.csproj` | **未改动**（实现期修订，见决策 #8）：`System.Text.Encoding.CodePages` 在 net10.0 框架隐含，显式 `PackageReference` 触发 NU1510 |
+| `App.xaml.cs` | **未改动**（实现期修订，见决策 #8）：provider 改在 `PlaylistFileEncoding` 静态构造函数注册 |
 | `Services/IFileDialogService.cs` | 加 `SaveFile(filter, defaultFileName, defaultExtension)` |
 | `Services/Win32FileDialogService.cs` | 实现 `SaveFile`（`Microsoft.Win32.SaveFileDialog`） |
 | `Extensions/ServiceCollectionExtensions.cs` | 注册 `IPlaylistFileService`（Singleton，无状态） |
@@ -256,12 +257,18 @@ catch (Exception ex) { return $"导出失败：{ex.Message}"; }
 
 ## 8. 依赖与启动
 
-- `D-player.csproj` 加 `<PackageReference Include="System.Text.Encoding.CodePages" Version="10.*" />`（与现有 `Microsoft.Extensions.*` 的 `10.*` 版本策略对齐；实现时确认可解析的具体版本）。
-- `App.OnStartup` **最早期**（在 `LegacyDataMigration.MigrateIfNeeded()` 之前）执行：
+> **实现期修订（决策记录 #8）**：本节原方案为「csproj 加包引用 + `App.OnStartup` 最早期注册」，落地时改为下述口径，设计稿以此为准。
+
+- **不加 NuGet 包引用**：`System.Text.Encoding.CodePages` 在 net10.0 上框架隐含（framework-implicit），`CodePagesEncodingProvider` 开箱可用；显式 `PackageReference` 会被 SDK 判定冗余并触发 NU1510 警告，破坏项目 0 警告门禁。`D-player.csproj` 未改动。
+- **注册点在 `PlaylistFileEncoding` 的静态构造函数**：
   ```csharp
-  Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+  static PlaylistFileEncoding()
+  {
+      Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+  }
   ```
-  重复注册无害，但必须早于任何 GBK 解码路径。这个时机依赖要登记进 COUPLING §5。
+  `Encoding.GetEncoding(936)` 只出现在该类内部，静态构造函数保证注册永远早于本类任何解码调用——"注册先于解码"由类型自身保证，不依赖 App 启动顺序。`App.xaml.cs` 未改动。重复注册无害（`RegisterProvider` 幂等；测试进程为造 GBK 字节自行注册一次也不冲突）。
+- **约束**：不要把 GBK 解码搬到 `PlaylistFileEncoding` 之外的类型——搬走就等于把注册时机重新变成一条口头约定（登记于 COUPLING §5）。
 
 ## 9. UI 入口与拖拽
 
@@ -361,7 +368,7 @@ catch (Exception ex) { return $"导出失败：{ex.Message}"; }
 - `docs/PROJECT.md`：新增 Phase 18 小节（服务层 + 双入口 + 拖拽双轨）、目录树补 `Services/PlaylistFiles/`。
 - `docs/COUPLING.md` §5 新增隐式契约：
   1. **拖拽双轨白名单**：`FilterAudioPaths` 与 `FilterPlaylistPaths` 互不重叠，Drop 处理器必须两个都查，否则 `.m3u` 会被静默丢弃（回到 Phase 18 之前的行为）。
-  2. **CodePages provider 注册时机**：`App.OnStartup` 最早期注册，晚于此的 GBK 解码会抛 `NotSupportedException`。
+  2. **CodePages provider 注册点**：在 `PlaylistFileEncoding` 的静态构造函数里（实现期修订，见 §8 与决策 #8），`Encoding.GetEncoding(936)` 只出现在该类内部，注册永远早于解码；不要把 GBK 解码搬到别的类型里。
   3. **Import 不抛 / Export 抛**：读侧吞异常返回空结果，写侧异常必须冒到 VM 转错误文案；不要把 `ExportAsync` 包成不抛。
   4. **`#EXTINF` / `Title=` 刻意忽略**：标题时长只信音频文件；后续若想用列表文件的元数据，需要先定优先级规则。
   5. **导入报告文案由 View 组装**：VM 只返回结构化 `PlaylistImportReport`，不在 VM 里拼中文句子。

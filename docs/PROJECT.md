@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/10/05（对应 HEAD `d86694b`） · 对应分支：`master` · 当前阶段：**Phase 17 完成（UI 深度深色定制 - 自定义标题栏 + 控件深色化）** · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026/10/06（对应 HEAD `1bff9dd`） · 对应分支：`master` · 当前阶段：**Phase 18 完成（M3U/M3U8/PLS 播放列表文件导入导出）** · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 
 ## 1. 项目简介
 
-**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerConfig/EqualizerPresets 数据模型 + 9 个内置预设 + 独立 EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + 实时系数更新 + settings.json 持久化；EQ 插在 SampleAggregator 之前，频谱反映 EQ 后信号）。Phase 15 完成耦合健康度审计（`tools/coupling-audit` PowerShell 脚本 M1–M6 客观度量 + M7/D1–D5 人工裁决；结论：0 环 / 0 层级违规 / 无多职责文件，无需解耦，所有技术债清零）。Phase 16 图标矢量化（`Themes/Icons.xaml` 统一描边矢量图标集替换全部 emoji/字形图标；转换器返回 `Geometry`；▶ 标记 TextBlock→Path 实心三角；VM 层移除 `VolumeIcon` 守住"无 emoji"纪律）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、最大化常量式工作区边距；ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu/MenuItem 深色隐式样式；纯表现层，0 新依赖）。
+**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerConfig/EqualizerPresets 数据模型 + 9 个内置预设 + 独立 EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + 实时系数更新 + settings.json 持久化；EQ 插在 SampleAggregator 之前，频谱反映 EQ 后信号）。Phase 15 完成耦合健康度审计（`tools/coupling-audit` PowerShell 脚本 M1–M6 客观度量 + M7/D1–D5 人工裁决；结论：0 环 / 0 层级违规 / 无多职责文件，无需解耦，所有技术债清零）。Phase 16 图标矢量化（`Themes/Icons.xaml` 统一描边矢量图标集替换全部 emoji/字形图标；转换器返回 `Geometry`；▶ 标记 TextBlock→Path 实心三角；VM 层移除 `VolumeIcon` 守住"无 emoji"纪律）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、最大化常量式工作区边距；ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu/MenuItem 深色隐式样式；纯表现层，0 新依赖）。Phase 18 播放列表文件导入导出（新增 `Services/PlaylistFiles` 门面模块 + `IPlaylistFileService`：导入 `.m3u` / `.m3u8` / `.pls` —— 编码探测 UTF-8/UTF-16(BOM)/GBK 回退 + 相对路径归一化 + URL/后缀/存在性严格过滤计数；导出 `.m3u8` —— 绝对路径 + `#EXTINF`；双入口分层：侧边栏/拖到侧边栏 = 新建歌单，歌单工具栏/拖到列表区 = 追加当前歌单；导入报告文案由 View 层组装）。
 
 ### 1.1 关键特性（已实现）
 
@@ -31,12 +31,12 @@
 | 曲目信息面板 | 右侧独立 TrackInfoView：封面（ViewBox 自动缩放）+ 标题/艺术家/专辑/采样率；BackgroundSecondary 背景 (Phase 12 continued) |
 | 音频可视化 | 32 条垂直频谱柱（8192 点 FFT + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）；4 种颜色主题（紫/蓝/绿/彩虹，彩虹为红→紫水平渐变）；灵敏度/平滑度配置；启用/禁用开关；置于 TrackInfoView 底部（高 120px）；设置持久化 (Phase 13) |
 | 均衡器 | 10 段图形 EQ（ISO 倍频程 31Hz–16kHz ±12dB 峰值滤波 Q≈1.1 + preamp −12~+12dB）；9 个内置预设（Flat/Rock/Pop/Jazz/Classical/Dance/Bass Boost/Treble Boost/Vocal）+ 手动 Custom；实时生效（拖动即时听感）；启用开关（默认关，透明旁路）；独立 EqualizerDialog（PlayerBar 🎚 按钮打开，启用态高亮）；设置持久化 (Phase 14) |
-| 图标 | 全量描边矢量图标集（Themes/Icons.xaml，22 个 `Icon.*`，Feather/Lucide 几何）；随机/循环/EQ 活跃态 accent 着色；▶ 标记实心三角 (Phase 16) |
+| 图标 | 全量描边矢量图标集（Themes/Icons.xaml，24 个 `Icon.*`，Feather/Lucide 几何）；随机/循环/EQ 活跃态 accent 着色；▶ 标记实心三角 (Phase 16) |
 | 窗口外观 | 无边框 WindowChrome + 自绘 TitleBar（最小化/最大化/关闭；对话框仅关闭按钮；最大化常量式工作区边距；OS 保留拖动/快照行为）(Phase 17) |
+| 播放列表文件 | 导入 .m3u / .m3u8 / .pls（相对路径按列表所在目录解析；UTF-8/UTF-16(BOM)/GBK 编码探测；URL/后缀/存在性严格过滤 + 跳过计数报告）；导出 .m3u8（绝对路径 + `#EXTINF`）；侧边栏入口新建歌单、歌单工具栏入口追加当前歌单、拖拽按落点分流 (Phase 18) |
 
 ### 1.2 后续增量（未实现）
 
-- M3U / PLS 等播放列表格式导入导出
 - 音乐库按艺术家/专辑组织（文件夹扫描已在 Phase 10 实现）
 - OGG/Vorbis 支持（MF 不原生支持，需额外解码器）
 - 多设备 / 输出模式切换（WASAPI Shared / Exclusive / ASIO）—— 接口已预留
@@ -107,29 +107,41 @@ D-player/
 │   ├── IAudioDeviceManager.cs   # 预留：设备枚举/切换
 │   ├── StubAudioDeviceManager.cs# 占位实现，返回空集
 │   ├── IAudioOutputFactory.cs   # 预留：输出后端工厂
-│   └── StubAudioOutputFactory.cs# 占位实现，固定返回 WASAPI Shared
+│   ├── StubAudioOutputFactory.cs# 占位实现，固定返回 WASAPI Shared
+│   └── PlaylistFiles/           # 播放列表文件读写门面模块 (Phase 18)
+│       ├── PlaylistFileFormats.cs  # 后缀白名单 (.m3u/.m3u8/.pls) + IsPlaylistFile + 对话框过滤器字符串（后缀集合唯一来源）
+│       ├── PlaylistFileEncoding.cs # 字节 → 文本：BOM 判定 → 严格 UTF-8 试解码 → GBK(936) 回退；静态构造函数注册 CodePages provider
+│       ├── M3uParser.cs            # M3U/M3U8 解析：逐行取非 # 开头非空行（#EXTM3U/#EXTINF/注释一律忽略）
+│       ├── PlsParser.cs            # PLS(INI) 解析：只取 File<N>= 值，按出现顺序（Title<N>/Length<N>/NumberOfEntries/Version 忽略）
+│       ├── PlaylistImportResult.cs # 服务层导入结果 record（SuggestedName + AcceptedPaths + 三个互斥计数）
+│       ├── IPlaylistFileService.cs # 门面接口：ImportAsync（绝不抛）/ ExportAsync（可抛 IOException）
+│       ├── PlaylistFileService.cs  # 门面实现：编排 编码探测 → 解析 → 路径归一化 → 过滤计数；Singleton
+│       └── M3u8Writer.cs           # Track 列表 → extended M3U8 文本（UTF-8 无 BOM、CRLF、绝对路径）
 │
 ├── ViewModels/
 │   ├── MainViewModel.cs        # Strict Facade (~44 行)：仅暴露 Player/Playlists + debounce save + CleanupAsync (Phase 3/6)
 │   ├── PlayerViewModel.cs      # Transport 子 VM：播放/暂停/进度/音量 (Phase 3)
-│   ├── PlaylistViewModel.cs    # 队列子 VM：Queue/推进算法 + Id/Name/IsActivePlaylist + SortedView/SortBy + ImportFolderToCurrent (Phase 3/6/12 continued)
-│   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + 全局 Shuffle/Repeat + Add/Remove/Rename + HandleDoubleClickPlay + ImportFolder/Rescan/Refresh (Phase 6/10/12 continued)
+│   ├── PlaylistViewModel.cs    # 队列子 VM：Queue/推进算法 + Id/Name/IsActivePlaylist + SortedView/SortBy + ImportFolderToCurrent + ImportPlaylistFileAsync/ExportPlaylistFileAsync (Phase 3/6/12 continued/18)
+│   ├── PlaylistImportReport.cs # 一次导入的结构化报告 record（只带数据不带文案，文案由 View 组装）(Phase 18)
+│   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + 全局 Shuffle/Repeat + Add/Remove/Rename + HandleDoubleClickPlay + ImportFolder/Rescan/Refresh + ImportPlaylistFileAsync (Phase 6/10/12 continued/18)
 │
 ├── Views/
 │   ├── MainWindow.xaml(.cs)     # 主窗口；3 行(TitleBar | 内容区 | PlayerBar)；内容区 5 列(Sidebar | Splitter | Playlist | Splitter | TrackInfo)；Phase 17 无边框 WindowChrome
 │   ├── Dialogs/
 │   │   ├── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)；Phase 17 无边框 + TitleBar；输入框深色样式
-│   │   ├── ConfirmDialog.xaml(.cs)   # 主题化确认对话框（删歌单/清空/移除曲目；替代系统 MessageBox）(2026-10-05)
+│   │   ├── ConfirmDialog.xaml(.cs)   # 主题化确认对话框（删歌单/清空/移除曲目；替代系统 MessageBox）；Phase 18 加 ShowInfo 单按钮信息模式
 │   │   ├── SettingsDialog.xaml(.cs)  # 设置对话框（音量 + 音频输出占位 + 频谱可视化）(Phase 11/13)；Phase 17 无边框 + TitleBar
 │   │   └── EqualizerDialog.xaml(.cs) # 均衡器对话框（11 根竖直滑块 + 预设下拉 + 启用开关 + 实时预览）(Phase 14)；Phase 17 无边框 + TitleBar
 │   └── Controls/
 │       ├── TitleBar.xaml(.cs)   # 自绘无边框标题栏（Title/ShowMaximize DP + SystemCommands + 最大化常量边距 + Max/Restore 图标切换）(Phase 17)
 │       ├── PlayerBar.xaml(.cs)  # 播放栏（进度/控制/音量 + 随机/循环 + 均衡器/设置按钮；Phase 16 图标全部矢量 Path）
-│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + #列/表头排序/导入文件夹；Phase 16 ▶ 标记改 Path）
-│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、文件夹/扫描图标；Phase 16 标记改 Path）(Phase 6/10/12 continued)
+│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + #列/表头排序/导入文件夹；Phase 16 ▶ 标记改 Path；Phase 18 导入列表/导出列表按钮 + 拖拽分流播放列表文件）
+│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/-/导入 三个图标按钮、ListBox、双击重命名、▶ 标记、文件夹/扫描图标；Phase 18 拖入播放列表文件新建歌单）(Phase 6/10/12 continued/18)
 │       ├── TrackInfoView.xaml(.cs)   # 右侧曲目信息面板（封面 ViewBox 缩放 + 标题/艺术家/专辑/采样率 + 底部 SpectrumView）(Phase 12 continued/13)
 │       ├── SpectrumView.xaml(.cs)    # 频谱可视化控件：32 柱 Canvas + CompositionTarget.Rendering 60fps + 4 色主题 (Phase 13)
-│       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频后缀白名单/过滤 (Phase 5)
+│       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频/播放列表后缀白名单与过滤（FilterAudioPaths / FilterPlaylistPaths）(Phase 5/18)
+│       ├── PlaylistImportReportFormatter.cs # 导入报告 record → 中文文案（单个/多个/全跳过分支；四个入口共用，纯字符串函数可单测）(Phase 18)
+│       ├── PlaylistImportUi.cs       # 导入共用执行器：跑导入 → 聚合报告 → ConfirmDialog.ShowInfo → 兜住 async void 异常 (Phase 18)
 │       └── DropInsertionAdorner.cs   # ListBox AdornerLayer 插入线绘制 (Phase 5)
 │
 ├── Converters/
@@ -144,12 +156,12 @@ D-player/
 │   ├── Colors.xaml              # #1E1E2E 背景 + 深紫强调色板
 │   ├── Fonts.xaml               # Segoe UI + Header/Body/Caption 文本样式
 │   ├── Controls.xaml            # Window/Button/Slider + ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色模板 (Phase 17)
-│   └── Icons.xaml               # 矢量图标集：22 个 Icon.* Geometry + IconPath 样式 (Phase 16；Feather/Lucide 署名)
+│   └── Icons.xaml               # 矢量图标集：24 个 Icon.* Geometry + IconPath 样式 (Phase 16；Feather/Lucide 署名；Phase 18 加 Icon.Import/Icon.Export)
 │
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs # AddDPlayerServices(...) DI 注册
 │
-├── Tests/                       # xUnit 测试项目 (Phase 6+，共 96 个测试)
+├── Tests/                       # xUnit 测试项目 (Phase 6+，共 155 个测试)
 │   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit + NSubstitute + Coverlet)
 │   ├── Smoke/
 │   │   └── SmokeTests.cs                 # 冒烟测试：Track record 结构相等 (1)
@@ -159,13 +171,18 @@ D-player/
 │   ├── Services/
 │   │   ├── LibraryScannerServiceTests.cs # 库扫描 (17) (Phase 10)
 │   │   ├── JsonLibraryCacheTests.cs      # 元数据缓存 (5) (Phase 10)
-│   │   └── EqualizerSampleProviderTests.cs # 均衡器中间件（立体声独立 + Nyquist 旁路）(7) (Phase 14)
-│   └── ViewModels/
-│       ├── PlayerViewModelTests.cs        # Transport (15) (Phase 8)
-│       ├── PlayerViewModelSpectrumTests.cs# 频谱 (5) (Phase 13)
-│       ├── PlayerViewModelEqualizerTests.cs # 均衡器（启用态传播 + 构造期抑制写盘）(3) (Phase 14)
-│       ├── PlaylistViewModelTests.cs      # 队列 (13) (Phase 8)
-│       └── PlaylistsViewModelTests.cs     # 多歌单 (21) (Phase 8/12)
+│   │   ├── EqualizerSampleProviderTests.cs # 均衡器中间件（立体声独立 + Nyquist 旁路）(7) (Phase 14)
+│   │   ├── PlaylistFileEncodingTests.cs  # 编码探测（BOM / 严格 UTF-8 / GBK 回退 / 空输入）(6) (Phase 18)
+│   │   ├── PlaylistFileParserTests.cs    # 后缀判定 + M3U/PLS 解析 (16) (Phase 18)
+│   │   └── PlaylistFileServiceTests.cs   # 导入管道（归一化/过滤计数/不抛）+ 导出与往返 (19) (Phase 18)
+│   ├── ViewModels/
+│   │   ├── PlayerViewModelTests.cs        # Transport (15) (Phase 8)
+│   │   ├── PlayerViewModelSpectrumTests.cs# 频谱 (5) (Phase 13)
+│   │   ├── PlayerViewModelEqualizerTests.cs # 均衡器（启用态传播 + 构造期抑制写盘）(3) (Phase 14)
+│   │   ├── PlaylistViewModelTests.cs      # 队列 + 追加导入/导出 (21) (Phase 8/18)
+│   │   └── PlaylistsViewModelTests.cs     # 多歌单 + 容器级导入新建歌单 (26) (Phase 8/12/18)
+│   └── Views/
+│       └── PlaylistImportReportFormatterTests.cs # 导入报告文案分支 (5) (Phase 18)
 │
 ├── tools/
 │   └── coupling-audit/          # Phase 15 耦合审计脚本（Invoke-CouplingAudit.ps1，M1–M6 度量）
@@ -189,7 +206,8 @@ D-player/
         │   ├── 2026-09-12-d-player-phase15-coupling-audit-design.md     # Phase 15 审计设计
         │   ├── 2026-09-12-d-player-phase15-coupling-audit-report.md     # Phase 15 审计报告
         │   ├── 2026-09-13-d-player-phase16-icon-refactor-design.md      # Phase 16 设计
-        │   └── 2026-09-13-d-player-phase17-ui-dark-theming-design.md    # Phase 17 设计
+        │   ├── 2026-09-13-d-player-phase17-ui-dark-theming-design.md    # Phase 17 设计
+        │   └── 2026-10-05-d-player-phase18-playlist-file-io-design.md   # Phase 18 设计
         └── plans/
             ├── 2026-04-24-uma-player-implementation.md                          # Phase 1 计划
             ├── 2026-06-06-uma-player-playlist-implementation.md                 # Phase 2 计划
@@ -204,7 +222,8 @@ D-player/
             ├── 2026-09-08-d-player-phase14-equalizer-implementation.md          # Phase 14 计划
             ├── 2026-09-12-d-player-phase15-coupling-audit-implementation.md     # Phase 15 计划
             ├── 2026-09-13-d-player-phase16-icon-refactor-implementation.md      # Phase 16 计划
-            └── 2026-09-13-d-player-phase17-ui-dark-theming-implementation.md    # Phase 17 计划
+            ├── 2026-09-13-d-player-phase17-ui-dark-theming-implementation.md    # Phase 17 计划
+            └── 2026-10-05-d-player-phase18-playlist-file-io-implementation.md   # Phase 18 计划
 ```
 
 ---
@@ -255,8 +274,9 @@ D-player/
 │ [Phase 10]             │  │                      │  │                      │
 └────────────────────────┘  └──────────────────────┘  └──────────────────────┘
 
-注：IFileDialogService 由 PlaylistViewModel（AddToQueue / ImportFolderToCurrent）+ PlaylistsViewModel（ImportFolderAsync）消费。
+注：IFileDialogService 由 PlaylistViewModel（AddToQueue / ImportFolderToCurrent / Phase 18 导入导出对话框）+ PlaylistsViewModel（ImportFolderAsync / Phase 18 ImportPlaylistFileAsync）消费。
 注：IPlaylistService 由 MainViewModel（启动读盘 + 关闭写盘 + debounce save）统一消费。
+注：IPlaylistFileService (Phase 18) 由 PlaylistViewModel（追加导入 + M3U8 导出）与 PlaylistsViewModel（新建歌单导入）消费。
 ```
 
 ### 4.2 服务生命周期
@@ -273,6 +293,7 @@ D-player/
 | `ITrackMetadataReader` | Singleton (Phase 3) | 无状态，封装 z440.atl.core；`ReadAsync` 不抛 |
 | `ILibraryScannerService` | **Singleton** (Phase 10) | 递归文件夹扫描 + Diff 计算；无状态 |
 | `ILibraryCache` | **Singleton** (Phase 10) | JSON 元数据缓存 (`library-cache.json`)；内部 `SemaphoreSlim` |
+| `IPlaylistFileService` | **Singleton** (Phase 18) | 播放列表文件读写门面；无状态；`ImportAsync` 绝不抛、`ExportAsync` 可抛（错误策略刻意不对称） |
 | `IAudioDeviceManager` | Singleton（Stub） | 预留 |
 | `IAudioOutputFactory` | Transient（Stub） | 预留；语义上由 `IPlaybackService` 创建即释放 |
 | `PlayerViewModel` | **Transient** (Phase 3) | Transport 子 VM；DI 中**必须先于** `PlaylistViewModel` 注册；Phase 13 订阅 `SpectrumDataAvailable`；Phase 14 仅持有 `EqualizerEnabled` observable（供 PlayerBar 🎚 按钮高亮） |
@@ -333,6 +354,8 @@ D-player/
 24. **无边框 chrome + 自绘标题栏（Phase 17）**：`WindowStyle=None` + `WindowChrome(CaptionHeight=32, UseAeroCaptionButtons=False, GlassFrameThickness=0)` + 复用 `Views/Controls/TitleBar` UserControl；OS 仍负责拖动/双击最大化/Aero Snap（不做手写 DragMove）。自绘按钮必须 `shell:WindowChrome.IsHitTestVisibleInChrome=True`（否则点击被 caption 拖动吞掉）。最大化时给 `Window.Content` 根元素加**常量式工作区边距**（`WorkArea` 偏移 + `WindowResizeBorderThickness`，不读窗口实际边界 —— 布局时序会让 right/bottom 边距偏大留空）。应用：MainWindow `ShowMaximize=True`（三键）；3 个对话框 `ShowMaximize=False`（仅关闭键）。
 
 25. **深色控件隐式样式（Phase 17）**：`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 `ClickMode=Press` + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、仅 track+thumb 隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色。纯资源字典改动，全局生效，0 代码路径变化。
+
+26. **播放列表文件导入导出（Phase 18）**：新增门面服务 `IPlaylistFileService`（Singleton，无状态）集中「编码探测 → 格式解析 → 路径归一化 → URL/后缀/存在性过滤计数」，两个 VM 共用同一条管道。**错误策略刻意不对称**：`ImportAsync` 绝不抛（读侧对齐 `JsonPlaylistService.LoadAsync`，任何失败退化为空结果，由 View 的"没有可导入的条目"报告兜住）；`ExportAsync` 让 `IOException`/`UnauthorizedAccessException` 冒到 VM 转错误文案（写侧对齐设置/EQ 对话框的 try/catch + 错误框）。**双入口分层**沿用既有约定：容器级（侧边栏按钮/拖到侧边栏）= 新建歌单（`PlaylistsViewModel.ImportPlaylistFileAsync`，seed 的 `SourceFolder = null` → 普通歌单，不写 library cache）；歌单级（工具栏"导入列表"/拖到列表区）= 追加当前歌单（`PlaylistViewModel.ImportPlaylistFileAsync`，复用既有 `DropExternalFiles`，不新增元数据依赖）。VM 方法的 `presetPath` 参数是拖拽入口与对话框入口共用同一管道的接点（非空跳过对话框）。**GBK 解码不新增 NuGet 包**：`System.Text.Encoding.CodePages` 在 net10.0 框架隐含，显式 `PackageReference` 会触发 NU1510 警告破坏 0 警告门禁，`D-player.csproj` 未改动；CodePages provider 在 `PlaylistFileEncoding` 静态构造函数注册（`Encoding.GetEncoding(936)` 只出现在该类内部，"注册早于解码"是类型不变量而非启动顺序约定，`App.xaml.cs` 未改动）。**分层纪律**：VM 只返回结构化 `PlaylistImportReport`，中文文案由 View 层 `PlaylistImportReportFormatter` 组装（四个入口共用）；唯一例外是导出错误文案 `$"导出失败：{ex.Message}"` —— 单一分支直传、只有一个调用方（设计稿 §7.5）。
 
 ---
 
@@ -416,6 +439,20 @@ D-player/
 - `LoadAsync` 隐式契约：**绝不抛**（catch-all 静默 fallback 到 `new QueueState()`）。文件不存在/JSON 损坏/版本号不匹配/反序列化得 null 全部走同一回退分支；旧文件保留供用户排查。内置 v1→v2 一次性迁移（单条"默认歌单"）+ v2→v3 字段补充（`SourceFolder` 缺失即 null，无需迁移）
 - `SaveAsync` 失败抛出，由 `MainWindow.Window_Closing` 自行 catch（与 settings 写盘失败行为对称：用户下次启动队列丢失，但不打扰关闭流程）
 
+### 5.3b `Services/PlaylistFiles`（Phase 18，播放列表文件读写门面）
+
+新目录，8 个文件；对外只暴露 `PlaylistFileFormats` / `IPlaylistFileService` / `PlaylistFileService` / `PlaylistImportResult`（public），编码与解析器全部 `internal`：
+
+- **`PlaylistFileFormats`**：后缀白名单 `Extensions = [".m3u", ".m3u8", ".pls"]`（本主题唯一来源，`DragDropExtensions.PlaylistFileExtensions` 代理到这里）+ `IsPlaylistFile(path?)` 静态判定（View 层拖拽判定不该为一个后缀判断去 DI 取服务）+ 对话框过滤器字符串 `OpenFilter` / `SaveFilter`。
+- **`PlaylistFileEncoding`**（internal static）：字节 → 文本。探测链：**BOM（EF BB BF → UTF-8；FF FE → UTF-16LE；FE FF → UTF-16BE）→ 无 BOM 用"非法字节即抛"的严格 UTF-8 试解码 → `DecoderFallbackException` 回退 GBK(936)**。传统 `.m3u` 在中文 Windows 上多为 ANSI/GBK，只按 UTF-8 读会让整表中文路径变成 U+FFFD 进而被"文件缺失"过滤掉。CodePages provider 在**静态构造函数**注册（`Encoding.RegisterProvider` 幂等）—— `Encoding.GetEncoding(936)` 只出现在本类内部，注册永远早于解码，不依赖 App 启动顺序；csproj **不需要**加 `System.Text.Encoding.CodePages` 包（net10.0 框架隐含，显式引用触发 NU1510）。
+- **`M3uParser`**（internal static）：逐行取"非 `#` 开头的非空行"；`#EXTM3U` / `#EXTINF` / 注释一律忽略（标题与时长只信 ATL 从音频文件读到的结果）。
+- **`PlsParser`**（internal static）：INI 风格，只取 `File<N>=` 的值（key 大小写不敏感），**按出现顺序**返回而非按序号排序；段头 / `#`、`;` 注释 / `Title<N>` / `Length<N>` / `NumberOfEntries` / `Version` 全部忽略。
+- **`PlaylistImportResult`**：服务层结果 record —— `SuggestedName`（列表文件名去后缀；取不到名时 "导入的歌单"）/ `AcceptedPaths`（已归一化为绝对路径，保留原顺序与重复，**不去重**）/ `TotalEntries` / `SkippedMissing` / `SkippedUnsupported`（三个计数互斥，一个条目只进一个桶）。
+- **`PlaylistFileService`**：门面实现（Singleton，无状态），`ImportAsync` 编排：读全部字节 → `PlaylistFileEncoding.Decode` → 按后缀选解析器（`.pls` → PlsParser，其余 → M3uParser）→ `Classify`（URL 前缀 `http://`/`https://`/`mms://`/`rtsp://` → unsupported；相对路径以**列表文件所在目录**为 base 经 `Path.GetFullPath` 归一化，同时消掉 `..\`；后缀判定**先于**存在性判定，白名单引用 `AudioConstants.AudioExtensions`；`File.Exists` 为假 → missing）。
+- **`M3u8Writer`**（internal static）：`Track` 列表 → extended M3U8 文本。形状：首行 `#EXTM3U`，每条两行 `#EXTINF:{秒},{Artist - Title}` + 绝对路径；UTF-8 **无 BOM**、`\r\n` 行尾。秒 = `(int)Math.Round(Duration.TotalSeconds)`，未知（≤ 0）写 `-1`；Artist 为空只写 Title（不留悬空 `" - "`）；Title 也为空写文件名；标题里的 `,` 无需转义（`#EXTINF` 只按第一个逗号切分）。
+
+**读侧不抛 / 写侧抛的不对称（接口契约）**：`ImportAsync` 把 IO/权限/非法路径异常全部吞掉退化为空结果（用户仍有"没有可导入的条目"反馈而不是崩溃）；`ExportAsync` 必须让异常冒到 VM 转成错误文案，由 View 用 `ConfirmDialog.ShowError` 弹出。**不要**把 `ExportAsync` 包成不抛。
+
 ### 5.4 `ViewModels/MainViewModel`（Strict Facade，~130 行）
 
 Phase 6 后暴露四个公开成员：
@@ -457,7 +494,7 @@ public Task CleanupAsync();
 
 `HandleTrackChanged(Track? track)`：track 为 null 时把 `CurrentTrack` 和 `AlbumArtImage` 一起置 null（XAML 的 `FallbackValue='No track loaded'` 处理标题显示）。
 
-### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~650 行 / Phase 4 增加 LoadFromDisk + SnapshotState + PlayCurrent / Phase 10 增加 SourceFolder + IsScanning / Phase 12 continued 增加排序 + ImportFolderToCurrent）
+### 5.4b `ViewModels/PlaylistViewModel`（队列子 VM，~650 行 / Phase 4 增加 LoadFromDisk + SnapshotState + PlayCurrent / Phase 10 增加 SourceFolder + IsScanning / Phase 12 continued 增加排序 + ImportFolderToCurrent / Phase 18 增加列表文件导入导出）
 
 源生成器属性：`_currentIndex`（-1 表示未选）, `_selectedTrack`（UI 列表选中项，与播放无关）。集合：`ObservableCollection<Track> Queue`。私有：`HashSet<int> _shuffleHistory` / `Random _random` / `int _playToken`（重入哨兵）。派生：`HasCurrentTrack`。
 
@@ -491,7 +528,12 @@ public Task CleanupAsync();
 
 `Cleanup()`：同步解绑 `TrackEnded`，由 `MainViewModel.CleanupAsync` 调用。
 
-### 5.4c `ViewModels/PlaylistsViewModel`（多歌单容器，Phase 6 + Phase 10 + Phase 12 continued）
+**Phase 18 新增成员**（ctor 新增 `IPlaylistFileService` 依赖；以下是**可 await 的公开方法而非 RelayCommand** —— View 在 async void 处理器里 await 返回值控制弹框流程，方法返回值可直接在单测断言）：
+- `ImportPlaylistFileAsync(string? presetPath = null) → Task<PlaylistImportReport?>`：导入并**追加**到本歌单（与 `AddToQueue` 同层级语义）。`presetPath` 非空 = 拖拽入口（跳过文件对话框）；null = 走 `IFileDialogService.OpenFiles(PlaylistFileFormats.OpenFilter)`，取消返回 null（View 不弹任何框）。过滤已在服务层完成，`AcceptedPaths` 直接喂给**既有的 `DropExternalFiles`**（其"传入 paths 已过滤"契约因此多了一个调用方，COUPLING §5）；不给本 VM 加 `ILibraryScannerService` 依赖。返回结构化 `PlaylistImportReport`（`CreatedNewPlaylist = false`，`PlaylistName = Name`）。
+- `ExportPlaylistFileAsync() → Task<string?>`：导出本歌单为 `.m3u8`。空队列直接返回 null（View 层已拦一次，这里兜底）；`IFileDialogService.SaveFile(SaveFilter, SanitizeFileName(Name), ".m3u8")` 取消返回 null；成功返回 null（不弹提示）；`ExportAsync` 抛异常时捕获并返回可直接展示的错误文案 `$"导出失败：{ex.Message}"`（设计稿 §7.5 的单一分支例外，见 COUPLING §5）。导出内容 = 当前队列顺序（不是 shuffle 后的播放顺序）。
+- `SanitizeFileName(string)`（私有静态）：歌单名 → 合法文件名，`Path.GetInvalidFileNameChars()` 命中的字符替换为 `_`；空名退化为 `"playlist"`。
+
+### 5.4c `ViewModels/PlaylistsViewModel`（多歌单容器，Phase 6 + Phase 10 + Phase 12 continued + Phase 18）
 
 源生成器属性：`_viewedPlaylist`（UI 当前选中）、`_shuffleEnabled`、`_repeatMode`（Phase 12 continued：全局播放模式，所有歌单共享）。集合：`ObservableCollection<PlaylistViewModel> Playlists`。私有：`Func<Playlist, PlaylistViewModel>` 工厂委托、`IPlaybackService`、`IFileDialogService`、`ILibraryScannerService`、`ILibraryCache`、`ITrackMetadataReader`、`string _currentPlaylistId`。派生：`RepeatActive`（`RepeatMode != RepeatMode.Off`）。
 
@@ -517,6 +559,11 @@ public Task CleanupAsync();
 - `[RelayCommand] RefreshPlaylistAsync(PlaylistViewModel?)`：手动刷新单个文件夹绑定歌单
 - `RescanSinglePlaylistAsync(vm, sourceFolder)`：核心扫描逻辑 —— 调 `ILibraryScannerService.ScanAsync` + `ILibraryCache.LoadAsync/SaveAsync` → 计算 diff → 增删 Queue → 设 `IsScanning`/`HasScanError`
 
+**Phase 18 新增成员：**
+- 构造函数新增 `IPlaylistFileService` 依赖；`NullFileDialogService` 补 `SaveFile`（返回 null）、新增 `NullPlaylistFileService` 空对象（internal 测试 ctor 用）
+- `ImportPlaylistFileAsync(string? presetPath = null) → Task<PlaylistImportReport?>`：容器级导入 = **新建**一个普通歌单并设为当前查看项（与 `ImportFolderAsync` 同层级语义，骨架复用它）：取路径（对话框或 `presetPath`）→ `_playlistFiles.ImportAsync` → `AcceptedPaths.Count == 0` 时**不建歌单**只返回 `Imported = 0` 的报告 → `_scanner.ReadMetadataBatchAsync` 批量读元数据（一条都没读出来也不建空歌单）→ 造 `Playlist` seed（`Name = SuggestedName`、`CurrentIndex = -1`、**`SourceFolder = null`**）→ `_factory(seed)` → `vm.Queue.Clear()` 后填入带真实元数据的 Track（顶掉构造期按 `File.Exists` 预填的占位 Track，与 `ImportFolderAsync` 同一手法）→ `HookPlaylistVm` → `Playlists.Add`（CollectionChanged → `StateChanged` → MainViewModel debounce 存盘，无需额外接线）→ `ViewedPlaylist = vm` → 返回报告（`CreatedNewPlaylist = true`）
+- `SourceFolder = null` 是**身份标记**：导入的歌单不是文件夹绑定歌单，不写 library cache、不显示"刷新文件夹"按钮，重启后由 `Hydrate` 走 `LoadMetadataForNormalPlaylistSync` 读文件元数据
+
 ### 5.5 `Views`
 
 - **`MainWindow`**：三行 Grid —— Row 0 `TitleBar`（Phase 17 自绘标题栏）+ Row 1 `ContentGrid`（5 列：Sidebar | Splitter | Playlist | Splitter | TrackInfo）+ Row 2 `PlayerBar`（底部，自适应高度）；Phase 17 起 `WindowStyle=None` + `WindowChrome` 无边框。`SidebarCol` 和 `TrackInfoCol` 各限制为窗口宽度一半（`ContentGrid_SizeChanged` + `DragDelta` 中到达上限直接锁死）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
@@ -526,7 +573,9 @@ public Task CleanupAsync();
   - Stop 按钮和 📂 OpenAndPlay 按钮**已移除**（Phase 12 continued）
   - **🎚 均衡器按钮（Phase 14）**：`EqualizerBtn_Click` 经 `App.GetService<ISettingsPersistence>()` + `App.GetService<IPlaybackService>()` 取服务，`DataContext as PlayerViewModel` 作可选 VM，调 `EqualizerDialog.Show(Window.GetWindow(this), ...)`（与 ⚙ `SettingsBtn_Click` 同模式）。`TextBlock` 的 `Foreground` 绑 `{Binding EqualizerEnabled, Converter={StaticResource BoolToAccentBrush}}`，EQ 启用时高亮强调色（同 🔀/🔁 按钮）
   - **▶/⏸ 按钮的双绑定（Phase 4）**：默认 `Command={Binding PlayPauseCommand}`（PlayerVM 的 transport 切换）；当 `CurrentTrack==null` 时通过 `<DataTrigger Binding="{Binding CurrentTrack}" Value="{x:Null}">` 切到 `Playlists.ViewedPlaylist.PlayCurrentCommand` —— 启动后队列已恢复但 transport 空闲，第一次按 ▶ 触发首次加载 + 播放，`TrackChanged(track)` 让 trigger 失活，回到 PlayPauseCommand。**注意 inline `<Style TargetType="Button">` 必须 `BasedOn="{StaticResource {x:Type Button}}"`**，否则会替换掉 `Themes/Controls.xaml` 中的隐式主题样式，按钮回退到 OS 原生白底（COUPLING.md §5）
-- **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽 + Phase 12 continued)*：队列界面。两行 Grid：①工具栏 `[+ 添加][清空][导入文件夹到当前歌单][刷新]` 左对齐；②`ListBox` 绑 `SortedView`，每项含 ▶ 当前曲标记 + `#` 列（TrackNumber）+ 标题/艺术家/专辑/时长 + `×` 删除按钮
+- **`PlaylistView`** *(UserControl, Phase 2 + Phase 5 拖拽 + Phase 12 continued + Phase 18)*：队列界面。两行 Grid：①工具栏 `[添加][导入文件夹][导入列表][导出列表][清空]` 左对齐（清空是危险操作保持最右）+ 右侧"刷新文件夹"按钮（仅文件夹绑定歌单可见）；②`ListBox` 绑 `SortedView`，每项含 ▶ 当前曲标记 + `#` 列（TrackNumber）+ 标题/艺术家/专辑/时长 + `×` 删除按钮
+  - **Phase 18 导入/导出按钮**："导入列表"（`Icon.Import`）→ `PlaylistImportUi.RunDialogAsync(_vm.ImportPlaylistFileAsync, ...)` 追加到当前歌单；"导出列表"（`Icon.Export`）→ 空队列静默返回（与清空按钮同处理方式），`ExportPlaylistFileAsync` 返回非 null 错误文案时 `ConfirmDialog.ShowError`（主题化，不是系统 MessageBox），处理器自身再兜一层 try/catch
+  - **Phase 18 拖拽分流**：`QueueList_DragOver` / `Root_DragOver` 的 Copy 判定 = `FilterAudioPaths` 非空 **或** `FilterPlaylistPaths` 非空；Drop 把两组分别送入既有音频入队管道（`DropExternalFilesCommand`）与导入管道（`PlaylistImportUi.RunForDroppedFilesAsync` → `ImportPlaylistFileAsync`，追加语义），混合拖入（音频 + m3u）两条都跑；内部重排格式（`QueueItemsFormat`）优先级不变，外部 FileDrop 分支在其后
   - **# 列**：显示元数据 `TrackNumber`（Phase 12 continued 新增），从 `ITrackMetadataReader` 读取
   - **表头排序**：点击列头触发 `SortBy(column)` 物理重排 Queue（Phase 12 continued）；表头用 TextBlock + MouseLeftButtonDown（非 Button，消除内边距对不齐问题）
   - 当前曲 ▶ 标记由 code-behind 维护：订阅 `PlaylistViewModel.PropertyChanged` (CurrentIndex) / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）；▶ 标记在 # 列之前（最左列）
@@ -535,7 +584,7 @@ public Task CleanupAsync();
   - **Phase 5 拖拽（XAML）：** 外层 `<Border AllowDrop="True">` 仅承载 OLE drop 区（覆盖工具栏 + 列表两行的 hit-test）；视觉高亮挂在 Row 1 的圆角 `<Border x:Name="QueueListBorder">`（用户期望仅看到列表区域被框住，不连带工具栏）。**BorderBrush 默认值放进 Style.Setter 而非 local 属性** —— WPF DP 优先级 `local > trigger setter > style setter`，写成 local 会让 `Style.Triggers` 失效（`docs/COUPLING.md §5` 隐式契约）。`ListBox` 加 `SelectionMode="Extended"` + `AllowDrop="True"` + 6 个事件挂接（`PreviewMouseLeftButton{Down,Up}` / `PreviewMouseMove` / `DragOver` / `DragLeave` / `Drop`）
   - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"DPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
   - **Phase 5 高亮纪律：** `Root_DragEnter` 必须先 `FilterAudioPaths` 再决定是否高亮 —— 仅看 `FileDrop` 存在就亮会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）。`Root_Drop` 与 `QueueList_Drop` **都要清高亮** —— `QueueList_Drop` 设 `e.Handled=true` 后 Drop 事件不再冒泡到 `Root_Drop`，否则文件落到列表区高亮卡死
-- **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。
+- **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued/18)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；**Phase 18 第三个 28×28 图标按钮**（`Icon.Import`，ToolTip「导入播放列表（M3U / M3U8 / PLS）→ 新建歌单」）→ `PlaylistImportUi.RunDialogAsync(_vm.ImportPlaylistFileAsync, ...)`（容器级 = 新建歌单）；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。**Phase 18 拖拽**：`PlaylistList_DragOver/Drop` 接受外部 `.m3u/.m3u8/.pls`（`Effects = Copy`，**不显示重排插入线**——这不是重排；音频文件落在侧边栏无意义，不认），内部重排格式（`PlaylistItemsFormat`）优先；多个列表文件逐个导入（每个文件一个歌单）聚合成一份报告。导出**不放侧边栏**：侧边栏按钮作用于"选中项"，导出语义是"当前查看的歌单"，两个指针在键盘导航下可能不同步。
 - **`TrackInfoView`** *(UserControl, Phase 12 continued/13)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。两行 Grid：Row0（`*`）曲目信息 —— 封面用 `Viewbox MaxWidth/MaxHeight=250` 包裹自动缩放（内含 `Border` 180×180 + `Image Stretch="UniformToFill"`），文本元数据（标题/艺术家/专辑/采样率）居中，无曲目时 DataTrigger 显示"播放曲目以查看信息"占位；Row1（`Auto`）**Phase 13 `SpectrumView`**（高 120px，绑 `SpectrumData`/`SpectrumColorTheme`，`Visibility` 绑 `SpectrumEnabled`）。封面 Border 加 `ClipToBounds=True` 圆角裁切（ViewBox 缩放后内容溢出问题）。
 - **`SettingsDialog`** *(Window, Phase 11/13)*：设置对话框。模态 ToolWindow（**420×520**，Phase 13 因可视化区增高），9 行 Grid：通用（音量滑块 0..1）+ 音频输出灰色占位 + **音频可视化（Phase 13：启用 CheckBox + 灵敏度滑块 0.5~2.0 + 颜色主题 ComboBox + 平滑度滑块 0~0.95，DockPanel LastChildFill 布局：标签左/数值右/滑块填充）**。静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂。构造注入 `IPlaybackService`（音量滑块实时调 `_playbackService.Volume`）+ 可选 `PlayerViewModel`（保存后即时同步频谱属性，免重启）。OnLoaded async 读盘加载音量 + 频谱设置并绑定滑块 ValueChanged 实时更新数值标签；Save_Click 通过 `UpdateAsync` 原子写盘后同步 VM —— **故意不 `ConfigureAwait(false)`，留在 UI 线程**才能直接写 `PlayerViewModel` 属性；失败弹 MessageBox（Phase 13）。Phase 17：`WindowStyle=None` + `WindowChrome` + `TitleBar(ShowMaximize=False)`（仅关闭键）。
 - **`EqualizerDialog`** *(Window, Phase 14)*：均衡器对话框。复用 SettingsDialog 模式（静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂 + 模态 `ShowDialog()`，返回 true = 用户保存）。模态 ToolWindow（**480×400**），三行 Grid：Row0 启用 CheckBox + 预设 ComboBox；Row1（`*`）频段滑块区 `BandsPanel`（UniformGrid）；Row2 恢复 Flat + 取消/保存。
@@ -546,15 +595,16 @@ public Task CleanupAsync();
   - **取消回滚**：`_initialConfig` 取“打开瞬间的实时 `_playbackService.EqualizerConfig`”（权威，不受 LoadAsync 失败影响），再试读盘覆盖；`OnClosed` 若未 `_saved` 则把 `_playbackService.EqualizerConfig = _initialConfig` 撤销实时预览（回滚基准非二次读盘 —— 读盘失败会把基准误置为禁用平直）
   - **Save_Click**：`UpdateAsync` 原子写 settings.json（EqualizerEnabled/Preamp/Bands/Preset）→ 再确认一次链上配置 → 写 `PlayerViewModel.EqualizerEnabled`（按钮高亮即时更新）—— **故意不 `ConfigureAwait(false)`，留在 UI 线程**；失败弹 MessageBox
   - **Phase 17**：`WindowStyle=None` + `WindowChrome` + `TitleBar(ShowMaximize=False)`（仅关闭键）；标题栏占 Row 0，频段区/按钮区行号顺延
-- **`ConfirmDialog`** *(Window, 2026-10-05)*：主题化对话框（深色 WindowChrome + TitleBar + 自动换行文案），替代系统 MessageBox。`Show(Window?, string title, string message)` = 确认模式（取消/确定，返回 bool）；`ShowError(owner, title, message)` = 单按钮错误模式（仅确定，Esc 可关）。接入点：删除歌单（`PlaylistsSidebarView`）、清空歌单与移除曲目（`PlaylistView` 的清空按钮 / × 按钮 / Delete 键，确认文案含歌单名/曲名）、保存失败提示（`SettingsDialog` / `EqualizerDialog`）。空队列点清空直接 no-op（不弹框）。
+- **`ConfirmDialog`** *(Window, 2026-10-05)*：主题化对话框（深色 WindowChrome + TitleBar + 自动换行文案），替代系统 MessageBox。`Show(Window?, string title, string message)` = 确认模式（取消/确定，返回 bool）；`ShowError(owner, title, message)` = 单按钮错误模式（仅确定，Esc 可关）；**`ShowInfo(owner, title, message)`（Phase 18）** = 单按钮信息模式（与 ShowError 共用 `ShowCore(showCancel: false)`，区别只在语义命名——导入报告不是错误）。接入点：删除歌单（`PlaylistsSidebarView`）、清空歌单与移除曲目（`PlaylistView` 的清空按钮 / × 按钮 / Delete 键，确认文案含歌单名/曲名）、保存失败提示（`SettingsDialog` / `EqualizerDialog`）、**导入报告与导出失败（Phase 18，经 `PlaylistImportUi` / `PlaylistView`）**。空队列点清空直接 no-op（不弹框）。
 
-### 5.5a `Views/Controls/DragDropExtensions`（Phase 5）
+### 5.5a `Views/Controls/DragDropExtensions`（Phase 5/18）
 
 静态类，承担拖拽相关的 attached DependencyProperty 与文件过滤辅助：
 
 - `IsDragOver`（attached DP，bool，默认 false）：由 `PlaylistView.xaml.cs` 的 `Root_DragEnter` / `Root_DragLeave` / `Root_Drop` / `QueueList_Drop` 切换；XAML 用 `Style.Trigger Property="local:DragDropExtensions.IsDragOver"` 给 `QueueListBorder` 的 `BorderBrush` 设 `AccentPrimary` 实现高亮。所有切换调用都显式传 `QueueListBorder`（不是 `sender`），保证视觉范围只在列表圆角矩形上
 - `AudioExtensions`（`IReadOnlyList<string>`）：代理到 `Models.AudioConstants.Extensions`（Phase 10 提取），白名单 `.mp3 / .wma / .flac / .aac / .wav`，与 `IFileDialogService` 在 `OpenFiles` 中使用的过滤器单一来源
 - `FilterAudioPaths(IEnumerable<string>?)`：大小写不敏感后缀匹配；null/空字符串/空后缀（文件夹路径 `Path.GetExtension` 返回 ""）/ 后缀不在白名单都返回不入结果。VM 层 `DropExternalFilesCommand` 信任此函数已过滤完成
+- `PlaylistFileExtensions` + `FilterPlaylistPaths(IEnumerable<string>?)`（Phase 18）：代理到 `PlaylistFileFormats.Extensions` / `IsPlaylistFile`（单一来源避免漂移），过滤出 `.m3u/.m3u8/.pls`（大小写不敏感，文件夹自动剔除）。**Drop 目标必须同时查 `FilterAudioPaths` 与 `FilterPlaylistPaths`** —— 两个白名单互不重叠，只查音频会让播放列表文件被静默丢弃（COUPLING §5）
 
 ### 5.5b `Views/Controls/DropInsertionAdorner`（Phase 5）
 
@@ -584,9 +634,16 @@ public Task CleanupAsync();
 - **动作全走 `SystemCommands`**：`MinimizeWindow / MaximizeWindow / RestoreWindow / CloseWindow`（作用于 `Window.GetWindow(this)`）；拖动/双击最大化/Aero Snap 由 OS caption 负责，不自写 DragMove
 - **`Loaded` 订阅父窗 `StateChanged` → `ApplyWindowState`**：Maximized 时切换 Max/Restore 图标显隐，并给 `Window.Content` 根元素加**常量式工作区边距**；还原时清零。边距按「`WorkArea` 偏移 + `WindowResizeBorderThickness`」计算（`wa.Left+rb.Left` / `wa.Top+rb.Top` / `PrimaryScreenWidth-wa.Right+rb.Right` / `PrimaryScreenHeight-wa.Bottom+rb.Bottom`）—— 不读窗口实际边界，避免布局时序导致 right/bottom 边距偏大（大片留空）
 
+### 5.5e `Views/Controls/PlaylistImportReportFormatter` + `PlaylistImportUi`（Phase 18）
+
+导入的 View 层基础设施，四个入口（侧边栏按钮 / 侧边栏拖拽 / 工具栏按钮 / 列表区拖拽）共用：
+
+- **`PlaylistImportReportFormatter`**（纯静态字符串函数，无 WPF 依赖，可单测）：把 VM 返回的结构化 `PlaylistImportReport` 拼成中文提示文案。`DialogTitle = "导入播放列表"`（所有入口统一）；`Format(IReadOnlyList<PlaylistImportReport>)` 单份报告走 `FormatSingle`（新建/追加/全跳过三分支 + "跳过 N 条（文件缺失 X / 格式不支持 Y）"），多份（拖拽聚合）走 `FormatMany`（"已导入 N 个播放列表" + 每文件一行）。**分层纪律**：VM 只给数据、文案规则集中在这一处 —— 唯一例外是导出错误文案由 VM 直传（单一分支、单一调用方，设计稿 §7.5）。
+- **`PlaylistImportUi`**（静态执行器）：封装"跑导入 → 聚合报告 → `ConfirmDialog.ShowInfo` → 兜异常"完整流程。`RunDialogAsync(importOne, owner)` = 对话框入口（传 null 让 VM 自己弹文件对话框；VM 返回 null（用户取消）时**一个框都不弹**）；`RunForDroppedFilesAsync(importOne, owner, paths)` = 拖拽入口（逐个文件导入，每个文件一个歌单/一次追加，聚合成一份报告）。**异常必须在这里兜住**（转 `ShowError("导入失败：…")`）：调用方是 `async void` 事件处理器，未观察异常会直接崩进程。
+
 ### 5.6 `Themes`
 
-深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。Phase 16 新增 `Icons.xaml`：22 个 `Icon.*` 描边 `Geometry`（24×24 viewbox，Feather/Lucide 署名）+ 共享 `IconPath` 样式（16px、StrokeThickness 1.75、圆头圆角）；`Icon.PlayMarker` 为实心 `Fill=AccentPrimary` 例外；活跃态由使用处绑 `BoolToAccentBrushConverter` 着 `Stroke`。Phase 17：新增 `Icon.Maximize`/`Icon.Restore`；`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色模板、TextBox（深色底 + 圆角描边，悬停/聚焦 accent 边框，2026-10-05 补）—— 消除残留 OS 浅色元素。
+深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。Phase 16 新增 `Icons.xaml`：22 个 `Icon.*` 描边 `Geometry`（24×24 viewbox，Feather/Lucide 署名）+ 共享 `IconPath` 样式（16px、StrokeThickness 1.75、圆头圆角）；`Icon.PlayMarker` 为实心 `Fill=AccentPrimary` 例外；活跃态由使用处绑 `BoolToAccentBrushConverter` 着 `Stroke`。Phase 17：新增 `Icon.Maximize`/`Icon.Restore`；Phase 18：新增 `Icon.Import`/`Icon.Export`（现共 24 个）；`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色模板、TextBox（深色底 + 圆角描边，悬停/聚焦 accent 边框，2026-10-05 补）—— 消除残留 OS 浅色元素。
 
 ---
 
@@ -780,6 +837,52 @@ TrackInfoView → SpectrumView.SpectrumData (DP) → OnSpectrumDataChanged 算 _
   → _playbackService.EqualizerConfig = _initialConfig（打开瞬间的实时链快照）→ setter → Update 撤销实时预览
 ```
 
+### 7.7 播放列表文件导入/导出（Phase 18）
+
+```
+导入（四个入口共用同一管道；presetPath 是拖拽与对话框的接点）：
+
+侧边栏按钮 ImportBtn_Click ──┐                    ┌─ PlaylistImportUi.RunDialogAsync（presetPath=null）
+侧边栏 Drop（FilterPlaylistPaths）─┤              │
+工具栏"导入列表" ImportListButton_Click ─┤        ├▶ VM.ImportPlaylistFileAsync(presetPath?)
+列表区 Drop（FilterPlaylistPaths）──┘             └─ PlaylistImportUi.RunForDroppedFilesAsync（逐文件，聚合报告）
+    │
+    ▼
+presetPath ?? IFileDialogService.OpenFiles(OpenFilter)   ── 取消 → null（View 不弹任何框）
+    │
+    ▼
+IPlaylistFileService.ImportAsync(path)（绝不抛）
+  → File.ReadAllBytesAsync → PlaylistFileEncoding.Decode（BOM → 严格 UTF-8 → GBK 回退）
+  → .pls ? PlsParser : M3uParser → Classify：
+      URL 前缀 → SkippedUnsupported ／ 相对路径按列表所在目录 GetFullPath 归一化
+      → 后缀不在 AudioConstants 白名单 → SkippedUnsupported（判定先于存在性）
+      → File.Exists 为假 → SkippedMissing ／ 通过 → AcceptedPaths（不去重）
+    │
+    ├─ 容器级（PlaylistsViewModel）：AcceptedPaths 空 → 不建歌单只回报告；
+    │    否则 ReadMetadataBatchAsync → Playlist seed（SourceFolder=null）→ _factory
+    │    → Queue 顶掉占位 Track → HookPlaylistVm → Playlists.Add → ViewedPlaylist=vm
+    │    （CollectionChanged → StateChanged → MainViewModel debounce 存盘）
+    │
+    └─ 歌单级（PlaylistViewModel）：AcceptedPaths 直接喂既有 DropExternalFiles
+         （逐个 ReadAsync → Queue.Add，不自动播放；不给 VM 加 ILibraryScannerService）
+    │
+    ▼
+返回 PlaylistImportReport（纯数据）→ PlaylistImportReportFormatter.Format（View 拼中文文案）
+  → ConfirmDialog.ShowInfo("导入播放列表", 文案)；意外异常由 PlaylistImportUi 兜住转 ShowError
+
+导出（仅工具栏"导出列表"，作用于当前查看的歌单）：
+
+ExportListButton_Click：Queue.Count==0 → 静默返回
+  → PlaylistViewModel.ExportPlaylistFileAsync()
+      → IFileDialogService.SaveFile(SaveFilter, SanitizeFileName(Name), ".m3u8")
+        （Win32 SaveFileDialog：AddExtension + OverwritePrompt；取消 → null）
+      → IPlaylistFileService.ExportAsync(dest, Queue.ToArray())
+        → M3u8Writer.Write：#EXTM3U + 每条 #EXTINF:{秒},{Artist - Title} + 绝对路径
+          （UTF-8 无 BOM、CRLF；未知时长 -1；Artist 空只写 Title；Title 空写文件名）
+      → 成功/取消返回 null（不弹框）；IOException 等 → VM 捕获返回 "导出失败：{ex.Message}"
+  → View 收到非 null → ConfirmDialog.ShowError("导出播放列表", 文案)
+```
+
 ---
 
 ## 8. 构建与运行
@@ -833,6 +936,9 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **WPF ComboBox 深色模板的 ToggleButton 用 `ClickMode=Press`（Phase 17）**：ComboBox 本体由自绘 `ToggleButton` 承载点击（展开/收起），`ContentPresenter` 设 `IsHitTestVisible=False` 叠加显示选中值；点击必须落在 toggle 表面才能开合下拉（commit `dd435bd` 修）。
 - **单击进度条跳转必须 `handledEventsToo: true` 挂接（2026-10-05 修复）**：隐式 Slider 样式开启 `IsMoveToPointEnabled`（Phase 13 `781d35d`）后，Slider 类处理器按轨道时会先置 `e.Handled=true`，XAML 属性挂接的实例处理器（不接收已处理事件）被静默跳过 → 单击跳转整体失效。`PlayerBar` 构造函数改用 `SeekBar.AddHandler(PreviewMouseLeftButtonDownEvent, ..., handledEventsToo: true)`。音量滑块 TwoWay 不受影响；进度条 Value 是 OneWay，类处理器的本地改值不回传 VM 且被 30Hz 轮询覆盖。
 - **`UnloadCurrentTrack` 必须以 `IsActivePlaylist` 守卫（2026-10-05 修复）**：`IPlaybackService` 是全局单例——清空/删除非播放中歌单的曲目不得停掉正在播放的歌（`ClearQueue`/`RemoveTrack` 经此方法）。只有当前播放歌单才有权 `_player.Unload()`；`_playToken++` 与 `CurrentIndex=-1` 保持无条件。
+- **net10.0 显式引用 `System.Text.Encoding.CodePages` 会触发 NU1510（Phase 18）**：该包在 net10.0 上框架隐含（framework-implicit），`Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` + `Encoding.GetEncoding(936)` 开箱可用；显式 `PackageReference` 会被 SDK 判定冗余并给 NU1510 警告，破坏本项目 0 警告门禁。`D-player.csproj` 因此**没有**该包引用，不要"补依赖"加回去。
+- **GBK 解码不得搬出 `PlaylistFileEncoding`（Phase 18）**：CodePages provider 在该类型的**静态构造函数**里注册，`Encoding.GetEncoding(936)` 只出现在该类内部，"注册永远早于解码"是类型不变量而非启动顺序约定（`App.xaml.cs` 无需改动）。把 GBK 解码搬到别的类型就等于把注册时机重新变成一条口头约定（COUPLING §5）。
+- **GBK 编码探测存在可接受的误判（Phase 18）**：严格 UTF-8 试解码成功即认定 UTF-8；极少数 GBK 字节序列恰好是合法 UTF-8 时会被误判并产生乱码路径——后果是这些条目落入"文件缺失"计数，用户能从导入报告里看出来，不会静默错乱。
 
 ---
 
@@ -855,6 +961,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
   - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md) — Phase 15 审计报告
   - [`docs/superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md`](./superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md) — Phase 16 图标矢量化设计
   - [`docs/superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md`](./superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md) — Phase 17 UI 深色定制设计
+  - [`docs/superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md`](./superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md) — Phase 18 播放列表文件导入导出设计
 - 实现计划:
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
@@ -870,6 +977,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
   - [`docs/superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md`](./superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md) — Phase 15
   - [`docs/superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md) — Phase 16
   - [`docs/superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md) — Phase 17
+  - [`docs/superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md`](./superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md) — Phase 18
 - 主要里程碑提交：
   - **Phase 1**
     - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
@@ -1096,3 +1204,16 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
     - `24d4544` feat(theme): dark implicit styles for ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu (Phase 17)
     - `dd435bd` fix(view): workarea-based maximize margin + clickable ComboBox toggle (Phase 17)
     - `d86694b` fix(view): constant workarea-based maximize margin to remove right/bottom blank (Phase 17)
+  - **Phase 18**（播放列表文件导入导出，master 直接提交）
+    - `27ed09c` feat(services): playlist file encoding probe with GBK fallback (Phase 18)
+    - `fc528db` fix(tests): annotate nullable id parameter to clear pre-existing CS8625
+    - `cebb405` feat(services): playlist formats + M3U/PLS parsers (Phase 18)
+    - `34e2048` feat(services): IPlaylistFileService import pipeline (Phase 18)
+    - `52c120f` test(services): make the extension-vs-existence ordering assertion discriminating
+    - `1a795d2` feat(services): M3U8 export + import/export round trip (Phase 18)
+    - `834e9d0` feat(services): SaveFile on IFileDialogService for playlist export (Phase 18)
+    - `817cab4` feat(vm): playlist-level import (append) and M3U8 export (Phase 18)
+    - `7a6f60b` feat(vm): container-level playlist import creates a normal playlist (Phase 18)
+    - `29bd5c6` feat(view): import report plumbing for playlist files (Phase 18)
+    - `03bf606` feat(view): sidebar playlist-file import creates a new playlist (Phase 18)
+    - `1bff9dd` feat(view): playlist toolbar import/export + drop routing (Phase 18)

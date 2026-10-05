@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DPlayer.Models;
 using DPlayer.Services;
+using DPlayer.Services.PlaylistFiles;
 
 namespace DPlayer.ViewModels;
 
@@ -22,6 +23,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private readonly ILibraryScannerService _scanner;
     private readonly ILibraryCache _cache;
     private readonly ITrackMetadataReader _metadataReader;
+    private readonly IPlaylistFileService _playlistFiles;
     private readonly SynchronizationContext _syncContext;
 
     public ObservableCollection<PlaylistViewModel> Playlists { get; } = new();
@@ -59,7 +61,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         IFileDialogService fileDialog,
         ILibraryScannerService scanner,
         ILibraryCache cache,
-        ITrackMetadataReader metadataReader)
+        ITrackMetadataReader metadataReader,
+        IPlaylistFileService playlistFiles)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _player = player ?? throw new ArgumentNullException(nameof(player));
@@ -67,12 +70,14 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
+        _playlistFiles = playlistFiles ?? throw new ArgumentNullException(nameof(playlistFiles));
         _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
         Playlists.CollectionChanged += OnPlaylistsCollectionChanged;
     }
 
     internal PlaylistsViewModel(Func<Playlist, PlaylistViewModel> factory)
-        : this(factory, new NullPlaybackService(), new NullFileDialogService(), new NullLibraryScannerService(), new NullLibraryCache(), new NullMetadataReader()) { }
+        : this(factory, new NullPlaybackService(), new NullFileDialogService(), new NullLibraryScannerService(),
+               new NullLibraryCache(), new NullMetadataReader(), new NullPlaylistFileService()) { }
 
     /// <summary>
     /// MainViewModel 启动时调用; 用持久化快照初始化容器。重复调用先清空。
@@ -346,6 +351,62 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         catch (IOException) { /* cache write failure doesn't block */ }
     }
 
+    // —— Phase 18: 播放列表文件导入（容器级 = 新建歌单） ——
+
+    /// <summary>
+    /// 导入 .m3u/.m3u8/.pls → **新建**一个普通歌单并设为当前查看项（与 ImportFolderAsync 同层级语义）。
+    ///
+    /// presetPath 非空 = 拖拽入口；null = 走文件对话框。返回 null 表示用户取消。
+    /// SourceFolder 刻意留 null：导入的歌单不是文件夹绑定歌单，不写 library cache，
+    /// 重启后由 Hydrate 走 LoadMetadataForNormalPlaylistSync 读文件元数据。
+    /// </summary>
+    public async Task<PlaylistImportReport?> ImportPlaylistFileAsync(string? presetPath = null)
+    {
+        var path = presetPath ?? _fileDialog.OpenFiles(PlaylistFileFormats.OpenFilter).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        var sourceFile = Path.GetFileName(path);
+        // ConfigureAwait(true)：下面要动 ObservableCollection（WPF 要求 UI 线程）
+        var result = await _playlistFiles.ImportAsync(path).ConfigureAwait(true);
+
+        if (result.AcceptedPaths.Count == 0)
+        {
+            return new PlaylistImportReport(sourceFile, null, false, 0,
+                result.SkippedMissing, result.SkippedUnsupported, result.TotalEntries);
+        }
+
+        var tracks = await _scanner.ReadMetadataBatchAsync(result.AcceptedPaths).ConfigureAwait(true);
+        if (tracks.Count == 0)
+        {
+            // 条目都存在但元数据一条都没读出来 —— 不建空歌单，报告为"没导入"
+            return new PlaylistImportReport(sourceFile, null, false, 0,
+                result.SkippedMissing, result.SkippedUnsupported, result.TotalEntries);
+        }
+
+        var seed = new Playlist(
+            Id: Guid.NewGuid().ToString(),
+            Name: result.SuggestedName,
+            Items: result.AcceptedPaths,
+            CurrentIndex: -1,
+            ShuffleEnabled: false,
+            RepeatMode: RepeatMode.Off,
+            SourceFolder: null);
+
+        var vm = _factory(seed);
+        // 必须 Clear：PlaylistViewModel 构造器会用 File.Exists 过滤 seed.Items 并预填占位 Track，
+        // 这里要用带真实元数据的 Track 顶掉它们（与 ImportFolderAsync 同一手法）。
+        vm.Queue.Clear();
+        foreach (var track in tracks)
+            vm.Queue.Add(track);
+
+        HookPlaylistVm(vm);
+        Playlists.Add(vm);        // CollectionChanged → StateChanged → MainViewModel debounce save
+        ViewedPlaylist = vm;
+
+        return new PlaylistImportReport(sourceFile, result.SuggestedName, true, tracks.Count,
+            result.SkippedMissing, result.SkippedUnsupported, result.TotalEntries);
+    }
+
     /// <summary>
     /// 同步加载缓存元数据并替换占位 Track。由 Hydrate 在构造 PlaylistVM 后立即调用。
     /// cache.LoadAsync 内部有 SemaphoreSlim, 用 .GetAwaiter().GetResult() 同步等待;
@@ -544,6 +605,14 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         public Task<Track> ReadAsync(string filePath) => Task.FromResult(new Track(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero, null));
         public Track CreateFallback(string filePath) => new(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero, null);
+    }
+
+    private sealed class NullPlaylistFileService : IPlaylistFileService
+    {
+        public Task<PlaylistImportResult> ImportAsync(string playlistFilePath) =>
+            Task.FromResult(new PlaylistImportResult("导入的歌单", Array.Empty<string>(), 0, 0, 0));
+
+        public Task ExportAsync(string destPath, IReadOnlyList<Track> tracks) => Task.CompletedTask;
     }
 
     private sealed class NullPlaybackService : IPlaybackService

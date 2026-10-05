@@ -18,6 +18,8 @@ public class PlaylistsViewModelTests
     private readonly IPlaybackService _player = Substitute.For<IPlaybackService>();
     private readonly IFileDialogService _fileDialog = Substitute.For<IFileDialogService>();
     private readonly ITrackMetadataReader _metadataReader = Substitute.For<ITrackMetadataReader>();
+    private readonly ILibraryScannerService _scanner = Substitute.For<ILibraryScannerService>();
+    private readonly ILibraryCache _cache = Substitute.For<ILibraryCache>();
     private readonly IPlaylistFileService _playlistFiles = Substitute.For<IPlaylistFileService>();
 
     private PlaylistViewModel CreatePlaylistVm(string? id = null, string name = "Test")
@@ -41,6 +43,21 @@ public class PlaylistsViewModelTests
     {
         return new PlaylistsViewModel(seed => CreatePlaylistVm(seed.Id, seed.Name));
     }
+
+    /// <summary>Phase 18 导入用例专用：走公共 ctor，scanner / playlistFiles 可 mock。</summary>
+    private PlaylistsViewModel CreateContainerVmWithMocks()
+    {
+        return new PlaylistsViewModel(
+            seed => CreatePlaylistVm(seed.Id, seed.Name),
+            _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles);
+    }
+
+    private static PlaylistImportResult ImportResult(
+        string name, string[] accepted, int missing = 0, int unsupported = 0)
+        => new(name, accepted, accepted.Length + missing + unsupported, missing, unsupported);
+
+    private static Track FallbackTrack(string path) =>
+        new(path, System.IO.Path.GetFileName(path), null, null, null, null, null, null, TimeSpan.Zero, null);
 
     // —— Hydrate / BuildSnapshot ——
 
@@ -456,5 +473,92 @@ public class PlaylistsViewModelTests
 
         // StateChanged 应只触发一次（CurrentPlaylistId 变化），而不是三次（id + 两个 IsActivePlaylist）
         Assert.Equal(countBefore + 1, stateChangedCount);
+    }
+
+    // —— Phase 18: 播放列表文件导入（容器级 = 新建歌单） ——
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_CreatesNewPlaylistAndViewIt()
+    {
+        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\rock.m3u8" });
+        _playlistFiles.ImportAsync(@"D:\lists\rock.m3u8")
+            .Returns(ImportResult("rock", new[] { @"D:\m\a.mp3", @"D:\m\b.flac" }));
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+            .Returns(new[] { FallbackTrack(@"D:\m\a.mp3"), FallbackTrack(@"D:\m\b.flac") });
+        var container = CreateContainerVmWithMocks();
+        int stateChanged = 0;
+        container.StateChanged += (_, _) => stateChanged++;
+
+        var report = await container.ImportPlaylistFileAsync();
+
+        Assert.NotNull(report);
+        Assert.True(report!.CreatedNewPlaylist);
+        Assert.Equal(2, report.Imported);
+        Assert.Equal("rock", report.PlaylistName);
+        Assert.Single(container.Playlists);
+        Assert.Equal("rock", container.Playlists[0].Name);
+        Assert.Same(container.Playlists[0], container.ViewedPlaylist);
+        Assert.Null(container.Playlists[0].SourceFolder);      // 普通歌单，不走 library cache
+        Assert.Equal(2, container.Playlists[0].Queue.Count);
+        Assert.True(stateChanged > 0);                          // 触发 debounce 存盘
+    }
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_AllEntriesSkipped_DoesNotCreatePlaylist()
+    {
+        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\old.pls" });
+        _playlistFiles.ImportAsync(@"D:\lists\old.pls")
+            .Returns(ImportResult("old", Array.Empty<string>(), missing: 3, unsupported: 2));
+        var container = CreateContainerVmWithMocks();
+
+        var report = await container.ImportPlaylistFileAsync();
+
+        Assert.Equal(0, report!.Imported);
+        Assert.Null(report.PlaylistName);
+        Assert.False(report.CreatedNewPlaylist);
+        Assert.Empty(container.Playlists);
+    }
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_NoTracksFromMetadataBatch_DoesNotCreatePlaylist()
+    {
+        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\x.m3u" });
+        _playlistFiles.ImportAsync(@"D:\lists\x.m3u").Returns(ImportResult("x", new[] { @"D:\m\a.mp3" }));
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+            .Returns(Array.Empty<Track>());
+        var container = CreateContainerVmWithMocks();
+
+        var report = await container.ImportPlaylistFileAsync();
+
+        Assert.Equal(0, report!.Imported);
+        Assert.Empty(container.Playlists);
+    }
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_UserCancels_ReturnsNull()
+    {
+        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(Array.Empty<string>());
+        var container = CreateContainerVmWithMocks();
+
+        var report = await container.ImportPlaylistFileAsync();
+
+        Assert.Null(report);
+        await _playlistFiles.DidNotReceive().ImportAsync(Arg.Any<string>());
+        Assert.Empty(container.Playlists);
+    }
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_PresetPath_SkipsFileDialog()
+    {
+        _playlistFiles.ImportAsync(@"D:\drop\y.m3u8").Returns(ImportResult("y", new[] { @"D:\m\a.mp3" }));
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+            .Returns(new[] { FallbackTrack(@"D:\m\a.mp3") });
+        var container = CreateContainerVmWithMocks();
+
+        var report = await container.ImportPlaylistFileAsync(@"D:\drop\y.m3u8");
+
+        Assert.Equal(1, report!.Imported);
+        Assert.Equal("y", container.Playlists[0].Name);
+        _fileDialog.DidNotReceive().OpenFiles(Arg.Any<string>(), Arg.Any<bool>());
     }
 }

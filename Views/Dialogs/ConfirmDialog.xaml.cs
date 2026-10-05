@@ -5,7 +5,8 @@ namespace DPlayer.Views.Dialogs;
 
 /// <summary>
 /// 主题化对话框（深色无边框 chrome + TitleBar），替代系统 MessageBox（浅色、与深紫主题割裂）。
-/// 模式：Show = 确认（取消/确定，返回 true=确认）；ShowError = 错误提示（仅确定按钮，Esc 可关闭）。
+/// 模式：Show = 确认（取消/确定，返回 true=确认）；ShowError = 错误提示（仅确定按钮，Esc 可关闭）；
+/// ShowInfo = 结果告知（仅确定按钮，Esc 可关闭）。
 /// </summary>
 public partial class ConfirmDialog : Window
 {
@@ -20,6 +21,10 @@ public partial class ConfirmDialog : Window
 
     /// <summary>模态显示错误提示（仅确定按钮；Esc 可关闭）。</summary>
     public static void ShowError(Window? owner, string title, string message)
+        => ShowCore(owner, title, message, showCancel: false);
+
+    /// <summary>模态显示信息提示（仅确定按钮；Esc 可关闭）。与 ShowError 同形状，语义为"结果告知"而非错误。</summary>
+    public static void ShowInfo(Window? owner, string title, string message)
         => ShowCore(owner, title, message, showCancel: false);
 
     private static bool ShowCore(Window? owner, string title, string message, bool showCancel)

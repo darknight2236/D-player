@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using DPlayer.Models;
+using DPlayer.Services.PlaylistFiles;
 
 namespace DPlayer.Views.Controls;
 
@@ -12,6 +13,7 @@ namespace DPlayer.Views.Controls;
 ///
 /// AudioExtensions: 代理到 Models.AudioConstants, 与 IFileDialogService 在 OpenFiles 中使用的过滤器
 /// "*.mp3;*.wma;*.flac;*.aac;*.wav" 严格对齐，单一来源，避免漂移。
+/// Phase 18 起 Drop 目标必须同时查 FilterAudioPaths 与 FilterPlaylistPaths，两个白名单互不重叠。
 /// </summary>
 public static class DragDropExtensions
 {
@@ -38,6 +40,22 @@ public static class DragDropExtensions
                     break;
                 }
             }
+        }
+        return result;
+    }
+
+    /// <summary>支持的播放列表后缀（Phase 18）。代理到 PlaylistFileFormats，单一来源避免漂移。</summary>
+    public static readonly IReadOnlyList<string> PlaylistFileExtensions = PlaylistFileFormats.Extensions;
+
+    /// <summary>过滤出播放列表文件（.m3u/.m3u8/.pls，大小写不敏感）。文件夹自动剔除。</summary>
+    public static IReadOnlyList<string> FilterPlaylistPaths(IEnumerable<string>? paths)
+    {
+        if (paths is null) return Array.Empty<string>();
+
+        var result = new List<string>();
+        foreach (var path in paths)
+        {
+            if (PlaylistFileFormats.IsPlaylistFile(path)) result.Add(path);
         }
         return result;
     }

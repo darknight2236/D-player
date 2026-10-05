@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using NSubstitute;
 using DPlayer.Models;
 using DPlayer.Services;
+using DPlayer.Services.PlaylistFiles;
 using DPlayer.ViewModels;
 using Xunit;
 
@@ -17,6 +18,7 @@ public class PlaylistsViewModelTests
     private readonly IPlaybackService _player = Substitute.For<IPlaybackService>();
     private readonly IFileDialogService _fileDialog = Substitute.For<IFileDialogService>();
     private readonly ITrackMetadataReader _metadataReader = Substitute.For<ITrackMetadataReader>();
+    private readonly IPlaylistFileService _playlistFiles = Substitute.For<IPlaylistFileService>();
 
     private PlaylistViewModel CreatePlaylistVm(string? id = null, string name = "Test")
     {
@@ -32,7 +34,7 @@ public class PlaylistsViewModelTests
         _metadataReader.CreateFallback(Arg.Any<string>())
             .Returns(ci => new Track(ci.ArgAt<string>(0), ci.ArgAt<string>(0), null, null, null, null, null, null, TimeSpan.Zero, null));
 
-        return new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader);
+        return new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles);
     }
 
     private PlaylistsViewModel CreateContainerVm()

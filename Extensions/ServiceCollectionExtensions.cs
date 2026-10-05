@@ -53,7 +53,8 @@ public static class ServiceCollectionExtensions
                 seed,
                 sp.GetRequiredService<IPlaybackService>(),
                 sp.GetRequiredService<IFileDialogService>(),
-                sp.GetRequiredService<ITrackMetadataReader>()));
+                sp.GetRequiredService<ITrackMetadataReader>(),
+                sp.GetRequiredService<IPlaylistFileService>()));
         services.AddSingleton<PlaylistsViewModel>();
         services.AddTransient<MainViewModel>();
 

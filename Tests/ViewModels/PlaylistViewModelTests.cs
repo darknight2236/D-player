@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NSubstitute;
 using DPlayer.Models;
 using DPlayer.Services;
+using DPlayer.Services.PlaylistFiles;
 using DPlayer.ViewModels;
 using Xunit;
 
@@ -21,6 +22,7 @@ public class PlaylistViewModelTests
     private readonly IPlaybackService _player = Substitute.For<IPlaybackService>();
     private readonly IFileDialogService _fileDialog = Substitute.For<IFileDialogService>();
     private readonly ITrackMetadataReader _metadataReader = Substitute.For<ITrackMetadataReader>();
+    private readonly IPlaylistFileService _playlistFiles = Substitute.For<IPlaylistFileService>();
 
     private PlaylistViewModel CreateVm(string id = "test-id", string name = "Test")
     {
@@ -35,7 +37,7 @@ public class PlaylistViewModelTests
         _metadataReader.CreateFallback(Arg.Any<string>())
             .Returns(ci => new Track(ci.ArgAt<string>(0), ci.ArgAt<string>(0), null, null, null, null, null, null, TimeSpan.Zero, null));
 
-        return new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader);
+        return new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles);
     }
 
     /// <summary>手动往 Queue 里加 N 个占位 Track（绕过 File.Exists 过滤）。</summary>
@@ -189,5 +191,133 @@ public class PlaylistViewModelTests
         AddTracks(vm, 3);
         vm.CurrentIndex = 0;
         Assert.True(vm.HasCurrentTrack);
+    }
+
+    // —— Phase 18: 播放列表文件导入/导出 ——
+
+    private static PlaylistImportResult ImportResult(
+        string name, string[] accepted, int missing = 0, int unsupported = 0)
+        => new(name, accepted, accepted.Length + missing + unsupported, missing, unsupported);
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_UserCancelsDialog_ReturnsNull()
+    {
+        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(Array.Empty<string>());
+        var vm = CreateVm();
+
+        var report = await vm.ImportPlaylistFileAsync();
+
+        Assert.Null(report);
+        await _playlistFiles.DidNotReceive().ImportAsync(Arg.Any<string>());
+        Assert.Empty(vm.Queue);
+    }
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_AppendsAcceptedPathsInOrder()
+    {
+        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\rock.m3u8" });
+        _playlistFiles.ImportAsync(@"D:\lists\rock.m3u8")
+            .Returns(ImportResult("rock", new[] { @"D:\m\a.mp3", @"D:\m\b.flac" }));
+        _metadataReader.ReadAsync(Arg.Any<string>())
+            .Returns(ci => new Track(ci.ArgAt<string>(0), System.IO.Path.GetFileName(ci.ArgAt<string>(0)),
+                null, null, null, null, null, null, TimeSpan.Zero, null));
+        var vm = CreateVm();
+
+        var report = await vm.ImportPlaylistFileAsync();
+
+        Assert.NotNull(report);
+        Assert.Equal(2, report!.Imported);
+        Assert.False(report.CreatedNewPlaylist);
+        Assert.Equal("Test", report.PlaylistName);
+        Assert.Equal("rock.m3u8", report.SourceFile);
+        Assert.Equal(2, vm.Queue.Count);
+        Assert.Equal(@"D:\m\a.mp3", vm.Queue[0].FilePath);
+        Assert.Equal(@"D:\m\b.flac", vm.Queue[1].FilePath);
+    }
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_AllEntriesSkipped_LeavesQueueUntouched()
+    {
+        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\old.pls" });
+        _playlistFiles.ImportAsync(@"D:\lists\old.pls")
+            .Returns(ImportResult("old", Array.Empty<string>(), missing: 3, unsupported: 2));
+        var vm = CreateVm();
+
+        var report = await vm.ImportPlaylistFileAsync();
+
+        Assert.NotNull(report);
+        Assert.Equal(0, report!.Imported);
+        Assert.Null(report.PlaylistName);
+        Assert.Equal(3, report.SkippedMissing);
+        Assert.Equal(2, report.SkippedUnsupported);
+        Assert.Equal(5, report.Skipped);
+        Assert.Empty(vm.Queue);
+    }
+
+    [Fact]
+    public async Task ImportPlaylistFileAsync_PresetPath_SkipsFileDialog()
+    {
+        _playlistFiles.ImportAsync(@"D:\drop\x.m3u")
+            .Returns(ImportResult("x", new[] { @"D:\m\a.mp3" }));
+        _metadataReader.ReadAsync(Arg.Any<string>())
+            .Returns(ci => new Track(ci.ArgAt<string>(0), "a", null, null, null, null, null, null, TimeSpan.Zero, null));
+        var vm = CreateVm();
+
+        var report = await vm.ImportPlaylistFileAsync(@"D:\drop\x.m3u");
+
+        Assert.Equal(1, report!.Imported);
+        _fileDialog.DidNotReceive().OpenFiles(Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Fact]
+    public async Task ExportPlaylistFileAsync_EmptyQueue_ReturnsNullWithoutDialog()
+    {
+        var vm = CreateVm();
+
+        var error = await vm.ExportPlaylistFileAsync();
+
+        Assert.Null(error);
+        _fileDialog.DidNotReceive().SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task ExportPlaylistFileAsync_SanitizesPlaylistNameForDefaultFileName()
+    {
+        var vm = CreateVm(name: @"My/List:1*");
+        vm.Queue.Add(new Track(@"D:\m\a.mp3", "A", null, null, null, null, null, null, TimeSpan.Zero, null));
+        _fileDialog.SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns((string?)null);
+
+        await vm.ExportPlaylistFileAsync();
+
+        _fileDialog.Received(1).SaveFile(PlaylistFileFormats.SaveFilter, "My_List_1_", ".m3u8");
+    }
+
+    [Fact]
+    public async Task ExportPlaylistFileAsync_UserCancels_DoesNotCallService()
+    {
+        var vm = CreateVm();
+        vm.Queue.Add(new Track(@"D:\m\a.mp3", "A", null, null, null, null, null, null, TimeSpan.Zero, null));
+        _fileDialog.SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns((string?)null);
+
+        var error = await vm.ExportPlaylistFileAsync();
+
+        Assert.Null(error);
+        await _playlistFiles.DidNotReceive().ExportAsync(Arg.Any<string>(), Arg.Any<System.Collections.Generic.IReadOnlyList<Track>>());
+    }
+
+    [Fact]
+    public async Task ExportPlaylistFileAsync_ServiceThrows_ReturnsErrorText()
+    {
+        var vm = CreateVm();
+        vm.Queue.Add(new Track(@"D:\m\a.mp3", "A", null, null, null, null, null, null, TimeSpan.Zero, null));
+        _fileDialog.SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(@"D:\out\a.m3u8");
+        _playlistFiles.ExportAsync(@"D:\out\a.m3u8", Arg.Any<System.Collections.Generic.IReadOnlyList<Track>>())
+            .Returns(Task.FromException(new System.IO.IOException("被占用")));
+
+        var error = await vm.ExportPlaylistFileAsync();
+
+        Assert.NotNull(error);
+        Assert.Contains("被占用", error);
+        Assert.StartsWith("导出失败：", error);
     }
 }

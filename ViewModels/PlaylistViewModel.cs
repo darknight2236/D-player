@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DPlayer.Models;
 using DPlayer.Services;
+using DPlayer.Services.PlaylistFiles;
 
 namespace DPlayer.ViewModels;
 
@@ -25,6 +26,7 @@ public partial class PlaylistViewModel : ObservableObject
     private readonly IPlaybackService _player;
     private readonly IFileDialogService _fileDialog;
     private readonly ITrackMetadataReader _metadataReader;
+    private readonly IPlaylistFileService _playlistFiles;
 
     /// <summary>由 PlaylistsViewModel 在 HookPlaylistVm 中设置，用于读取全局 Shuffle/Repeat 状态。</summary>
     internal PlaylistsViewModel? Container { get; set; }
@@ -104,12 +106,14 @@ public partial class PlaylistViewModel : ObservableObject
         Models.Playlist seed,
         IPlaybackService player,
         IFileDialogService fileDialog,
-        ITrackMetadataReader metadataReader)
+        ITrackMetadataReader metadataReader,
+        IPlaylistFileService playlistFiles)
     {
         ArgumentNullException.ThrowIfNull(seed);
         _player = player ?? throw new ArgumentNullException(nameof(player));
         _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
         _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
+        _playlistFiles = playlistFiles ?? throw new ArgumentNullException(nameof(playlistFiles));
 
         Id = seed.Id;
         Name = seed.Name;
@@ -399,6 +403,74 @@ public partial class PlaylistViewModel : ObservableObject
             var track = await _metadataReader.ReadAsync(path);
             Queue.Add(track);
         }
+    }
+
+    // —— Phase 18: 播放列表文件导入/导出（歌单级 = 追加当前歌单） ——
+
+    /// <summary>
+    /// 导入 .m3u/.m3u8/.pls 并**追加**到本歌单（与 AddToQueue 同层级语义）。
+    ///
+    /// presetPath 非空 = 拖拽入口（跳过文件对话框）；null = 走对话框。
+    /// 返回 null 表示用户取消，View 不应弹任何框；返回报告则由 View 拼文案弹信息框。
+    /// 过滤已在服务层完成，这里复用 DropExternalFiles（其契约"传入 paths 已过滤"因此
+    /// 多了一个调用方 —— COUPLING §5）。
+    /// </summary>
+    public async Task<PlaylistImportReport?> ImportPlaylistFileAsync(string? presetPath = null)
+    {
+        var path = presetPath ?? _fileDialog.OpenFiles(PlaylistFileFormats.OpenFilter).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        var sourceFile = Path.GetFileName(path);
+        // ConfigureAwait(true)：Queue 必须在 UI 线程改（WPF CollectionView 要求）
+        var result = await _playlistFiles.ImportAsync(path).ConfigureAwait(true);
+
+        if (result.AcceptedPaths.Count == 0)
+        {
+            return new PlaylistImportReport(sourceFile, null, false, 0,
+                result.SkippedMissing, result.SkippedUnsupported, result.TotalEntries);
+        }
+
+        await DropExternalFiles(result.AcceptedPaths).ConfigureAwait(true);
+
+        return new PlaylistImportReport(sourceFile, Name, false, result.AcceptedPaths.Count,
+            result.SkippedMissing, result.SkippedUnsupported, result.TotalEntries);
+    }
+
+    /// <summary>
+    /// 导出本歌单为 .m3u8（绝对路径 + 完整 #EXTINF）。
+    /// 返回 null = 成功或用户取消（两者都不需要 UI 反馈）；非 null = 可直接展示的错误文案。
+    /// </summary>
+    public async Task<string?> ExportPlaylistFileAsync()
+    {
+        if (Queue.Count == 0) return null;   // View 层已拦一次，这里兜底
+
+        var dest = _fileDialog.SaveFile(
+            PlaylistFileFormats.SaveFilter, SanitizeFileName(Name), ".m3u8");
+        if (string.IsNullOrWhiteSpace(dest)) return null;
+
+        try
+        {
+            await _playlistFiles.ExportAsync(dest, Queue.ToArray()).ConfigureAwait(true);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return $"导出失败：{ex.Message}";
+        }
+    }
+
+    /// <summary>歌单名 → 合法文件名（非法字符替换为 '_'）。空名退化为 "playlist"。</summary>
+    private static string SanitizeFileName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "playlist";
+
+        var invalid = Path.GetInvalidFileNameChars();
+        var chars = new char[name.Length];
+        for (int i = 0; i < name.Length; i++)
+        {
+            chars[i] = Array.IndexOf(invalid, name[i]) >= 0 ? '_' : name[i];
+        }
+        return new string(chars);
     }
 
     /// <summary>

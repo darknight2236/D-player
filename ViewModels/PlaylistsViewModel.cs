@@ -523,6 +523,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         public IReadOnlyList<string> OpenFiles(string filter, bool multiselect = false) => Array.Empty<string>();
         public string? OpenFolder() => null;
+        public string? SaveFile(string filter, string defaultFileName, string defaultExtension) => null;
     }
 
     private sealed class NullLibraryScannerService : ILibraryScannerService

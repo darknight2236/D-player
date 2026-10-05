@@ -33,4 +33,21 @@ public sealed class Win32FileDialogService : IFileDialogService
             ? dialog.FolderName
             : null;
     }
+
+    public string? SaveFile(string filter, string defaultFileName, string defaultExtension)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "导出播放列表",
+            Filter = filter,
+            FileName = defaultFileName,
+            DefaultExt = defaultExtension,
+            AddExtension = true,
+            OverwritePrompt = true
+        };
+
+        return dialog.ShowDialog() == true
+            ? dialog.FileName
+            : null;
+    }
 }

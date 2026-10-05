@@ -22,4 +22,13 @@ public interface IFileDialogService
     /// </summary>
     /// <returns>用户选中的文件夹路径；取消则返回 null。</returns>
     string? OpenFolder();
+
+    /// <summary>
+    /// 弹出保存文件对话框(Phase 18)。覆盖已有文件由系统 OverwritePrompt 询问。
+    /// </summary>
+    /// <param name="filter">WPF 格式过滤器，如 "M3U8 播放列表|*.m3u8"。</param>
+    /// <param name="defaultFileName">默认文件名（调用方负责清洗非法字符）。</param>
+    /// <param name="defaultExtension">未输入后缀时自动补上的扩展名，如 ".m3u8"。</param>
+    /// <returns>用户选定的目标绝对路径；取消则返回 null。</returns>
+    string? SaveFile(string filter, string defaultFileName, string defaultExtension);
 }

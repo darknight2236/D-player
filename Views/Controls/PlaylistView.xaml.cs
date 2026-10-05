@@ -214,6 +214,32 @@ public partial class PlaylistView : UserControl
         _vm.ClearQueueCommand.Execute(null);
     }
 
+    /// <summary>导入播放列表文件 → 追加到当前歌单（歌单级语义，Phase 18）。</summary>
+    private async void ImportListButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null) return;
+        await PlaylistImportUi.RunDialogAsync(_vm.ImportPlaylistFileAsync, Window.GetWindow(this));
+    }
+
+    /// <summary>导出当前歌单为 .m3u8。空队列静默返回（与清空按钮同处理方式）。</summary>
+    private async void ExportListButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null) return;
+        if (_vm.Queue.Count == 0) return;
+
+        try
+        {
+            var error = await _vm.ExportPlaylistFileAsync();
+            if (error is not null)
+                ConfirmDialog.ShowError(Window.GetWindow(this), "导出播放列表", error);
+        }
+        catch (Exception ex)
+        {
+            // VM 已经捕获了服务异常；这里兜的是对话框/线程等意外
+            ConfirmDialog.ShowError(Window.GetWindow(this), "导出播放列表", $"导出失败：{ex.Message}");
+        }
+    }
+
     // —— Phase 5：拖拽启动（PreviewMouseLeftButton* + MouseMove） ——
 
     private void QueueList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -313,10 +339,11 @@ public partial class PlaylistView : UserControl
         }
         else if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            // 外部文件
+            // 外部文件：音频 → 入队；播放列表文件 → 导入追加（Phase 18）
             var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
             var audio = DragDropExtensions.FilterAudioPaths(paths);
-            e.Effects = audio.Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+            var lists = DragDropExtensions.FilterPlaylistPaths(paths);
+            e.Effects = (audio.Count > 0 || lists.Count > 0) ? DragDropEffects.Copy : DragDropEffects.None;
         }
         else
         {
@@ -346,10 +373,19 @@ public partial class PlaylistView : UserControl
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
+
                 var audio = DragDropExtensions.FilterAudioPaths(paths);
                 if (audio.Count > 0)
                 {
                     _vm.DropExternalFilesCommand.Execute(audio);
+                }
+
+                // 播放列表文件走导入管道（追加语义）。混合拖入时两条都跑。
+                var lists = DragDropExtensions.FilterPlaylistPaths(paths);
+                if (lists.Count > 0)
+                {
+                    _ = PlaylistImportUi.RunForDroppedFilesAsync(
+                        _vm.ImportPlaylistFileAsync, Window.GetWindow(this), lists);
                 }
             }
         }
@@ -371,13 +407,14 @@ public partial class PlaylistView : UserControl
     private void Root_DragEnter(object sender, DragEventArgs e)
     {
         // 仅在拖入"至少含 1 个白名单音频"的文件集合时高亮；
-        // 文件夹 / 全非音频 / 内部重排（QueueItemsFormat）都不亮。
+        // 文件夹 / 全非音频且无播放列表文件 / 内部重排（QueueItemsFormat）都不亮。
         if (e.Data.GetDataPresent(QueueItemsFormat)) return;
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
 
         var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
         var audio = DragDropExtensions.FilterAudioPaths(paths);
-        if (audio.Count == 0) return;
+        var lists = DragDropExtensions.FilterPlaylistPaths(paths);
+        if (audio.Count == 0 && lists.Count == 0) return;
 
         DragDropExtensions.SetIsDragOver(QueueListBorder, true);
     }
@@ -394,7 +431,8 @@ public partial class PlaylistView : UserControl
         {
             var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
             var audio = DragDropExtensions.FilterAudioPaths(paths);
-            e.Effects = audio.Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+            var lists = DragDropExtensions.FilterPlaylistPaths(paths);
+            e.Effects = (audio.Count > 0 || lists.Count > 0) ? DragDropEffects.Copy : DragDropEffects.None;
             e.Handled = true;
         }
     }
@@ -419,11 +457,20 @@ public partial class PlaylistView : UserControl
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
+
             var audio = DragDropExtensions.FilterAudioPaths(paths);
             if (audio.Count > 0)
             {
                 _vm.DropExternalFilesCommand.Execute(audio);
             }
+
+            var lists = DragDropExtensions.FilterPlaylistPaths(paths);
+            if (lists.Count > 0)
+            {
+                _ = PlaylistImportUi.RunForDroppedFilesAsync(
+                    _vm.ImportPlaylistFileAsync, Window.GetWindow(this), lists);
+            }
+
             e.Handled = true;
         }
     }

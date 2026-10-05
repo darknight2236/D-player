@@ -48,6 +48,24 @@
                         <TextBlock Text="导入文件夹" FontSize="12" Margin="4,0,0,0"/>
                     </StackPanel>
                 </Button>
+                <Button Padding="12,4" Margin="8,0,0,0" Click="ImportListButton_Click"
+                        ToolTip="导入 M3U / M3U8 / PLS，追加到当前歌单">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12"
+                              Data="{StaticResource Icon.Import}"
+                              Stroke="{StaticResource ForegroundPrimary}"/>
+                        <TextBlock Text="导入列表" FontSize="12" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </Button>
+                <Button Padding="12,4" Margin="8,0,0,0" Click="ExportListButton_Click"
+                        ToolTip="把当前歌单导出为 .m3u8">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="12" Height="12"
+                              Data="{StaticResource Icon.Export}"
+                              Stroke="{StaticResource ForegroundPrimary}"/>
+                        <TextBlock Text="导出列表" FontSize="12" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </Button>
                 <Button Click="ClearButton_Click" Padding="12,4" Margin="8,0,0,0">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">

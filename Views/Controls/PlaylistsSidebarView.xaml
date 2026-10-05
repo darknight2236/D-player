@@ -42,6 +42,17 @@
                 <Path Style="{StaticResource IconPath}" Width="14" Height="14"
                       Data="{StaticResource Icon.Minus}" Stroke="{StaticResource ForegroundPrimary}"/>
             </Button>
+            <Button x:Name="ImportBtn"
+                    Width="28" Height="28"
+                    Padding="0"
+                    Margin="6,0,0,0"
+                    Foreground="{StaticResource ForegroundPrimary}"
+                    ToolTip="导入播放列表（M3U / M3U8 / PLS）→ 新建歌单"
+                    Click="ImportBtn_Click">
+                <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                      Data="{StaticResource Icon.Import}"
+                      Stroke="{StaticResource ForegroundPrimary}"/>
+            </Button>
         </StackPanel>
 
         <!-- 歌单列表（Phase 9: 支持拖拽重排，Phase 16: 矢量图标） -->

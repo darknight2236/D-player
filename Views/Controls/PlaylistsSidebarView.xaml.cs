@@ -169,6 +169,13 @@ public partial class PlaylistsSidebarView : UserControl
         _vm.RemovePlaylistCommand.Execute(target);
     }
 
+    /// <summary>导入播放列表文件 → 新建歌单（容器级语义，Phase 18）。</summary>
+    private async void ImportBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null) return;
+        await PlaylistImportUi.RunDialogAsync(_vm.ImportPlaylistFileAsync, Window.GetWindow(this));
+    }
+
     private void PlaylistList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_vm is null) return;
@@ -242,6 +249,13 @@ public partial class PlaylistsSidebarView : UserControl
             ShowAdorner(insertIdx);
             e.Effects = DragDropEffects.Move;
         }
+        else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            // 外部文件：只认播放列表文件；音频文件落在侧边栏无意义（那是列表区的活）
+            var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
+            var lists = DragDropExtensions.FilterPlaylistPaths(paths);
+            e.Effects = lists.Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+        }
         else
         {
             e.Effects = DragDropEffects.None;
@@ -264,6 +278,18 @@ public partial class PlaylistsSidebarView : UserControl
                 int srcIndex = (int)e.Data.GetData(PlaylistItemsFormat)!;
                 int tgtIndex = ComputeInsertIndex(e.GetPosition(PlaylistList));
                 _vm.MovePlaylistCommand.Execute((srcIndex, tgtIndex));
+            }
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
+                var lists = DragDropExtensions.FilterPlaylistPaths(paths);
+                if (lists.Count > 0)
+                {
+                    // 不 await：Drop 是同步 void 处理器，导入进度由执行器内部弹框收尾。
+                    // 异常已在 PlaylistImportUi 内兜住。
+                    _ = PlaylistImportUi.RunForDroppedFilesAsync(
+                        _vm.ImportPlaylistFileAsync, Window.GetWindow(this), lists);
+                }
             }
         }
         finally

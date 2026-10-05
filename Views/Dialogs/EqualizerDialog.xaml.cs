@@ -249,8 +249,7 @@ public partial class EqualizerDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"保存 EQ 设置失败：{ex.Message}", "错误",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ConfirmDialog.ShowError(this, "错误", $"保存 EQ 设置失败：{ex.Message}");
         }
     }
 

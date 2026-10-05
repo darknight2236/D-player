@@ -163,14 +163,8 @@ public partial class PlaylistsSidebarView : UserControl
         var target = _vm.ViewedPlaylist;
         if (target is null) return;
 
-        // 简单 yes/no 确认 —— Phase 6 用 MessageBox.OK/Cancel
-        var result = MessageBox.Show(
-            Window.GetWindow(this),
-            $"确定删除歌单 \"{target.Name}\" 吗?",
-            "删除歌单",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Warning);
-        if (result != MessageBoxResult.OK) return;
+        if (!ConfirmDialog.Show(Window.GetWindow(this), "删除歌单",
+                $"确定删除歌单「{target.Name}」吗？此操作不可撤销。")) return;
 
         _vm.RemovePlaylistCommand.Execute(target);
     }

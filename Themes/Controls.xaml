@@ -58,8 +58,36 @@
     <Style TargetType="ListBoxItem">
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     </Style>
+    <!-- TextBox 深色：深色底 + 描边 + 圆角；悬停/聚焦时 accent 描边（Phase 17 配套） -->
     <Style TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="SelectionBrush" Value="{StaticResource AccentPrimary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundTertiary}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,5"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                      VerticalAlignment="Center" Focusable="False"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource AccentHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource AccentPrimary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
     <Style TargetType="GridSplitter">
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>

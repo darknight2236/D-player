@@ -118,7 +118,8 @@ D-player/
 ├── Views/
 │   ├── MainWindow.xaml(.cs)     # 主窗口；3 行(TitleBar | 内容区 | PlayerBar)；内容区 5 列(Sidebar | Splitter | Playlist | Splitter | TrackInfo)；Phase 17 无边框 WindowChrome
 │   ├── Dialogs/
-│   │   ├── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)；Phase 17 无边框 + TitleBar
+│   │   ├── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)；Phase 17 无边框 + TitleBar；输入框深色样式
+│   │   ├── ConfirmDialog.xaml(.cs)   # 主题化确认对话框（删歌单/清空/移除曲目；替代系统 MessageBox）(2026-10-05)
 │   │   ├── SettingsDialog.xaml(.cs)  # 设置对话框（音量 + 音频输出占位 + 频谱可视化）(Phase 11/13)；Phase 17 无边框 + TitleBar
 │   │   └── EqualizerDialog.xaml(.cs) # 均衡器对话框（11 根竖直滑块 + 预设下拉 + 启用开关 + 实时预览）(Phase 14)；Phase 17 无边框 + TitleBar
 │   └── Controls/
@@ -529,7 +530,7 @@ public Task CleanupAsync();
   - **# 列**：显示元数据 `TrackNumber`（Phase 12 continued 新增），从 `ITrackMetadataReader` 读取
   - **表头排序**：点击列头触发 `SortBy(column)` 物理重排 Queue（Phase 12 continued）；表头用 TextBlock + MouseLeftButtonDown（非 Button，消除内边距对不齐问题）
   - 当前曲 ▶ 标记由 code-behind 维护：订阅 `PlaylistViewModel.PropertyChanged` (CurrentIndex) / `Queue.CollectionChanged` / `ItemContainerGenerator.StatusChanged`（应对虚拟化容器回收和 `Queue[i] = meta` 替换）；▶ 标记在 # 列之前（最左列）
-  - 交互：双击播放、Delete 键删除、工具栏按钮触发命令
+  - 交互：双击播放、Delete 键/× 按钮（经 ConfirmDialog 确认）删除、工具栏按钮（清空需确认）触发命令
   - Shuffle / Repeat 按钮**已移到 PlayerBar**（Phase 12 continued）
   - **Phase 5 拖拽（XAML）：** 外层 `<Border AllowDrop="True">` 仅承载 OLE drop 区（覆盖工具栏 + 列表两行的 hit-test）；视觉高亮挂在 Row 1 的圆角 `<Border x:Name="QueueListBorder">`（用户期望仅看到列表区域被框住，不连带工具栏）。**BorderBrush 默认值放进 Style.Setter 而非 local 属性** —— WPF DP 优先级 `local > trigger setter > style setter`，写成 local 会让 `Style.Triggers` 失效（`docs/COUPLING.md §5` 隐式契约）。`ListBox` 加 `SelectionMode="Extended"` + `AllowDrop="True"` + 6 个事件挂接（`PreviewMouseLeftButton{Down,Up}` / `PreviewMouseMove` / `DragOver` / `DragLeave` / `Drop`）
   - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"DPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
@@ -545,6 +546,7 @@ public Task CleanupAsync();
   - **取消回滚**：`_initialConfig` 取“打开瞬间的实时 `_playbackService.EqualizerConfig`”（权威，不受 LoadAsync 失败影响），再试读盘覆盖；`OnClosed` 若未 `_saved` 则把 `_playbackService.EqualizerConfig = _initialConfig` 撤销实时预览（回滚基准非二次读盘 —— 读盘失败会把基准误置为禁用平直）
   - **Save_Click**：`UpdateAsync` 原子写 settings.json（EqualizerEnabled/Preamp/Bands/Preset）→ 再确认一次链上配置 → 写 `PlayerViewModel.EqualizerEnabled`（按钮高亮即时更新）—— **故意不 `ConfigureAwait(false)`，留在 UI 线程**；失败弹 MessageBox
   - **Phase 17**：`WindowStyle=None` + `WindowChrome` + `TitleBar(ShowMaximize=False)`（仅关闭键）；标题栏占 Row 0，频段区/按钮区行号顺延
+- **`ConfirmDialog`** *(Window, 2026-10-05)*：主题化对话框（深色 WindowChrome + TitleBar + 自动换行文案），替代系统 MessageBox。`Show(Window?, string title, string message)` = 确认模式（取消/确定，返回 bool）；`ShowError(owner, title, message)` = 单按钮错误模式（仅确定，Esc 可关）。接入点：删除歌单（`PlaylistsSidebarView`）、清空歌单与移除曲目（`PlaylistView` 的清空按钮 / × 按钮 / Delete 键，确认文案含歌单名/曲名）、保存失败提示（`SettingsDialog` / `EqualizerDialog`）。空队列点清空直接 no-op（不弹框）。
 
 ### 5.5a `Views/Controls/DragDropExtensions`（Phase 5）
 
@@ -584,7 +586,7 @@ public Task CleanupAsync();
 
 ### 5.6 `Themes`
 
-深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。Phase 16 新增 `Icons.xaml`：22 个 `Icon.*` 描边 `Geometry`（24×24 viewbox，Feather/Lucide 署名）+ 共享 `IconPath` 样式（16px、StrokeThickness 1.75、圆头圆角）；`Icon.PlayMarker` 为实心 `Fill=AccentPrimary` 例外；活跃态由使用处绑 `BoolToAccentBrushConverter` 着 `Stroke`。Phase 17：新增 `Icon.Maximize`/`Icon.Restore`；`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色模板 —— 消除残留 OS 浅色元素。
+深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。Phase 16 新增 `Icons.xaml`：22 个 `Icon.*` 描边 `Geometry`（24×24 viewbox，Feather/Lucide 署名）+ 共享 `IconPath` 样式（16px、StrokeThickness 1.75、圆头圆角）；`Icon.PlayMarker` 为实心 `Fill=AccentPrimary` 例外；活跃态由使用处绑 `BoolToAccentBrushConverter` 着 `Stroke`。Phase 17：新增 `Icon.Maximize`/`Icon.Restore`；`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色模板、TextBox（深色底 + 圆角描边，悬停/聚焦 accent 边框，2026-10-05 补）—— 消除残留 OS 浅色元素。
 
 ---
 

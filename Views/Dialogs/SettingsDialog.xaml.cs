@@ -107,8 +107,7 @@ public partial class SettingsDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"保存设置失败：{ex.Message}", "错误",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ConfirmDialog.ShowError(this, "错误", $"保存设置失败：{ex.Message}");
         }
     }
 }

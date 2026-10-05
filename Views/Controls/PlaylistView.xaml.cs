@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using DPlayer.Models;
 using DPlayer.ViewModels;
+using DPlayer.Views.Dialogs;
 using DPlayer;
 
 namespace DPlayer.Views.Controls;
@@ -17,9 +18,10 @@ namespace DPlayer.Views.Controls;
 ///
 /// 职责：
 ///   1) 双击 ListBox 项 → PlayTrackAtCommand(index)
-///   2) Delete 键 → RemoveTrackCommand(SelectedIndex)
-///   3) × 按钮 → RemoveTrackCommand(对应行 index)
-///   4) 监听 VM.CurrentIndex 变化，刷新行首 ▶ 标记与文字颜色
+///   2) Delete 键 → 确认后 RemoveTrackCommand(SelectedIndex)
+///   3) × 按钮 → 确认后 RemoveTrackCommand(对应行 index)
+///   4) 清空按钮 → 确认后 ClearQueueCommand
+///   5) 监听 VM.CurrentIndex 变化，刷新行首 ▶ 标记与文字颜色
 /// </summary>
 public partial class PlaylistView : UserControl
 {
@@ -170,18 +172,21 @@ public partial class PlaylistView : UserControl
         e.Handled = true;
     }
 
-    /// <summary>Delete 键 → 删除选中项。</summary>
+    /// <summary>Delete 键 → 确认后删除选中项。</summary>
     private void QueueList_KeyDown(object sender, KeyEventArgs e)
     {
         if (_vm == null) return;
         if (e.Key != Key.Delete) return;
         if (QueueList.SelectedIndex < 0) return;
 
+        var track = _vm.Queue[QueueList.SelectedIndex];
+        if (!ConfirmDialog.Show(Window.GetWindow(this), "移除曲目", $"确定从歌单中移除「{track.Title}」吗？")) return;
+
         _vm.RemoveTrackCommand.Execute(QueueList.SelectedIndex);
         e.Handled = true;
     }
 
-    /// <summary>× 按钮 → 删除对应行。Tag 已绑定 DataContext (Track)。</summary>
+    /// <summary>× 按钮 → 确认后删除对应行。Tag 已绑定 DataContext (Track)。</summary>
     private void RemoveButton_Click(object sender, RoutedEventArgs e)
     {
         if (_vm == null) return;
@@ -191,8 +196,22 @@ public partial class PlaylistView : UserControl
         int index = _vm.Queue.IndexOf(track);
         if (index < 0) return;
 
+        if (!ConfirmDialog.Show(Window.GetWindow(this), "移除曲目", $"确定从歌单中移除「{track.Title}」吗？")) return;
+
         _vm.RemoveTrackCommand.Execute(index);
         e.Handled = true;
+    }
+
+    /// <summary>清空按钮 → 确认后清空当前歌单队列。</summary>
+    private void ClearButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm == null) return;
+        if (_vm.Queue.Count == 0) return;
+
+        if (!ConfirmDialog.Show(Window.GetWindow(this), "清空歌单",
+                $"确定清空歌单「{_vm.Name}」吗？此操作不可撤销。")) return;
+
+        _vm.ClearQueueCommand.Execute(null);
     }
 
     // —— Phase 5：拖拽启动（PreviewMouseLeftButton* + MouseMove） ——

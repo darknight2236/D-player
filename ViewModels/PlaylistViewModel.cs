@@ -322,14 +322,18 @@ public partial class PlaylistViewModel : ObservableObject
     /// 必须用 _player.Unload() 而不是 Stop() —— 后者保留底层 reader, 用户再点 Play 会重播刚才那首。
     /// 同时令 _playToken 自增，使任何 in-flight 的 PlayTrackAtAsync 被顶替丢弃。
     ///
+    /// 重要：只有本歌单是当前播放歌单（IsActivePlaylist）时才允许操作全局播放器 ——
+    /// 清空/删除"非播放中"歌单的曲目不应打断正在播放的歌（IPlaybackService 是全局单例）。
+    ///
     /// 注：本方法只清"队列侧"的状态（CurrentIndex）；PlayerViewModel 的
     /// CurrentTrack/Position/Duration/AlbumArtImage 由 IPlaybackService.Unload()
     /// 引发的事件链路自动清零。
     /// </summary>
     private void UnloadCurrentTrack()
     {
-        _playToken++; // 顶替任何 in-flight 的播放调用
-        _player.Unload();
+        _playToken++; // 顶替本 VM 任何 in-flight 的播放调用
+        if (IsActivePlaylist)
+            _player.Unload(); // 仅播放中的歌单有权停全局播放器
         CurrentIndex = -1;
     }
 

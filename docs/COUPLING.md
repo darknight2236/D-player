@@ -277,6 +277,10 @@ private void RemoveTrack(int index)
 | ComboBox 深色模板由 ToggleButton 承载点击（`ClickMode=Press`），`ContentPresenter` 设 `IsHitTestVisible=False` | `Themes/Controls.xaml:ComboBoxTemplate` | 点击必须落在 toggle 表面才能开合下拉（commit `dd435bd`） |
 | 无边框窗（WindowStyle=None + WindowChrome）必须保留 `CaptionHeight=32` | `MainWindow.xaml` + `SettingsDialog`/`EqualizerDialog`/`PromptDialog` XAML | OS 经 caption 负责拖动/双击最大化/Aero Snap；不要手写 DragMove 或移除 WindowChrome |
 
+| **Bug 修复新增（seek / clear，2026-10-05）** | | |
+| 单击进度条跳转必须用 `AddHandler(PreviewMouseLeftButtonDownEvent, ..., handledEventsToo: true)` 代码挂接，不能用 XAML 属性 | `PlayerBar.xaml.cs` 构造函数 | 隐式 Slider 样式开启 `IsMoveToPointEnabled`（Phase 13 `781d35d`）后，Slider 类处理器按轨道时先置 `e.Handled=true`；XAML 附加的实例处理器（不接收已处理事件）被静默跳过 → 单击跳转整体失效。SeekBar 的 Value 是 OneWay，类处理器的本地改值不再回传 VM（音量滑块 TwoWay 故不受影响） |
+| `PlaylistViewModel.UnloadCurrentTrack` 必须先检查 `IsActivePlaylist` 再操作 `_player` | `PlaylistViewModel.UnloadCurrentTrack` | `IPlaybackService` 是全局单例：清空/删除非播放中歌单的曲目不得停掉正在播放的歌。`_playToken++` 与 `CurrentIndex=-1` 仍无条件执行 |
+
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
 > **Phase 15 审计核对（M7）：** §5 全部契约与代码一致，无新增未登记契约。
@@ -344,6 +348,8 @@ private void RemoveTrack(int index)
 - ❌ **从 `App.xaml` 移除 `Icons.xaml` 合并、或加图标不同步字典**（Phase 16）—— 转换器经 `Application.Current.FindResource` 取 Geometry，缺失会运行时抛异常
 - ❌ **在 WindowStyle=None 窗口上漏配 WindowChrome / 漏给标题栏按钮 `IsHitTestVisibleInChrome=True`**（Phase 17）—— 拖动/双击最大化/点击行为损坏
 - ❌ **把最大化边距改回"读窗口实际边界"实现**（Phase 17）—— 布局时序导致 right/bottom 留空（commit `d86694b`；用 WorkArea 偏移 + 隐藏边框厚度的常量式边距）
+- ❌ **在 SeekBar 上用 XAML 属性挂接 `PreviewMouseLeftButtonDown`**（2026-10-05 修复）—— `IsMoveToPointEnabled` 的 Slider 类处理器会先消费事件，XAML 实例处理器被静默跳过导致单击跳转失效；必须 `handledEventsToo: true`（见 §5）
+- ❌ **让 `UnloadCurrentTrack`（经 `ClearQueue`/`RemoveTrack`）无条件操作全局 `IPlaybackService`**（2026-10-05 修复）—— 只有 `IsActivePlaylist` 歌单才有权 `Unload()`，否则清空另一歌单会误停当前播放
 
 ---
 

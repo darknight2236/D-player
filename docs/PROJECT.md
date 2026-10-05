@@ -829,6 +829,8 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **WindowChrome 自绘按钮必须 `IsHitTestVisibleInChrome=True`（Phase 17）**：caption 高度（32px）区域内的自绘按钮不加此 attached 属性会被 caption 拖动吞掉点击；改动标题栏按钮/新增标题栏控件时必查。
 - **无边框窗最大化边距必须用常量式工作区计算（Phase 17）**：`TitleBar.ApplyWindowState` 给根内容加「`WorkArea` 偏移 + `WindowResizeBorderThickness`」边距；不要改回"读窗口实际边界"的实现 —— 布局时序会让 right/bottom 边距偏大导致大片留空（commit `d86694b` 修）。
 - **WPF ComboBox 深色模板的 ToggleButton 用 `ClickMode=Press`（Phase 17）**：ComboBox 本体由自绘 `ToggleButton` 承载点击（展开/收起），`ContentPresenter` 设 `IsHitTestVisible=False` 叠加显示选中值；点击必须落在 toggle 表面才能开合下拉（commit `dd435bd` 修）。
+- **单击进度条跳转必须 `handledEventsToo: true` 挂接（2026-10-05 修复）**：隐式 Slider 样式开启 `IsMoveToPointEnabled`（Phase 13 `781d35d`）后，Slider 类处理器按轨道时会先置 `e.Handled=true`，XAML 属性挂接的实例处理器（不接收已处理事件）被静默跳过 → 单击跳转整体失效。`PlayerBar` 构造函数改用 `SeekBar.AddHandler(PreviewMouseLeftButtonDownEvent, ..., handledEventsToo: true)`。音量滑块 TwoWay 不受影响；进度条 Value 是 OneWay，类处理器的本地改值不回传 VM 且被 30Hz 轮询覆盖。
+- **`UnloadCurrentTrack` 必须以 `IsActivePlaylist` 守卫（2026-10-05 修复）**：`IPlaybackService` 是全局单例——清空/删除非播放中歌单的曲目不得停掉正在播放的歌（`ClearQueue`/`RemoveTrack` 经此方法）。只有当前播放歌单才有权 `_player.Unload()`；`_playToken++` 与 `CurrentIndex=-1` 保持无条件。
 
 ---
 

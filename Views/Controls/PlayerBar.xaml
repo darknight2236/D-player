@@ -36,11 +36,12 @@
             <TextBlock Grid.Column="0" Text="{Binding Position, Converter={StaticResource TimeSpanToString}}"
                        Style="{StaticResource CaptionText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
 
-            <!-- 进度条：默认小 Thumb（8px 半透明），悬停/拖拽时变大（14px 不透明） -->
+            <!-- 进度条：默认小 Thumb（8px 半透明），悬停/拖拽时变大（14px 不透明）。
+                 单击跳转的 PreviewMouseLeftButtonDown 由 code-behind 用
+                 AddHandler(handledEventsToo:true) 挂接 —— 原因见 PlayerBar.xaml.cs。 -->
             <Slider x:Name="SeekBar" Grid.Column="1" Margin="8,0"
                     Minimum="0" Maximum="1"
                     Value="{Binding PositionNormalized, Mode=OneWay}"
-                    PreviewMouseLeftButtonDown="SeekBar_PreviewMouseLeftButtonDown"
                     Thumb.DragStarted="SeekBar_DragStarted"
                     Thumb.DragCompleted="SeekBar_DragCompleted">
                 <Slider.Resources>

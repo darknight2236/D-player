@@ -21,6 +21,15 @@ public partial class PlayerBar : UserControl
     public PlayerBar()
     {
         InitializeComponent();
+
+        // 单击跳转必须用 handledEventsToo:true 挂接 —— 隐式 Slider 样式开启了
+        // IsMoveToPointEnabled（Phase 13），Slider 的类处理器 OnPreviewMouseLeftButtonDown
+        // 会在实例处理器之前把 e.Handled 置 true；XAML 附加的实例处理器（不接收已处理事件）
+        // 会被静默跳过，导致点击进度条整体失效（音频不受只改本地 Value 的 move-to-point 影响：
+        // Value 是 OneWay 绑定，被 PositionNormalized 的轮询覆盖且不通知 VM）。
+        SeekBar.AddHandler(PreviewMouseLeftButtonDownEvent,
+            new MouseButtonEventHandler(SeekBar_PreviewMouseLeftButtonDown),
+            handledEventsToo: true);
     }
 
     /// <summary>

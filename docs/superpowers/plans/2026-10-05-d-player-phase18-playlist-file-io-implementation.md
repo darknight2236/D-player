@@ -23,7 +23,7 @@
 - 导入建出的歌单 `SourceFolder` **必须为 null**（普通歌单，不写 library cache、不显示"刷新文件夹"按钮）。
 - 网络流条目（`http://` `https://` `mms://` `rtsp://`）计入 `SkippedUnsupported`，本阶段不做流播放。
 - 列表内重复条目**不去重**，原样保留顺序与重复。
-- 分层纪律：VM **不拼中文展示文案**（只返回结构化 record）；View **不做路径解析或过滤**（只调服务/VM）。
+- 分层纪律：**导入报告**文案由 View 组装（VM 只返回结构化 record）；导出错误文案是 VM 直传的单一分支例外（设计稿 §7.5）。View **不做路径解析或过滤**（只调服务/VM）。
 - 所有 `Queue` 修改必须在 UI 线程：VM 里的 `await` 用 `.ConfigureAwait(true)`，不要用 `ConfigureAwait(false)`。
 - 拖拽 Drop / Click 事件处理器是 `async void`：**必须** try/catch 兜住异常，否则未观察异常会崩进程。
 - 提交信息风格：`type(scope): subject` + 要点式 body（见 `git log`）；每个 Task 至少一次提交。
@@ -2627,9 +2627,9 @@ Expected: 全绿。**记下实际通过数**（基线 96 + 本阶段新增 59 = 
 Run: `git ls-files --eol docs/superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md`
 Expected: `i/lf    w/crlf`。若是 `w/lf`，执行 `unix2dos <该文件>` 后重新 `git add`。
 
-- [ ] **Step 7: GUI 验收（ComputerUse）**
+- [x] **Step 7: GUI 验收（ComputerUse）**
 
-> **执行记录（Task 11 文档部分）**：本步骤由 controller 另行执行并留档，不在文档同步提交（Step 8）范围内；故此处保留未勾选，待 GUI 走查完成后由执行方勾选。
+> **执行记录**：已执行；12 项中 10 项有硬证据（导入/追加/GBK 中文路径/相对路径/PLS 三桶计数/全跳过不建歌单/取消静默/导出+往返字节核验/空歌单静默/导出失败弹主题化错误框/重启持久化且无"刷新文件夹"/清空与删曲目确认框），2 项移交用户手动确认（OS 级拖拽列表文件、播放中单击进度条 —— 工作站锁屏导致原生输入被拒）；全仓 `MessageBox.Show` grep 为 0 命中。
 
 先 `dotnet build D-player.sln -c Debug` 后启动 exe（或 `dotnet run --project D-player.csproj`）。
 

@@ -113,7 +113,7 @@ public interface IPlaylistFileService
 
 **错误策略刻意不对称**，沿用项目既有约定：
 
-- `ImportAsync` **绝不抛**（读侧对齐 `JsonPlaylistService.LoadAsync`）：列表文件不存在、无读权限、编码解码彻底失败、后缀不认识 → 返回 `SuggestedName` 取文件名、`AcceptedPaths` 为空、计数为 0 的结果。
+- `ImportAsync` **绝不抛**（读侧对齐 `JsonPlaylistService.LoadAsync`）：列表文件不存在、无读权限、编码解码彻底失败 → 返回 `SuggestedName` 取文件名、`AcceptedPaths` 为空、计数为 0 的结果。后缀不认识时按 M3U 逐行宽松解析（只有 `.pls` 走 INI 解析）——这与主流播放器对纯文本列表的处理一致，且任何荒谬内容都会落进"文件缺失/格式不支持"两个桶并如实报告。
 - `ExportAsync` **可抛** `IOException` / `UnauthorizedAccessException`（写侧对齐设置/EQ 对话框的 `try/catch` + 错误框），由 VM 捕获后转成错误文案交给 View。
 
 `IsPlaylistFile` 是静态而非实例方法：View 层拖拽判定（`DragDropExtensions`）不该为了一个后缀判断去 DI 取服务。

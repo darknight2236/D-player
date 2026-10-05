@@ -101,7 +101,7 @@ D-player/
 │   ├── ILibraryScannerService.cs      # 库扫描抽象 (Phase 10)
 │   ├── LibraryScannerService.cs       # 递归扫描 + Diff 实现 (Phase 10)
 │   ├── ILibraryCache.cs               # 元数据缓存抽象 (Phase 10)
-│   └── JsonLibraryCache.cs            # JSON 缓存实现 (Phase 10)
+│   ├── JsonLibraryCache.cs            # JSON 缓存实现 (Phase 10)
 │   ├── ITrackMetadataReader.cs # 元数据读取抽象 (Phase 3)
 │   ├── AtlMetadataReader.cs    # 基于 z440.atl.core 的实现 (Phase 3)
 │   ├── IAudioDeviceManager.cs   # 预留：设备枚举/切换
@@ -643,7 +643,7 @@ public Task CleanupAsync();
 
 ### 5.6 `Themes`
 
-深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。Phase 16 新增 `Icons.xaml`：22 个 `Icon.*` 描边 `Geometry`（24×24 viewbox，Feather/Lucide 署名）+ 共享 `IconPath` 样式（16px、StrokeThickness 1.75、圆头圆角）；`Icon.PlayMarker` 为实心 `Fill=AccentPrimary` 例外；活跃态由使用处绑 `BoolToAccentBrushConverter` 着 `Stroke`。Phase 17：新增 `Icon.Maximize`/`Icon.Restore`；Phase 18：新增 `Icon.Import`/`Icon.Export`（现共 24 个）；`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色模板、TextBox（深色底 + 圆角描边，悬停/聚焦 accent 边框，2026-10-05 补）—— 消除残留 OS 浅色元素。
+深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。Phase 16 新增 `Icons.xaml`：20 个 `Icon.*` 描边 `Geometry`（24×24 viewbox，Feather/Lucide 署名）+ 共享 `IconPath` 样式（16px、StrokeThickness 1.75、圆头圆角）；`Icon.PlayMarker` 为实心 `Fill=AccentPrimary` 例外；活跃态由使用处绑 `BoolToAccentBrushConverter` 着 `Stroke`。Phase 17：新增 `Icon.Maximize`/`Icon.Restore`；Phase 18：新增 `Icon.Import`/`Icon.Export`（现共 24 个）；`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色模板、TextBox（深色底 + 圆角描边，悬停/聚焦 accent 边框，2026-10-05 补）—— 消除残留 OS 浅色元素。
 
 ---
 

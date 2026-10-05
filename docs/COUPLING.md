@@ -1,8 +1,8 @@
 # D-player 耦合分析与重构备忘
 
-> 创建日期：2026-06-06 · 更新日期：2026-09-12（对应 HEAD `5dd64d7`） · 对应分支：`feature/phase15-coupling-audit` · 对应阶段：**Phase 15 完成（耦合健康度审计）**
+> 创建日期：2026-06-06 · 更新日期：2026-10-05（对应 HEAD `d86694b`） · 对应分支：`master` · 对应阶段：**Phase 17 完成（UI 深度深色定制）**
 >
-> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。
+> **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。Phase 16 图标矢量化（emoji/字形图标 → `Themes/Icons.xaml` 统一描边矢量 Geometry 集，转换器返回 Geometry，▶ 标记 TextBlock→Path；纯表现层，0 新依赖）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式；纯表现层，0 新依赖）。
 
 ---
 
@@ -10,7 +10,7 @@
 
 | 维度 | 评级 | 备注 |
 |------|------|------|
-| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel；**Phase 15 审计确认**（M1–M6 客观度量）：0 环 / 0 层级违规 / IPlaybackService=20 成员 / 无 >600 LOC 多职责文件 / 2 stub 已注册未消费 |
+| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel；**Phase 15 审计确认**（M1–M6 客观度量）：0 环 / 0 层级违规 / IPlaybackService=20 成员 / 无 >600 LOC 多职责文件 / 2 stub 已注册未消费；Phase 16/17 均为纯表现层（0 新依赖 / 0 新 DI / 0 新 ViewModel） |
 | 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5/6/7 沿用既有模式；Phase 15 审计裁决：D4 无必修项（0 环 / 0 违规）、D1 IPlaybackService 宽度可接受（观察项）、D5 PlaylistViewModel 652 LOC 单职责 cohesive（观察项，不拆分） |
 | 已识别"待还的债" | 0 项剩余（#1/#2/#3/#4/#5 ✅ 全部已偿） | 见 §3 |
 | 已识别"过度抽象" | 2 项 | 见 §4 |
@@ -31,8 +31,10 @@
 ✅ Phase 10 文件夹绑定歌单：`ILibraryScannerService` + `ILibraryCache` 接口 + 实现注入 PlaylistsViewModel；`AudioConstants` 从 View 层提取到 Models 层消除层级违规；启动后台自动增量同步
 ✅ Phase 13 音频可视化：`SampleAggregator` 作为 `ISampleProvider` 透明中间件插入播放链，`IPlaybackService` 仅增 `SpectrumDataAvailable` 事件 + `SpectrumConfig` 属性；VM 层零新依赖（PlayerViewModel 已持有 IPlaybackService）；SpectrumView 纯 code-behind 绘制不进 VM —— 印证“加可视化不触碰核心架构”的判断
 ✅ Phase 14 均衡器：`EqualizerSampleProvider` 同样作为 `ISampleProvider` 透明中间件插入播放链（在 SampleAggregator 之前），`IPlaybackService` 仅增 `EqualizerConfig` 1 个属性（镜像 `SpectrumConfig`）；**0 新 DI 服务**（EQ provider 在 `NAudioPlaybackService.LoadAsync` 内按曲创建，同 `SampleAggregator`）、**0 新 ViewModel**（方案 A：`EqualizerDialog` 直写 `IPlaybackService` + `ISettingsPersistence`，PlayerViewModel 仅持 `EqualizerEnabled` 供按钮高亮）—— 同 Phase 13 印证“加功能不触碰核心架构”的判断
+✅ Phase 16 图标矢量化：`Themes/Icons.xaml` 资源字典 + 转换器签名 string→Geometry + ▶ 标记 TextBlock→Path；View 层局部重构，VM 层零新依赖（反而移除 `VolumeIcon`），App.xaml 仅多合并一个字典
+✅ Phase 17 UI 深度深色定制：`Views/Controls/TitleBar` 新 UserControl + 4 个 Window 的 WindowChrome 配置 + Controls.xaml 深色模板扩充；0 新 DI 服务、0 新 ViewModel、0 业务逻辑变更
 
-**结论：** Phase 14（均衡器）已落地，再次验证了“Phase 10 后继续加功能不会再触碰核心架构”的判断 —— EQ 功能仅给 `IPlaybackService` 加 1 个属性（`EqualizerConfig`），0 新 DI 服务，0 新 ViewModel，0 新债（与 Phase 13 频谱同构：透明 ISampleProvider 中间件 + 按曲在 LoadAsync 建链）。
+**结论：** Phase 14（均衡器）已落地，再次验证了“Phase 10 后继续加功能不会再触碰核心架构”的判断 —— EQ 功能仅给 `IPlaybackService` 加 1 个属性（`EqualizerConfig`），0 新 DI 服务，0 新 ViewModel，0 新债（与 Phase 13 频谱同构：透明 ISampleProvider 中间件 + 按曲在 LoadAsync 建链）。Phase 16/17 进一步验证：两阶段均为纯表现层（View/Themes 资源与控件），未触碰 VM/Service/Model 分层，0 新依赖、0 新债。
 
 ---
 
@@ -49,6 +51,7 @@
 | `MainWindow` | `MainViewModel`, `ISettingsPersistence` | `Window`, `SystemParameters` |
 | `SettingsDialog` | `ISettingsPersistence`, `IPlaybackService`（Phase 13）, `PlayerViewModel?`（可选，保存后同步） | `Window`, `App.GetService<>()` |
 | `EqualizerDialog`（Phase 14） | `ISettingsPersistence`, `IPlaybackService`, `PlayerViewModel?`（可选，保存后同步 EqualizerEnabled） | `Window`, `App.GetService<>()`；直写 `_playbackService.EqualizerConfig` 实时预览 + `EqualizerConfig.Create` / `EqualizerPresets` |
+| `TitleBar`（Phase 17） | — | `SystemCommands` / `WindowChrome` / `SystemParameters` / `Window.GetWindow(this)`；作用于宿主 Window 的 chrome 行为 |
 | `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>`（含 Phase 4 ▶ DataTrigger 的 `PlayCurrentCommand`） |
 | `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信；Phase 6 双击路由走 `App.GetService<PlaylistsViewModel>().HandleDoubleClickPlay` |
 | `PlaylistsSidebarView` | — | `PlaylistsViewModel`（`DataContext as PlaylistsViewModel`）；订阅 `PropertyChanged` / `Playlists.CollectionChanged`；消费 `PromptDialog` |
@@ -59,6 +62,7 @@
 | `LibraryScannerService` (Phase 10) | `ILibraryScannerService` | `Directory.EnumerateFiles`, `AudioConstants.Extensions` |
 | `JsonLibraryCache` (Phase 10) | `ILibraryCache` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
 | `AtlMetadataReader` | `ITrackMetadataReader` | `ATL.Track`（封装隔离） |
+| `PlayStateToIconConverter` / `RepeatModeToIconConverter` / `BoolToVolumeIconConverter`（Phase 16） | — | `Application.Current.FindResource` 查 `Themes/Icons.xaml` 的 `Icon.*` Geometry（依赖 App.xaml 已合并该字典） |
 
 ---
 
@@ -267,6 +271,12 @@ private void RemoveTrack(int index)
 | ▶ 当前/活跃标记为 `Path`（`PART_Marker` / `PART_SidebarMarker`），code-behind 切 `Visibility` | `PlaylistView.xaml.cs` / `PlaylistsSidebarView.xaml.cs` | 标记元素类型由 TextBlock 改 Path；`FindChildByName` 泛型须为 `Path` |
 | VM 层无 emoji/图标类型（`VolumeIcon` 已移除） | `PlayerViewModel` | 音量图标改由 View 层 `BoolToVolumeIconConverter` 提供；勿在 VM 重新引入 emoji/Geometry |
 
+| **Phase 17 新增** | | |
+| 自绘标题栏按钮必须 `shell:WindowChrome.IsHitTestVisibleInChrome=True` | `Views/Controls/TitleBar.xaml` | 否则 caption 高度（32px）内的点击被拖动吞掉；新增/修改标题栏按钮必查 |
+| 最大化内容边距用「WorkArea 偏移 + WindowResizeBorderThickness」常量式计算，不读窗口实际边界 | `TitleBar.xaml.cs:ApplyWindowState` | 读实际边界会因布局时序让 right/bottom 偏大留空（commit `d86694b`）；边距加在 `Window.Content` 根元素上，还原时清零 |
+| ComboBox 深色模板由 ToggleButton 承载点击（`ClickMode=Press`），`ContentPresenter` 设 `IsHitTestVisible=False` | `Themes/Controls.xaml:ComboBoxTemplate` | 点击必须落在 toggle 表面才能开合下拉（commit `dd435bd`） |
+| 无边框窗（WindowStyle=None + WindowChrome）必须保留 `CaptionHeight=32` | `MainWindow.xaml` + `SettingsDialog`/`EqualizerDialog`/`PromptDialog` XAML | OS 经 caption 负责拖动/双击最大化/Aero Snap；不要手写 DragMove 或移除 WindowChrome |
+
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
 > **Phase 15 审计核对（M7）：** §5 全部契约与代码一致，无新增未登记契约。
@@ -275,7 +285,7 @@ private void RemoveTrack(int index)
 
 ## 6. 启动检查清单（Phase 15 完成）
 
-> Phase 15（耦合健康度审计）已完成。所有结构性改造与债务偿还已清零；Phase 11/12/13/14 均为功能增量，未触碰核心架构（Phase 13/14 同构：透明 ISampleProvider 中间件 + 仅给 IPlaybackService 加 1 属性 + 0 新 DI 服务 + 0 新 ViewModel）。Phase 15 以脚本度量 + 人工裁决确认耦合低/健康、无需解耦。
+> Phase 15（耦合健康度审计）已完成。所有结构性改造与债务偿还已清零；Phase 11/12/13/14 均为功能增量，未触碰核心架构（Phase 13/14 同构：透明 ISampleProvider 中间件 + 仅给 IPlaybackService 加 1 属性 + 0 新 DI 服务 + 0 新 ViewModel）。Phase 15 以脚本度量 + 人工裁决确认耦合低/健康、无需解耦。Phase 16/17 为纯表现层重构（图标矢量化 + 深色定制），0 新依赖、0 新债。
 
 1. ✅ **VM 拆分**（Phase 3 完成，commit `54edf9a`）—— MainViewModel 643→44 行 Strict Facade；PlayerVM + PlaylistVM 互不持引用
 2. ✅ **`PlayerBar` / `PlaylistView` 去硬转型**（Phase 3 完成）—— DataContext 切到子 VM；跨域命令用 `RelativeSource AncestorType=Window`
@@ -285,6 +295,8 @@ private void RemoveTrack(int index)
 6. ✅ **多命名播放列表**（Phase 6 完成）—— `Playlist` record + `IPlaylistService` + `PlaylistsViewModel` 容器 + sidebar UI + v1→v2 迁移
 7. ✅ **拖拽支持**（Phase 5 完成）—— 外部文件拖入入队 + 队列内拖拽重排（含多选）+ 视觉反馈；同步偿还旧债 #5
 8. ✅ **偿还债 #1 (`BitmapImage`)** —— Phase 7 已完成：`AlbumArtImage` → `AlbumArtBytes` (byte[])，VM 层无 WPF 类型
+9. ✅ **图标矢量化**（Phase 16 完成）—— `Themes/Icons.xaml` 矢量图标集 + 转换器返回 Geometry + ▶ 标记改 Path；VM 层移除 `VolumeIcon`
+10. ✅ **UI 深度深色定制**（Phase 17 完成）—— 无边框 WindowChrome + 自绘 TitleBar（主窗三键 / 对话框仅关闭键）+ ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式
 
 **Phase 11+ 候选范围：**
 - [x] PlayerViewModel 单元测试（Phase 8 完成，15 个测试）
@@ -298,6 +310,8 @@ private void RemoveTrack(int index)
 - [x] 音频可视化（Phase 13 完成）—— SampleAggregator FFT（8192 点 + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）+ SpectrumView 32 柱 60fps + 4 色主题 + 灵敏度/平滑度/启用配置 + settings.json 持久化 + TrackInfoView 底部集成
 - [x] 均衡器（Phase 14 完成）—— EqualizerSampleProvider 10 段图形 EQ（ISO 倍频程 31Hz–16kHz ±12dB 峰值滤波 Q≈1.1 + preamp，插在 SampleAggregator 之前→频谱反映 EQ 后信号）+ 9 个内置预设 + Custom + 实时就地 SetPeakingEq 重算（防爆音）+ EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + settings.json 持久化
 - [x] 耦合健康度审计（Phase 15 完成）—— M1–M6 脚本度量 + M7/D1–D5 裁决；结论：耦合低、无需解耦（D1 观察项、D5 观察项）
+- [x] 图标矢量化（Phase 16 完成）—— Icons.xaml 矢量 Geometry 集 + IconPath 样式；转换器 string→Geometry；▶ 标记与 sidebar 活跃标记改 Path（Fill=AccentPrimary 实心）
+- [x] UI 深度深色定制（Phase 17 完成）—— 自定义无边框标题栏（TitleBar + WindowChrome，含最大化常量边距）+ ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu/MenuItem 深色模板
 
 ---
 
@@ -326,6 +340,10 @@ private void RemoveTrack(int index)
 - ❌ **让 `EqualizerSampleProvider.Update` 重建 `BiQuadFilter`（而非 `SetPeakingEq` 就地改）**（Phase 14）—— 重建会清空 x1/x2/y1/y2 延迟线，拖动滑块时爆音
 - ❌ **给 `IPlaybackService` 加成员却漏改 `PlaylistsViewModel` 内的手写 `NullPlaybackService`**（Phase 14）—— 它是该接口的第二个生产实现者，漏改会 CS0535 编译失败
 - ❌ **在 `EqualizerDialog.OnLoaded` 未抑制就填充预设下拉**（Phase 14）—— WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发 `SelectionChanged`，打开即误 push 一次 Flat/禁用配置扰动播放中的 EQ
+- ❌ **重新引入 emoji/字形图标**（Phase 16）—— 全应用统一走 `Themes/Icons.xaml` 矢量 `Path`；VM 层不得再出现图标字符串/Geometry（`VolumeIcon` 已移除）
+- ❌ **从 `App.xaml` 移除 `Icons.xaml` 合并、或加图标不同步字典**（Phase 16）—— 转换器经 `Application.Current.FindResource` 取 Geometry，缺失会运行时抛异常
+- ❌ **在 WindowStyle=None 窗口上漏配 WindowChrome / 漏给标题栏按钮 `IsHitTestVisibleInChrome=True`**（Phase 17）—— 拖动/双击最大化/点击行为损坏
+- ❌ **把最大化边距改回"读窗口实际边界"实现**（Phase 17）—— 布局时序导致 right/bottom 留空（commit `d86694b`；用 WorkArea 偏移 + 隐藏边框厚度的常量式边距）
 
 ---
 
@@ -341,6 +359,8 @@ private void RemoveTrack(int index)
   - [`docs/superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md`](./superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md) — Phase 6
   - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md) — Phase 15 设计规格
   - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md) — Phase 15 审计报告
+  - [`docs/superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md`](./superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md) — Phase 16 图标矢量化设计规格
+  - [`docs/superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md`](./superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md) — Phase 17 UI 深度深色定制设计规格
 - 原始实现计划：
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
@@ -349,3 +369,5 @@ private void RemoveTrack(int index)
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
   - [`docs/superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md`](./superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md) — Phase 6
   - [`docs/superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md`](./superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md) — Phase 15 实现计划
+  - [`docs/superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md) — Phase 16 实现计划
+  - [`docs/superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md) — Phase 17 实现计划

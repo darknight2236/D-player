@@ -15,18 +15,21 @@
 - **持久化**：窗口几何、音量、队列、歌单、频谱与 EQ 设置均落盘，重启恢复。
 - **音频可视化**：32 条垂直频谱柱（8192 点 FFT + 汉宁窗 + 50% 重叠 + 对数分组 20 Hz–16 kHz + RMS/gamma）；4 种颜色主题；灵敏度/平滑度可调。
 - **均衡器**：10 段图形 EQ（ISO 倍频程 31 Hz–16 kHz，±12 dB 峰值滤波 + preamp）；9 个内置预设（Flat/Rock/Pop/Jazz/Classical/Dance/Bass Boost/Treble Boost/Vocal）+ 手动 Custom；拖动实时生效。
-- **主题**：内置深色主题（深紫强调色）。
+- **界面**：全量描边矢量图标（Themes/Icons.xaml，替代 emoji，活跃态 accent 着色）；无边框自定义标题栏（WindowChrome + 自绘 TitleBar）。
+- **主题**：内置深色主题（深紫强调色）；ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色化。
 
 ## 界面布局
 
 ```
-┌────────────┬────────────────────────────┬──────────────┐
+┌─────────────────────────────────────────────────────────┐
+│            标题栏 (TitleBar)   ─  □  ✕                   │
+├────────────┬────────────────────────────┬──────────────┤
 │  歌单侧栏   │          曲目队列           │   曲目信息    │
 │ (Sidebar)  │      (PlaylistView)        │ (TrackInfo)  │
 │            │                            │  + 频谱可视化  │
 ├────────────┴────────────────────────────┴──────────────┤
-│              播放栏 (PlayerBar)  ⏮ ▶ ⏭ 🔀 🔁 🔊 🎚 ⚙    │
-└────────────────────────────────────────────────────────┘
+│          播放栏 (PlayerBar)  播放/随机/循环/音量/EQ/设置    │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -120,7 +123,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 
 ---
 
-## 开发阶段（Phase 1–14）
+## 开发阶段（Phase 1–17）
 
 | Phase | 内容 |
 |-------|------|
@@ -138,6 +141,9 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 12 | UI 重构 + 全局 Shuffle/Repeat + 曲目信息面板 |
 | 13 | 音频可视化（FFT 频谱） |
 | 14 | 10 段图形均衡器 |
+| 15 | 耦合健康度审计（tools/coupling-audit 脚本度量 + 裁决：无需解耦） |
+| 16 | 图标矢量化（Icons.xaml 矢量图标集替换全部 emoji） |
+| 17 | UI 深度深色定制（无边框自定义标题栏 + ComboBox/CheckBox/ScrollBar 等深色化） |
 
 每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。
 

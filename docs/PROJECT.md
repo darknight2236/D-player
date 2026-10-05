@@ -2,13 +2,13 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/09/08（对应 HEAD `e1bc557`） · 对应分支：`feature/phase14-equalizer` · 当前阶段：**Phase 14 完成（均衡器 - 10 段图形 EQ）** · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026/10/05（对应 HEAD `d86694b`） · 对应分支：`master` · 当前阶段：**Phase 17 完成（UI 深度深色定制 - 自定义标题栏 + 控件深色化）** · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 
 ## 1. 项目简介
 
-**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerConfig/EqualizerPresets 数据模型 + 9 个内置预设 + 独立 EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + 实时系数更新 + settings.json 持久化；EQ 插在 SampleAggregator 之前，频谱反映 EQ 后信号）。
+**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1 实现单曲播放骨架，Phase 2 加入内存播放队列（多选入队、自动推进、随机/循环模式）。Phase 3 重构 ViewModel 层（按职责拆分 + 抽象元数据读取 + 修正持久化合并纪律），偿还 4 项技术债。Phase 4 加入队列持久化（关闭时写 `queue.json`，启动时恢复列表 + Shuffle/Repeat 模式 + CurrentIndex）。Phase 5 加入拖拽支持（外部音频文件拖入入队、队列内项拖拽重排含多选、视觉反馈含边框高亮 + 插入线 Adorner），同时偿还 in-flight `RemoveTrack`/`MoveTracks` 的 `_playToken` 残留债。Phase 6 加入多命名歌单支持（Spotify 双指针模型：Viewed vs Current）、xUnit 测试骨架、BytesToBitmapImageConverter（Debt #1 部分偿还）。Phase 7 完成债务 #1 完整偿还（PlayerViewModel.BitmapImage → byte[]），VM 层不再依赖 WPF 类型。Phase 8 建立 ViewModel 单元测试体系（50 个测试覆盖 PlayerVM / PlaylistVM / PlaylistsVM）。Phase 9 加入 sidebar 歌单拖拽重排（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。Phase 10 加入文件夹绑定歌单（指定文件夹递归扫描 → 创建/更新歌单，启动后台自动同步增删，手动刷新，JSON 元数据缓存），同时将音频后缀白名单从 View 层提取到 Models.AudioConstants 消除层级违规。Phase 11 添加设置对话框（默认音量滑块 + 音频输出灰色占位 + PlayerBar ⚙ 按钮 + Ctrl+, 快捷键）。Phase 12 UI 界面重构（PlayerBar 移到底部 + 圆形播放键 + PlaylistView 时长列/表头/行分隔线 + Sidebar 图标/选中态背景色 + 色板微调）。Phase 12 continued: 全局 Shuffle/Repeat（所有歌单共享）+ TrackInfoView 独立面板 + #列元数据 TrackNumber + 表头点击排序 + 导入文件夹改为添加到当前歌单 + 移除 Stop/OpenAndPlay 按钮 + Sidebar + 按钮直接新建歌单 + GridSplitter 列宽限制 + ViewBox 封面缩放 + 封面 ClipToBounds 圆角裁切。Phase 13 音频可视化（SampleAggregator FFT 频谱分析 + SpectrumView 自定义控件 + 32 条垂直频谱柱 + 4 种颜色主题 + 灵敏度/平滑度配置 + 设置持久化）。Phase 13 后续调优：FFT 尺寸 1024→2048→8192 提升低频分辨率、立体声先混单声道再加汉宁窗做 FFT、50% FFT 重叠提高更新率、对数频率分组 20Hz–16kHz + RMS + gamma 曲线、彩虹主题改为红→紫水平渐变、频谱移入 TrackInfoView 底部（高 120px）、全局 Slider 加 IsMoveToPointEnabled、SettingsDialog 保存留在 UI 线程即时同步 VM + 失败弹窗。Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerConfig/EqualizerPresets 数据模型 + 9 个内置预设 + 独立 EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + 实时系数更新 + settings.json 持久化；EQ 插在 SampleAggregator 之前，频谱反映 EQ 后信号）。Phase 15 完成耦合健康度审计（`tools/coupling-audit` PowerShell 脚本 M1–M6 客观度量 + M7/D1–D5 人工裁决；结论：0 环 / 0 层级违规 / 无多职责文件，无需解耦，所有技术债清零）。Phase 16 图标矢量化（`Themes/Icons.xaml` 统一描边矢量图标集替换全部 emoji/字形图标；转换器返回 `Geometry`；▶ 标记 TextBlock→Path 实心三角；VM 层移除 `VolumeIcon` 守住"无 emoji"纪律）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、最大化常量式工作区边距；ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu/MenuItem 深色隐式样式；纯表现层，0 新依赖）。
 
 ### 1.1 关键特性（已实现）
 
@@ -20,7 +20,7 @@
 | 进度控制 | 拖拽 + 单击跳转的进度条；位置实时更新（≈30 Hz，节流）                                |
 | 音量控制 | 0~1 线性滑块、一键静音/取消静音；通过 `VolumeSampleProvider` 实现                |
 | 元数据  | 标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 曲目号 / 内嵌封面（z440.atl.core）     |
-| 主题   | 内置深色主题（深紫强调色）                                                  |
+| 主题   | 内置深色主题（深紫强调色）；Phase 17：无边框自定义标题栏 + ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式 |
 | 持久化  | 窗口位置/尺寸、默认音量保存到 `%LocalAppData%\D-player\settings.json`       |
 | 播放列表 | 内存队列：多选入队、单项删除、清空、上/下一首、自然播完自动推进、#列元数据 TrackNumber、表头点击排序 |
 | 队列持久化 | 关闭时写 `%LocalAppData%\D-player\queue.json`；启动恢复列表 + CurrentIndex + Shuffle/Repeat（Phase 4） |
@@ -31,6 +31,8 @@
 | 曲目信息面板 | 右侧独立 TrackInfoView：封面（ViewBox 自动缩放）+ 标题/艺术家/专辑/采样率；BackgroundSecondary 背景 (Phase 12 continued) |
 | 音频可视化 | 32 条垂直频谱柱（8192 点 FFT + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）；4 种颜色主题（紫/蓝/绿/彩虹，彩虹为红→紫水平渐变）；灵敏度/平滑度配置；启用/禁用开关；置于 TrackInfoView 底部（高 120px）；设置持久化 (Phase 13) |
 | 均衡器 | 10 段图形 EQ（ISO 倍频程 31Hz–16kHz ±12dB 峰值滤波 Q≈1.1 + preamp −12~+12dB）；9 个内置预设（Flat/Rock/Pop/Jazz/Classical/Dance/Bass Boost/Treble Boost/Vocal）+ 手动 Custom；实时生效（拖动即时听感）；启用开关（默认关，透明旁路）；独立 EqualizerDialog（PlayerBar 🎚 按钮打开，启用态高亮）；设置持久化 (Phase 14) |
+| 图标 | 全量描边矢量图标集（Themes/Icons.xaml，22 个 `Icon.*`，Feather/Lucide 几何）；随机/循环/EQ 活跃态 accent 着色；▶ 标记实心三角 (Phase 16) |
+| 窗口外观 | 无边框 WindowChrome + 自绘 TitleBar（最小化/最大化/关闭；对话框仅关闭按钮；最大化常量式工作区边距；OS 保留拖动/快照行为）(Phase 17) |
 
 ### 1.2 后续增量（未实现）
 
@@ -114,31 +116,34 @@ D-player/
 │   └── PlaylistsViewModel.cs   # 多歌单容器：ObservableCollection<PlaylistVM> + 全局 Shuffle/Repeat + Add/Remove/Rename + HandleDoubleClickPlay + ImportFolder/Rescan/Refresh (Phase 6/10/12 continued)
 │
 ├── Views/
-│   ├── MainWindow.xaml(.cs)     # 主窗口；5 列布局(Sidebar | Splitter | Playlist | Splitter | TrackInfo) + PlayerBar 底部
+│   ├── MainWindow.xaml(.cs)     # 主窗口；3 行(TitleBar | 内容区 | PlayerBar)；内容区 5 列(Sidebar | Splitter | Playlist | Splitter | TrackInfo)；Phase 17 无边框 WindowChrome
 │   ├── Dialogs/
-│   │   ├── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)
-│   │   ├── SettingsDialog.xaml(.cs)  # 设置对话框（音量 + 音频输出占位 + 频谱可视化）(Phase 11/13)
-│   │   └── EqualizerDialog.xaml(.cs) # 均衡器对话框（11 根竖直滑块 + 预设下拉 + 启用开关 + 实时预览）(Phase 14)
+│   │   ├── PromptDialog.xaml(.cs)    # 共享单输入对话框（新建/重命名歌单）(Phase 6)；Phase 17 无边框 + TitleBar
+│   │   ├── SettingsDialog.xaml(.cs)  # 设置对话框（音量 + 音频输出占位 + 频谱可视化）(Phase 11/13)；Phase 17 无边框 + TitleBar
+│   │   └── EqualizerDialog.xaml(.cs) # 均衡器对话框（11 根竖直滑块 + 预设下拉 + 启用开关 + 实时预览）(Phase 14)；Phase 17 无边框 + TitleBar
 │   └── Controls/
-│       ├── PlayerBar.xaml(.cs)  # 播放栏（进度/控制/音量 + 随机/循环按钮 + 🎚 均衡器按钮(Phase 14) + ⚙ 设置按钮）
-│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + #列/表头排序/导入文件夹到当前歌单）
-│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、📂 文件夹图标、🔄 扫描指示；+ 按钮直接新建歌单）(Phase 6/10/12 continued)
+│       ├── TitleBar.xaml(.cs)   # 自绘无边框标题栏（Title/ShowMaximize DP + SystemCommands + 最大化常量边距 + Max/Restore 图标切换）(Phase 17)
+│       ├── PlayerBar.xaml(.cs)  # 播放栏（进度/控制/音量 + 随机/循环 + 均衡器/设置按钮；Phase 16 图标全部矢量 Path）
+│       ├── PlaylistView.xaml(.cs)    # 播放队列（Phase 2 + Phase 5 拖拽 + Phase 6 IsActivePlaylist guard + #列/表头排序/导入文件夹；Phase 16 ▶ 标记改 Path）
+│       ├── PlaylistsSidebarView.xaml(.cs) # 左侧歌单栏（+/- 按钮、ListBox、双击重命名、▶ 标记、文件夹/扫描图标；Phase 16 标记改 Path）(Phase 6/10/12 continued)
 │       ├── TrackInfoView.xaml(.cs)   # 右侧曲目信息面板（封面 ViewBox 缩放 + 标题/艺术家/专辑/采样率 + 底部 SpectrumView）(Phase 12 continued/13)
 │       ├── SpectrumView.xaml(.cs)    # 频谱可视化控件：32 柱 Canvas + CompositionTarget.Rendering 60fps + 4 色主题 (Phase 13)
 │       ├── DragDropExtensions.cs     # IsDragOver attached DP + 音频后缀白名单/过滤 (Phase 5)
 │       └── DropInsertionAdorner.cs   # ListBox AdornerLayer 插入线绘制 (Phase 5)
 │
 ├── Converters/
-│   ├── PlayStateToIconConverter.cs       # ▶/⏸ 图标
+│   ├── PlayStateToIconConverter.cs       # ▶/⏸ → 矢量 Geometry (Phase 16)
 │   ├── TimeSpanToStringConverter.cs      # 0:00 / 0:00:00
-│   ├── RepeatModeToIconConverter.cs      # ⇄ / 🔁 / 🔂 (Phase 2)
+│   ├── RepeatModeToIconConverter.cs      # 循环三态 → 矢量 Geometry (Phase 2/16)
+│   ├── BoolToVolumeIconConverter.cs      # 音量/静音 → 矢量 Geometry (Phase 16)
 │   ├── BoolToAccentBrushConverter.cs     # 强调色/次要色画刷 (Phase 2)
 │   └── BytesToBitmapImageConverter.cs    # byte[] → Frozen BitmapImage (Phase 6, 债务 #1 部分偿还)
 │
 ├── Themes/                      # 深色主题资源字典（App.xaml 合并加载）
-│   ├── Colors.xaml              # #1E1E2E 背景 + #7C4DFF 紫色强调
+│   ├── Colors.xaml              # #1E1E2E 背景 + 深紫强调色板
 │   ├── Fonts.xaml               # Segoe UI + Header/Body/Caption 文本样式
-│   └── Controls.xaml            # Window / Button / Slider 模板
+│   ├── Controls.xaml            # Window/Button/Slider + ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色模板 (Phase 17)
+│   └── Icons.xaml               # 矢量图标集：22 个 Icon.* Geometry + IconPath 样式 (Phase 16；Feather/Lucide 署名)
 │
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs # AddDPlayerServices(...) DI 注册
@@ -161,6 +166,9 @@ D-player/
 │       ├── PlaylistViewModelTests.cs      # 队列 (13) (Phase 8)
 │       └── PlaylistsViewModelTests.cs     # 多歌单 (21) (Phase 8/12)
 │
+├── tools/
+│   └── coupling-audit/          # Phase 15 耦合审计脚本（Invoke-CouplingAudit.ps1，M1–M6 度量）
+│
 └── docs/
     ├── PROJECT.md               # 本文档
     ├── COUPLING.md              # 耦合分析 / 风险登记册
@@ -171,14 +179,31 @@ D-player/
         │   ├── 2026-06-07-uma-player-phase3-design.md                   # Phase 3 设计
         │   ├── 2026-06-12-uma-player-phase4-queue-persistence-design.md # Phase 4 设计
         │   ├── 2026-06-12-uma-player-phase5-drag-drop-design.md         # Phase 5 设计
-        │   └── 2026-06-13-uma-player-phase6-named-playlists-design.md   # Phase 6 设计
+        │   ├── 2026-06-13-uma-player-phase6-named-playlists-design.md   # Phase 6 设计
+        │   ├── 2026-06-14-uma-player-phase10-library-scan-design.md     # Phase 10 设计
+        │   ├── 2026-06-15-uma-player-phase11-settings-panel-design.md   # Phase 11 设计
+        │   ├── 2026-06-22-uma-player-phase12-ui-refactor-design.md      # Phase 12 设计
+        │   ├── 2026-06-24-uma-player-phase13-audio-visualization-design.md # Phase 13 设计
+        │   ├── 2026-09-08-d-player-phase14-equalizer-design.md          # Phase 14 设计
+        │   ├── 2026-09-12-d-player-phase15-coupling-audit-design.md     # Phase 15 审计设计
+        │   ├── 2026-09-12-d-player-phase15-coupling-audit-report.md     # Phase 15 审计报告
+        │   ├── 2026-09-13-d-player-phase16-icon-refactor-design.md      # Phase 16 设计
+        │   └── 2026-09-13-d-player-phase17-ui-dark-theming-design.md    # Phase 17 设计
         └── plans/
             ├── 2026-04-24-uma-player-implementation.md                          # Phase 1 计划
             ├── 2026-06-06-uma-player-playlist-implementation.md                 # Phase 2 计划
             ├── 2026-06-07-uma-player-phase3-implementation.md                   # Phase 3 计划
             ├── 2026-06-12-uma-player-phase4-queue-persistence-implementation.md # Phase 4 计划
             ├── 2026-06-12-uma-player-phase5-drag-drop-implementation.md         # Phase 5 计划
-            └── 2026-06-13-uma-player-phase6-named-playlists.md                  # Phase 6 计划
+            ├── 2026-06-13-uma-player-phase6-named-playlists.md                  # Phase 6 计划
+            ├── 2026-06-14-uma-player-phase10-library-scan.md                    # Phase 10 计划
+            ├── 2026-06-15-uma-player-phase11-settings-panel.md                  # Phase 11 计划
+            ├── 2026-06-22-uma-player-phase12-ui-refactor-implementation.md      # Phase 12 计划
+            ├── 2026-06-24-uma-player-phase13-audio-visualization-implementation.md # Phase 13 计划
+            ├── 2026-09-08-d-player-phase14-equalizer-implementation.md          # Phase 14 计划
+            ├── 2026-09-12-d-player-phase15-coupling-audit-implementation.md     # Phase 15 计划
+            ├── 2026-09-13-d-player-phase16-icon-refactor-implementation.md      # Phase 16 计划
+            └── 2026-09-13-d-player-phase17-ui-dark-theming-implementation.md    # Phase 17 计划
 ```
 
 ---
@@ -204,7 +229,7 @@ D-player/
    │ - 窗口位置恢复/保存   │    │  + InitializeAsync()      │
    │ - 关闭写 queue.json  │    │  + CleanupAsync()         │
    │   (cancel-and-close) │    │  + debounce save          │
-   │ - 5 列布局           │    └──────┬──────────┬─────────┘
+   │ - TitleBar + 5 列    │    └──────┬──────────┬─────────┘
    │ - PlayerBar 底部     │           │          │
    └──────────────────────┘           ▼          ▼
                               ┌─────────────┐ ┌──────────────────┐
@@ -301,6 +326,12 @@ D-player/
 20. **debt #1 偿还（Phase 6/7）**：Phase 6 交付 `BytesToBitmapImageConverter`；Phase 7 完成数据流切换 —— `PlayerViewModel.AlbumArtBytes` 改为 `byte[]`，XAML 通过 Converter 转为 Frozen BitmapImage。VM 层不再依赖任何 WPF 类型。
 
 22. **全局 Shuffle/Repeat（Phase 12 continued）**：Shuffle/Repeat 从 Playlist 级别提升到 PlaylistsViewModel 全局共享。原因：用户切换歌单时 Shuffle/Repeat 状态被重置（每歌单独立）的体验反直觉，且与主流播放器（Spotify / foobar2000）行为不一致。实现：PlaylistsViewModel 持有 `[ObservableProperty] ShuffleEnabled/RepeatMode`，PlaylistViewModel 通过 `Container` 属性代理读取；Playlist record 的同名字段保留但写入时固定 `false/Off`（向后兼容旧 queue.json）；QueueState 根级别新增 `ShuffleEnabled/RepeatMode` 持久化字段。
+
+23. **图标矢量化（Phase 16）**：全部 emoji/字形图标替换为 `Themes/Icons.xaml` 描边矢量 `Geometry`（22 个 `Icon.*`，24×24 viewbox，Feather/Lucide 几何署名）。转换器（`PlayStateToIconConverter` / `RepeatModeToIconConverter` / 新增 `BoolToVolumeIconConverter`）返回 `Geometry` 而非字符串（经 `Application.Current.FindResource` 查资源）；▶ 标记由 TextBlock 改 `Path`（`Icon.PlayMarker` 实心三角 `Fill=AccentPrimary`，小尺寸下描边不清晰的例外）；活跃态经 `BoolToAccentBrushConverter` 着 `Path.Stroke`。动机：emoji 由系统字体渲染、彩色不可主题化、跨 Windows 版本不一致。VM 层移除 `VolumeIcon`（守住"VM 无 WPF 类型/无 emoji"纪律）。
+
+24. **无边框 chrome + 自绘标题栏（Phase 17）**：`WindowStyle=None` + `WindowChrome(CaptionHeight=32, UseAeroCaptionButtons=False, GlassFrameThickness=0)` + 复用 `Views/Controls/TitleBar` UserControl；OS 仍负责拖动/双击最大化/Aero Snap（不做手写 DragMove）。自绘按钮必须 `shell:WindowChrome.IsHitTestVisibleInChrome=True`（否则点击被 caption 拖动吞掉）。最大化时给 `Window.Content` 根元素加**常量式工作区边距**（`WorkArea` 偏移 + `WindowResizeBorderThickness`，不读窗口实际边界 —— 布局时序会让 right/bottom 边距偏大留空）。应用：MainWindow `ShowMaximize=True`（三键）；3 个对话框 `ShowMaximize=False`（仅关闭键）。
+
+25. **深色控件隐式样式（Phase 17）**：`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 `ClickMode=Press` + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、仅 track+thumb 隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色。纯资源字典改动，全局生效，0 代码路径变化。
 
 ---
 
@@ -487,8 +518,8 @@ public Task CleanupAsync();
 
 ### 5.5 `Views`
 
-- **`MainWindow`**：两行 Grid —— Row 0 `ContentGrid`（5 列：Sidebar | Splitter | Playlist | Splitter | TrackInfo）+ Row 1 `PlayerBar`（底部，自适应高度）。`SidebarCol` 和 `TrackInfoCol` 各限制为窗口宽度一半（`ContentGrid_SizeChanged` + `DragDelta` 中到达上限直接锁死）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
-- **`PlayerBar`** *(UserControl)*：播放栏。两行 Grid：①`Position | Slider | Duration` 进度条；②⏮ ▶/⏸ ⏭ 🔀 ⇄/🔁/🔂 按钮组（居中）+ 🔊音量 + 🎚均衡器（Phase 14）+ ⚙设置（右对齐）。封面/信息已拆到 `TrackInfoView`。
+- **`MainWindow`**：三行 Grid —— Row 0 `TitleBar`（Phase 17 自绘标题栏）+ Row 1 `ContentGrid`（5 列：Sidebar | Splitter | Playlist | Splitter | TrackInfo）+ Row 2 `PlayerBar`（底部，自适应高度）；Phase 17 起 `WindowStyle=None` + `WindowChrome` 无边框。`SidebarCol` 和 `TrackInfoCol` 各限制为窗口宽度一半（`ContentGrid_SizeChanged` + `DragDelta` 中到达上限直接锁死）。构造时同步读取窗口尺寸（`GetAwaiter().GetResult()`，启动阻塞 < 几 ms 可接受）；若持久化的 `WindowHeight < 500`（Phase 1 旧值）则一次性迁移到 650，避免列表不可见。关闭时采用 **cancel-and-close 模式**（Phase 4）：首次进入 `e.Cancel=true` + `_isClosing=true`，跑完 settings 写盘、`CleanupAsync`、`SnapshotState` + queue 写盘后调 `Close()` 重新触发 Closing 直接放行；这是为了让 `async void` 多 await 链不被 `Application.Shutdown → Dispatcher.InvokeShutdown` 截断。
+- **`PlayerBar`** *(UserControl)*：播放栏。两行 Grid：①`Position | Slider | Duration` 进度条；②⏮ ▶/⏸ ⏭ 🔀 ⇄/🔁/🔂 按钮组（居中）+ 🔊音量 + 🎚均衡器（Phase 14）+ ⚙设置（右对齐）。封面/信息已拆到 `TrackInfoView`。Phase 16：上述图标全部改为 `Themes/Icons.xaml` 矢量 `Path`（活跃态经 `BoolToAccentBrushConverter` 着 accent 色；音量/静音由 `BoolToVolumeIconConverter` 提供）。
   - Slider 的"单击跳转"由 `PreviewMouseLeftButtonDown` 手动从 `PART_Track` 计算比例并触发 `SeekCompletedCommand`；点击 Thumb 时不触发（通过 `FindAncestor<Thumb>` 检测，转交给原生 `DragStarted/DragCompleted`）。Thumb 默认 8px 圆点半透明，悬停/拖拽放大到 14px 不透明
   - `⏮` / `⏭` 通过 `{Binding DataContext.Playlists.ViewedPlaylist.<XxxCommand>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 `PlaylistViewModel`；`🔀` / `⇄/🔁/🔂` 绑到 `Playlists.ToggleShuffleCommand` / `Playlists.CycleRepeatCommand`
   - Stop 按钮和 📂 OpenAndPlay 按钮**已移除**（Phase 12 continued）
@@ -505,7 +536,7 @@ public Task CleanupAsync();
   - **Phase 5 高亮纪律：** `Root_DragEnter` 必须先 `FilterAudioPaths` 再决定是否高亮 —— 仅看 `FileDrop` 存在就亮会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）。`Root_Drop` 与 `QueueList_Drop` **都要清高亮** —— `QueueList_Drop` 设 `e.Handled=true` 后 Drop 事件不再冒泡到 `Root_Drop`，否则文件落到列表区高亮卡死
 - **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。
 - **`TrackInfoView`** *(UserControl, Phase 12 continued/13)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。两行 Grid：Row0（`*`）曲目信息 —— 封面用 `Viewbox MaxWidth/MaxHeight=250` 包裹自动缩放（内含 `Border` 180×180 + `Image Stretch="UniformToFill"`），文本元数据（标题/艺术家/专辑/采样率）居中，无曲目时 DataTrigger 显示"播放曲目以查看信息"占位；Row1（`Auto`）**Phase 13 `SpectrumView`**（高 120px，绑 `SpectrumData`/`SpectrumColorTheme`，`Visibility` 绑 `SpectrumEnabled`）。封面 Border 加 `ClipToBounds=True` 圆角裁切（ViewBox 缩放后内容溢出问题）。
-- **`SettingsDialog`** *(Window, Phase 11/13)*：设置对话框。模态 ToolWindow（**420×520**，Phase 13 因可视化区增高），9 行 Grid：通用（音量滑块 0..1）+ 音频输出灰色占位 + **音频可视化（Phase 13：启用 CheckBox + 灵敏度滑块 0.5~2.0 + 颜色主题 ComboBox + 平滑度滑块 0~0.95，DockPanel LastChildFill 布局：标签左/数值右/滑块填充）**。静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂。构造注入 `IPlaybackService`（音量滑块实时调 `_playbackService.Volume`）+ 可选 `PlayerViewModel`（保存后即时同步频谱属性，免重启）。OnLoaded async 读盘加载音量 + 频谱设置并绑定滑块 ValueChanged 实时更新数值标签；Save_Click 通过 `UpdateAsync` 原子写盘后同步 VM —— **故意不 `ConfigureAwait(false)`，留在 UI 线程**才能直接写 `PlayerViewModel` 属性；失败弹 MessageBox（Phase 13）。
+- **`SettingsDialog`** *(Window, Phase 11/13)*：设置对话框。模态 ToolWindow（**420×520**，Phase 13 因可视化区增高），9 行 Grid：通用（音量滑块 0..1）+ 音频输出灰色占位 + **音频可视化（Phase 13：启用 CheckBox + 灵敏度滑块 0.5~2.0 + 颜色主题 ComboBox + 平滑度滑块 0~0.95，DockPanel LastChildFill 布局：标签左/数值右/滑块填充）**。静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂。构造注入 `IPlaybackService`（音量滑块实时调 `_playbackService.Volume`）+ 可选 `PlayerViewModel`（保存后即时同步频谱属性，免重启）。OnLoaded async 读盘加载音量 + 频谱设置并绑定滑块 ValueChanged 实时更新数值标签；Save_Click 通过 `UpdateAsync` 原子写盘后同步 VM —— **故意不 `ConfigureAwait(false)`，留在 UI 线程**才能直接写 `PlayerViewModel` 属性；失败弹 MessageBox（Phase 13）。Phase 17：`WindowStyle=None` + `WindowChrome` + `TitleBar(ShowMaximize=False)`（仅关闭键）。
 - **`EqualizerDialog`** *(Window, Phase 14)*：均衡器对话框。复用 SettingsDialog 模式（静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂 + 模态 `ShowDialog()`，返回 true = 用户保存）。模态 ToolWindow（**480×400**），三行 Grid：Row0 启用 CheckBox + 预设 ComboBox；Row1（`*`）频段滑块区 `BandsPanel`（UniformGrid）；Row2 恢复 Flat + 取消/保存。
   - **11 根竖直滑块由 code-behind 动态构建**：`BuildBands()` 在 `BandsPanel` 里生成 10 段 + preamp 共 11 列（每列：dB 值标签 / 竖直滑块 / 频率标签，`MakeSliderColumn` 三行 Grid）。滑块绑 `EqBandSlider` 样式（Min −12 / Max 12）
   - **自定义 `EqBandSlider` 竖直模板**：`Controls.xaml` 的隐式 Slider 模板是**横向专用**（Height=20 + 填充条 VerticalAlignment=Center），竖直滑块直接用会渲染错位；故对话框资源里自定义 `EqBandSlider`（`Orientation=Vertical` + Width=24 + 填充条 HorizontalAlignment=Center + 14px 圆形 Thumb）
@@ -513,6 +544,7 @@ public Task CleanupAsync();
   - **`_suppress` 拦截程序化回推**：程序设滑块/下拉时用 `_suppress` 窗口包住，避免 `ValueChanged`/`SelectionChanged` 回推；**尤其 `OnLoaded` 填充预设下拉必须在 `_suppress` 内** —— WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发一次 `SelectionChanged`（Phase 14 code review 拦下的 Critical）
   - **取消回滚**：`_initialConfig` 取“打开瞬间的实时 `_playbackService.EqualizerConfig`”（权威，不受 LoadAsync 失败影响），再试读盘覆盖；`OnClosed` 若未 `_saved` 则把 `_playbackService.EqualizerConfig = _initialConfig` 撤销实时预览（回滚基准非二次读盘 —— 读盘失败会把基准误置为禁用平直）
   - **Save_Click**：`UpdateAsync` 原子写 settings.json（EqualizerEnabled/Preamp/Bands/Preset）→ 再确认一次链上配置 → 写 `PlayerViewModel.EqualizerEnabled`（按钮高亮即时更新）—— **故意不 `ConfigureAwait(false)`，留在 UI 线程**；失败弹 MessageBox
+  - **Phase 17**：`WindowStyle=None` + `WindowChrome` + `TitleBar(ShowMaximize=False)`（仅关闭键）；标题栏占 Row 0，频段区/按钮区行号顺延
 
 ### 5.5a `Views/Controls/DragDropExtensions`（Phase 5）
 
@@ -541,9 +573,18 @@ public Task CleanupAsync();
 - **4 种颜色主题**：紫/蓝/绿为 `LinearGradientBrush`（底→顶渐变，全部 `Freeze()`）；**彩虹（theme==3）为每柱一色** —— HSV 色相从左 0°(红) 线性到右 300°(紫)（`hue = 300/31*i`，`HsvToRgb`），水平渐变不循环。`OnColorThemeChanged` 切换 `Fill`
 - 数据源：`TrackInfoView.xaml` 绑 `PlayerViewModel.SpectrumData` / `SpectrumColorTheme` / `SpectrumEnabled`
 
+### 5.5d `Views/Controls/TitleBar`（Phase 17）
+
+自绘无边框标题栏 UserControl（高 32px，`BackgroundPrimary`），配合各 Window 上的 `WindowStyle=None` + `WindowChrome(CaptionHeight=32, UseAeroCaptionButtons=False, GlassFrameThickness=0)`：
+
+- **两个依赖属性**：`Title`(string) / `ShowMaximize`(bool，默认 true)；`ApplyShowMaximize` 控制最小化/最大化按钮显隐 —— MainWindow 显示三键，3 个对话框 `ShowMaximize=False` 仅显示关闭键
+- **布局**：左标题文本（ForegroundPrimary）+ 右侧按钮组（最小化 `Icon.Minus` / 最大化-还原 `Icon.Maximize`/`Icon.Restore` / 关闭 `Icon.Close`，均为 `IconPath` 风格矢量 `Path`，Stroke=ForegroundSecondary）；按钮标 `shell:WindowChrome.IsHitTestVisibleInChrome=True` 以接收点击（否则被 caption 拖动吞掉）
+- **动作全走 `SystemCommands`**：`MinimizeWindow / MaximizeWindow / RestoreWindow / CloseWindow`（作用于 `Window.GetWindow(this)`）；拖动/双击最大化/Aero Snap 由 OS caption 负责，不自写 DragMove
+- **`Loaded` 订阅父窗 `StateChanged` → `ApplyWindowState`**：Maximized 时切换 Max/Restore 图标显隐，并给 `Window.Content` 根元素加**常量式工作区边距**；还原时清零。边距按「`WorkArea` 偏移 + `WindowResizeBorderThickness`」计算（`wa.Left+rb.Left` / `wa.Top+rb.Top` / `PrimaryScreenWidth-wa.Right+rb.Right` / `PrimaryScreenHeight-wa.Bottom+rb.Bottom`）—— 不读窗口实际边界，避免布局时序导致 right/bottom 边距偏大（大片留空）
+
 ### 5.6 `Themes`
 
-深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。
+深色 + 紫色强调（Catppuccin Mocha 风格）。所有控件模板写入 `Themes/Controls.xaml`，包括自定义的 Slider 模板（紫色已填充段 + 圆形 Thumb）。资源在 `App.xaml` 合并为应用级资源。Phase 12 continued 色板微调：`AccentPrimary` #7C4DFF → #9E7CFF（提亮）、`AccentHover` → #B9A0FF、`SliderThumb` → #9E7CFF；随机/循环激活色改用 `AccentHover`（更亮，深色背景下易辨认）。Phase 13：全局 Slider 隐式样式加 `IsMoveToPointEnabled=True` setter —— 所有滑块（音量/灵敏度/平滑度）单击轨道即跳到点击位置，无需拖动 Thumb。Phase 16 新增 `Icons.xaml`：22 个 `Icon.*` 描边 `Geometry`（24×24 viewbox，Feather/Lucide 署名）+ 共享 `IconPath` 样式（16px、StrokeThickness 1.75、圆头圆角）；`Icon.PlayMarker` 为实心 `Fill=AccentPrimary` 例外；活跃态由使用处绑 `BoolToAccentBrushConverter` 着 `Stroke`。Phase 17：新增 `Icon.Maximize`/`Icon.Restore`；`Controls.xaml` 扩充 ComboBox（自绘 ToggleButton 可点击表面 + 深色 Popup + ComboBoxItem 悬停/选中态）、CheckBox（深色方框 + accent 勾）、ScrollBar（横竖双模板、隐藏箭头）、ToolTip/ContextMenu/MenuItem/Separator 深色模板 —— 消除残留 OS 浅色元素。
 
 ---
 
@@ -784,12 +825,16 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **EQ 系数实时更新的线程安全（Phase 14）**：`EqualizerSampleProvider.Read`（NAudio 音频线程）与 `Update`（UI 线程）共用 buffer 粒度 `lock` 互斥，防止撕裂系数；`Update` **必须用 `SetPeakingEq` 就地重算**（保留 x1/x2/y1/y2 延迟线状态），若重建 `BiQuadFilter` 会清空延迟线导致拖动时爆音。立体声必须每声道独立 `BiQuadFilter?[channel][band]`（左右共享实例会串扰滤波状态）；中心频率 ≥ 奈奎斯特（`sampleRate/2`）的频段置 null slot 旁路（PeakingEQ 在 ≥Nyquist 时不稳定）。`EqualizerDialog.Save_Click` 同 `SettingsDialog` 故意不用 `ConfigureAwait(false)`，留在 UI 线程才能写 `PlayerViewModel.EqualizerEnabled`。
 - **WPF ComboBox 向空集合添加首项会自动选中 index 0（Phase 14）**：`ComboBox` 在从空集合添加第一个项时会自动选中该项并触发一次 `SelectionChanged`。`EqualizerDialog.OnLoaded` 填充预设下拉必须在 `_suppress` 窗口内进行，否则打开对话框即误 push 一次 Flat/禁用配置，扰动正在播放的 EQ（Phase 14 code review 拦下的 Critical）。
 - **给 `IPlaybackService` 加成员必须同步改 `NullPlaybackService`（Phase 14）**：`PlaylistsViewModel` 内有一个手写的 `NullPlaybackService` 空对象（该接口的第二个生产实现者，供 internal 测试构造器用），NSubstitute 只覆盖测试替身。给 `IPlaybackService` 加 `EqualizerConfig` 时必须同步给 `NullPlaybackService` 补上该成员，否则 CS0535 编译失败。
+- **矢量图标经 `Application.Current.FindResource` 解析（Phase 16）**：`PlayStateToIconConverter` / `RepeatModeToIconConverter` / `BoolToVolumeIconConverter` 返回的 `Geometry` 依赖 `Icons.xaml` 已在 `App.xaml` 合并；若漏合并会运行时抛异常。新增图标须同步 `Icons.xaml` 键与使用处（COUPLING.md §5 Phase 16 契约）。▶ 标记元素类型为 `Path`：`FindChildByName<Path>(container, "PART_Marker"/"PART_SidebarMarker")`，改回 TextBlock 或改泛型会静默失效。
+- **WindowChrome 自绘按钮必须 `IsHitTestVisibleInChrome=True`（Phase 17）**：caption 高度（32px）区域内的自绘按钮不加此 attached 属性会被 caption 拖动吞掉点击；改动标题栏按钮/新增标题栏控件时必查。
+- **无边框窗最大化边距必须用常量式工作区计算（Phase 17）**：`TitleBar.ApplyWindowState` 给根内容加「`WorkArea` 偏移 + `WindowResizeBorderThickness`」边距；不要改回"读窗口实际边界"的实现 —— 布局时序会让 right/bottom 边距偏大导致大片留空（commit `d86694b` 修）。
+- **WPF ComboBox 深色模板的 ToggleButton 用 `ClickMode=Press`（Phase 17）**：ComboBox 本体由自绘 `ToggleButton` 承载点击（展开/收起），`ContentPresenter` 设 `IsHitTestVisible=False` 叠加显示选中值；点击必须落在 toggle 表面才能开合下拉（commit `dd435bd` 修）。
 
 ---
 
 ## 10. 历史与参考
 
-- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + Phase 6 启动检查清单
+- 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + 启动检查清单（Phase 15 完成）
 - 设计稿：
   - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
   - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
@@ -797,6 +842,15 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4 队列持久化设计
   - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5 拖拽支持设计
   - [`docs/superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md`](./superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md) — Phase 6 多命名歌单设计
+  - [`docs/superpowers/specs/2026-06-14-uma-player-phase10-library-scan-design.md`](./superpowers/specs/2026-06-14-uma-player-phase10-library-scan-design.md) — Phase 10 文件夹绑定歌单设计
+  - [`docs/superpowers/specs/2026-06-15-uma-player-phase11-settings-panel-design.md`](./superpowers/specs/2026-06-15-uma-player-phase11-settings-panel-design.md) — Phase 11 设置面板设计
+  - [`docs/superpowers/specs/2026-06-22-uma-player-phase12-ui-refactor-design.md`](./superpowers/specs/2026-06-22-uma-player-phase12-ui-refactor-design.md) — Phase 12 UI 重构设计
+  - [`docs/superpowers/specs/2026-06-24-uma-player-phase13-audio-visualization-design.md`](./superpowers/specs/2026-06-24-uma-player-phase13-audio-visualization-design.md) — Phase 13 音频可视化设计
+  - [`docs/superpowers/specs/2026-09-08-d-player-phase14-equalizer-design.md`](./superpowers/specs/2026-09-08-d-player-phase14-equalizer-design.md) — Phase 14 均衡器设计
+  - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md) — Phase 15 耦合审计设计
+  - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md) — Phase 15 审计报告
+  - [`docs/superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md`](./superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md) — Phase 16 图标矢量化设计
+  - [`docs/superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md`](./superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md) — Phase 17 UI 深色定制设计
 - 实现计划:
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
@@ -804,6 +858,14 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4
   - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
   - [`docs/superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md`](./superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md) — Phase 6
+  - [`docs/superpowers/plans/2026-06-14-uma-player-phase10-library-scan.md`](./superpowers/plans/2026-06-14-uma-player-phase10-library-scan.md) — Phase 10
+  - [`docs/superpowers/plans/2026-06-15-uma-player-phase11-settings-panel.md`](./superpowers/plans/2026-06-15-uma-player-phase11-settings-panel.md) — Phase 11
+  - [`docs/superpowers/plans/2026-06-22-uma-player-phase12-ui-refactor-implementation.md`](./superpowers/plans/2026-06-22-uma-player-phase12-ui-refactor-implementation.md) — Phase 12
+  - [`docs/superpowers/plans/2026-06-24-uma-player-phase13-audio-visualization-implementation.md`](./superpowers/plans/2026-06-24-uma-player-phase13-audio-visualization-implementation.md) — Phase 13
+  - [`docs/superpowers/plans/2026-09-08-d-player-phase14-equalizer-implementation.md`](./superpowers/plans/2026-09-08-d-player-phase14-equalizer-implementation.md) — Phase 14
+  - [`docs/superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md`](./superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md) — Phase 15
+  - [`docs/superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md) — Phase 16
+  - [`docs/superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md) — Phase 17
 - 主要里程碑提交：
   - **Phase 1**
     - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
@@ -1006,3 +1068,27 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
     - `535a511` feat(view): add EqualizerDialog with 10-band vertical sliders + presets (Phase 14)
     - `857444b` fix(view): suppress preset-combo init push + robust EQ dialog rollback/DRY (Phase 14)
     - `e1bc557` feat(view): add EQ button to PlayerBar with active-state highlight (Phase 14)
+  - **Phase 15**（耦合健康度审计，master 直接提交；merge `f3cc1b6`）
+    - `9127057` feat(tools): add coupling audit script (M1 dependency graph, M2 cycles, M3 layer violations)
+    - `8390d86` feat(tools): coupling audit script adds M4 interface width, M5 LOC, M6 DI unconsumed
+    - `5dd64d7` fix(tools): coupling audit M5 uses physical line count + deterministic secondary sort
+    - `2c46ffa` docs: add Phase 15 coupling audit report (M1-M7 metrics + D1-D5 verdicts)
+    - `e028401` docs: update COUPLING.md with Phase 15 coupling audit verdicts
+  - **Phase 16**（图标矢量化；merge `1aef1d9`）
+    - `507b23d` feat(theme): add vector icon set Icons.xaml (Phase 16)
+    - `7a67436` refactor(view): vector icons for PlayerBar + converters return Geometry (Phase 16)
+    - `117a3f0` refactor(view): vector icons for PlaylistView incl. play marker (Phase 16)
+    - `d6635cb` refactor(view): vector icons for sidebar incl. active marker (Phase 16)
+    - `d4ce83c` fix(view): vectorize music-note playlist icon (Phase 16)
+    - `1b168e0` fix(view): vectorize import-folder icon + restore delete hover color (Phase 16)
+    - `b328696` fix(view): bind clear-button icon stroke to button foreground for hover (Phase 16)
+    - `18d1ea7` docs: update COUPLING.md marker/icon contracts + design icon list (Phase 16)
+  - **Phase 17**（UI 深度深色定制；merge `d103a78`）
+    - `9192f58` feat(theme): add maximize/restore icons (Phase 17)
+    - `34d7dff` feat(view): add reusable custom TitleBar control (Phase 17)
+    - `2e9836a` fix(view): TitleBar title uses ForegroundPrimary per design (Phase 17)
+    - `8362efa` feat(view): MainWindow custom borderless chrome with TitleBar (Phase 17)
+    - `41c95ef` feat(view): dialogs custom borderless chrome with TitleBar (Phase 17)
+    - `24d4544` feat(theme): dark implicit styles for ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu (Phase 17)
+    - `dd435bd` fix(view): workarea-based maximize margin + clickable ComboBox toggle (Phase 17)
+    - `d86694b` fix(view): constant workarea-based maximize margin to remove right/bottom blank (Phase 17)

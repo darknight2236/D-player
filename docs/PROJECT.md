@@ -2,7 +2,7 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
 >
-> 文档日期：2026/10/06（对应 HEAD `1bff9dd`） · 对应分支：`master` · 当前阶段：**Phase 18 完成（M3U/M3U8/PLS 播放列表文件导入导出）** · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026/10/06（对应 HEAD `b32fb6d`） · 对应分支：`master` · 当前阶段：**Phase 19 完成（NAudio 收窄到 Core+Wasapi + 输出经 `WasapiPlayerBuilder` 建链 + 测试栈迁到 xunit.v3，无产品行为变化）** · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 

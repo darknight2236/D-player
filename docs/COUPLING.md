@@ -1,6 +1,6 @@
 # D-player 耦合分析与重构备忘
 
-> 创建日期：2026-06-06 · 更新日期：2026-10-06（对应 HEAD `1bff9dd`） · 对应分支：`master` · 对应阶段：**Phase 18 完成（M3U/M3U8/PLS 播放列表文件导入导出）**
+> 创建日期：2026-06-06 · 更新日期：2026-10-06（对应 HEAD `b32fb6d`） · 对应分支：`master` · 对应阶段：**Phase 19 完成（NAudio 收窄 + 输出迁移到 `WasapiPlayer` + 测试栈迁到 xunit.v3，无产品行为变化）**
 >
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。Phase 16 图标矢量化（emoji/字形图标 → `Themes/Icons.xaml` 统一描边矢量 Geometry 集，转换器返回 Geometry，▶ 标记 TextBlock→Path；纯表现层，0 新依赖）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式；纯表现层，0 新依赖）。Phase 18 播放列表文件导入导出（新增 `Services/PlaylistFiles` 门面模块 + `IPlaylistFileService` 1 个新 Singleton DI 服务；两个 VM 各加 1 个依赖 + 可 await 公开方法；追加路径复用既有 `DropExternalFiles` 不加新元数据依赖；无新架构债，新增 7 条隐式契约，详见 §5）。
 

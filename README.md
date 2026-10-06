@@ -128,7 +128,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 
 ---
 
-## 开发阶段（Phase 1–18）
+## 开发阶段（Phase 1–19）
 
 | Phase | 内容 |
 |-------|------|
@@ -150,6 +150,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 16 | 图标矢量化（Icons.xaml 矢量图标集替换全部 emoji） |
 | 17 | UI 深度深色定制（无边框自定义标题栏 + ComboBox/CheckBox/ScrollBar 等深色化） |
 | 18 | 播放列表文件导入导出（M3U/M3U8/PLS 导入 + M3U8 导出） |
+| 19 | 依赖迁移（NAudio 收窄为 Core + Wasapi、输出改经 `WasapiPlayerBuilder` 建 `WasapiPlayer`、测试栈迁到 xunit.v3；无产品行为变化） |
 
 每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。
 

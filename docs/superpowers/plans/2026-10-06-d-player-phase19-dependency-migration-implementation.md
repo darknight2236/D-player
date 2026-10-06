@@ -576,7 +576,7 @@ git commit -m "docs: sync Phase 19 into PROJECT/COUPLING/README
 - Consumes: Task 1-4 的全部产物
 - Produces: 验收证据（命令输出 + GUI 结论）
 
-- [ ] **Step 1: 构建与两条测试路径** —— **警告（执行前必读，勿照抄本步命令原文）**：本步 `dotnet test` 命令里的 `--nologo` 在当前配置下会让 `dotnet test` **一条测试都不跑**，而摘要打印 `成功: 0`（MTP 不识别该参数，把它当未知选项拒收，退出码 5）——只扫一眼汇总行会误读成"全绿"。验收一律用 `dotnet test D-player.sln -c Debug`（要安静就只加 `-v q`），并核对摘要里确实出现 `总计: 161`；`--filter "FullyQualifiedName~X"` 仍可用。`dotnet build … --nologo` 与 `dotnet run --project Tests/…` 不受影响
+- [x] **Step 1: 构建与两条测试路径** —— **警告（执行前必读，勿照抄本步命令原文）**：本步 `dotnet test` 命令里的 `--nologo` 在当前配置下会让 `dotnet test` **一条测试都不跑**，而摘要打印 `成功: 0`（MTP 不识别该参数，把它当未知选项拒收，退出码 5）——只扫一眼汇总行会误读成"全绿"。验收一律用 `dotnet test D-player.sln -c Debug`（要安静就只加 `-v q`），并核对摘要里确实出现 `总计: 161`；`--filter "FullyQualifiedName~X"` 仍可用。`dotnet build … --nologo` 与 `dotnet run --project Tests/…` 不受影响
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 **0 警告**。
@@ -584,7 +584,9 @@ Expected: 0 错误 **0 警告**。
 Run: `dotnet test D-player.sln -c Debug --nologo -v q` → **161 通过 / 0 失败**。（草稿原文如此，其中 `--nologo` 已不可用：实测 0 条测试、摘要 `成功: 0`、退出码 5。执行时改用 `dotnet test D-player.sln -c Debug -v q`，并核对摘要确实出现 `总计: 161`。）
 Run: `dotnet run --project Tests/D-player.Tests.csproj -c Debug` → **161 通过 / 0 失败**。
 
-- [ ] **Step 2: 依赖图与 pragma 核验**
+> **执行记录**：已执行。`dotnet build -c Debug --nologo -v q` 增量与 `--no-incremental` 各跑一次，均为 `0 个警告 / 0 个错误`；`dotnet test D-player.sln -c Debug -v q`（不带 `--nologo`）摘要 `总计: 161 / 失败: 0 / 成功: 161`；`dotnet run --project Tests/D-player.Tests.csproj -c Debug` 同一份摘要 `总计: 161 / 失败: 0 / 成功: 161`。`--filter "FullyQualifiedName~NAudioPlaybackServiceStopSemanticsTests"` 单独跑亦可用：`总计: 2 / 成功: 2`。
+
+- [x] **Step 2: 依赖图与 pragma 核验**
 
 Run: `dotnet list D-player.csproj package --include-transitive`
 Expected: 有 `NAudio.Core` / `NAudio.Wasapi`；无 `NAudio.WinForms` / `Midi` / `Asio` / `WinMM`（若 Task 1 走了兜底，`NAudio.Dmo` 允许出现且需在文档里注明）。
@@ -594,6 +596,8 @@ Expected: **只剩 `Services/StubAudioOutputFactory.cs` 一处**（刻意保留�
 
 Run: `grep -rn "MessageBox.Show" --include=*.cs . | grep -v "/obj/\|/bin/"`
 Expected: 无输出。
+
+> **执行记录**：已执行，三项全部符合预期。`dotnet list D-player.csproj package --include-transitive` 里 `NAudio.Core 3.1.0` / `NAudio.Wasapi 3.1.0` 在列，`NAudio.WinForms` / `NAudio.Midi` / `NAudio.Asio` / `NAudio.WinMM` / `NAudio.Dmo` 一个都没有（可传递包列表里没有任何 NAudio 条目，Task 1 未走兜底）。`pragma warning disable CS0618` 全仓只剩 `Services/StubAudioOutputFactory.cs:19` 一处。`MessageBox.Show` grep 无输出（退出码 1）。另核 `grep -n "WasapiOut" Services/NAudioPlaybackService.cs` 只命中 `:154-155` 两行历史叙述（"WasapiOut 已降级为 legacy placeholder"、"对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义"），没有任何句子声称当前实现用 WasapiOut。
 
 - [ ] **Step 3: GUI 真机冒烟（ComputerUse，或按惯例移交用户）**
 
@@ -606,9 +610,13 @@ Expected: 无输出。
 5. EQ 对话框开关一次 → 生效且无异常；设置对话框保存一次 → 正常。
 6. 若工作站处于锁屏状态无法驱动原生输入：按 Phase 18 的先例把第 4 项（以及任何无法自动化的项）**如实标为 NOT VERIFIED 并移交用户手动确认**，不得凭空报通过。
 
-- [ ] **Step 4: 收尾**
+> **执行记录（本步不整项勾选）**：工作站未锁屏，已用 `bin/Debug/net10.0-windows/D-player.exe` 起应用并经 UIA 驱动完成三项有硬证据的检查——① 播放：双击第 1 首，播放进度 0:00 → 0:15 → 0:36 → 1:05 持续推进；② 切歌：双击第 2 首，播放头归零、右侧信息面板与播放指示随之切换，无异常；③ 播完自动推进：第 2 首（3:40）自然结束后自动切到第 3 首 KILLERMOON 并继续推进到 0:39，全程进程不崩，最后点 `CloseButton` 干净退出。**保持 NOT VERIFIED 并移交用户**：第 1 项的"出声"与"频谱外观是否正确"（需人耳/人眼判断，截图只证明有柱状物在渲染）、第 4 项"曲尾 100ms 内按停止不自动推进"与进度条单击跳转（100ms 时序无法靠 UIA 轮询可靠复现）、第 5 项 EQ/设置对话框（超出本次验收给 GUI 的有界范围）。第 4 项并非无证据：它由 `NAudioPlaybackServiceStopSemanticsTests` 两条确定性单测钉住（本次单独跑 `总计: 2 / 成功: 2`，已含在 161 内），GUI 一项只是复核。
+
+- [x] **Step 4: 收尾**
 
 确认工作树干净（`git status --short` 无输出）、`master` 领先 `origin/master` 的提交数已记录。**不自动推送**（等用户发话）。
+
+> **执行记录**：已执行。本步的收尾提交（`docs: record Phase 19 acceptance and advance the phase status`：勾选 Task 5 的 Step 1/2/4、补 PROJECT/COUPLING/README 的阶段状态与 HEAD pin）落定后 `git status --short` 无输出，`git status -sb` 为 `master...origin/master [ahead 7]`（验收开始时是 `[ahead 6]`）。**未推送**，等用户发话。
 
 ---
 

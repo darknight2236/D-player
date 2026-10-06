@@ -16,7 +16,7 @@
 
 - 版本钉死：`NAudio.Core` / `NAudio.Wasapi` = `3.1.0`；`xunit.v3` = `4.0.1`；`xunit.runner.visualstudio` = `4.0.0`（保留）；`Microsoft.NET.Test.Sdk` = `18.10.1`（保留）；`NSubstitute` = `6.2.0`；`coverlet.collector` = `10.1.0`。
 - **不改产品行为**：不引入 `WasapiPlayer` 的新能力（零拷贝、MMCSS 线程优先级、`IAudioClient3` 低延迟、`WithCategory`/`WithRawMode`/`WithMmcsThreadPriority`）；不动播放链其余结构（`EqualizerSampleProvider`/`SampleAggregator`/`VolumeSampleProvider`）。
-- **保留 `IAudioOutputFactory` + `StubAudioOutputFactory` 原样**（含其 `WasapiOut` 用法与那处 pragma）——`COUPLING.md §7` 明确要求保留该"未来多后端"接缝。**迁移完成后，仓库里除该文件外不得再出现 `#pragma warning disable CS0618`。**
+- **保留 `IAudioOutputFactory` + `StubAudioOutputFactory` 原样**（含其 `WasapiOut` 用法与那处 pragma）——`COUPLING.md §7` 明确要求保留该"未来多后端"接缝。**迁移完成后，仓库里除该文件外不得再出现 `#pragma warning disable CS0618`。** —— 落地校正（收尾）：该约束只对主体阶段有效；收尾阶段经用户拍板把该工厂也迁到 `WasapiPlayer`（零契约改动），故仓库 pragma 数为 **0** 而非 1。下方 Expected 里的"只剩 1 处"按此理解。
 - 三条纪律原样保留：**持 `_chainGate` 期间不得 await**；**`OnPlaybackStopped`（播放线程回调）不得取 `_chainGate`**；**任何主动停止必须在调用 NAudio 停止之前置 `_stopRequested = true`**。
 - `dotnet test D-player.sln -c Debug` **必须继续可用**（双 runner 的硬要求）。落地校正：命令确实继续可用，但背后只有 **一个** MTP runner（"双 runner"已证伪，见 Task 3 Step 5 注记）。另记一条命令写法纪律：本文件 Task 1/2/3/5 里的 `dotnet test … --nologo` **不可照抄**——迁移后 MTP 不识别该参数，加上后一条测试都不跑而摘要打印 `成功: 0`（Task 1/2 执行时仍是 xunit v2 + VSTest，该写法当时可用且确实跑出 161 绿；Task 5 验收务必按 Task 5 Step 1 的警告用不带旗标的形式）。
 - 行尾纪律：仓库 `core.autocrlf=true`；**Edit 工具会把 CRLF 静默转 LF** → 改完用 `git ls-files --eol <file>` 核对，`w/lf` 就 `unix2dos`；**禁用 `sed -i`**。
@@ -163,7 +163,7 @@ Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。
 
 Run: `grep -rn "pragma warning disable CS0618" --include=*.cs . | grep -v "/obj/\|/bin/"`
-Expected: **只剩 1 处**（`Services/StubAudioOutputFactory.cs`，Task 1-3 范围内刻意保留的那个）。
+Expected: **只剩 1 处**（`Services/StubAudioOutputFactory.cs`，Task 1-3 范围内刻意保留的那个）。── 收尾后为 **0 处**（该文件随后也迁到 `WasapiPlayer`，见 Global Constraints 注记）。
 
 - [x] **Step 4: 重写两处论证注释（本 Task 的核心）**
 
@@ -538,7 +538,7 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 
 ```markdown
 - ❌ **在输出类的 `PlaybackStopped` 回调（播放线程）里取 `_chainGate`**（Phase 19 起输出类为 `WasapiPlayer`）—— 持锁方可能正阻塞在其 `Stop()` 上等待播放线程退出，取锁即死锁
-- ❌ **给 `StubAudioOutputFactory` 的 `WasapiOut` 用法"顺手"迁到 `WasapiPlayer`** —— 该工厂是刻意保留的"未来多后端"接缝（见 §7 首条），其契约 `IWavePlayer` 的重设计属于那件事本身；`WasapiPlayer` 不实现 `IWavePlayer`，硬换会破坏这个抽象的语义
+- ❌ **给 `StubAudioOutputFactory` 的 `WasapiOut` 用法"顺手"迁到 `WasapiPlayer`** —— 该工厂是刻意保留的"未来多后端"接缝（见 §7 首条），其契约 `IWavePlayer` 的重设计属于那件事本身；`WasapiPlayer` 不实现 `IWavePlayer`，硬换会破坏这个抽象的语义 —— 落地校正（收尾）：此条**已作废**且其理由句（"`WasapiPlayer` 不实现 `IWavePlayer`"）**已被反射证伪**；用户拍板后该工厂已迁到 `WasapiPlayer`，`COUPLING.md §7` 的对应条目已改写成"不要重新引入 `#pragma warning disable CS0618`"。
 ```
 
 - [x] **Step 7: 勾选本计划** —— Task 1–4 的步骤已全部勾选；Task 5（全量验收）的 4 个步骤保持未勾选，因为该任务尚未执行，不能提前记为完成 —— 落地校正（收尾修订）：本句写于 Task 4 执行时，其中"该任务尚未执行"已过期：Task 5 其后已执行，Step 1/2/4 已勾选并附执行记录，**Step 3（GUI 真机冒烟）刻意保持未勾选**（无法自动化的项按 Phase 18 先例标为 NOT VERIFIED 并移交用户），所以全计划的真实状态是"仅 Task 5 Step 3 一项留开"，不是"全部勾选"
@@ -592,12 +592,12 @@ Run: `dotnet list D-player.csproj package --include-transitive`
 Expected: 有 `NAudio.Core` / `NAudio.Wasapi`；无 `NAudio.WinForms` / `Midi` / `Asio` / `WinMM`（若 Task 1 走了兜底，`NAudio.Dmo` 允许出现且需在文档里注明）。
 
 Run: `grep -rn "pragma warning disable CS0618" --include=*.cs . | grep -v "/obj/\|/bin/"`
-Expected: **只剩 `Services/StubAudioOutputFactory.cs` 一处**（刻意保留）。
+Expected: **只剩 `Services/StubAudioOutputFactory.cs` 一处**（刻意保留）。── 收尾后为 **0 处**（该文件随后也迁到 `WasapiPlayer`，见 Global Constraints 注记）。
 
 Run: `grep -rn "MessageBox.Show" --include=*.cs . | grep -v "/obj/\|/bin/"`
 Expected: 无输出。
 
-> **执行记录**：已执行，三项全部符合预期。`dotnet list D-player.csproj package --include-transitive` 里 `NAudio.Core 3.1.0` / `NAudio.Wasapi 3.1.0` 在列，`NAudio.WinForms` / `NAudio.Midi` / `NAudio.Asio` / `NAudio.WinMM` / `NAudio.Dmo` 一个都没有（可传递包列表里没有任何 NAudio 条目，Task 1 未走兜底）。`pragma warning disable CS0618` 全仓只剩 `Services/StubAudioOutputFactory.cs:19` 一处。`MessageBox.Show` grep 无输出（退出码 1）。另核 `grep -n "WasapiOut" Services/NAudioPlaybackService.cs` 只命中 `:154-155` 两行历史叙述（"WasapiOut 已降级为 legacy placeholder"、"对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义"），没有任何句子声称当前实现用 WasapiOut。
+> **执行记录**：已执行，三项全部符合预期。`dotnet list D-player.csproj package --include-transitive` 里 `NAudio.Core 3.1.0` / `NAudio.Wasapi 3.1.0` 在列，`NAudio.WinForms` / `NAudio.Midi` / `NAudio.Asio` / `NAudio.WinMM` / `NAudio.Dmo` 一个都没有（可传递包列表里没有任何 NAudio 条目，Task 1 未走兜底）。`pragma warning disable CS0618` 全仓只剩 `Services/StubAudioOutputFactory.cs:19` 一处（**收尾后为 0 处**，该文件随后经用户拍板迁到 `WasapiPlayer`）。`MessageBox.Show` grep 无输出（退出码 1）。另核 `grep -n "WasapiOut" Services/NAudioPlaybackService.cs` 只命中 `:154-155` 两行历史叙述（"WasapiOut 已降级为 legacy placeholder"、"对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义"），没有任何句子声称当前实现用 WasapiOut。
 
 - [ ] **Step 3: GUI 真机冒烟（ComputerUse，或按惯例移交用户）**
 

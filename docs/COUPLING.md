@@ -187,7 +187,7 @@ private void RemoveTrack(int index)
 | 接口 | 实现 | 状态 |
 |------|------|------|
 | `IAudioDeviceManager` | `StubAudioDeviceManager` | 注册了，**无人消费** |
-| `IAudioOutputFactory` | `StubAudioOutputFactory` | 注册了，**无人消费**（`NAudioPlaybackService` 在 `LoadAsync` 内直接经 `WasapiPlayerBuilder` 建输出，不经此工厂；工厂自身刻意保留 `WasapiOut`，理由见 §7 与 `Services/StubAudioOutputFactory.cs` 的类注释） |
+| `IAudioOutputFactory` | `StubAudioOutputFactory` | 注册了，**无人消费**（`NAudioPlaybackService` 在 `LoadAsync` 内直接经 `WasapiPlayerBuilder` 建输出，不经此工厂；工厂返回 `WasapiPlayer`，构造参数与播放链一致（共享 + 事件同步 + 100ms），至今无调用点） |
 
 **判断：** 这是 YAGNI 违规。但成本几乎为零（4 个空文件 + 2 行注册）。
 
@@ -298,6 +298,7 @@ private void RemoveTrack(int index)
 | `TrackEnded` 只代表"曲目自然播完"：任何主动停止（`Stop()` / `DisposePlayback()`）都必须**先**置 `_stopRequested = true`，`Play()` 开新播放会话时清零 | `NAudioPlaybackService._stopRequested`（`OnPlaybackStopped` 命中即提前返回） | 用户停止与自然播完都只表现为一次 `PlaybackStopped`，输出类不告知发起方；仅凭"播放头距 TotalTime ≤ 200ms"无法区分，漏置位 = 曲尾 200ms 内按停止被误判为播完并自动推进下一首。该不确定性不随实现（同步/异步派发、`WasapiOut`/`WasapiPlayer`）变化。**回归证据只有一条落在本标记上**：`NAudioPlaybackServiceStopSemanticsTests.Stop_WhenPlayheadIsAtTrackEnd_DoesNotRaiseTrackEnded`；同类的 `Unload_WhenPlayheadIsAtTrackEnd_…` 走 `DisposePlayback`，而它先解订阅 `PlaybackStopped` 再停止（`NAudioPlaybackService.cs:388-390`），回调根本不触发，故那条用例钉住的是"解订阅早于停止"的顺序，不是本标记 |
 | **Phase 19 新增（依赖迁移后的测试栈契约）** | | |
 | 测试栈 = xunit.v3（`OutputType=Exe`）+ **单一 runner（MTP）的两个入口**；音频集成测试受并行度约束 | `Tests/D-player.Tests.csproj` + 仓库根 `global.json` + `Tests/Services/NAudioPlaybackService*Tests.cs` | 测试工程是可执行程序，`dotnet run --project Tests/D-player.Tests.csproj` 与 `dotnet test D-player.sln` 跑的是同一个 Microsoft.Testing.Platform runner。`dotnet test` 的路由机制是仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 就破坏 `dotnet test`**；csproj 的 `TestingPlatformDotnetTestSupport` 是 .NET 9 及更早版本的路由开关，在本 SDK 上不参与执行路径，`xunit.runner.visualstudio` / `Microsoft.NET.Test.Sdk` 同样只是为 IDE 测试发现（测试浏览器）的兼容性而保留 —— **该能力在本阶段未验证过**（验收只跑命令行两条路径），也不在跑测试的路径上。两条命令都不能加 `--nologo`（MTP 不识别该参数：一条测试都不跑，摘要却显示 `成功: 0`，退出码 5）。5 条音频测试真实占用 WASAPI 设备：xunit v3 默认并行实测稳定（10 次 MTP + 3 次 `dotnet test` 全绿），故既未加 `[Collection("AudioDevice")]` 也未全局禁用并行——新增音频测试若出现设备争用，按设计稿 §5.3 的顺序收紧（先集合串行，再全局禁用并行） |
+| 输出工厂 `StubAudioOutputFactory` 返回 `WasapiPlayer`（共享 + 事件同步 + 100ms，与播放链同参）；仓库 `#pragma warning disable CS0618` 数为 **0** | `Services/StubAudioOutputFactory.cs`、`Services/IAudioOutputFactory.cs` | 该工厂只注册、无消费方；Phase 19 收尾经用户拍板把它从 legacy 的 `WasapiOut` 迁到 `WasapiPlayer`（零契约改动：`WasapiPlayer` 实现 `IWavePlayer`，契约一字未改），顺带退休仓库最后一处过时 API 抑制。详见设计稿文末勘误与 §7 对应条目 |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
@@ -375,8 +376,7 @@ private void RemoveTrack(int index)
 - ❌ **让 `UnloadCurrentTrack`（经 `ClearQueue`/`RemoveTrack`）无条件操作全局 `IPlaybackService`**（2026-10-05 修复）—— 只有 `IsActivePlaylist` 歌单才有权 `Unload()`，否则清空另一歌单会误停当前播放
 - ❌ **为导入给 `PlaylistViewModel` 注入 `ILibraryScannerService`**（Phase 18）—— 追加路径复用既有 `DropExternalFiles`（服务层已过滤 + 逐个读元数据入队）；引入扫描服务会让歌单级 VM 背上容器级依赖，违反双 VM 互不持引用的既有拓扑
 - ❌ **把导出入口放到侧边栏**（Phase 18）—— 侧边栏按钮作用于"选中项"，导出语义是"当前查看的歌单"（`ViewedPlaylist`），两个指针在键盘导航下可能不同步，放侧边栏会产生"到底导出哪个"的歧义
-- ❌ **给 `StubAudioOutputFactory` 的 `WasapiOut` 用法"顺手"迁到 `WasapiPlayer`** —— 该工厂是刻意保留的"未来多后端"接缝（见 §7 首条）；迁移本身零契约改动（`WasapiPlayer` 实现 `IWavePlayer`），但这是独立决定：接缝目前只注册、无任何调用点，输出策略（设备 / 延迟 / 同步模式）该定成什么属于多后端那件事，不在"不改行为"的迁移阶段拍板
-- ⏸ **（暂缓、待用户拍板的选项，不是禁令）把 `StubAudioOutputFactory` 迁到 `WasapiPlayer`** —— 这是一次零契约改动的动作（`WasapiPlayer` 实现 `IWavePlayer`，见设计稿文末勘误第 1/2 条），并会顺带清掉仓库里**最后一处** `#pragma warning disable CS0618`（`Services/StubAudioOutputFactory.cs:19`）。Phase 19 刻意未做（超出"不改行为"的范围），此决定此前只记在 gitignore 的台账里，故在此登记为可追踪条目；用户点头前，上一条 ❌ 仍然有效
+- ❌ **重新引入 `#pragma warning disable CS0618`（或任何抑制手段）来压 NAudio 的过时警告** —— 依赖已全部迁到 3.x 新 API，仓库当前 pragma 数为 **0**（`StubAudioOutputFactory` 已于 2026-10-06 收尾迁到 `WasapiPlayer`，经用户拍板；此前那条"不要顺手迁"的条目随迁移完成作废）。要压警告说明又用回了 legacy 类（`WasapiOut` 等），正确做法是改用 `WasapiPlayerBuilder → WasapiPlayer`（见 §5 输出工厂条目）
 
 ---
 

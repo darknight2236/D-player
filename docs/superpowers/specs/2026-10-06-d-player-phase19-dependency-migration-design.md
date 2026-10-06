@@ -42,7 +42,7 @@
 | 3 | `WasapiOut` vs `WasapiPlayer` | 迁移到 `WasapiPlayer`（去掉 `NAudioPlaybackService` 的 pragma） | 3.x 官方明确把 `WasapiOut` 定位为 legacy placeholder；继续依赖它等于把技术债留到 NAudio 4 被强拆 |
 | 4 | 包引用 | meta `NAudio` → `NAudio.Core` + `NAudio.Wasapi` | 实测只用到这两个包的类型，且 `NAudio.Wasapi 3.1.0` 自身只依赖 `NAudio.Core`；收窄可把 WinForms/Midi/Asio/WinMM/Dmo 移出依赖图（对 WPF 应用还避免拖入 WinForms 程序集） |
 | 5 | 两条并发论证 | **都保留**，只改写理由 | 见 §4.4：NAudio 3 的 guarded dispose 只保证"NAudio 内部对象不被双重释放"，不解决**我们自己的**共享字段被交错重建（闸门）与"停止/播完同一信号"（意图标记） |
-| 6 | 预留输出工厂 | 保留原样（其 `WasapiOut` 用法与 pragma 不动） | COUPLING §7 的明确要求；契约重构属于未来多后端工作。**本阶段结束后仓库里仍会余留 1 处 pragma**，位置与理由写进注释与 COUPLING |
+| 6 | 预留输出工厂 | 保留原样（其 `WasapiOut` 用法与 pragma 不动） | COUPLING §7 的明确要求；契约重构属于未来多后端工作。**本阶段结束后仓库里仍会余留 1 处 pragma**，位置与理由写进注释与 COUPLING。（**后续已执行，2026-10-06 收尾**：用户拍板后该工厂已迁到 `WasapiPlayer`，仓库 pragma 数归零；本决策的"保留原样"结论自此被取代，见 COUPLING §5/§7） |
 | 7 | 音频测试并行度 | 先在 v3 下实测；若出现设备争用/时序漂移，把音频集成测试收进同一 `[Collection]` 或整体禁用并行 | v3 的并行策略与 v2 不同；这 5 条测试真实占用 WASAPI 设备，并行会 flaky（§5.3） |
 
 ## 3. 迁移面普查结果（证据表）
@@ -86,6 +86,8 @@ NAudio.Wasapi : WasapiOut, WasapiPlayer(+Builder), MediaFoundationReader, AudioC
 ### 4.3 预留输出工厂（保留现状）
 
 `IAudioOutputFactory.CreateOutput() → IWavePlayer` 与返回 `new WasapiOut(Shared, 100)` 的 `StubAudioOutputFactory` **本次不动**：它们是 COUPLING §7 明确要求保留的"未来多后端"接缝，而 `WasapiPlayer` 不实现 `IWavePlayer`（此句已证伪，见文末勘误）意味着该接缝的契约需要整体重新设计——那件事应当在做多后端时、把两类实现放在一起看。处置：在该文件顶部注释里写明"本类保留 `WasapiOut` 是刻意的（3.x 仍可用），与 `NAudioPlaybackService` 已迁到 `WasapiPlayer` 的现状不矛盾；契约重设计属于多后端工作"，并在 COUPLING 登记。
+
+**收尾更新（2026-10-06，经用户拍板）**：本节结论已不成立 —— 该工厂已迁到 `WasapiPlayer`（契约零改动，因为 `WasapiPlayer` 实现 `IWavePlayer`），仓库 `CS0618` pragma 归零；上述"本次不动"的范围限定只对 Phase 19 主体阶段有效。
 
 ### 4.4 两条论证的重推（本阶段的技术核心）
 
@@ -168,7 +170,7 @@ v3 的并行策略与 v2 不同（默认按测试集合并行）。本仓有 5 �
 
 ## 7. 验收标准
 
-1. `dotnet build D-player.sln -c Debug` → 0 错误 **0 警告**（含"没有新的 pragma"：`NAudioPlaybackService` 与 `StubAudioOutputFactory` 之外的 pragma 数为零；后者是 §4.3 明确保留的）。
+1. `dotnet build D-player.sln -c Debug` → 0 错误 **0 警告**（含"没有新的 pragma"：`NAudioPlaybackService` 与 `StubAudioOutputFactory` 之外的 pragma 数为零；后者是 §4.3 明确保留的。（**收尾后更新**：`StubAudioOutputFactory` 也已迁走，全仓 `#pragma warning disable CS0618` 数为 **0**，见文末勘误））。
 2. **两种方式各跑一遍**：`dotnet test D-player.sln -c Debug` 与 `dotnet run --project Tests/D-player.Tests.csproj -c Debug` → 各 **161 条全绿**。
 3. 并行度稳定性：按 §5.3 跑 5 次并记录；最终选择（默认并行 / 集合串行 / 全局串行）写入 PROJECT 的测试章节。
 4. 依赖图：`dotnet list D-player.csproj package --include-transitive` 不再出现 NAudio.WinForms / Midi / Asio / WinMM / Dmo。

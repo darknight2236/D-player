@@ -99,7 +99,7 @@ NAudio.Wasapi : WasapiOut, WasapiPlayer(+Builder), MediaFoundationReader, AudioC
 **停止意图 `_stopRequested` —— 保留，改写成"信号不可区分"的理由。**
 原论据是"播放线程退出时**同步**回调 `PlaybackStopped`（`WasapiOut` 建在线程池线程上、捕获的 `SynchronizationContext` 为 null），而 `Stop()` 内部 `Join` 该线程"。`WasapiPlayer` 的文档说"若构造时捕获了 `SynchronizationContext`，事件在该上下文上引发"——即回调可能是 `Post` 而不是同步调用。**但这不改变结论**：无论同步还是异步，"用户按停止"与"曲目自然播完"仍然是同一个 `PlaybackStopped`，仅凭播放头位置无法区分（异步回调时位置可能已被归零，反而让判定更不确定）。
 ⇒ 保留标记与"停止方在调用 NAudio **之前**置位、`Play()` 清零、`OnPlaybackStopped` 命中即提前返回"的纪律；注释按新类的实际行为改写。
-**证据**：`NAudioPlaybackServiceStopSemanticsTests` 的 2 条用例（曲尾 100ms 内停止/卸载不得发 `TrackEnded`）+ `PlayToNaturalEnd_ThenAdvance`（真自然播完仍须发）三向钉住。 —— 收尾修订补注："三向"须拆开看：只有 `Stop_WhenPlayheadIsAtTrackEnd_…` 真正经过 `_stopRequested`；`Unload_WhenPlayheadIsAtTrackEnd_…` 走 `DisposePlayback`，而它先解订阅 `PlaybackStopped` 再停止，回调不触发，故那条钉的是"解订阅早于停止"的顺序而非本标记（口径见 `docs/PROJECT.md` §9 与 `docs/COUPLING.md` §5 现文）。
+**证据**：`NAudioPlaybackServiceStopSemanticsTests` 的 2 条用例（曲尾 100ms 内停止/卸载不得发 `TrackEnded`）+ `PlayToNaturalEnd_ThenAdvance`（真自然播完仍须发）三向钉住。 —— 收尾修订补注："三向"须拆开看：只有 `Stop_WhenPlayheadIsAtTrackEnd_…` 会被 `_stopRequested` 的判定分支读到；`Unload_WhenPlayheadIsAtTrackEnd_…` 走 `DisposePlayback`，它会写入该标记，但先解订阅 `PlaybackStopped` 再停止，回调不触发、判定分支不执行，故那条钉的是"解订阅早于停止"的顺序而非本标记（口径见 `docs/PROJECT.md` §9 与 `docs/COUPLING.md` §5 现文）。
 
 ### 4.5 包引用收窄
 

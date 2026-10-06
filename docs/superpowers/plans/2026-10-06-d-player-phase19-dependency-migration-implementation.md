@@ -502,7 +502,7 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 - 第 164 行的 `├── Tests/  # xUnit 测试项目 (Phase 6+，共 155 个测试)` → `共 161 个测试`，并把 `xUnit` 写成 `xUnit v3`。
 - 依赖清单处（NAudio 相关行）改成 `NAudio.Core` + `NAudio.Wasapi`（若 Task 1 走了兜底，把例外子包一并列出）。
 
-- [x] **Step 4: `docs/PROJECT.md` §9 的播放链条目改写** —— 已落地（`docs/PROJECT.md:942-943`）；下方 after 块里留给 Task 3 的并行度空位已按实测取第一项填为真实结论（level 0：沿用 v3 默认并行）。—— 收尾修订追加：下方模板末尾那句"回归测试…再停止/卸载，确定性钉住"与"阻塞在输出类的 `Stop()` 上"的归因后被改写（5 条里只有 `Stop_WhenPlayheadIsAtTrackEnd_…` 真正经过 `_stopRequested`，`Unload_…` 因 `DisposePlayback` 先解订阅再停止而钉的是解订阅顺序；阻塞面按 `Stop()`/`Dispose()` 两者计），以 `docs/PROJECT.md` §9 现文为准，勿照抄本模板
+- [x] **Step 4: `docs/PROJECT.md` §9 的播放链条目改写** —— 已落地（`docs/PROJECT.md:942-943`）；下方 after 块里留给 Task 3 的并行度空位已按实测取第一项填为真实结论（level 0：沿用 v3 默认并行）。—— 收尾修订追加：下方模板末尾那句"回归测试…再停止/卸载，确定性钉住"与"阻塞在输出类的 `Stop()` 上"的归因后被改写（5 条里只有 `Stop_WhenPlayheadIsAtTrackEnd_…` 会被 `_stopRequested` 的判定分支读到，`Unload_…` 因 `DisposePlayback` 先解订阅再停止而只钉住解订阅顺序；阻塞面按 `Stop()`/`Dispose()` 两者计），以 `docs/PROJECT.md` §9 现文为准，勿照抄本模板
 
 把 Task 2 之前的播放链陷阱条目（"播放链生命周期必须串行化；'停止'意图必须显式标记"那一条）里所有 **NAudio 2.x 内部细节**替换为新口径，并在末尾补并行度结论。改写后的条目：
 

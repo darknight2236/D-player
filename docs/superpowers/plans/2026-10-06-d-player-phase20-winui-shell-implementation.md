@@ -784,6 +784,8 @@ public sealed partial class MainWindow : Window
 
 **切片期已知差异（写进提交信息，第二阶段再对齐）**：WPF 版只在拖动结束时 Seek（`IsSeeking` 抑制中间的定位）；本切片每次 `ValueChanged` 都完成一次 Seek（拖拽中会连续定位）。功能可用，手感待第二阶段打磨。
 
+> **勘误（最终修复波 A2：这条差异已修掉，不要再抄进任何提交信息或对比表）**：上面这句在 `dc67f13` 之后不再成立。WinUI 3 的 `SliderBase` **不暴露** `DragStarted`/`DragCompleted`（三条路都实测失败：XAML 属性 → WMC0011、附加属性 → WMC0010、C# 订阅 → CS1061），所以这对事件从 `Slider` **模板的 `Thumb`（`HorizontalThumb`）** 上取——与 WPF `Views/Controls/PlayerBar.xaml.cs:70-74` 订阅的是同一对事件，语义一致：拖动期间 `IsSeeking` 为真、30 Hz 回写被抑制，**松手才提交一次 Seek**；`ValueChanged` 只剩单击轨道跳转，并显式跳过"程序把值写回来"那条路径（`_suppressSeek` 随之删除）。**残留的真实风险不是行为差异，而是这条挂接依赖模板部件名、找不到时静默退回旧行为，而 WinUI 不进门禁 → 没有自动回归能发现退化**（对比材料 §5 关切 5）。同期 A3 也让双击与 WPF 对齐（空白区双击不再回播上次选中的曲目）。
+
 - [x] **Step 3: 补一个 Core 侧公开入口（唯一允许的 Core 改动）**
 
 > **勘误（裁定 P-16：本节被整体推翻，这个"唯一允许的 Core 改动"最后被删掉了）**：

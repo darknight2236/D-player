@@ -364,7 +364,7 @@ private void RemoveTrack(int index)
 - ❌ **忘记在 `SpectrumView.Unloaded` 解绑 `CompositionTarget.Rendering`**（Phase 13）—— 全局渲染事件会持有控件引用导致内存泄漏
 - ❌ **让 `EqualizerSampleProvider.Update` 重建 `BiQuadFilter`（而非 `SetPeakingEq` 就地改）**（Phase 14）—— 重建会清空 x1/x2/y1/y2 延迟线，拖动滑块时爆音
 - ❌ **在 `NAudioPlaybackService` 里绕过 `_chainGate` 直接碰 `_wavePlayer` / `_reader` / 播放链字段**（新加传输命令也不例外）—— 会退回到"释放另一个正在使用或正在构建的链 → 异常冒进 async void"的崩溃面（与 §5 的播放链闸门条目同口径：崩溃面在我们自己的三个共享字段上，不在输出类内部）
-- ❌ **在输出类的 `PlaybackStopped` 回调（播放线程）里取 `_chainGate`**（Phase 19 起输出类为 `WasapiPlayer`）—— 持锁方可能正阻塞在其 `Stop()` 上等待播放线程退出，取锁即死锁
+- ❌ **在输出类的 `PlaybackStopped` 回调（播放线程）里取 `_chainGate`**（Phase 19 起输出类为 `WasapiPlayer`）—— 持锁方可能正阻塞在输出类的 `Stop()` / `Dispose()` 上等待播放线程退出（`Dispose` 被随包 XML 文档明确标为 blocking；口径与 §5 播放链闸门条目一致），取锁即死锁
 - ❌ **新增任何"主动停止播放"的路径时忘记置 `_stopRequested`** —— 曲尾 200ms 内的用户停止会被误报为自然播完，停止后自动推进下一首
 - ❌ **给 `IPlaybackService` 加成员却漏改 `PlaylistsViewModel` 内的手写 `NullPlaybackService`**（Phase 14）—— 它是该接口的第二个生产实现者，漏改会 CS0535 编译失败
 - ❌ **在 `EqualizerDialog.OnLoaded` 未抑制就填充预设下拉**（Phase 14）—— WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发 `SelectionChanged`，打开即误 push 一次 Flat/禁用配置扰动播放中的 EQ

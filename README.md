@@ -91,7 +91,7 @@ dotnet test D-player.sln -c Debug                           # 同一个 runner �
 ```
 D-player/
 ├── App.xaml(.cs)        # 应用入口：构建 DI 容器、加载主窗口
-├── global.json          # 测试 runner 路由（.NET 10 SDK 原生 opt-in）——**不要删除**：删掉后 `dotnet test D-player.sln` 就失败
+├── global.json          # 测试 runner 路由（.NET 10 SDK 原生 opt-in）——不要删除：删掉后 `dotnet test D-player.sln` 就失败
 ├── Configuration/       # AppSettings 强类型配置 record
 ├── Models/              # 不可变 record 数据模型（Track / Playlist / QueueState / EqualizerConfig …）
 ├── Services/            # 业务与基础设施服务（接口 + 实现：播放/持久化/元数据/扫描/缓存/播放列表文件读写）

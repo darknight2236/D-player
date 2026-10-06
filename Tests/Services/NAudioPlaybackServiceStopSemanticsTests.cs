@@ -51,7 +51,7 @@ public sealed class NAudioPlaybackServiceStopSemanticsTests : IDisposable
         while (service.Position <= TimeSpan.Zero)
         {
             Assert.True(DateTime.UtcNow < deadline, "播放线程未推进，本用例无意义");
-            await Task.Delay(20);
+            await Task.Delay(20, TestContext.Current.CancellationToken);
         }
     }
 

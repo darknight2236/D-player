@@ -1,4 +1,3 @@
-using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using DPlayer.Models;
@@ -8,12 +7,12 @@ namespace DPlayer.Services;
 /// <summary>
 /// 基于 NAudio 的播放服务实现。
 ///
-/// 播放链路：MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiOut(Shared)
+/// 播放链路：MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiPlayer(Shared)
 ///   - MediaFoundationReader：调用 Windows Media Foundation 原生解码 MP3/WMA/FLAC/AAC/WAV
 ///   - EqualizerSampleProvider：10 段图形均衡器（Phase 14），置于 SampleAggregator 之前 → 频谱反映 EQ 后信号
 ///   - SampleAggregator     ：透明截取 PCM 数据执行 FFT 频谱分析（Phase 13）
 ///   - VolumeSampleProvider ：在样本层做线性音量缩放
-///   - WasapiOut(Shared)    ：共享模式输出，100ms 缓冲（低延迟与稳定性的折中）
+///   - WasapiPlayer         ：共享模式 + 事件同步输出，100ms 缓冲（低延迟与稳定性的折中）
 ///
 /// 线程模型：构造时捕获 UI 线程 SynchronizationContext，
 ///          所有事件通过 _syncContext.Post 派发，VM 可直接绑定属性。
@@ -21,7 +20,7 @@ namespace DPlayer.Services;
 public sealed class NAudioPlaybackService : IPlaybackService
 {
     private readonly SynchronizationContext _syncContext;
-    private IWavePlayer? _wavePlayer;
+    private WasapiPlayer? _wavePlayer;
     private MediaFoundationReader? _reader;
     private VolumeSampleProvider? _volumeProvider;
     private Track? _currentTrack;
@@ -29,25 +28,28 @@ public sealed class NAudioPlaybackService : IPlaybackService
     private float _volume = 0.8f;
 
     /// <summary>
-    /// 播放链生命周期闸门。LoadAsync 在线程池上重建整条链，而 Unload/Dispose/传输命令
-    /// 可能来自 UI 线程；没有串行化时，后一次重建的 DisposePlayback 会释放前一次
-    /// 正在 Init 的 WasapiOut 实例（audioClient 被置空 / COM 包装分离），异常从
-    /// NAudio 内部抛出并冒到 async void 事件处理器 —— 表现为"播完一首歌后进程崩溃"。
+    /// 播放链生命周期闸门：把"重建/拆除整条播放链"这件事串行化。
+    /// LoadAsync 在线程池上重建链，而 Unload/Dispose/传输命令可能来自 UI 线程；
+    /// 没有串行化时，后一次重建会释放前一次正在使用或正在构建的链（reader / provider /
+    /// wavePlayer 三个共享字段被交错读写），异常从链内部抛出并冒到 async void 事件处理器
+    /// —— 表现为"播完一首歌后进程崩溃"。这与 NAudio 内部是否防护无关：NAudio 3 的
+    /// guarded dispose 只保证它自己的对象不被双重释放，管不到我们的共享字段。
     ///
-    /// 纪律：持锁期间不得 await；不得阻塞等待 UI 线程（事件一律 Post 异步派发）。
-    /// NAudio 播放线程上的 OnPlaybackStopped **不能**取此锁：持锁方可能正阻塞在
-    /// _wavePlayer.Stop() 的 Join(playThread) 上，取锁会立即死锁。
+    /// 纪律：持锁期间不得 await；不得阻塞等待 UI 线程（事件一律 Post 异步派发）；
+    /// 播放线程回调 OnPlaybackStopped **不能**取此锁——持锁方可能正阻塞在输出类的
+    /// Stop() 上等待播放线程退出，回调里取锁即死锁。
     /// </summary>
     private readonly object _chainGate = new();
 
     /// <summary>
-    /// 「本次停止是我们主动发起的」标记：Stop() / DisposePlayback() 在调用 NAudio 停止前
+    /// 「本次停止是我们主动发起的」标记：Stop() / DisposePlayback() 在调用输出类的停止方法前
     /// 置位，Play() 开始新的播放会话时清零。
     ///
-    /// 为什么需要它：NAudio 的播放线程退出时会**同步**回调 PlaybackStopped（WasapiOut 在线程池
-    /// 线程上构造，SynchronizationContext 为 null），而 Stop() 内部 Join 该线程 —— 于是
-    /// "用户按停止"与"曲目自然播完"以同一个回调到达。仅凭"播放头距 TotalTime 在容差内"
-    /// 无法区分：用户在曲尾 200ms 内按停止会被误判为播完，向 VM 发出 TrackEnded 并自动推进下一首。
+    /// 为什么需要它："用户按停止"与"曲目自然播完"都只表现为一次 PlaybackStopped——输出类不会
+    /// 告诉我们是谁发起的，而仅凭"播放头距 TotalTime 在容差内"无法区分（曲尾 200ms 内按停止
+    /// 会被误判为播完，向 VM 发出 TrackEnded 并自动推进下一首）。这个不确定性不随实现变化：
+    /// 无论回调是同步还是经 SynchronizationContext 异步派发、无论位置是否已被归零，两条路径
+    /// 的信号都相同，所以意图必须由发起方显式标记。
     /// </summary>
     private volatile bool _stopRequested;
 
@@ -149,12 +151,15 @@ public sealed class NAudioPlaybackService : IPlaybackService
                     {
                         Volume = _volume
                     };
-                    // WasapiOut 在 NAudio 3 被标记过时（建议 WasapiPlayerBuilder → WasapiPlayer）。
-                    // 迁移会改变播放输出的语义（同步模式、teardown 行为），需要独立验证，故此处有意保留。
-#pragma warning disable CS0618
-                    _wavePlayer = new WasapiOut(AudioClientShareMode.Shared, 100);
-#pragma warning restore CS0618
-                    _wavePlayer.Init(_volumeProvider);
+                    // NAudio 3 的输出入口：builder → WasapiPlayer（WasapiOut 已降级为 legacy placeholder）。
+                    // WithEventSync 对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义；Init 只收
+                    // IWaveProvider，故用 ToWaveProvider() 把采样链桥接成 WaveProvider。
+                    _wavePlayer = new WasapiPlayerBuilder()
+                        .WithSharedMode()
+                        .WithEventSync()
+                        .WithLatency(100)
+                        .Build();
+                    _wavePlayer.Init(_volumeProvider.ToWaveProvider());
 
                     _wavePlayer.PlaybackStopped += OnPlaybackStopped;
 
@@ -208,7 +213,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
         lock (_chainGate)
         {
             if (_wavePlayer == null) return;
-            _stopRequested = true; // 必须在 _wavePlayer.Stop() 之前置位：Join 期间播放线程会同步回调
+            _stopRequested = true; // 必须在调用输出类的停止之前置位：回调可能在其内部同步发生
             _wavePlayer.Stop();
             // 同时将播放头归零，下次 Play 从头开始
             if (_reader != null)
@@ -276,9 +281,9 @@ public sealed class NAudioPlaybackService : IPlaybackService
             return;
         }
 
-        // 我们主动发起的停止（Stop/DisposePlayback）也会走到这里，且可能在播放头接近曲尾时发生。
-        // 停止意图由发起方显式标记 —— 少了这一步，用户在曲尾 200ms 内按停止会被误判为"自然播完"，
-        // 从而在停止之后又自动推进下一首。
+        // 我们主动发起的停止（Stop/DisposePlayback）也会走到这里，且可能在播放头接近曲尾时发生；
+        // 停止意图由发起方显式标记（见 _stopRequested）——少了这一步，用户在曲尾 200ms 内按停止
+        // 会被误判为"自然播完"，停止之后又自动推进下一首。
         if (_stopRequested)
         {
             SetState(PlayState.Stopped);
@@ -286,8 +291,8 @@ public sealed class NAudioPlaybackService : IPlaybackService
         }
 
         // 自然播完判定：播放头距 TotalTime 不超过容差，且时长大于 0（避免空 reader 误判）。
-        // 本方法运行在 NAudio 播放线程上，不能取 _chainGate —— 持锁方可能正阻塞在
-        // _wavePlayer.Stop() 的 Join(playThread) 上，取锁会立即死锁。因此这里只做防御性读取：
+        // 本方法由播放线程回调，不能取 _chainGate —— 持锁方可能正阻塞在输出类的
+        // Stop() 上等待播放线程退出，取锁会立即死锁。因此这里只做防御性读取：
         // reader 可能正被并发的 DisposePlayback 释放，而在音频线程上抛出会直接崩进程。
         bool naturalEnd = false;
         var reader = _reader;

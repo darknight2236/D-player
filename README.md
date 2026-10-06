@@ -66,7 +66,13 @@ WinUI 3 壳（Phase 20 切片）：自绘标题栏区 + 左 `NavigationView` 歌
 
 ## 构建与运行
 
-**主门禁用解决方案筛选器 `D-player.slnf`（Core + WPF 壳 + Tests），不用 `D-player.sln`**——这样每次构建/测试都不会把 WinUI 的 Windows App SDK 工具链拖进来：
+### 门禁与壳侧检查（口径只有一套，别混）
+
+> **纪律：一条命令只有在你记得跑它的时候才会跑。** 把需要手跑的命令叫"门禁"，就等于宣称它会跑——
+> 所以本文档只用三个词：**门禁**（每次改动必跑，自动化）／**壳侧检查**（不是门禁，有明确触发条件，手跑）／**可选**（按需）。
+
+- **门禁 = 两条，走解决方案筛选器 `D-player.slnf`（Core + WPF 壳 + Tests），每次改动都跑。**
+  用 `.slnf` 而不是 `D-player.sln`，是为了让每次构建/测试都不把 WinUI 的 Windows App SDK 工具链拖进来。
 
 ```bash
 dotnet restore D-player.slnf
@@ -74,6 +80,26 @@ dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁一：0 警告 
 dotnet test    D-player.slnf -c Debug -v q               # 门禁二：180 通过 0 失败（切勿加 --nologo，见下）
 dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 ```
+
+- **壳侧检查 = WinUI 单工程构建。它不是门禁（没有任何自动化会跑它），但有确定的触发条件：
+  `D-player.Core` 的公开面一变就跑**——构造函数参数、`IFileDialogService` 新成员、`HandleDoubleClickPlay`
+  的元数、`ViewedPlaylist` 的 setter……这类改动让 `.slnf` 门禁**照样全绿**，而 WinUI 壳已经在编译错误里烂掉。
+  改到 WinUI 本身时同样要跑。首次 restore 之后是增量构建，实测约 **9 秒**，没有理由省。
+
+```bash
+dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q   # 壳侧检查（不是门禁）
+```
+
+- **两条一起跑的脚本（推荐，会逐步 fail-fast）**：
+
+```bash
+powershell -File tools/verify-gates.ps1 -Fast   # = 门禁一 + 门禁二
+powershell -File tools/verify-gates.ps1 -Full   # = 门禁一 + 门禁二 + 壳侧检查
+```
+
+- **可选**：`dotnet build D-player.sln`（整解，四个工程）只在要确认 IDE「Build Solution」没被打挂时跑。
+
+**这条触发条件不是抽象风险，是量出来的**：整支分支评审把 `MainWindow.xaml.cs` 里一条 `using` 报成"死引用可以清"、并以此驳回了台账里的那条 minor，而它的判断在事实上是反的。逐条删除实测（WASDK 2.5.1）：删 `Microsoft.UI.Composition.SystemBackdrops` → 仍 **0 警告 0 错误**（确实死，本波已删并留注释）；删 `Microsoft.UI.Xaml.Media` → **CS0246**，因为 `MicaBackdrop` 在 2.5.1 里就住在这个命名空间。要害不在于哪一条该删，而在于 **`.slnf` 门禁根本不编译 WinUI**：这类"看着像死引用"的整理，删错了只有手跑壳侧构建才会发现——所以它必须有一条明确的触发条件，而不是被叫做"门禁"然后没人跑。
 
 可执行文件输出于 `bin/Debug/net10.0-windows/D-player.exe`。
 
@@ -84,7 +110,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
     --self-contained false /p:PublishSingleFile=true
 ```
 
-跑 WinUI 3 壳（第二壳，刻意不在门禁里，只单独构建）：
+跑 WinUI 3 壳（第二壳；构建检查的触发条件见上，它不在门禁里）：
 
 ```bash
 dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q
@@ -93,7 +119,7 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 
 两条命令都不需要额外传 `-p:Platform=x64`（`<Platforms>` 只声明支持面、不设默认值，所以 csproj 里同时钉了 `<Platform>x64</Platform>`）。它的数据目录与 WPF 壳分开（`%LocalAppData%\D-player-winui\`），也没有导入入口——首启是空状态，怎么喂测试数据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 2.1 节。
 
-**要一次 restore 全部四个工程（含 WinUI）时才用 `dotnet restore D-player.sln`**：它会首次从 nuget.org 拉 `Microsoft.WindowsAppSDK`（2.5.1，带 9 个子包），实测约 8.1 分钟，且自包含输出目录很大。**日常门禁请走上面的 `.slnf` 三条命令**（构建约 2 秒级），整解构建只在改到 WinUI 或要验证 IDE「Build Solution」时跑。
+**要一次 restore 全部四个工程（含 WinUI）时才用 `dotnet restore D-player.sln`**：它会首次从 nuget.org 拉 `Microsoft.WindowsAppSDK`（2.5.1，带 9 个子包），实测约 8.1 分钟，且自包含输出目录很大。**日常请走上面的 `.slnf` 门禁两条命令**（构建约 2 秒级）；`tools/verify-gates.ps1 -Full` 会把壳侧构建检查也带上（增量，秒级）。
 
 ## 测试
 
@@ -105,7 +131,7 @@ dotnet test D-player.slnf -c Debug                          # 同一个 runner �
 
 两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
-当前共 **180** 个单元测试（Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测，**WinUI 壳则按 Phase 20 的设计完全不进门禁、也没有单测**，两者都由手动验收把关。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
+当前共 **180** 个单元测试（Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。**这 180 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖，也没有任何自动回归**——它只有一条需要手跑的壳侧构建检查（触发条件见"构建与运行"），其余靠真机手测。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
 
 ---
 
@@ -117,7 +143,7 @@ dotnet test D-player.slnf -c Debug                          # 同一个 runner �
 D-player/                          # 仓库根 = WPF 壳工程
 ├── App.xaml(.cs)        # WPF 壳入口：UI 线程建 DI 容器、注册本壳的 IFileDialogService、加载主窗口
 ├── D-player.csproj / .sln         # WPF 壳工程 / 四工程全量解决方案（IDE 用，不是门禁）
-├── D-player.slnf      # 主门禁筛选器：Core + WPF 壳 + Tests（WinUI 刻意不进，见"构建与运行"）
+├── D-player.slnf      # 门禁筛选器（门禁一/门禁二的命令载体）：Core + WPF 壳 + Tests；WinUI 刻意不进，它的壳侧构建检查见"构建与运行"
 ├── global.json        # 测试 runner 路由（.NET 10 SDK 原生 opt-in）——不要删除：删掉后 `dotnet test D-player.slnf` 就失败
 ├── appsettings.json   # 构建时默认配置（两壳共用同一份，WinUI 侧链接复制）
 ├── Views/             # WPF XAML 视图、对话框（Settings/Equalizer/Prompt）、自定义控件
@@ -131,12 +157,13 @@ D-player/                          # 仓库根 = WPF 壳工程
 │   ├── ViewModels/               # MainViewModel 门面 + Player/Playlist/Playlists 子 VM + 导入报告文案格式化器
 │   └── Extensions/               # DI 注册扩展 AddDPlayerCore(IConfiguration, DPlayerDataPaths)
 │
-├── D-player.WinUI/               # WinUI 3 壳（第二壳，unpackaged + self-contained + x64；不在任何门禁里）
+├── D-player.WinUI/               # WinUI 3 壳（第二壳，unpackaged + self-contained + x64；不进门禁，壳侧构建检查在 Core 公开面变化时手跑）
 │   ├── App.xaml(.cs)             # UI 线程建容器（数据目录 D-player-winui）+ 注册本壳的 IFileDialogService
 │   ├── MainWindow.xaml(.cs)      # 切片主窗口：标题栏区 + NavigationView + 曲目 ListView + 底部播放器栏
 │   └── Services/                 # WinUiFileDialogService（切片期空实现：三个方法各返回"用户取消"）
 │
 ├── Tests/               # xUnit v3 测试项目（可执行程序，跑 MTP；只引用 Core）
+├── tools/               # 校验脚本：verify-gates.ps1（门禁两条 + 壳侧检查，-Fast / -Full）+ coupling-audit/（Phase 15 耦合审计 M1–M6）
 └── docs/                # 项目文档、耦合登记册、Phase 20 对比材料、各阶段设计稿与实现计划
 ```
 
@@ -193,7 +220,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 17 | UI 深度深色定制（无边框自定义标题栏 + ComboBox/CheckBox/ScrollBar 等深色化） |
 | 18 | 播放列表文件导入导出（M3U/M3U8/PLS 导入 + M3U8 导出） |
 | 19 | 依赖迁移（NAudio 收窄为 Core + Wasapi、输出改经 `WasapiPlayerBuilder` 建 `WasapiPlayer`、测试栈迁到 xunit.v3；无产品行为变化） |
-| 20 | WinUI 3 第二 UI 壳：抽出 WPF-free 的 `D-player.Core`、数据目录由壳注入、主门禁改用 `D-player.slnf`、做出第一条纵向切片并交付对比材料（WPF 壳行为与外观零变化；**续投还是停止的决策门尚未发生**） |
+| 20 | WinUI 3 第二 UI 壳：抽出 WPF-free 的 `D-player.Core`、数据目录由壳注入、门禁改用 `D-player.slnf`、做出第一条纵向切片并交付对比材料（WPF 壳行为与外观零变化；**续投还是停止的决策门尚未发生**） |
 
 每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。Phase 20 的两壳对比材料与决策门记录位在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。
 
@@ -206,4 +233,4 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
 - 按艺术家/专辑组织的音乐库视图尚未实现。
-- **WinUI 3 壳是切片，不是可用的日常播放器**：没有导入/新建入口（首启空状态，需手工放测试数据才能看到曲目列表）、没有频谱/拖拽/对话框/EQ/设置/导入导出/音量/上下一首/随机循环/表头排序，且不进任何门禁（XAML 编译、左栏逻辑、关闭落盘均无自动回归）。去留由 Phase 20 决策门判定，见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。
+- **WinUI 3 壳是切片，不是可用的日常播放器**：没有导入/新建入口（首启空状态，需手工放测试数据才能看到曲目列表）、没有频谱/拖拽/对话框/EQ/设置/导入导出/音量/上下一首/随机循环/表头排序，且不进门禁（XAML 编译、左栏逻辑、关闭落盘均无自动回归；它唯一的自动化保护是**需要手跑**的壳侧构建检查，`powershell -File tools/verify-gates.ps1 -Full`，触发条件见"构建与运行"）。去留由 Phase 20 决策门判定，见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。

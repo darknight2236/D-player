@@ -23,6 +23,7 @@
 - **Core 必须 WPF-free**：`D-player.Core/` 下不得出现 `System.Windows.*` / `PresentationFramework` / `ICollectionView` / `CollectionViewSource`。可 grep 验证（四个类型名一个都不能少，与 `docs/PROJECT.md` §9 的自检同口径；Step 10 用的是同一条命令）：`grep -rn "System.Windows\|PresentationFramework\|ICollectionView\|CollectionViewSource" D-player.Core --include=*.cs | grep -v "/obj/\|/bin/"` 无命中。
 - **WPF 版行为与视觉零变化**：Task 1-2 只做搬迁与依赖注入改造，不改任何业务逻辑、不改 XAML 外观、不动播放链与并发不变量（Phase 19 契约）。
 - **WinUI 工程不得进入主门禁**：`D-player.slnf` 只含 `D-player.Core`、`D-player`、`Tests/D-player.Tests`；WinUI 只以 csproj 单独构建。
+  > **勘误（最终修复波 · 词汇与触发条件）**：本行"单独构建"留了一个空洞——**谁在什么时候跑它**没写，于是后续文档把它叫成"门禁三"/"门禁三件套（含单壳构建）"，把手跑命令写成了必然发生的事实，README 甚至把触发方向写反了（"整解构建只在改到 WinUI 时跑"）。收口后的唯一口径（`README.md`「构建与运行」、`docs/PROJECT.md` §4.3 第 28 条与 §8.2、`docs/COUPLING.md` §5）是三层词汇：**门禁 = `.slnf` 构建 + `.slnf` 测试，每次改动必跑**；**WinUI 单工程构建 = 壳侧检查，不是门禁，触发条件是 `D-player.Core` 的公开面一变就跑**（外加任何改到 WinUI 本身的时候；增量后实测约 9 秒）；**整解 `.sln` 构建 = 可选**。一键：`powershell -File tools/verify-gates.ps1 -Fast|-Full`。本文件保留"主门禁"等原措辞作为历史归档，读到它们时按上面的三层词汇理解。
 - **数据隔离**：WPF 壳用 `%LocalAppData%\D-player\`，WinUI 壳用 `%LocalAppData%\D-player-winui\`；两壳不得共用目录（无跨进程锁）。
 - **CLI 构造契约**：两个壳都必须在 **UI 线程**构造 DI 容器（`NAudioPlaybackService` 构造时捕获 `SynchronizationContext` 用于事件封送）。
 - 行尾纪律：仓库 `core.autocrlf=true`；**Edit 工具会把 CRLF 静默转 LF** → 改完 `git ls-files --eol <file>` 必须是 `i/lf    w/crlf`，否则 `unix2dos <file>`；**禁用 `sed -i`**。

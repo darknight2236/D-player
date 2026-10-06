@@ -28,6 +28,18 @@ public sealed class NAudioPlaybackService : IPlaybackService
     private PlayState _state = PlayState.Stopped;
     private float _volume = 0.8f;
 
+    /// <summary>
+    /// 播放链生命周期闸门。LoadAsync 在线程池上重建整条链，而 Unload/Dispose/传输命令
+    /// 可能来自 UI 线程；没有串行化时，后一次重建的 DisposePlayback 会释放前一次
+    /// 正在 Init 的 WasapiOut 实例（audioClient 被置空 / COM 包装分离），异常从
+    /// NAudio 内部抛出并冒到 async void 事件处理器 —— 表现为"播完一首歌后进程崩溃"。
+    ///
+    /// 纪律：持锁期间不得 await；不得阻塞等待 UI 线程（事件一律 Post 异步派发）。
+    /// NAudio 播放线程上的 OnPlaybackStopped **不能**取此锁：持锁方可能正阻塞在
+    /// _wavePlayer.Stop() 的 Join(playThread) 上，取锁会立即死锁。
+    /// </summary>
+    private readonly object _chainGate = new();
+
     // Phase 13: 频谱分析
     private SampleAggregator? _sampleAggregator;
     private SpectrumConfig _spectrumConfig = new();
@@ -107,83 +119,101 @@ public sealed class NAudioPlaybackService : IPlaybackService
     {
         await Task.Run(() =>
         {
-            DisposePlayback();
-
-            try
+            lock (_chainGate)
             {
-                _reader = new MediaFoundationReader(track.FilePath);
+                DisposePlayback();
 
-                // Phase 13/14: ToSample → EqualizerSampleProvider → SampleAggregator
-                // EQ 置于 SampleAggregator 之前 → 频谱可视化反映 EQ 处理后的信号
-                var sampleProvider = _reader.ToSampleProvider();
-                _equalizer = new EqualizerSampleProvider(sampleProvider, _equalizerConfig);
-                _sampleAggregator = new SampleAggregator(_equalizer, _spectrumConfig);
-                _sampleAggregator.SpectrumDataReady += OnSpectrumDataReady;
-
-                _volumeProvider = new VolumeSampleProvider(_sampleAggregator)
+                try
                 {
-                    Volume = _volume
-                };
-                _wavePlayer = new WasapiOut(AudioClientShareMode.Shared, 100);
-                _wavePlayer.Init(_volumeProvider);
+                    _reader = new MediaFoundationReader(track.FilePath);
 
-                _wavePlayer.PlaybackStopped += OnPlaybackStopped;
+                    // Phase 13/14: ToSample → EqualizerSampleProvider → SampleAggregator
+                    // EQ 置于 SampleAggregator 之前 → 频谱可视化反映 EQ 处理后的信号
+                    var sampleProvider = _reader.ToSampleProvider();
+                    _equalizer = new EqualizerSampleProvider(sampleProvider, _equalizerConfig);
+                    _sampleAggregator = new SampleAggregator(_equalizer, _spectrumConfig);
+                    _sampleAggregator.SpectrumDataReady += OnSpectrumDataReady;
 
-                // 用解码器实测值回填 Track；调用方传入的 Duration 通常为 Zero
-                _currentTrack = track with
+                    _volumeProvider = new VolumeSampleProvider(_sampleAggregator)
+                    {
+                        Volume = _volume
+                    };
+                    _wavePlayer = new WasapiOut(AudioClientShareMode.Shared, 100);
+                    _wavePlayer.Init(_volumeProvider);
+
+                    _wavePlayer.PlaybackStopped += OnPlaybackStopped;
+
+                    // 用解码器实测值回填 Track；调用方传入的 Duration 通常为 Zero
+                    _currentTrack = track with
+                    {
+                        Duration = _reader.TotalTime,
+                        SampleRate = _reader.WaveFormat.SampleRate
+                    };
+
+                    // 先归零 Position，再广播新 Duration —— 否则切换到时长更短的曲目时，
+                    // VM 的旧 Position（如上一首播完的 4:05）会和新 Duration（3:20）短暂并存，
+                    // 进度条出现"4:05 / 3:20"的越界显示，直到下一帧 PollPositionAsync 才纠正。
+                    RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
+                    RaiseOnUIThread(DurationChanged, _reader.TotalTime);
+                    RaiseOnUIThread(TrackChanged, _currentTrack);
+                }
+                catch (Exception ex)
                 {
-                    Duration = _reader.TotalTime,
-                    SampleRate = _reader.WaveFormat.SampleRate
-                };
-
-                // 先归零 Position，再广播新 Duration —— 否则切换到时长更短的曲目时，
-                // VM 的旧 Position（如上一首播完的 4:05）会和新 Duration（3:20）短暂并存，
-                // 进度条出现"4:05 / 3:20"的越界显示，直到下一帧 PollPositionAsync 才纠正。
-                RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
-                RaiseOnUIThread(DurationChanged, _reader.TotalTime);
-                RaiseOnUIThread(TrackChanged, _currentTrack);
-            }
-            catch (Exception ex)
-            {
-                RaiseOnUIThread(PlaybackError, ex.Message);
-                throw;
+                    RaiseOnUIThread(PlaybackError, ex.Message);
+                    throw;
+                }
             }
         });
     }
 
     public void Play()
     {
-        if (_wavePlayer == null) return;
-        _wavePlayer.Play();
-        SetState(PlayState.Playing);
+        lock (_chainGate)
+        {
+            if (_wavePlayer == null) return;
+            _wavePlayer.Play();
+            SetState(PlayState.Playing);
+        }
         _ = PollPositionAsync(); // fire-and-forget：循环在 PlaybackState!=Playing 时自然退出
     }
 
     public void Pause()
     {
-        if (_wavePlayer == null) return;
-        _wavePlayer.Pause();
-        SetState(PlayState.Paused);
+        lock (_chainGate)
+        {
+            if (_wavePlayer == null) return;
+            _wavePlayer.Pause();
+            SetState(PlayState.Paused);
+        }
     }
 
     public void Stop()
     {
-        if (_wavePlayer == null) return;
-        _wavePlayer.Stop();
-        // 同时将播放头归零，下次 Play 从头开始
-        if (_reader != null)
-            _reader.CurrentTime = TimeSpan.Zero;
-        SetState(PlayState.Stopped);
+        lock (_chainGate)
+        {
+            if (_wavePlayer == null) return;
+            _wavePlayer.Stop();
+            // 同时将播放头归零，下次 Play 从头开始
+            if (_reader != null)
+                _reader.CurrentTime = TimeSpan.Zero;
+            SetState(PlayState.Stopped);
+        }
     }
 
     public void Seek(TimeSpan position)
     {
-        if (_reader == null) return;
-        _reader.CurrentTime = position;
+        TimeSpan clamped;
+        lock (_chainGate)
+        {
+            if (_reader == null) return;
+            _reader.CurrentTime = position;
+            // Clamp 到 [0, TotalTime]：解码器对 seek 到尾部允许越界几十毫秒。
+            clamped = ClampToDuration(_reader.CurrentTime);
+        }
+
         // 主动广播一次新位置：暂停态下 PollPositionAsync 已退出，否则 VM.Position 不刷新，
         // 进度条会停留在旧位置直到用户按 Play 才被轮询拽回（用户视角看起来像"没跳转"）。
-        // Clamp 到 [0, TotalTime]：解码器对 seek 到尾部允许越界几十毫秒。
-        RaiseOnUIThread(PositionChanged, ClampToDuration(_reader.CurrentTime));
+        RaiseOnUIThread(PositionChanged, clamped);
     }
 
     /// <summary>
@@ -193,8 +223,11 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// </summary>
     public void Unload()
     {
-        DisposePlayback();
-        _currentTrack = null;
+        lock (_chainGate)
+        {
+            DisposePlayback();
+            _currentTrack = null;
+        }
         RaiseOnUIThread(TrackChanged, (Track?)null);
         RaiseOnUIThread(DurationChanged, TimeSpan.Zero);
         RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
@@ -226,11 +259,24 @@ public sealed class NAudioPlaybackService : IPlaybackService
             return;
         }
 
-        // 自然播完判定：播放头距 TotalTime 不超过容差，且时长大于 0（避免空 reader 误判）
+        // 自然播完判定：播放头距 TotalTime 不超过容差，且时长大于 0（避免空 reader 误判）。
+        // 本方法运行在 NAudio 播放线程上，不能取 _chainGate —— 持锁方可能正阻塞在
+        // _wavePlayer.Stop() 的 Join(playThread) 上，取锁会立即死锁。因此这里只做防御性读取：
+        // reader 可能正被并发的 DisposePlayback 释放，而在音频线程上抛出会直接崩进程。
+        bool naturalEnd = false;
         var reader = _reader;
-        bool naturalEnd = reader != null
-            && reader.TotalTime > TimeSpan.Zero
-            && (reader.TotalTime - reader.CurrentTime) <= NaturalEndTolerance;
+        if (reader != null)
+        {
+            try
+            {
+                naturalEnd = reader.TotalTime > TimeSpan.Zero
+                    && (reader.TotalTime - reader.CurrentTime) <= NaturalEndTolerance;
+            }
+            catch
+            {
+                // reader 已被并发释放 → 按"非自然结束"处理
+            }
+        }
 
         if (naturalEnd)
         {
@@ -322,6 +368,9 @@ public sealed class NAudioPlaybackService : IPlaybackService
 
     public void Dispose()
     {
-        DisposePlayback();
+        lock (_chainGate)
+        {
+            DisposePlayback();
+        }
     }
 }

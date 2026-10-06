@@ -6,6 +6,11 @@
         <RootNamespace>DPlayer.WinUI</RootNamespace>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <Platforms>x64</Platforms>
+        <!-- Platforms 只声明"支持哪些平台"、不设默认值：SDK 求值出的 Platform 仍是 AnyCPU，
+             而 WASDK 的 WindowsAppSDKSelfContained.targets 只认 x64/arm64/x86，裸 dotnet build/run
+             会直接报 "requires a supported Windows architecture"。这里把默认平台钉成 x64，
+             让文档里的裸命令可用（Platforms 已限定只有 x64 可选，故不引入新约束）。 -->
+        <Platform>x64</Platform>
         <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
         <UseWinUI>true</UseWinUI>
         <Nullable>enable</Nullable>
@@ -18,6 +23,19 @@
     <ItemGroup>
         <!-- 本机实测: 原先的 Version="*" 解析到 2.5.1, 故钉死具体版本以保证可复现构建 -->
         <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\D-player.Core\D-player.Core.csproj" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.*" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- 与 WPF 壳共用同一份 appsettings.json（链接到输出目录，不复制第二份真相） -->
+        <None Include="..\appsettings.json" Link="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>

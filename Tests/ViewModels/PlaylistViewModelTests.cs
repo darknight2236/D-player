@@ -373,4 +373,14 @@ public class PlaylistViewModelTests
         Assert.Contains("被占用", error);
         Assert.StartsWith("导出失败：", error);
     }
+
+    // —— Phase 20 切片: 按索引播放（WinUI 列表双击入口） ——
+
+    [Fact]
+    public async Task PlayIndexAsync_OutOfRange_DoesNothing()
+    {
+        var vm = CreateVm();               // 复用本文件既有的构造 helper
+        await vm.PlayIndexAsync(99);
+        Assert.Equal(-1, vm.CurrentIndex);
+    }
 }

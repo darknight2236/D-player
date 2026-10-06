@@ -28,9 +28,19 @@ function Get-Layer([string]$ns) {
 # D-player.WinUI is the second UI shell and has its own layer dirs (Services), so it
 # needs to be a scan root as well; without it the shell is invisible to M1/M5/M6 (a
 # WinUI-only consumer of a registered service would still show up as "unconsumed").
+# The WPF shell is a project directory too (the repo root holds its App.xaml.cs / Views /
+# Converters, but its Services live under .\D-player\Services since Phase 20), so it gets
+# a root of its own - otherwise that file silently drops out of the set it used to be in.
+# KNOWN BLIND SPOT (documented in docs/COUPLING.md section 5, not fixed here): only layer
+# dirs are collected per scan root, plus the repo root's own top-level *.cs below. So the
+# WPF shell's root-level App.xaml.cs IS in the set (it shows up as the Root layer), while
+# D-player.WinUI\App.xaml.cs and MainWindow.xaml.cs are NOT (their namespace DPlayer.WinUI
+# is not one of the seven layer names). Widening that means changing the collection rule
+# for every project, which would reset M1/M3/M5 baselines.
 $scanRoots = @(
     (Join-Path $RepoRoot 'D-player.Core'),
     (Join-Path $RepoRoot 'D-player.WinUI'),
+    (Join-Path $RepoRoot 'D-player'),
     $RepoRoot
 )
 

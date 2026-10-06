@@ -148,7 +148,10 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     };
 
     /// <summary>
-    /// PlaylistView 双击播放回调入口。如果双击的不是当前正在播放的歌单, 切 CurrentPlaylistId;
+    /// 双击播放的唯一入口，**两壳共用**（WPF: Views/Controls/PlaylistView.xaml.cs；
+    /// WinUI: D-player.WinUI/MainWindow.xaml.cs）—— 不是 PlaylistView 专属回调，
+    /// 给单个壳加并行入口会让同一个手势的语义分叉（COUPLING §5 / PROJECT §4.3 第 30 条）。
+    /// 如果双击的不是当前正在播放的歌单, 切 CurrentPlaylistId;
     /// 然后让目标 VM 跑现有的 PlayTrackAtCommand。CommunityToolkit IAsyncRelayCommand
     /// 暴露 ExecuteAsync(object?), 调用方可以 await。
     /// </summary>

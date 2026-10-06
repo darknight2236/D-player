@@ -1,11 +1,14 @@
 # D-player
 
-> 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
+> 一个轻量级、本地优先的 Windows 音乐播放器（.NET 10 + NAudio）。
+> 共享层 `D-player.Core`（WPF-free）之上跑两套 UI 壳：**WPF 壳**（完整功能，日常使用的那一个）与 **WinUI 3 壳**（Phase 20 的第一条纵向切片，用于对比去留）。
 > 灵感来源于 foobar2000。原名 UmaPlayer。
 
 ---
 
 ## 特性
+
+> 下列是 **WPF 壳**的完整能力。WinUI 3 壳目前只有"歌单导航 + 曲目列表 + 播放器栏 + 真机可播 + 断点续播"这条纵向切片，缺的部分（频谱 / 拖拽 / 对话框 / EQ / 设置 / 导入导出 / 音量 / 上下一首 / 随机循环 / 排序表头）逐项列在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 3 节。
 
 - **播放**：播放 / 暂停 / 上一首 / 下一首 / 随机 / 循环；拖拽 + 单击跳转进度条（≈30 Hz 节流刷新）；音量滑块 + 一键静音。
 - **格式**：MP3 / WMA / FLAC / AAC / WAV（Windows Media Foundation 原生解码）。
@@ -21,6 +24,8 @@
 
 ## 界面布局
 
+WPF 壳：
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │            标题栏 (TitleBar)   ─  □  ✕                   │
@@ -33,14 +38,17 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
+WinUI 3 壳（Phase 20 切片）：自绘标题栏区 + 左 `NavigationView` 歌单栏 + 中区曲目列表 + 底部播放器栏（播放/暂停 + 进度 + 时间），深色 Fluent + Mica 材质。频谱、EQ、设置、对话框均无。
+
 ---
 
 ## 技术栈
 
 | 层 | 选型 |
 |----|------|
-| 运行时 | .NET 10（`net10.0-windows`） |
-| UI 框架 | WPF（`UseWPF=true`） |
+| 运行时 | .NET 10（共享层与 WPF 壳 `net10.0-windows`；WinUI 壳 `net10.0-windows10.0.19041.0` + x64） |
+| UI 框架 | WPF（`UseWPF=true`，主壳）· WinUI 3 / Windows App SDK 2.5.1（第二壳，unpackaged + self-contained） |
+| 共享层 | `D-player.Core` 类库（`net10.0-windows`，不开 `UseWPF`）：Models / Services / ViewModels / Configuration / DI 注册 |
 | MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
 | DI 容器 | `Microsoft.Extensions.DependencyInjection` 10.x |
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
@@ -52,15 +60,19 @@
 
 ## 环境要求
 
-- Windows 10 / 11
+- Windows 10 / 11（WinUI 壳需 Windows 10 2004（build 19041）及以上；self-contained 形态不需另装 Windows App SDK 运行时）
 - .NET 10 SDK
+- 构建 WinUI 壳需要 nuget.org 可达（首次 restore 会拉 Windows App SDK）
 
 ## 构建与运行
 
+**主门禁用解决方案筛选器 `D-player.slnf`（Core + WPF 壳 + Tests），不用 `D-player.sln`**——这样每次构建/测试都不会把 WinUI 的 Windows App SDK 工具链拖进来：
+
 ```bash
-dotnet restore D-player.sln
-dotnet build   D-player.sln -c Debug
-dotnet run     --project D-player.csproj
+dotnet restore D-player.slnf
+dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁一：0 警告 0 错误
+dotnet test    D-player.slnf -c Debug -v q               # 门禁二：180 通过 0 失败（切勿加 --nologo，见下）
+dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 ```
 
 可执行文件输出于 `bin/Debug/net10.0-windows/D-player.exe`。
@@ -72,49 +84,78 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
     --self-contained false /p:PublishSingleFile=true
 ```
 
+跑 WinUI 3 壳（第二壳，刻意不在门禁里，只单独构建）：
+
+```bash
+dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q
+dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
+```
+
+两条命令都不需要额外传 `-p:Platform=x64`（`<Platforms>` 只声明支持面、不设默认值，所以 csproj 里同时钉了 `<Platform>x64</Platform>`）。它的数据目录与 WPF 壳分开（`%LocalAppData%\D-player-winui\`），也没有导入入口——首启是空状态，怎么喂测试数据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 2.1 节。
+
+**要一次 restore 全部四个工程（含 WinUI）时才用 `dotnet restore D-player.sln`**：它会首次从 nuget.org 拉 `Microsoft.WindowsAppSDK`（2.5.1，带 9 个子包），实测约 8.1 分钟，且自包含输出目录很大。**日常门禁请走上面的 `.slnf` 三条命令**（构建约 2 秒级），整解构建只在改到 WinUI 或要验证 IDE「Build Solution」时跑。
+
 ## 测试
 
 ```bash
 # xunit v3 的测试工程是可执行程序，runner 是 Microsoft.Testing.Platform（MTP）
 dotnet run --project Tests/D-player.Tests.csproj -c Debug   # 直接跑可执行程序
-dotnet test D-player.sln -c Debug                           # 同一个 runner 的另一条命令
+dotnet test D-player.slnf -c Debug                          # 同一个 runner 的另一条命令（门禁二）
 ```
 
-两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。
+两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
-当前共 **172** 个单元测试（Models / Services / ViewModels 全覆盖 + View 层纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测，由手动验收把关）。
+当前共 **180** 个单元测试（Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测，**WinUI 壳则按 Phase 20 的设计完全不进门禁、也没有单测**，两者都由手动验收把关。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
 
 ---
 
 ## 项目结构
 
+仓库根目录本身就是 WPF 壳的工程目录（`D-player.csproj` 在根上）：
+
 ```
-D-player/
-├── App.xaml(.cs)        # 应用入口：构建 DI 容器、加载主窗口
-├── global.json          # 测试 runner 路由（.NET 10 SDK 原生 opt-in）——不要删除：删掉后 `dotnet test D-player.sln` 就失败
-├── Configuration/       # AppSettings 强类型配置 record
-├── Models/              # 不可变 record 数据模型（Track / Playlist / QueueState / EqualizerConfig …）
-├── Services/            # 业务与基础设施服务（接口 + 实现：播放/持久化/元数据/扫描/缓存/播放列表文件读写）
-├── ViewModels/          # MVVM ViewModel（MainViewModel 门面 + Player/Playlist/Playlists 子 VM）
-├── Views/               # XAML 视图、对话框（Settings/Equalizer/Prompt）、自定义控件
-├── Converters/          # 值转换器
-├── Themes/              # 深色主题资源字典（Colors / Fonts / Controls）
-├── Extensions/          # DI 注册扩展（AddDPlayerServices）
-├── Tests/               # xUnit v3 测试项目（可执行程序，跑 MTP）
-└── docs/                # 项目文档、耦合登记册、各阶段设计稿与实现计划
+D-player/                          # 仓库根 = WPF 壳工程
+├── App.xaml(.cs)        # WPF 壳入口：UI 线程建 DI 容器、注册本壳的 IFileDialogService、加载主窗口
+├── D-player.csproj / .sln         # WPF 壳工程 / 四工程全量解决方案（IDE 用，不是门禁）
+├── D-player.slnf      # 主门禁筛选器：Core + WPF 壳 + Tests（WinUI 刻意不进，见"构建与运行"）
+├── global.json        # 测试 runner 路由（.NET 10 SDK 原生 opt-in）——不要删除：删掉后 `dotnet test D-player.slnf` 就失败
+├── appsettings.json   # 构建时默认配置（两壳共用同一份，WinUI 侧链接复制）
+├── Views/             # WPF XAML 视图、对话框（Settings/Equalizer/Prompt）、自定义控件
+├── Converters/        # WPF 值转换器
+├── Themes/            # WPF 深色主题资源字典（Colors / Fonts / Controls / Icons）
+├── D-player/Services/ # 只属 WPF 壳的服务实现（Win32FileDialogService，包在 DPlayer.Services 命名空间下）
+│
+├── D-player.Core/                # 共享类库（net10.0-windows，不开 UseWPF；被两个壳引用）
+│   ├── Models/ Configuration/    # 不可变 record 数据模型 + AppSettings + DPlayerDataPaths（数据目录由壳注入）
+│   ├── Services/                 # 播放/持久化/元数据/扫描/缓存/播放列表文件读写（接口 + 实现，无 UI 类型）
+│   ├── ViewModels/               # MainViewModel 门面 + Player/Playlist/Playlists 子 VM + 导入报告文案格式化器
+│   └── Extensions/               # DI 注册扩展 AddDPlayerCore(IConfiguration, DPlayerDataPaths)
+│
+├── D-player.WinUI/               # WinUI 3 壳（第二壳，unpackaged + self-contained + x64；不在任何门禁里）
+│   ├── App.xaml(.cs)             # UI 线程建容器（数据目录 D-player-winui）+ 注册本壳的 IFileDialogService
+│   ├── MainWindow.xaml(.cs)      # 切片主窗口：标题栏区 + NavigationView + 曲目 ListView + 底部播放器栏
+│   └── Services/                 # WinUiFileDialogService（切片期空实现：三个方法各返回"用户取消"）
+│
+├── Tests/               # xUnit v3 测试项目（可执行程序，跑 MTP；只引用 Core）
+└── docs/                # 项目文档、耦合登记册、Phase 20 对比材料、各阶段设计稿与实现计划
 ```
 
 ## 配置与数据
 
-- **构建时默认值**：`appsettings.json` 的 `"Player"` 节（启动快照）。
-- **运行时数据**（`%LocalAppData%\D-player\`）：
-  - `settings.json` — 窗口几何、默认音量、频谱与 EQ 设置
+- **构建时默认值**：`appsettings.json` 的 `"Player"` 节（启动快照，两壳共用同一份文件）。
+- **运行时数据目录由 UI 壳注入**（`DPlayerDataPaths`，两壳刻意分开——没有跨进程锁，共用目录会互相踩）：
+  - WPF 壳：`%LocalAppData%\D-player\`（与更名前的落盘位置一致，老用户数据不搬家；UmaPlayer → D-player 的一次性迁移也只属这个壳）
+  - WinUI 壳：`%LocalAppData%\D-player-winui\`（不做 UmaPlayer 迁移）
+- 目录内文件（两壳同构）：
+  - `settings.json` — 窗口几何、默认音量、频谱与 EQ 设置、断点续播位置
   - `queue.json` — 歌单与队列快照（Schema v3）
   - `library-cache.json` — 文件夹歌单的元数据缓存
 
 ## 架构概览
 
 严格分层、单向依赖：`View → ViewModel → Service → Model`；跨边界一律走接口；DI 容器集中注册（无 Service Locator、无 static 单例）。
+
+Phase 20 起分层落成物理边界：`D-player.Core` 持有 Models / Services / ViewModels / Configuration 与注册扩展 `AddDPlayerCore(IConfiguration, DPlayerDataPaths)`，**Core 里不得出现任何 WPF 类型**；每个壳在自己的入口里补注册 UI 相关服务（`IFileDialogService`）并传入本壳的数据目录名。
 
 播放链（`NAudioPlaybackService`）：
 
@@ -123,13 +164,13 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
                         （10 段 EQ，Phase 14）      （FFT 频谱，Phase 13）        （Shared + 事件同步 + 100ms，Phase 19）
 ```
 
-核心抽象：`IPlaybackService`、`IPlaylistService`、`ISettingsPersistence`、`ITrackMetadataReader`、`ILibraryScannerService`、`ILibraryCache`、`IPlaylistFileService`（Phase 18 播放列表文件读写门面：导入绝不抛、导出抛给 VM 转文案）。
+核心抽象：`IPlaybackService`、`IPlaylistService`、`ISettingsPersistence`、`ITrackMetadataReader`、`ILibraryScannerService`、`ILibraryCache`、`IPlaylistFileService`（Phase 18 播放列表文件读写门面：导入绝不抛、导出抛给 VM 转文案）、`IFileDialogService`（接口在 Core，实现各壳自给）。
 
 > 完整的模块详解、数据流、隐式契约登记册见 [`docs/PROJECT.md`](docs/PROJECT.md) 与 [`docs/COUPLING.md`](docs/COUPLING.md)。
 
 ---
 
-## 开发阶段（Phase 1–19）
+## 开发阶段（Phase 1–20）
 
 | Phase | 内容 |
 |-------|------|
@@ -152,8 +193,9 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 17 | UI 深度深色定制（无边框自定义标题栏 + ComboBox/CheckBox/ScrollBar 等深色化） |
 | 18 | 播放列表文件导入导出（M3U/M3U8/PLS 导入 + M3U8 导出） |
 | 19 | 依赖迁移（NAudio 收窄为 Core + Wasapi、输出改经 `WasapiPlayerBuilder` 建 `WasapiPlayer`、测试栈迁到 xunit.v3；无产品行为变化） |
+| 20 | WinUI 3 第二 UI 壳：抽出 WPF-free 的 `D-player.Core`、数据目录由壳注入、主门禁改用 `D-player.slnf`、做出第一条纵向切片并交付对比材料（WPF 壳行为与外观零变化；**续投还是停止的决策门尚未发生**） |
 
-每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。
+每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。Phase 20 的两壳对比材料与决策门记录位在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。
 
 ---
 
@@ -164,3 +206,4 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
 - 按艺术家/专辑组织的音乐库视图尚未实现。
+- **WinUI 3 壳是切片，不是可用的日常播放器**：没有导入/新建入口（首启空状态，需手工放测试数据才能看到曲目列表）、没有频谱/拖拽/对话框/EQ/设置/导入导出/音量/上下一首/随机循环/表头排序，且不进任何门禁（XAML 编译、左栏逻辑、关闭落盘均无自动回归）。去留由 Phase 20 决策门判定，见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。

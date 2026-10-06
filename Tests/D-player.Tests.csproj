@@ -32,6 +32,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\D-player.csproj" />
+    <ProjectReference Include="..\D-player.Core\D-player.Core.csproj" />
   </ItemGroup>
 </Project>

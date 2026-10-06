@@ -26,14 +26,29 @@
         <EmbeddedResource Remove="Tests/**" />
     </ItemGroup>
 
+    <!--
+      D-player.Core/ 同样是仓库根的兄弟目录(在本 csproj 同级), 上面那段 glob 隐患对它
+      一样成立: Core 的源与它自己的 obj/bin 生成物会被扫进 WPF 程序集重复编译。
+      因此对 Core 目录做同样的一组显式排除(注意 D-player/Services/ 不在排除之列,
+      Win32FileDialogService.cs 属于 WPF 壳, 必须继续被本工程编译)。
+    -->
     <ItemGroup>
-        <PackageReference Include="NAudio.Core" Version="3.1.0" />
-        <PackageReference Include="NAudio.Wasapi" Version="3.1.0" />
-        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
+        <Compile Remove="D-player.Core/**" />
+        <Page Remove="D-player.Core/**" />
+        <ApplicationDefinition Remove="D-player.Core/**" />
+        <Resource Remove="D-player.Core/**" />
+        <None Remove="D-player.Core/**" />
+        <EmbeddedResource Remove="D-player.Core/**" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.*" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />
         <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.*" />
-        <PackageReference Include="z440.atl.core" Version="7.18.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="D-player.Core\D-player.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>

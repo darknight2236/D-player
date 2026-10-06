@@ -1,0 +1,10 @@
+{
+  "solution": {
+    "path": "D-player.sln",
+    "projects": [
+      "D-player.Core\\D-player.Core.csproj",
+      "D-player.csproj",
+      "Tests\\D-player.Tests.csproj"
+    ]
+  }
+}

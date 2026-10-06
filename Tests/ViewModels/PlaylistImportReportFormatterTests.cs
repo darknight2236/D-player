@@ -1,9 +1,8 @@
 using System;
 using DPlayer.ViewModels;
-using DPlayer.Views.Controls;
 using Xunit;
 
-namespace DPlayer.Tests.Views;
+namespace DPlayer.Tests.ViewModels;
 
 /// <summary>PlaylistImportReportFormatter 文案分支测试（Phase 18）。</summary>
 public sealed class PlaylistImportReportFormatterTests

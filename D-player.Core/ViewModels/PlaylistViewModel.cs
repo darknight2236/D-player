@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DPlayer.Models;
@@ -60,9 +59,6 @@ public partial class PlaylistViewModel : ObservableObject
 
     private string? _sortColumn;
     private ListSortDirection _sortDirection = ListSortDirection.Ascending;
-
-    /// <summary>排序后的队列视图。ListBox 绑定此属性而非直接绑 Queue。</summary>
-    public ICollectionView SortedView { get; private set; }
 
     /// <summary>当前播放队列。ObservableCollection 自动通知 UI 增删改。</summary>
     public ObservableCollection<Track> Queue { get; } = new();
@@ -130,9 +126,6 @@ public partial class PlaylistViewModel : ObservableObject
             PlayCurrentCommand.NotifyCanExecuteChanged();
         };
 
-        // 排序视图：ListBox 绑定 SortedView，排序通过 SortDescriptions 驱动
-        SortedView = CollectionViewSource.GetDefaultView(Queue);
-
         // Port LoadFromDisk: 过滤不存在的文件, 重映射 CurrentIndex
         var seedItems = seed.Items ?? Array.Empty<string>();
         var existing = seedItems.Where(File.Exists).ToList();
@@ -185,8 +178,6 @@ public partial class PlaylistViewModel : ObservableObject
         // 跟踪当前播放曲的新位置
         if (currentTrack is not null)
             CurrentIndex = Queue.IndexOf(currentTrack);
-
-        OnPropertyChanged(nameof(SortedView));
     }
 
     private static object? GetSortKey(Track t, string column) => column switch

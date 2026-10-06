@@ -40,7 +40,8 @@ public partial class App : Application
             .Build();
 
         var services = new ServiceCollection();
-        services.AddDPlayerServices(configuration);
+        services.AddDPlayerCore(configuration);
+        services.AddSingleton<IFileDialogService, Win32FileDialogService>();
         _services = services.BuildServiceProvider();
 
         // 注意:MainWindow 需要 settings persistence 用于恢复/保存窗口位置,

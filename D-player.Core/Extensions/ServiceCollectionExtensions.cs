@@ -8,12 +8,13 @@ using DPlayer.ViewModels;
 namespace DPlayer.Extensions;
 
 /// <summary>
-/// DI 容器注册中心 —— 集中维护服务的生命周期与实现绑定，
-/// 让 App.OnStartup 只需一行 `services.AddDPlayerServices(configuration)`。
+/// DI 容器注册中心 —— 集中维护共享服务的生命周期与实现绑定，
+/// 让 App.OnStartup 只需一行 `services.AddDPlayerCore(configuration)`。
+/// UI 相关服务（文件对话框等）由各壳自行注册。
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddDPlayerServices(
+    public static IServiceCollection AddDPlayerCore(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -22,7 +23,6 @@ public static class ServiceCollectionExtensions
 
         // 业务服务（Singleton —— 持有音频设备/文件句柄等长期资源）
         services.AddSingleton<IPlaybackService, NAudioPlaybackService>();
-        services.AddSingleton<IFileDialogService, Win32FileDialogService>();
         services.AddSingleton<ISettingsPersistence, JsonSettingsPersistence>();
 
         // Phase 6: 多歌单持久化 (替换 IQueuePersistence)

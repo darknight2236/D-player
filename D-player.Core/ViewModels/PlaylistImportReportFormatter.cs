@@ -1,14 +1,13 @@
 using System.Collections.Generic;
 using System.Text;
-using DPlayer.ViewModels;
 
-namespace DPlayer.Views.Controls;
+namespace DPlayer.ViewModels;
 
 /// <summary>
 /// 把 VM 返回的结构化导入报告拼成中文提示文案（Phase 18）。
 ///
-/// 放 View 层的理由：侧边栏按钮、侧边栏拖拽、歌单工具栏按钮、列表区拖拽四个入口
-/// 共用同一套文案规则；VM 只提供数据（分层纪律：VM 不拼展示字符串）。
+/// 放共享层（Core/ViewModels）的理由：侧边栏按钮、侧边栏拖拽、歌单工具栏按钮、列表区拖拽四个入口
+/// 共用同一套文案规则，后续第二个 UI 壳也要复用；VM 只提供数据（分层纪律：VM 不拼展示字符串）。
 /// 纯字符串函数，无 WPF 依赖，因此可单测。
 /// </summary>
 public static class PlaylistImportReportFormatter

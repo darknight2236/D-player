@@ -120,7 +120,7 @@
                 </Style>
             </Border.Style>
             <ListBox x:Name="QueueList"
-                     ItemsSource="{Binding SortedView}"
+                     ItemsSource="{Binding Queue}"
                      SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
                      SelectionMode="Extended"
                      AllowDrop="True"

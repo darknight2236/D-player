@@ -88,8 +88,15 @@
             </Button>
             <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
                 <TextBlock Text="{x:Bind NowPlayingText, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                <!--
+                  进度条的拖动语义挂在 SliderBase 的 DragStarted / DragCompleted 上，**在代码后置里订阅**
+                  （MainWindow.xaml.cs 构造函数）：WinUI 的 XamlCompiler 不认 markup 写法
+                  —— `DragStarted="…"` 报 WMC0011 "Unknown member"，`prim:Thumb.DragStarted="…"`
+                  报 WMC0010 "Unknown attachable member"（两者都在本壳上实测过，2026-10-07）。
+                  Value 绑的是 Core 的 `PlayerViewModel.PositionNormalized`（壳侧不抄第二份公式，见 A4）。
+                -->
                 <Slider x:Name="PositionSlider" Minimum="0" Maximum="1"
-                        Value="{x:Bind PositionFraction, Mode=OneWay}"
+                        Value="{x:Bind Player.PositionNormalized, Mode=OneWay}"
                         ValueChanged="Position_Changed"
                         AutomationProperties.Name="播放进度" />
             </StackPanel>

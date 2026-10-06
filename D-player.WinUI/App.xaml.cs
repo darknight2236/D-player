@@ -26,7 +26,17 @@ public partial class App : Application
     private ServiceProvider? _services;
     private Window? _window;
 
-    public App() => InitializeComponent();
+    public App()
+    {
+        InitializeComponent();
+        // spec §4.4「保留 D-player 深色身份」：`Application.RequestedTheme = Dark`。
+        // 必须在 App 构造函数里、窗口内容建立之前设置（不设 = 跟随系统主题，
+        // 于是浅色 Windows 上两壳会看起来像两个产品）。真机取证（浅色系统下窗口仍是深色）见
+        // final-fix-report A1 节。类型注意：WinUI 3 的 `Application.RequestedTheme` 是
+        // `ApplicationTheme`（只有 Light/Dark 两个值），不是 FrameworkElement 上的 `ElementTheme`。
+        RequestedTheme = ApplicationTheme.Dark;
+    }
+
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {

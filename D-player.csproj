@@ -67,10 +67,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="D-player.Tests" />
-    </ItemGroup>
-
-    <ItemGroup>
         <None Update="appsettings.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>

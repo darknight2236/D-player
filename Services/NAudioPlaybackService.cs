@@ -40,6 +40,17 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// </summary>
     private readonly object _chainGate = new();
 
+    /// <summary>
+    /// 「本次停止是我们主动发起的」标记：Stop() / DisposePlayback() 在调用 NAudio 停止前
+    /// 置位，Play() 开始新的播放会话时清零。
+    ///
+    /// 为什么需要它：NAudio 的播放线程退出时会**同步**回调 PlaybackStopped（WasapiOut 在线程池
+    /// 线程上构造，SynchronizationContext 为 null），而 Stop() 内部 Join 该线程 —— 于是
+    /// "用户按停止"与"曲目自然播完"以同一个回调到达。仅凭"播放头距 TotalTime 在容差内"
+    /// 无法区分：用户在曲尾 200ms 内按停止会被误判为播完，向 VM 发出 TrackEnded 并自动推进下一首。
+    /// </summary>
+    private volatile bool _stopRequested;
+
     // Phase 13: 频谱分析
     private SampleAggregator? _sampleAggregator;
     private SpectrumConfig _spectrumConfig = new();
@@ -175,6 +186,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
         lock (_chainGate)
         {
             if (_wavePlayer == null) return;
+            _stopRequested = false; // 新的播放会话开始：此后的曲尾停止才是"自然播完"
             _wavePlayer.Play();
             SetState(PlayState.Playing);
         }
@@ -196,6 +208,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
         lock (_chainGate)
         {
             if (_wavePlayer == null) return;
+            _stopRequested = true; // 必须在 _wavePlayer.Stop() 之前置位：Join 期间播放线程会同步回调
             _wavePlayer.Stop();
             // 同时将播放头归零，下次 Play 从头开始
             if (_reader != null)
@@ -259,6 +272,15 @@ public sealed class NAudioPlaybackService : IPlaybackService
         if (e.Exception != null)
         {
             RaiseOnUIThread(PlaybackError, e.Exception.Message);
+            SetState(PlayState.Stopped);
+            return;
+        }
+
+        // 我们主动发起的停止（Stop/DisposePlayback）也会走到这里，且可能在播放头接近曲尾时发生。
+        // 停止意图由发起方显式标记 —— 少了这一步，用户在曲尾 200ms 内按停止会被误判为"自然播完"，
+        // 从而在停止之后又自动推进下一首。
+        if (_stopRequested)
+        {
             SetState(PlayState.Stopped);
             return;
         }
@@ -357,6 +379,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
 
         if (_wavePlayer != null)
         {
+            _stopRequested = true; // 拆链同样是我们发起的停止，别让它冒充"自然播完"
             _wavePlayer.PlaybackStopped -= OnPlaybackStopped;
             _wavePlayer.Stop();
             _wavePlayer.Dispose();

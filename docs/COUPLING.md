@@ -292,6 +292,11 @@ private void RemoveTrack(int index)
 | `SourceFolder = null` 是导入歌单的身份标记 | `PlaylistsViewModel.ImportPlaylistFileAsync` 的 `Playlist` seed | 设成非 null 会被当作文件夹绑定歌单，触发 library cache 读写与"刷新文件夹"按钮；导入歌单重启后必须走 `LoadMetadataForNormalPlaylistSync` 普通加载路径 |
 | `DropExternalFilesCommand` 的"paths 已过滤"契约新增调用方 | `PlaylistViewModel.ImportPlaylistFileAsync`（原本只有 View 拖拽入口） | VM 信任入参已过滤、不二次过滤；导入路径天然满足（过滤在服务层 `Classify` 完成）。任何新增调用方必须自己保证路径已过滤 |
 
+| **Bug 修复新增（播放链并发 / 曲尾停止，2026-10-06）** | | |
+| 播放链生命周期（`LoadAsync` 重建 / `Unload` / `Dispose` / 传输命令）统一受 `_chainGate` 串行化；持锁期间不得 await | `NAudioPlaybackService` 全部取锁点（`LoadAsync` 的 lambda 体、`Play`/`Pause`/`Stop`/`Seek`/`Unload`/`Dispose`） | 缺串行化时，重叠的 `LoadAsync`（或并发 `Unload`）会释放另一个正在 `Init` 的 `WasapiOut` 实例 —— 异常从 NAudio 内部（`WasapiOut.Init` / provider 构造）抛出并冒进 `async void` 事件处理器（进程崩溃）。commit `cb5ca1a` |
+| `OnPlaybackStopped`（NAudio 播放线程）**不得**取 `_chainGate` | `NAudioPlaybackService.OnPlaybackStopped` | 持锁方可能正阻塞在 `_wavePlayer.Stop()` 的 `Join(playThread)` 上；在播放线程回调里取同一把锁会立即死锁。该方法对 `_reader` 的读取因此是防御式的（并发拆除中的 reader 会抛） |
+| `TrackEnded` 只代表"曲目自然播完"：任何主动停止（`Stop()` / `DisposePlayback()`）都必须**先**置 `_stopRequested = true`，`Play()` 开新播放会话时清零 | `NAudioPlaybackService._stopRequested`（`OnPlaybackStopped` 命中即提前返回） | NAudio 播放线程退出时**同步**回调 PlaybackStopped（WasapiOut 建在线程池线程上、捕获的 `SynchronizationContext` 为 null），而 `Stop()` 内部 Join 该线程 —— 用户按停止与自然播完走同一个回调，仅凭"播放头距 TotalTime ≤ 200ms"无法区分。漏置位 = 曲尾 200ms 内按停止被误判为播完，停止后立刻自动推进下一首 |
+
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
 > **Phase 15 审计核对（M7）：** §5 全部契约与代码一致，无新增未登记契约。
@@ -355,6 +360,9 @@ private void RemoveTrack(int index)
 - ❌ **在 `SettingsDialog.Save_Click` 用 `ConfigureAwait(false)`**（Phase 13）—— await 后要直接写 `PlayerViewModel` 属性同步频谱设置，离开 UI 线程会异常（commit `a76d92a`）
 - ❌ **忘记在 `SpectrumView.Unloaded` 解绑 `CompositionTarget.Rendering`**（Phase 13）—— 全局渲染事件会持有控件引用导致内存泄漏
 - ❌ **让 `EqualizerSampleProvider.Update` 重建 `BiQuadFilter`（而非 `SetPeakingEq` 就地改）**（Phase 14）—— 重建会清空 x1/x2/y1/y2 延迟线，拖动滑块时爆音
+- ❌ **在 `NAudioPlaybackService` 里绕过 `_chainGate` 直接碰 `_wavePlayer` / `_reader` / 播放链字段**（新加传输命令也不例外）—— 会退回到"释放另一个正在 Init 的实例 → 异常冒进 async void"的崩溃面
+- ❌ **在 `OnPlaybackStopped`（NAudio 播放线程）里取 `_chainGate`** —— 持锁方可能正阻塞在 `Stop()` 的 `Join(playThread)` 上，取锁即死锁
+- ❌ **新增任何"主动停止播放"的路径时忘记置 `_stopRequested`** —— 曲尾 200ms 内的用户停止会被误报为自然播完，停止后自动推进下一首
 - ❌ **给 `IPlaybackService` 加成员却漏改 `PlaylistsViewModel` 内的手写 `NullPlaybackService`**（Phase 14）—— 它是该接口的第二个生产实现者，漏改会 CS0535 编译失败
 - ❌ **在 `EqualizerDialog.OnLoaded` 未抑制就填充预设下拉**（Phase 14）—— WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发 `SelectionChanged`，打开即误 push 一次 Flat/禁用配置扰动播放中的 EQ
 - ❌ **重新引入 emoji/字形图标**（Phase 16）—— 全应用统一走 `Themes/Icons.xaml` 矢量 `Path`；VM 层不得再出现图标字符串/Geometry（`VolumeIcon` 已移除）

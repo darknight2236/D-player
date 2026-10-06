@@ -29,39 +29,13 @@ public sealed class NAudioPlaybackServiceConcurrencyTests : IDisposable
         _tempDir = Path.Combine(Path.GetTempPath(), $"DPlayerAudioRace_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
         _wav = Path.Combine(_tempDir, "tone.wav");
-        WriteToneWav(_wav, seconds: 1);
+        TestAudio.WriteWav(_wav, seconds: 1);
     }
 
     public void Dispose()
     {
         try { Directory.Delete(_tempDir, recursive: true); }
         catch { /* best-effort cleanup */ }
-    }
-
-    /// <summary>写一个 1 秒 44.1kHz 单声道 16bit 的正弦 WAV（自足样本，不依赖 %TEMP% 下的外部文件）。</summary>
-    private static void WriteToneWav(string path, int seconds, short amplitude = 4000)
-    {
-        const int sampleRate = 44100, channels = 1, bits = 16;
-        int samples = sampleRate * seconds * channels;
-        var bytes = new byte[44 + samples * 2];
-        void I32(int v, int o) => BitConverter.GetBytes(v).CopyTo(bytes, o);
-        void I16(short v, int o) => BitConverter.GetBytes(v).CopyTo(bytes, o);
-
-        System.Text.Encoding.ASCII.GetBytes("RIFF").CopyTo(bytes, 0);
-        I32(36 + samples * 2, 4);
-        System.Text.Encoding.ASCII.GetBytes("WAVE").CopyTo(bytes, 8);
-        System.Text.Encoding.ASCII.GetBytes("fmt ").CopyTo(bytes, 12);
-        I32(16, 16); I16(1, 20); I16(channels, 22);
-        I32(sampleRate, 24); I32(sampleRate * channels * bits / 8, 28);
-        I16((short)(channels * bits / 8), 32); I16(bits, 34);
-        System.Text.Encoding.ASCII.GetBytes("data").CopyTo(bytes, 36);
-        I32(samples * 2, 40);
-        for (int i = 0; i < samples; i++)
-        {
-            double t = (double)i / sampleRate;
-            I16((short)Math.Round(amplitude * Math.Sin(2 * Math.PI * 440 * t)), 44 + i * 2);
-        }
-        File.WriteAllBytes(path, bytes);
     }
 
     private Track TrackFor(string path) =>
@@ -113,7 +87,7 @@ public sealed class NAudioPlaybackServiceConcurrencyTests : IDisposable
     public async Task PlayToNaturalEnd_ThenAdvance_DoesNotThrow()
     {
         var silent = Path.Combine(_tempDir, "silent.wav");
-        WriteToneWav(silent, seconds: 1, amplitude: 0);
+        TestAudio.WriteWav(silent, seconds: 1, amplitude: 0);
 
         var service = new NAudioPlaybackService();
         var ended = new TaskCompletionSource();

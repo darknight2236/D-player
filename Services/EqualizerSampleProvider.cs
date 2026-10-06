@@ -39,9 +39,9 @@ public sealed class EqualizerSampleProvider : ISampleProvider
 
     public WaveFormat WaveFormat => _source.WaveFormat;
 
-    public int Read(float[] buffer, int offset, int count)
+    public int Read(Span<float> buffer)
     {
-        int read = _source.Read(buffer, offset, count);
+        int read = _source.Read(buffer); // NAudio 3 起 ISampleProvider 只有 Span 重载
         if (!_enabled || read <= 0) return read; // 透明旁路（零处理成本）
 
         lock (_lock)
@@ -49,14 +49,14 @@ public sealed class EqualizerSampleProvider : ISampleProvider
             for (int i = 0; i < read; i++)
             {
                 int c = _channels > 1 ? i % _channels : 0; // 交织样本 → 声道索引
-                float s = buffer[offset + i] * _preampGain;
+                float s = buffer[i] * _preampGain;
                 var bank = _filters[c];
                 for (int b = 0; b < bank.Length; b++)
                 {
                     var f = bank[b];
                     if (f != null) s = f.Transform(s);
                 }
-                buffer[offset + i] = s;
+                buffer[i] = s;
             }
         }
         return read;

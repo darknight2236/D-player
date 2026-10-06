@@ -138,7 +138,11 @@ public sealed class NAudioPlaybackService : IPlaybackService
                     {
                         Volume = _volume
                     };
+                    // WasapiOut 在 NAudio 3 被标记过时（建议 WasapiPlayerBuilder → WasapiPlayer）。
+                    // 迁移会改变播放输出的语义（同步模式、teardown 行为），需要独立验证，故此处有意保留。
+#pragma warning disable CS0618
                     _wavePlayer = new WasapiOut(AudioClientShareMode.Shared, 100);
+#pragma warning restore CS0618
                     _wavePlayer.Init(_volumeProvider);
 
                     _wavePlayer.PlaybackStopped += OnPlaybackStopped;

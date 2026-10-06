@@ -18,11 +18,11 @@ public class EqualizerSampleProviderTests
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
         }
         public WaveFormat WaveFormat { get; }
-        public int Read(float[] buffer, int offset, int count)
+        public int Read(Span<float> buffer)
         {
-            int n = Math.Min(count, _data.Length - _pos);
+            int n = Math.Min(buffer.Length, _data.Length - _pos);
             if (n <= 0) return 0;
-            Array.Copy(_data, _pos, buffer, offset, n);
+            _data.AsSpan(_pos, n).CopyTo(buffer);
             _pos += n;
             return n;
         }
@@ -43,7 +43,7 @@ public class EqualizerSampleProviderTests
         var eq = new EqualizerSampleProvider(src, new EqualizerConfig { Enabled = false });
 
         var buf = new float[data.Length];
-        int read = eq.Read(buf, 0, buf.Length);
+        int read = eq.Read(buf);
 
         Assert.Equal(data.Length, read);
         Assert.Equal(data, buf); // 未处理 → 逐位相等
@@ -67,7 +67,7 @@ public class EqualizerSampleProviderTests
         var eq = new EqualizerSampleProvider(src, new EqualizerConfig { Enabled = true }); // Flat, preamp 0
 
         var buf = new float[data.Length];
-        eq.Read(buf, 0, buf.Length);
+        eq.Read(buf);
 
         // 0 dB 峰值滤波 = unity；DC 精确透传（4 位小数容差防浮点）
         Assert.All(buf, x => Assert.Equal(0.5f, x, 4));
@@ -81,11 +81,11 @@ public class EqualizerSampleProviderTests
 
         var flatBuf = new float[n];
         new EqualizerSampleProvider(new FakeSampleProvider(Sine(31, n, sr)),
-            new EqualizerConfig { Enabled = true }).Read(flatBuf, 0, n);
+            new EqualizerConfig { Enabled = true }).Read(flatBuf);
 
         var boostBuf = new float[n];
         new EqualizerSampleProvider(new FakeSampleProvider(Sine(31, n, sr)),
-            EqualizerConfig.Create(true, 0, boostGains, "Bass Boost")).Read(boostBuf, 0, n);
+            EqualizerConfig.Create(true, 0, boostGains, "Bass Boost")).Read(boostBuf);
 
         double Rms(float[] b) { double s = 0; for (int i = skip; i < n; i++) s += b[i] * b[i]; return Math.Sqrt(s / (n - skip)); }
         Assert.True(Rms(boostBuf) > Rms(flatBuf) * 1.2, $"低音增强应显著提升 31Hz 幅度 (flat={Rms(flatBuf):F4}, boost={Rms(boostBuf):F4})");
@@ -98,7 +98,7 @@ public class EqualizerSampleProviderTests
         var eq = new EqualizerSampleProvider(src, new EqualizerConfig { Enabled = true });
         eq.Update(EqualizerConfig.Create(true, -3, new double[] { 6, 0, 0, 0, 0, 0, 0, 0, 0, 6 }, "Custom"));
         var buf = new float[256];
-        Assert.Equal(256, eq.Read(buf, 0, 256));
+        Assert.Equal(256, eq.Read(buf));
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class EqualizerSampleProviderTests
 
         var buf = new float[n];
         new EqualizerSampleProvider(new FakeSampleProvider(interleaved, channels: 2),
-            EqualizerConfig.Create(true, 0, gains, "Bass Boost")).Read(buf, 0, n);
+            EqualizerConfig.Create(true, 0, gains, "Bass Boost")).Read(buf);
 
         // 右声道（奇数下标）建立期后应仍≈0
         for (int i = 4097; i < n; i += 2) Assert.True(Math.Abs(buf[i]) < 1e-3f); // 奇数下标 = 右声道
@@ -128,7 +128,7 @@ public class EqualizerSampleProviderTests
         var src = new FakeSampleProvider(Sine(9000, n, sr), channels: 1, sampleRate: sr);
 
         var buf = new float[n];
-        new EqualizerSampleProvider(src, EqualizerConfig.Create(true, 0, gains, "Custom")).Read(buf, 0, n);
+        new EqualizerSampleProvider(src, EqualizerConfig.Create(true, 0, gains, "Custom")).Read(buf);
 
         // 16k 段被旁路 → 9kHz 幅度不应因该段被显著抬升（输入幅度 0.3）
         Assert.All(buf[4096..], x => Assert.True(Math.Abs(x) <= 0.35f));

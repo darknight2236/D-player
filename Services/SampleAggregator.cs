@@ -34,10 +34,10 @@ public sealed class SampleAggregator : ISampleProvider
 
     public WaveFormat WaveFormat => _source.WaveFormat;
 
-    public int Read(float[] buffer, int offset, int count)
+    public int Read(Span<float> buffer)
     {
-        // 1. 从源读取 PCM 数据
-        int read = _source.Read(buffer, offset, count);
+        // 1. 从源读取 PCM 数据（NAudio 3 起 ISampleProvider 只有 Span 重载）
+        int read = _source.Read(buffer);
 
         if (Enabled && read > 0)
         {
@@ -49,7 +49,7 @@ public sealed class SampleAggregator : ISampleProvider
                 // 多声道混音为单声道
                 float sample = 0;
                 for (int ch = 0; ch < channels; ch++)
-                    sample += buffer[offset + i + ch];
+                    sample += buffer[i + ch];
                 sample /= channels;
 
                 // 先写入原始样本，FFT 前再统一加窗

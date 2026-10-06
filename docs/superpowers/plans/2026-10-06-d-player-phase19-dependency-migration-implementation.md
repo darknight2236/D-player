@@ -454,7 +454,7 @@ WASAPI device. Both runners report 161/161."
 
 **Interfaces:**
 - Consumes: Task 2 的新注释文本（COUPLING 条目要与之同口径）、Task 3 的并行度结论与 runner 事实
-- Produces: 文档与代码一致；本计划全部勾选 —— 落地校正（收尾修订）："全部勾选"不成立：交付态是除 Task 5 Step 3（GUI 真机冒烟，无法自动化的项按 Phase 18 先例留 NOT VERIFIED 并移交用户）外全部勾选，该步刻意保持 `- [ ]`（见 Task 4 Step 7 与 Task 5 Step 3 的注记）
+- Produces: 文档与代码一致；本计划全部勾选 —— 落地校正（收尾修订）：本句现在是**真的**——Task 5 Step 3 其后由用户手工确认，5 项全部通过，该步已勾选并附实况记录（见 Task 5 Step 3 注记）；此前一版注记曾写"Step 3 刻意留开"，已随人工确认过期。
 
 - [x] **Step 1: `README.md` 测试段** —— 已落地（`README.md` §测试：`:77-85`），但**未照抄**下方 after 块里"VSTest 路径（命令保持兼容；经 TestingPlatformDotnetTestSupport 同样路由到 MTP）"那句：README 写的是同一个 MTP runner 的两个入口、路由机制是仓根 `global.json`、两条命令都不得加 `--nologo`
 
@@ -541,7 +541,7 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 - ❌ **给 `StubAudioOutputFactory` 的 `WasapiOut` 用法"顺手"迁到 `WasapiPlayer`** —— 该工厂是刻意保留的"未来多后端"接缝（见 §7 首条），其契约 `IWavePlayer` 的重设计属于那件事本身；`WasapiPlayer` 不实现 `IWavePlayer`，硬换会破坏这个抽象的语义 —— 落地校正（收尾）：此条**已作废**且其理由句（"`WasapiPlayer` 不实现 `IWavePlayer`"）**已被反射证伪**；用户拍板后该工厂已迁到 `WasapiPlayer`，`COUPLING.md §7` 的对应条目已改写成"不要重新引入 `#pragma warning disable CS0618`"。
 ```
 
-- [x] **Step 7: 勾选本计划** —— Task 1–4 的步骤已全部勾选；Task 5（全量验收）的 4 个步骤保持未勾选，因为该任务尚未执行，不能提前记为完成 —— 落地校正（收尾修订）：本句写于 Task 4 执行时，其中"该任务尚未执行"已过期：Task 5 其后已执行，Step 1/2/4 已勾选并附执行记录，**Step 3（GUI 真机冒烟）刻意保持未勾选**（无法自动化的项按 Phase 18 先例标为 NOT VERIFIED 并移交用户），所以全计划的真实状态是"仅 Task 5 Step 3 一项留开"，不是"全部勾选"
+- [x] **Step 7: 勾选本计划** —— Task 1–4 的步骤已全部勾选；Task 5（全量验收）的 4 个步骤保持未勾选，因为该任务尚未执行，不能提前记为完成 —— 落地校正（收尾修订）：本句写于 Task 4 执行时，现已完全过期——Task 5 其后已执行，**Step 1–4 全部勾选**并附执行记录（Step 3 的无法自动化项经用户 2026-10-06 手工确认，5/5 通过；"曲尾按停止"因应用无停止按钮改由"曲尾附近暂停 + 切歌"复核，详见 Task 5 Step 3 注记），故本计划现已**全部勾选**。
 
 把本文件所有 `- [ ]` 改成 `- [x]`（用 Edit 工具逐处改，**不要**用 `sed -i`）。改完确认：
 
@@ -599,7 +599,7 @@ Expected: 无输出。
 
 > **执行记录**：已执行，三项全部符合预期。`dotnet list D-player.csproj package --include-transitive` 里 `NAudio.Core 3.1.0` / `NAudio.Wasapi 3.1.0` 在列，`NAudio.WinForms` / `NAudio.Midi` / `NAudio.Asio` / `NAudio.WinMM` / `NAudio.Dmo` 一个都没有（可传递包列表里没有任何 NAudio 条目，Task 1 未走兜底）。`pragma warning disable CS0618` 全仓只剩 `Services/StubAudioOutputFactory.cs:19` 一处（**收尾后为 0 处**，该文件随后经用户拍板迁到 `WasapiPlayer`）。`MessageBox.Show` grep 无输出（退出码 1）。另核 `grep -n "WasapiOut" Services/NAudioPlaybackService.cs` 只命中 `:154-155` 两行历史叙述（"WasapiOut 已降级为 legacy placeholder"、"对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义"），没有任何句子声称当前实现用 WasapiOut。
 
-- [ ] **Step 3: GUI 真机冒烟（ComputerUse，或按惯例移交用户）**
+- [x] **Step 3: GUI 真机冒烟（ComputerUse，或按惯例移交用户）**
 
 用 `bin/Debug/net10.0-windows/D-player.exe` 起应用，逐项确认（截图留档到临时目录即可，不必入库）：
 
@@ -610,7 +610,11 @@ Expected: 无输出。
 5. EQ 对话框开关一次 → 生效且无异常；设置对话框保存一次 → 正常。
 6. 若工作站处于锁屏状态无法驱动原生输入：按 Phase 18 的先例把第 4 项（以及任何无法自动化的项）**如实标为 NOT VERIFIED 并移交用户手动确认**，不得凭空报通过。
 
-> **执行记录（本步不整项勾选）**：工作站未锁屏，已用 `bin/Debug/net10.0-windows/D-player.exe` 起应用并经 UIA 驱动完成三项有硬证据的检查——① 播放：双击第 1 首，播放进度 0:00 → 0:15 → 0:36 → 1:05 持续推进；② 切歌：双击第 2 首，播放头归零、右侧信息面板与播放指示随之切换，无异常；③ 播完自动推进：第 2 首（3:40）自然结束后自动切到第 3 首 KILLERMOON 并继续推进到 0:39，全程进程不崩，最后点 `CloseButton` 干净退出。**保持 NOT VERIFIED 并移交用户**：第 1 项的"出声"与"频谱外观是否正确"（需人耳/人眼判断，截图只证明有柱状物在渲染）、第 4 项"曲尾 100ms 内按停止不自动推进"与进度条单击跳转（100ms 时序无法靠 UIA 轮询可靠复现）、第 5 项 EQ/设置对话框（超出本次验收给 GUI 的有界范围）。第 4 项并非无证据：它由 `NAudioPlaybackServiceStopSemanticsTests` 两条确定性单测钉住（本次单独跑 `总计: 2 / 成功: 2`，已含在 161 内），GUI 一项只是复核。
+> **执行记录（已整项勾选）**：分两段完成。**自动化段**（工作站未锁屏，`bin/Debug/net10.0-windows/D-player.exe` 经 UIA 驱动，三项有硬证据）——① 播放：双击第 1 首，进度 0:00 → 0:15 → 0:36 → 1:05 持续推进；② 切歌：双击第 2 首，播放头归零、右侧信息面板与播放指示随之切换，无异常；③ 播完自动推进：第 2 首（3:40）自然结束后自动切到第 3 首 KILLERMOON 并继续推进到 0:39，全程进程不崩，最后点 `CloseButton` 干净退出。**人工段（用户 2026-10-06 手工确认，5/5 通过）**——出声正常；频谱柱正常跳动；进度条单击定位正常；EQ 与设置对话框正常；曲尾行为见下。
+>
+> **第 4 项的实况更正**：本步原指导语假设应用有停止按钮，**实际没有**（transport 只有 ▶/⏸，`Views/*.xaml` 无任何 `停止`/`Stop` 绑定）。故第 4 项拆成两步验：① 曲尾附近反复暂停 → 不引发自动推进（`Pause()` 不置 `_stopRequested`、也不 `Unload`，这条此前无单测覆盖，属新增真实覆盖）；② 按更正后的说明"把播放头点到曲尾附近后立刻双击另一首" → **正常播放所选曲目、无多余自动推进**（用户确认）——这一步才是真正的 `_stopRequested` 路径（切歌走 `LoadAsync → DisposePlayback`，先置位再停）。
+>
+> 第 4 项同时仍有确定性单测背书：`NAudioPlaybackServiceStopSemanticsTests` 两条（`总计: 2 / 成功: 2`，含在 161 内）覆盖 `Stop()`/`Unload()` 路径；真机复核补的是"装配后可见行为"这一层。
 
 - [x] **Step 4: 收尾**
 

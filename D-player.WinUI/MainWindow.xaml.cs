@@ -201,19 +201,24 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 模板应用后把 Slider 的 Thumb 部件挂上 DragStarted/DragCompleted（部件名见调用处注释）。
+    /// 把 Slider 模板的 Thumb 部件挂上 DragStarted/DragCompleted（部件名见调用处注释）。
+    /// 先显式 <c>ApplyTemplate()</c> 再找部件，使这条查找不依赖"模板在本方法跑过时已经应用完"这个
+    /// 没人保证的前提；找不到部件时**静默跳过**，退化方向与代价写在调用处注释里。
     /// Loaded 可能多次触发，故用 <see cref="_dragHooked"/> 保证只挂一次。
-    /// 找不到部件时**静默跳过**：单击跳转仍由 <see cref="Position_Changed"/> 兜住，
-    /// 只是拖动会退回"连续 Seek"的旧行为——这条真机取证专门确认部件找到了。
     /// </summary>
     private void HookSliderThumbs()
     {
         if (_dragHooked) return;
         // 首选模板部件名 HorizontalThumb（来源：Windows App SDK 自带 Themes/generic.xaml 的 Slider 模板），
         // 退路是向下找第一个后代 Thumb（不依赖名字；SliderInnerThumb 是 Thumb 模板里的 Ellipse，不是 Thumb）。
+        // 本壳取到过的证据只到"空队列（Duration=0）下拖动进程存活、窗口完好"；那种情形下
+        // Position_Changed 会在下面的 Duration 守卫处直接返回，挂没挂上部件 observable 上没有区别，
+        // 所以**没有任何归档证据能说明部件真的被找到并挂上了**。唯一的检测器是用户在有曲目时看
+        // 松手后滑块是否停在手指处（退化成连续 Seek 就等于没挂上）——见 docs/PHASE20-COMPARISON.md §2.1。
+        PositionSlider.ApplyTemplate();
         var thumb = PositionSlider.FindName("HorizontalThumb") as Thumb
             ?? FindDescendant<Thumb>(PositionSlider);
-        if (thumb is null) return;          // 模板尚未应用：下一次 Loaded 再试
+        if (thumb is null) return;          // 两条路都没命中：保持未挂状态，拖动退回"连续 Seek"的旧行为
         thumb.DragStarted += Position_DragStarted;
         thumb.DragCompleted += Position_DragCompleted;
         _dragHooked = true;
@@ -257,7 +262,16 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         // 本壳的进度条只有两条写回路径：
         //   1) 拖动 → Slider 的 DragStarted / DragCompleted（见下两个 handler），拖动期间
         //      Core 的 `IsSeeking` 为真，位置回写被 PlayerViewModel.HandlePositionChanged 抑制；
-        //   2) 单击轨道跳转（WinUI 的 Slider 默认 `IsMoveToPointEnabled=True`）。
+        //   2) 单击轨道跳转 —— **机制未确认，别在这里臆造解释**。
+        //      `IsMoveToPointEnabled` 是 **WPF** 的属性（本仓库在 Themes/Controls.xaml:106 与
+        //      Views/Controls/PlayerBar.xaml:145 显式设它），WinUI 3 的 `Slider` 上并没有它：
+        //      WASDK 2.5.1 反思读出的属性面是 Header / HeaderTemplate / IntermediateValue /
+        //      IsDirectionReversed / IsThumbToolTipEnabled / Orientation / SnapsTo / StepFrequency /
+        //      ThumbToolTipValueConverter / TickFrequency / TickPlacement，加上 RangeBase 的
+        //      LargeChange / Maximum / Minimum / SmallChange / Value —— 没有这一项，投影里也没有
+        //      `SliderBase` 这个类型；2026-10-07 再以引用试探编译 → CS1061。
+        //      所以单击是否真跳转、靠什么跳转，本波从未测过（切片没有曲目，`Duration = 0` 时
+        //      下面那道守卫就直接返回了）→ 待用户确认（docs/PHASE20-COMPARISON.md §2.1）。
         // 单击是否同时发 DragStarted/DragCompleted 在不同版本上没有可靠承诺，所以这里做双保险：
         // 只有"不在拖动中"且"这次的新值不等于 Core 的位置投影"时才提交 Seek ——
         // 后者正是"30 Hz 位置回写把滑块写回来"的特征（那条路径上新值就是 PositionNormalized）。

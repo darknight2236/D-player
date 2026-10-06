@@ -41,6 +41,21 @@
         <EmbeddedResource Remove="D-player.Core/**" />
     </ItemGroup>
 
+    <!--
+      D-player.WinUI/ 是第三个仓库根的兄弟目录(同样在本 csproj 同级), 上面的 glob 隐患对它
+      一样成立: 它的 .cs/.xaml 会被扫进 WPF 程序集, 而 WPF 侧并不存在 Microsoft.UI.Xaml,
+      结果是 MC3074/CS0234 直接把门禁打挂。因此对它做同样的一组显式排除。WinUI 工程刻意
+      不进 D-player.slnf(门禁只跑 Core + WPF + Tests), 这段排除是该隔离能成立的前提。
+    -->
+    <ItemGroup>
+        <Compile Remove="D-player.WinUI/**" />
+        <Page Remove="D-player.WinUI/**" />
+        <ApplicationDefinition Remove="D-player.WinUI/**" />
+        <Resource Remove="D-player.WinUI/**" />
+        <None Remove="D-player.WinUI/**" />
+        <EmbeddedResource Remove="D-player.WinUI/**" />
+    </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.*" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />

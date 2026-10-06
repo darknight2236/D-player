@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D-player.Tests", "Tests\D-p
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D-player.Core", "D-player.Core\D-player.Core.csproj", "{E24031BE-762C-4D8D-A2EE-5EDEDB6605BD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D-player.WinUI", "D-player.WinUI\D-player.WinUI.csproj", "{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,6 +56,18 @@ Global
 		{E24031BE-762C-4D8D-A2EE-5EDEDB6605BD}.Release|x64.Build.0 = Release|Any CPU
 		{E24031BE-762C-4D8D-A2EE-5EDEDB6605BD}.Release|x86.ActiveCfg = Release|Any CPU
 		{E24031BE-762C-4D8D-A2EE-5EDEDB6605BD}.Release|x86.Build.0 = Release|Any CPU
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Debug|Any CPU.Build.0 = Debug|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Debug|x64.ActiveCfg = Debug|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Debug|x64.Build.0 = Debug|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Debug|x86.ActiveCfg = Debug|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Debug|x86.Build.0 = Debug|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Release|Any CPU.ActiveCfg = Release|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Release|Any CPU.Build.0 = Release|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Release|x64.ActiveCfg = Release|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Release|x64.Build.0 = Release|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Release|x86.ActiveCfg = Release|x64
+		{AF6C26A1-BA5D-465F-BA9E-1E1EFFEB9AE1}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,6 +1,6 @@
 # D-player 项目文档
 
-> 一个轻量级、本地优先的 Windows 音乐播放器（WPF + .NET 10 + NAudio）。
+> 一个轻量级、本地优先的 Windows 音乐播放器（.NET 10 + NAudio，WPF / WinUI 两套壳；共享层 `D-player.Core` 是 WPF-free 的）。
 >
 > 文档日期：2026/10/07（代码基线 `71613f2`，Phase 20 Task 4 收口） · 对应分支：`master` · 当前阶段：**Phase 20 已交付（抽出 WPF-free 的 `D-player.Core`、WinUI 3 第二壳第一条纵向切片、主门禁改走 `D-player.slnf`）；WPF 壳的行为与外观零变化；两壳去留的决策门尚未发生——等用户填完 [`PHASE20-COMPARISON.md`](./PHASE20-COMPARISON.md)** · 上一阶段：Phase 19 完成（NAudio 收窄到 Core+Wasapi + 输出经 `WasapiPlayerBuilder` 建链 + 测试栈迁到 xunit.v3，无产品行为变化） · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
@@ -307,7 +307,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 注：IFileDialogService 由 PlaylistViewModel（AddToQueue / ImportFolderToCurrent / Phase 18 导入导出对话框）+ PlaylistsViewModel（ImportFolderAsync / Phase 18 ImportPlaylistFileAsync）消费。
 注：IPlaylistService 由 MainViewModel（启动读盘 + 关闭写盘 + debounce save）统一消费。
 注：IPlaylistFileService (Phase 18) 由 PlaylistViewModel（追加导入 + M3U8 导出）与 PlaylistsViewModel（新建歌单导入）消费。
-注（Phase 20）：从 `MainViewModel` 往下的整棵树住在 `D-player.Core` 里，**两个 UI 壳共用同一份**；图顶端的 `App.xaml.cs` 现在有两份 —— WPF 壳的 `App.xaml.cs` + `Views/MainWindow`，与 `D-player.WinUI/App.xaml.cs` + `D-player.WinUI/MainWindow.xaml(.cs)`。UI 专属服务（`IFileDialogService`）不在 Core 的注册表里，由各壳自己注册。
+注（Phase 20）：从 `MainViewModel` 往下的整棵树住在 `D-player.Core` 里，两个 UI 壳共用同一份。**两壳各自的具体形态（谁在图顶端、每壳做哪三件事）以紧接其下的那段为准，本注不重述一遍。**
 
 Phase 20 起这张图描述的是 **`D-player.Core` 内部的结构**，两个 UI 壳各占图顶端那个位置：
 WPF 壳 = `App.xaml.cs` + `Views/MainWindow`；WinUI 壳 = `D-player.WinUI/App.xaml.cs` + `D-player.WinUI/MainWindow.xaml(.cs)`。
@@ -1070,7 +1070,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **net10.0 显式引用 `System.Text.Encoding.CodePages` 会触发 NU1510（Phase 18）**：该包在 net10.0 上框架隐含（framework-implicit），`Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` + `Encoding.GetEncoding(936)` 开箱可用；显式 `PackageReference` 会被 SDK 判定冗余并给 NU1510 警告，破坏本项目 0 警告门禁。`D-player.csproj` 因此**没有**该包引用，不要"补依赖"加回去。
 - **GBK 解码不得搬出 `PlaylistFileEncoding`（Phase 18）**：CodePages provider 在该类型的**静态构造函数**里注册，`Encoding.GetEncoding(936)` 只出现在该类内部，"注册永远早于解码"是类型不变量而非启动顺序约定（`App.xaml.cs` 无需改动）。把 GBK 解码搬到别的类型就等于把注册时机重新变成一条口头约定（COUPLING §5）。
 - **GBK 编码探测存在可接受的误判（Phase 18）**：严格 UTF-8 试解码成功即认定 UTF-8；极少数 GBK 字节序列恰好是合法 UTF-8 时会被误判并产生乱码路径——后果是这些条目落入"文件缺失"计数，用户能从导入报告里看出来，不会静默错乱。
-- **Core 必须 WPF-free（Phase 20）**：`D-player.Core/` 下不得出现 `System.Windows.*` / `PresentationFramework` / `ICollectionView` / `CollectionViewSource`，否则第二壳被拖回 WPF。可 grep 自检：`grep -rn "System.Windows\|CollectionViewSource\|PresentationFramework" D-player.Core --include=*.cs | grep -v "/obj/\|/bin/"` 应无命中（提到 `BitmapImage` 的注释行除外）。
+- **Core 必须 WPF-free（Phase 20）**：`D-player.Core/` 下不得出现 `System.Windows.*` / `PresentationFramework` / `ICollectionView` / `CollectionViewSource`，否则第二壳被拖回 WPF。可 grep 自检（四个类型名一个都不能少，命令与上面这条规则同口径）：`grep -rn "System.Windows\|PresentationFramework\|ICollectionView\|CollectionViewSource" D-player.Core --include=*.cs | grep -v "/obj/\|/bin/"` → **应无命中，2026-10-07 实跑确实零命中**。注意 `BitmapImage` **不在这个自检的模式里**：Core 有三行注释提到它（`Models/Track.cs:13`、`ViewModels/PlayerViewModel.cs:18`/`:47`，说的是 WPF 壳侧 converter 的行为），那是散文不是类型引用，加进模式只会让自检长期"命中注释"而失去意义。
 - **仓库根的兄弟目录必须进 `D-player.csproj` 的 glob 排除集（Phase 20）**：WPF SDK 会生成 `*_wpftmp.csproj` 并从仓库根重新 glob `**/*.cs` / `**/*.xaml`；`Tests/**`、`D-player.Core/**`、`D-player.WinUI/**` 三组各有一份 `Compile/Page/ApplicationDefinition/Resource/None/EmbeddedResource Remove`。漏掉的后果分别是重复编译进主程序集（AssemblyInfo 重复、xunit 引用缺失）与 `MC3074`/`CS0234`（WPF 侧不存在 `Microsoft.UI.Xaml`）。新增仓库根级工程时必须同步补一组，并**重跑门禁**确认隔离仍然成立。
 - **WinUI 不在任何门禁里（Phase 20 的设计决策，不是遗漏）**：`D-player.slnf` 只含 Core + WPF + Tests，所以 WinUI 的 XAML 编译、左栏（pane）逻辑、关闭落盘**没有自动回归**，只能靠单壳构建 + 真机手测。`Tests/Extensions/AddDPlayerCoreTests.cs` 钉住 Core 的 DI 图，但**钉不住 WinUI 壳忘记注册自己的 `IFileDialogService`** —— 那种缺失要到第一次构造歌单才炸。要收紧这条，就得先接受 WinUI 进门禁带来的 restore/构建成本（见 §8.2）。
 - **WinUI 的 Mica 可见性依赖"根 Grid 背景必须是 `Transparent`"这条约定（Phase 20）**：材质挂在窗口上，但只在没有不透明背景刷的表面后面可见。以后任何人往根 Grid 或某个铺满的容器上加不透明背景刷，材质就"看起来消失"。护栏写在 `D-player.WinUI/MainWindow.xaml` 顶部注释（含三行像素对照）。反向陷阱：`DWMWA_SYSTEMBACKDROP_TYPE` 对组合器挂载的 backdrop **不是判据**（本项目实测恒为 0），基于它的自动化断言必然得出错结论 —— 实施过程中就真的被它误导过一次，把已生效的 Mica 判成了"未挂载"。

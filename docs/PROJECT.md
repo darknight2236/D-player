@@ -210,7 +210,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │       └── PlaylistsViewModelTests.cs     # 多歌单 + 容器级导入新建歌单 + 共用双击入口的越界/出声事实 (27) (Phase 8/12/18/20)
 │
 ├── tools/
-│   └── coupling-audit/          # Phase 15 耦合审计脚本（Invoke-CouplingAudit.ps1，M1–M6 度量；Phase 20 起层目录同时扫 `D-player.Core/<层>` 与仓库根，DI 注册表也从 Core 下解析）
+│   └── coupling-audit/          # Phase 15 耦合审计脚本（Invoke-CouplingAudit.ps1，M1–M6 度量；层目录按**四个 scan root** 收集：`D-player.Core/<层>`、`D-player.WinUI/<层>`、`D-player/<层>`、仓库根 `<层>`，外加仓库根自己的根级 `*.cs`；DI 注册表也从 Core 下解析。盲区与读数口径见 COUPLING §5 末尾的"Phase 20 审计复跑"块）
 │
 └── docs/
     ├── PROJECT.md               # 本文档

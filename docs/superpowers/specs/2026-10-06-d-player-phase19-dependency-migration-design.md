@@ -2,7 +2,7 @@
 
 > 设计日期：2026-10-06 · 对应分支：`master` · 状态：**待实现**
 >
-> 目标：把代码结构迁移到已升级的依赖上新版本 API —— ① NAudio 的播放输出类从 legacy 的 `WasapiOut` 换成 3.x 推荐的 `WasapiPlayerBuilder`/`WasapiPlayer`，并把包引用从 meta 包收窄到真正用到的两个子包；② 测试栈从 xunit v2 迁到 **xunit v3**，同时打通 Microsoft.Testing.Platform（MTP）与 VSTest 两条运行方式。**不改任何产品行为**：161 条测试全绿是硬门。
+> 目标：把代码结构迁移到已升级的依赖上新版本 API —— ① NAudio 的播放输出类从 legacy 的 `WasapiOut` 换成 3.x 推荐的 `WasapiPlayerBuilder`/`WasapiPlayer`，并把包引用从 meta 包收窄到真正用到的两个子包；② 测试栈从 xunit v2 迁到 **xunit v3**，同时打通 Microsoft.Testing.Platform（MTP）与 VSTest 两条运行方式（此句已证伪：runner 只有 MTP 一个，VSTest 不可达，实际打通的是到达同一 runner 的**两条命令**，见文末勘误）。**不改任何产品行为**：161 条测试全绿是硬门。
 
 ---
 
@@ -21,7 +21,7 @@
 - **NAudio 1a**：`NAudioPlaybackService` 的播放输出类从 `WasapiOut` 换成 `WasapiPlayerBuilder` + `WasapiPlayer`，去掉该文件的 pragma。
 - **NAudio 1b**：`D-player.csproj` 的 `NAudio`（meta 包，拉起 Core/Wasapi/Dmo/WinMM/WinForms/Midi/Asio 七个）收窄为 `NAudio.Core` + `NAudio.Wasapi`（各 3.1.0）。
 - **NAudio 1c**：在**新类上重推**播放链闸门（`_chainGate`）与停止意图标记（`_stopRequested`）两条论证，并把注释/契约改写成不依赖 NAudio 2.x 内部实现的表述。
-- **xunit 2**：测试工程迁到 `xunit.v3`（工程变为可执行程序），并同时打通 MTP 与 VSTest 两种运行方式。
+- **xunit 2**：测试工程迁到 `xunit.v3`（工程变为可执行程序），并同时打通 MTP 与 VSTest 两种运行方式（此句已证伪：只有 MTP 一个 runner，被打通的是它的两条命令入口，见文末勘误）。
 - **xunit 3**：处理 v3 并行策略差异带来的音频测试稳定性风险（§5.3）。
 - 文档与契约同步（README 的测试命令、PROJECT 的构建/测试章节、COUPLING §5 的论证改写）。
 
@@ -29,7 +29,7 @@
 
 - **不重构预留的 `IAudioOutputFactory` / `StubAudioOutputFactory`**：`COUPLING.md §7` 明确要求保留（"删了未来加多设备支持还要写回来"）。其契约是 `IWavePlayer`，而 `WasapiPlayer` 不实现该接口（此句已证伪，见文末勘误）—— 重新设计它的契约属于"未来多后端"那件事的一部分，本阶段只**记录**这个事实（§4.3）。
 - **不改任何产品行为**：不引入 `WasapiPlayer` 的新能力（零拷贝缓冲、MMCSS 线程优先级、`IAudioClient3` 低延迟、`WithCategory`/`WithRawMode`/`WithMmcsThreadPriority`）。
-- **不迁移到 MTP-only**：保留 VSTest 兼容路径，`dotnet test D-player.sln -c Debug` 必须继续可用。
+- **不迁移到 MTP-only**：保留 VSTest 兼容路径，`dotnet test D-player.sln -c Debug` 必须继续可用。（此句需按实测拆开读，别读成"本阶段违反了自己的非目标"：这条非目标要守的是**命令继续可用**，而 `dotnet test D-player.sln -c Debug` 确实原样可用（该命令的旗标纪律见文末勘误第 7 条：`--nologo` 不可加）—— 达成；未被保留的是它背后的 **VSTest 路径**，该路径在 xunit.v3 4.0.1 + Microsoft.Testing.Platform 2.4.0 + .NET 10 SDK 上根本无法存在（MTP 2.x 取消了对 VSTest 目标的支持），命令现在经仓库根 `global.json` 直达 MTP。就 runner 而言交付态是 MTP-only，这是手段层面无可选，不是目标被放弃，见文末勘误第 3 条）
 - 不动 z440.atl.core（7.14–7.18 零 API 变更，纯解析修复）、NSubstitute、Test.Sdk、coverlet 的用法。
 - 不动 `WasapiPlayer` 之外的播放链结构（`EqualizerSampleProvider` / `SampleAggregator` / `VolumeSampleProvider` 链路保持不变）。
 
@@ -38,7 +38,7 @@
 | # | 议题 | 决定 | 理由 |
 |---|------|------|------|
 | 1 | 阶段范围 | NAudio 迁移 + xunit v3 迁移 | 用户拍板；普查确认 NAudio 是唯一需要真迁移的包，xunit v3 是"适配新版本能力"的自然延伸（runner 4.0.0 与 Test.Sdk 18 已就位） |
-| 2 | 测试运行方式 | **两者都开**：MTP 为默认执行方式，同时用 `TestingPlatformDotnetTestSupport` 让 `dotnet test` 也走 MTP | 用户拍板；换来更丰富的输出与筛选能力，同时保住文档里既有的命令习惯 |
+| 2 | 测试运行方式 | **两者都开**：MTP 为默认执行方式，同时用 `TestingPlatformDotnetTestSupport` 让 `dotnet test` 也走 MTP | 用户拍板；换来更丰富的输出与筛选能力，同时保住文档里既有的命令习惯（此句的机制部分已证伪：让 `dotnet test` 走 MTP 的是仓库根 `global.json`，该属性在本 SDK 上不参与执行路径；"两者都开"实际是"一个 runner、两条命令"，见文末勘误第 3 条） |
 | 3 | `WasapiOut` vs `WasapiPlayer` | 迁移到 `WasapiPlayer`（去掉 `NAudioPlaybackService` 的 pragma） | 3.x 官方明确把 `WasapiOut` 定位为 legacy placeholder；继续依赖它等于把技术债留到 NAudio 4 被强拆 |
 | 4 | 包引用 | meta `NAudio` → `NAudio.Core` + `NAudio.Wasapi` | 实测只用到这两个包的类型，且 `NAudio.Wasapi 3.1.0` 自身只依赖 `NAudio.Core`；收窄可把 WinForms/Midi/Asio/WinMM/Dmo 移出依赖图（对 WPF 应用还避免拖入 WinForms 程序集） |
 | 5 | 两条并发论证 | **都保留**，只改写理由 | 见 §4.4：NAudio 3 的 guarded dispose 只保证"NAudio 内部对象不被双重释放"，不解决**我们自己的**共享字段被交错重建（闸门）与"停止/播完同一信号"（意图标记） |
@@ -54,7 +54,7 @@
 | xunit | 2.* → 2.9.3 | 否（v2 线内） | 同 major；v3 迁移见 §5 |
 | xunit.runner.visualstudio | 2.* → 4.0.0 | 否 | 4.0.0 的 build props 仍随包分发 `xunit.abstractions.dll`（v2 抽象）→ 同时支持 v2/v3 项目；本机 161 条实测通过 |
 | NSubstitute | 5.* → 6.2.0 | 否 | 6.0 的破坏面是目标框架（.NET 8 / NS2.0，我们 net10 满足）、移除已废弃例程、旧 C# 兼容包装打 obsolete、更严类型注解（6.1 回退了 public API 的 nullability）—— 0 警告说明未触及；用法仅 `For/Arg.Any/Returns/Received/DidNotReceive` |
-| Microsoft.NET.Test.Sdk | 17.* → 18.10.1 | 否 | 工具链；VSTest 路径实测正常，且为 v3 双模式的必要组成 |
+| Microsoft.NET.Test.Sdk | 17.* → 18.10.1 | 否 | 工具链；VSTest 路径实测正常，且为 v3 双模式的必要组成（此句已证伪：VSTest 路径实测不可达，Test.Sdk 只是 IDE 测试发现的兼容性保留、不在跑测试的路径上，见文末勘误第 3 条） |
 | coverlet.collector | 6.* → 10.1.0 | 否 | 仅在 `--collect` 时生效 |
 
 API 归属（决定包引用的最小集合）：
@@ -93,13 +93,13 @@ NAudio.Wasapi : WasapiOut, WasapiPlayer(+Builder), MediaFoundationReader, AudioC
 2.x 时代的论据是"`WasapiOut.Dispose()` 把 `audioClient` 置空 → 在已释放实例上 `Init` 在 NAudio 内部抛 NRE / `InvalidComObjectException`"。3.x 已把 `AudioClient.Dispose()` 改成 guarded release（NAudio issue #1183 的修复），**这条具体机制不再成立**。但闸门要解决的是另一层问题，与 NAudio 内部是否防护无关：
 - 两次 `LoadAsync` 交错时，后者会重建共享字段（`_reader`/`_volumeProvider`/`_wavePlayer`），并释放前者正在使用或正在构建的链；
 - `Unload()`/`Dispose()` 撞上 in-flight 的 `LoadAsync` 同理。
-⇒ 保留闸门，注释理由改写为**生命周期串行化**（不再引用 `audioClient` 置空细节），并把"持锁不 await""`OnPlaybackStopped` 不取锁（`Stop()` 可能 `Join` 播放线程 → 回调里取锁即死锁）"两条纪律原样保留（后者在新类上的 `Stop()` 是否仍 Join 需实施时确认；无论结论如何，"不从回调里取锁"都是安全默认）。
-**证据**：`NAudioPlaybackServiceConcurrencyTests` 的 2 条用例（重叠 Load / Unload 撞 Load）换类后必须仍绿。
+⇒ 保留闸门，注释理由改写为**生命周期串行化**（不再引用 `audioClient` 置空细节），并把"持锁不 await""`OnPlaybackStopped` 不取锁（`Stop()` 可能 `Join` 播放线程 → 回调里取锁即死锁）"两条纪律原样保留（后者在新类上的 `Stop()` 是否仍 Join 需实施时确认；无论结论如何，"不从回调里取锁"都是安全默认）。 —— 收尾修订补注：该开放问题的答案是 `NAudio.Wasapi 3.1.0` 随包 XML 文档只把 `Dispose` 标为 "Stops playback (blocking) and releases all resources"，`Stop` 仅 "Stop playback and flush buffers"，故落地注释与 `docs/PROJECT.md` §9 / `docs/COUPLING.md` §5 一律按 `Stop()`/`Dispose()` 两者计入阻塞面；纪律本身未变
+**证据**：`NAudioPlaybackServiceConcurrencyTests` 的 2 条用例（重叠 Load / Unload 撞 Load）换类后必须仍绿。 —— 收尾修订补注：这 2 条只断言"不抛异常"、错位窗口 1–5 ms，属真实但**随机**的证据，不是确定性的时序钉住（引用时别当作必然命中竞态的证明）。
 
 **停止意图 `_stopRequested` —— 保留，改写成"信号不可区分"的理由。**
 原论据是"播放线程退出时**同步**回调 `PlaybackStopped`（`WasapiOut` 建在线程池线程上、捕获的 `SynchronizationContext` 为 null），而 `Stop()` 内部 `Join` 该线程"。`WasapiPlayer` 的文档说"若构造时捕获了 `SynchronizationContext`，事件在该上下文上引发"——即回调可能是 `Post` 而不是同步调用。**但这不改变结论**：无论同步还是异步，"用户按停止"与"曲目自然播完"仍然是同一个 `PlaybackStopped`，仅凭播放头位置无法区分（异步回调时位置可能已被归零，反而让判定更不确定）。
 ⇒ 保留标记与"停止方在调用 NAudio **之前**置位、`Play()` 清零、`OnPlaybackStopped` 命中即提前返回"的纪律；注释按新类的实际行为改写。
-**证据**：`NAudioPlaybackServiceStopSemanticsTests` 的 2 条用例（曲尾 100ms 内停止/卸载不得发 `TrackEnded`）+ `PlayToNaturalEnd_ThenAdvance`（真自然播完仍须发）三向钉住。
+**证据**：`NAudioPlaybackServiceStopSemanticsTests` 的 2 条用例（曲尾 100ms 内停止/卸载不得发 `TrackEnded`）+ `PlayToNaturalEnd_ThenAdvance`（真自然播完仍须发）三向钉住。 —— 收尾修订补注："三向"须拆开看：只有 `Stop_WhenPlayheadIsAtTrackEnd_…` 真正经过 `_stopRequested`；`Unload_WhenPlayheadIsAtTrackEnd_…` 走 `DisposePlayback`，而它先解订阅 `PlaybackStopped` 再停止，回调不触发，故那条钉的是"解订阅早于停止"的顺序而非本标记（口径见 `docs/PROJECT.md` §9 与 `docs/COUPLING.md` §5 现文）。
 
 ### 4.5 包引用收窄
 
@@ -126,8 +126,8 @@ NAudio.Wasapi : WasapiOut, WasapiPlayer(+Builder), MediaFoundationReader, AudioC
 </PropertyGroup>
 <ItemGroup>
   <PackageReference Include="xunit.v3" Version="4.0.1" />
-  <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />   <!-- 保留：IDE 测试浏览器 + VSTest 兼容路径 -->
-  <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />    <!-- 保留：dotnet test 的 VSTest 路径 -->
+  <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />   <!-- 保留：IDE 测试浏览器 + VSTest 兼容路径（后半句已证伪：VSTest 路径不可达，仅剩 IDE 测试发现的兼容性，且本阶段未验证；见文末勘误第 3 条） -->
+  <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />    <!-- 保留：dotnet test 的 VSTest 路径（已证伪：dotnet test 走的是仓根 global.json 路由的 MTP，该包只是兼容性保留；见文末勘误第 3 条） -->
   <PackageReference Include="NSubstitute" Version="6.2.0" />
   <PackageReference Include="coverlet.collector" Version="10.1.0" />
 </ItemGroup>
@@ -149,18 +149,18 @@ v3 的并行策略与 v2 不同（默认按测试集合并行）。本仓有 5 �
 3. 仍不稳则退到 `[assembly: CollectionBehavior(DisableTestParallelization = true)]`（恢复 v2 的默认串行语义）。
 无论走哪条，**必须在 spec 的验收里留下实测记录**（跑几次、结果、最终选择）。
 
-### 5.4 双 runner 的行为
+### 5.4 双 runner 的行为（标题已证伪：实际只有一个 runner（MTP）与到达它的两条命令，见文末勘误第 3 条）
 
 - MTP（默认）：`dotnet run --project Tests/D-player.Tests.csproj -c Debug`，输出为 MTP 的原生 UI，支持 `--filter` 等原生参数。
 - VSTest：`dotnet test D-player.sln -c Debug` —— 经 `TestingPlatformDotnetTestSupport` 也路由到 MTP；**命令不变**。（此条机制描述已证伪，实际靠仓库根 `global.json`，见文末勘误）
-- 两条路径都必须在验收里各跑一遍并全绿（161 条）。
+- 两条路径都必须在验收里各跑一遍并全绿（161 条）。（此处"两条路径"实测是同一个 MTP runner 的两条命令，见文末勘误第 3 条；两条命令各自跑过全量并均为 161 通过）
 - 若 IDE 测试发现出现异常，官方逃生开关是 `DisableTestingPlatformServerCapability`；**默认不加**，出现问题再说。
 
 ## 6. 文档与契约同步
 
 | 文档 | 改动 |
 |------|------|
-| `docs/COUPLING.md` §5 | ① 闸门条目改为"生命周期串行化"表述（去掉 `audioClient` 置空的具体机制，保留两条纪律）；② 停止意图条目按新类的回调行为改写；③ 新增"测试栈 = xunit v3 + MTP/VSTest 双模式"的说明（含音频测试的集合串行约束） |
+| `docs/COUPLING.md` §5 | ① 闸门条目改为"生命周期串行化"表述（去掉 `audioClient` 置空的具体机制，保留两条纪律）；② 停止意图条目按新类的回调行为改写；③ 新增"测试栈 = xunit v3 + MTP/VSTest 双模式"的说明（含音频测试的集合串行约束）—— ③ 的两处措辞均已证伪：落地说明是"单一 runner（MTP）的两个入口"而非双模式（见文末勘误第 3 条），音频测试也未启用集合串行，实测结论为 level 0 沿用 v3 默认并行（见文末勘误第 5 条） |
 | `docs/COUPLING.md` §7 | 补一条 ❌：不要在 `WasapiPlayer` 的 `PlaybackStopped` 回调里取 `_chainGate`；并说明预留工厂保留 `WasapiOut` 是刻意为之 |
 | `docs/PROJECT.md` | 构建/测试章节补 MTP 跑法；§9 的播放链陷阱条目按新类改写；依赖清单更新（NAudio.Core/Wasapi）；测试工程形态说明 |
 | `README.md` | 测试命令段补 `dotnet run --project Tests/D-player.Tests.csproj -c Debug`（`dotnet test` 保留） |
@@ -180,7 +180,7 @@ v3 的并行策略与 v2 不同（默认按测试集合并行）。本仓有 5 �
 
 - **`WasapiPlayer` 的 teardown 语义未知**：`Stop()` 是否仍 `Join` 播放线程、`Dispose()` 的阻塞行为、`PlaybackStopped` 的回调上下文——都要在实施时用实验确认，再据此定稿注释与 COUPLING 措辞（死锁纪律无论结论如何都保留）。
 - **v3 的 `Assert` 重载扩张**可能与本地同名 helper 冲突：本仓断言调用全部是直接调用，无自定义同名 helper ✓；若有编译期歧义，按编译错误逐处显式化。
-- **MTP + WPF 工程**（`UseWPF=true` 的测试工程转为 Exe）需要实测通过；这是 v3 在本仓的首次落地，失败则以 VSTest 路径为准回退（保留 `dotnet test`），MTP 延后。
+- **MTP + WPF 工程**（`UseWPF=true` 的测试工程转为 Exe）需要实测通过；这是 v3 在本仓的首次落地，失败则以 VSTest 路径为准回退（保留 `dotnet test`），MTP 延后。（此退路已证伪：VSTest 目标在 xunit.v3 4.0.1 + MTP 2.4.0 + .NET 10 SDK 上不可达，"退回 VSTest"不成立；实际是让 `dotnet test` 经新增的仓根 `global.json` 也落到 MTP，两条命令共用同一 runner，见文末勘误第 3 条）
 - **联网 restore**：`xunit.v3` 需从 nuget.org 拉取；本机网络对 github.com 不稳定但 nuget.org 可用。若 restore 失败，本阶段阻塞（不降级为手工放包）。
 - **收窄包引用后**若出现"类型找不到"（例如 WasapiOut 的 legacy 实现需要 Dmo），以编译错误为准补回**最小**必要的子包，并把这个例外写进依赖清单说明。
 - 本阶段**不改产品行为**，因此没有数据/持久化兼容问题；`playlists.json` / `settings.json` / library cache 均不受影响。
@@ -196,7 +196,9 @@ v3 的并行策略与 v2 不同（默认按测试集合并行）。本仓有 5 �
 
 ## 勘误（2026-10-06，实现期实测）
 
-实现阶段（Task 1–3）以反射与真机运行为准，推翻了本文的若干前提。原文一律保持不动以留可审计记录，被证伪的句子已在原句旁标注"见文末勘误"。
+实现阶段（Task 1–3）以反射与真机运行为准，推翻了本文的若干前提。原文一律保持不动以留可审计记录。
+
+**标注状态（收尾修订时核对过）**：本文每一处被证伪的句子现在都已在原句旁就地标注"见文末勘误"。实现期已标注的是 `WasapiPlayer`/`IWavePlayer` 与"代码影响零"那几条（§1 Non-Goals 首条、§4.1 两行、§4.2、§4.3、§5.2 标题、§5.4 的 VSTest 机制条）；runner / VSTest 那一批当时**漏标**，由收尾修订补齐 —— 顶部目标句、§1 Goals 的"xunit 2"、§1 Non-Goals 的"不迁移到 MTP-only"、§2 决策 2、§3 的 `Microsoft.NET.Test.Sdk` 行、§5.1 的两条包注释、§5.4 标题与"两条路径"条、§6 的 `docs/COUPLING.md` §5 行、§8 的"退回 VSTest"退路。本节下方勘误 1–7 是原始实测记录，未改写。另有两处不属于"证伪"、但实现期留空或口径过粗的地方由收尾修订以"收尾修订补注"就地补齐（§4.4 的新类 `Stop()` 是否阻塞这一开放问题、§4.4 两条"证据"句的强度与归属），它们的标注字样是"收尾修订补注"而非"见文末勘误"。
 
 1. **§4.1 / §4.2 —— `WasapiPlayer` 确实实现 `IWavePlayer`**。对随包发布的 NAudio.Wasapi 3.1.0 程序集反射（commit `50d9ba3` 记录）：
    - `typeof(WasapiPlayer).GetInterfaces()` → `IWavePlayer, IDisposable, IWavePosition, IWaveLatency, IAsyncDisposable`。

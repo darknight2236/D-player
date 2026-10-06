@@ -37,7 +37,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
     ///
     /// 纪律：持锁期间不得 await；不得阻塞等待 UI 线程（事件一律 Post 异步派发）；
     /// 播放线程回调 OnPlaybackStopped **不能**取此锁——持锁方可能正阻塞在输出类的
-    /// Stop() 上等待播放线程退出，回调里取锁即死锁。
+    /// Stop()/Dispose() 上等待播放线程退出（3.1.0 文档只把 Dispose 标为 blocking），取锁即死锁。
     /// </summary>
     private readonly object _chainGate = new();
 
@@ -292,8 +292,8 @@ public sealed class NAudioPlaybackService : IPlaybackService
 
         // 自然播完判定：播放头距 TotalTime 不超过容差，且时长大于 0（避免空 reader 误判）。
         // 本方法由播放线程回调，不能取 _chainGate —— 持锁方可能正阻塞在输出类的
-        // Stop() 上等待播放线程退出，取锁会立即死锁。因此这里只做防御性读取：
-        // reader 可能正被并发的 DisposePlayback 释放，而在音频线程上抛出会直接崩进程。
+        // Stop()/Dispose() 上等待播放线程退出（后者文档明确 blocking），取锁会立即死锁。
+        // 因此这里只做防御性读取：reader 可能正被并发的 DisposePlayback 释放，在音频线程抛出即崩进程。
         bool naturalEnd = false;
         var reader = _reader;
         if (reader != null)

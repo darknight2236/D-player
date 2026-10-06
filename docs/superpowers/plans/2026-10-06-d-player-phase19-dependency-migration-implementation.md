@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把代码结构迁移到已升级依赖的新 API 上——NAudio 的播放输出从 legacy 的 `WasapiOut` 换成 `WasapiPlayerBuilder`/`WasapiPlayer` 并把 meta 包收窄为 `NAudio.Core` + `NAudio.Wasapi`；测试栈从 xunit v2 迁到 xunit.v3 并同时打通 MTP 与 VSTest 两条运行路径。**不改任何产品行为**。
+**Goal:** 把代码结构迁移到已升级依赖的新 API 上——NAudio 的播放输出从 legacy 的 `WasapiOut` 换成 `WasapiPlayerBuilder`/`WasapiPlayer` 并把 meta 包收窄为 `NAudio.Core` + `NAudio.Wasapi`；测试栈从 xunit v2 迁到 xunit.v3 并同时打通 MTP 与 VSTest 两条运行路径。**不改任何产品行为**。 —— 落地校正（Task 3 实测）："MTP 与 VSTest 两条运行路径"不成立，交付态只有一个 runner（MTP），到达它的命令有两条（`dotnet run --project Tests/D-player.Tests.csproj -c Debug` 与 `dotnet test D-player.sln -c Debug`，后者经仓根 `global.json` 路由）；详见本文件 Global Constraints 与 Task 3 Step 5 的注记、设计稿文末勘误第 3 条。
 
 **Architecture:** 迁移是"替换实现类 + 重写注释理由"，不是重构：`NAudioPlaybackService` 的播放链结构、`_chainGate` 串行化、`_stopRequested` 停止意图、`OnPlaybackStopped` 的锁纪律**全部保留**，只把两处论证从"NAudio 2.x 内部细节"改写为"我们自己的不变量"。测试侧零代码改动（无 `Xunit.Abstractions`/`IAsyncLifetime` 用法；此句应读作"零**语义**改动"——v3 分析器的 8 处 `xUnit1051` 是靠改调用点满足 0 警告门禁的，见 Task 3 Step 3 的注记），只是工程形态（实验工程变可执行程序）与 runner 配置变化。
 
@@ -419,7 +419,7 @@ using Xunit;
 
 **把最终停在的那一级写进提交信息**（Task 4 要据此写 PROJECT）。
 
-- [x] **Step 8: 行尾核对 + 提交** —— 实际提交 `bf6068c` 除下方正文外还记了三件事：新增仓根 `global.json`（`dotnet test` 的真正路由）、8 处 `xUnit1051` 改传 `TestContext.Current.CancellationToken`（故本文件"No test code changed"那句须按 Step 3 注记读）、两个音频测试类的类头注释纠错；正文里那处三选一的实测空位已按结果填为 "stable as-is"
+- [x] **Step 8: 行尾核对 + 提交** —— 实际提交 `bf6068c` 除下方正文外还记了三件事：新增仓根 `global.json`（`dotnet test` 的真正路由）、8 处 `xUnit1051` 改传 `TestContext.Current.CancellationToken`（故本文件"No test code changed"那句须按 Step 3 注记读）、两个音频测试类的类头注释纠错；正文里那处三选一的实测空位已按结果填为 "stable as-is"。—— 落地校正（收尾修订补齐）：下方模板正文的 "Both runners report 161/161" 与 subject 的 "with both runners enabled" 沿用草稿口径，事实只有一个 runner（MTP）与到达它的两条命令，两条命令各跑全量均为 161 通过 / 0 失败（见设计稿文末勘误第 3 条）；该措辞已随 `bf6068c` 进入历史，历史不可改写，故只在此登记，模板与本文件均按实测理解
 
 Run: `git ls-files --eol Tests/D-player.Tests.csproj`（以及 Step 7 改过的文件）
 Expected: `w/crlf`；不是就 `unix2dos` 后重新 `git add`。
@@ -454,7 +454,7 @@ WASAPI device. Both runners report 161/161."
 
 **Interfaces:**
 - Consumes: Task 2 的新注释文本（COUPLING 条目要与之同口径）、Task 3 的并行度结论与 runner 事实
-- Produces: 文档与代码一致；本计划全部勾选
+- Produces: 文档与代码一致；本计划全部勾选 —— 落地校正（收尾修订）："全部勾选"不成立：交付态是除 Task 5 Step 3（GUI 真机冒烟，无法自动化的项按 Phase 18 先例留 NOT VERIFIED 并移交用户）外全部勾选，该步刻意保持 `- [ ]`（见 Task 4 Step 7 与 Task 5 Step 3 的注记）
 
 - [x] **Step 1: `README.md` 测试段** —— 已落地（`README.md` §测试：`:77-85`），但**未照抄**下方 after 块里"VSTest 路径（命令保持兼容；经 TestingPlatformDotnetTestSupport 同样路由到 MTP）"那句：README 写的是同一个 MTP runner 的两个入口、路由机制是仓根 `global.json`、两条命令都不得加 `--nologo`
 
@@ -481,7 +481,7 @@ dotnet test D-player.sln -c Debug
 当前共 **161** 个单元测试（Models / Services / ViewModels 全覆盖 + View 层纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测，由手动验收把关）。
 ````
 
-- [x] **Step 2: `docs/PROJECT.md` 构建/测试章节（§8）** —— 已落地（§8.2：`:902-903` 两条命令 + `:908-914` 测试栈段），但草稿的"双路径"框架未照抄：`:903` 的行内注释写的是"跑测试（同一个 runner 的另一条命令）"而非下方 after 块里的 `# 跑测试（VSTest 兼容路径）`，`:908` 写明 runner 只有一个（MTP）、两条命令是同一 runner 的两个入口（即下方那句"MTP 与 VSTest 双路径，两条命令等价"不成立），并补记 `global.json` 才是路由机制、`TestingPlatformDotnetTestSupport` 不在执行路径上、`--nologo` 禁令
+- [x] **Step 2: `docs/PROJECT.md` 构建/测试章节（§8）** —— 已落地（§8.2：`:902-903` 两条命令 + `:908-914` 测试栈段），但草稿的"双路径"框架未照抄：`:903` 的行内注释写的是"跑测试（同一个 runner 的另一条命令）"而非下方 after 块里的 `# 跑测试（VSTest 兼容路径）`，`:908` 写明 runner 只有一个（MTP）、两条命令是同一 runner 的两个入口（即下方那句"MTP 与 VSTest 双路径，两条命令等价"不成立），并补记 `global.json` 才是路由机制、`TestingPlatformDotnetTestSupport` 不在执行路径上、`--nologo` 禁令。（收尾修订注：本文件对 `docs/PROJECT.md` 的行号引用是当时的快照，§3 目录树与 §9 的收尾修订让行号整体有偏移，核对时以节标题定位，别按行号硬套）
 
 在 §8.2 的命令块里补一行 MTP 跑法，并在其后加一段说明（按实际落地的 runner 情况写）：
 
@@ -502,7 +502,7 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 - 第 164 行的 `├── Tests/  # xUnit 测试项目 (Phase 6+，共 155 个测试)` → `共 161 个测试`，并把 `xUnit` 写成 `xUnit v3`。
 - 依赖清单处（NAudio 相关行）改成 `NAudio.Core` + `NAudio.Wasapi`（若 Task 1 走了兜底，把例外子包一并列出）。
 
-- [x] **Step 4: `docs/PROJECT.md` §9 的播放链条目改写** —— 已落地（`docs/PROJECT.md:942-943`）；下方 after 块里留给 Task 3 的并行度空位已按实测取第一项填为真实结论（level 0：沿用 v3 默认并行）
+- [x] **Step 4: `docs/PROJECT.md` §9 的播放链条目改写** —— 已落地（`docs/PROJECT.md:942-943`）；下方 after 块里留给 Task 3 的并行度空位已按实测取第一项填为真实结论（level 0：沿用 v3 默认并行）。—— 收尾修订追加：下方模板末尾那句"回归测试…再停止/卸载，确定性钉住"与"阻塞在输出类的 `Stop()` 上"的归因后被改写（5 条里只有 `Stop_WhenPlayheadIsAtTrackEnd_…` 真正经过 `_stopRequested`，`Unload_…` 因 `DisposePlayback` 先解订阅再停止而钉的是解订阅顺序；阻塞面按 `Stop()`/`Dispose()` 两者计），以 `docs/PROJECT.md` §9 现文为准，勿照抄本模板
 
 把 Task 2 之前的播放链陷阱条目（"播放链生命周期必须串行化；'停止'意图必须显式标记"那一条）里所有 **NAudio 2.x 内部细节**替换为新口径，并在末尾补并行度结论。改写后的条目：
 
@@ -541,7 +541,7 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 - ❌ **给 `StubAudioOutputFactory` 的 `WasapiOut` 用法"顺手"迁到 `WasapiPlayer`** —— 该工厂是刻意保留的"未来多后端"接缝（见 §7 首条），其契约 `IWavePlayer` 的重设计属于那件事本身；`WasapiPlayer` 不实现 `IWavePlayer`，硬换会破坏这个抽象的语义
 ```
 
-- [x] **Step 7: 勾选本计划** —— Task 1–4 的步骤已全部勾选；Task 5（全量验收）的 4 个步骤保持未勾选，因为该任务尚未执行，不能提前记为完成
+- [x] **Step 7: 勾选本计划** —— Task 1–4 的步骤已全部勾选；Task 5（全量验收）的 4 个步骤保持未勾选，因为该任务尚未执行，不能提前记为完成 —— 落地校正（收尾修订）：本句写于 Task 4 执行时，其中"该任务尚未执行"已过期：Task 5 其后已执行，Step 1/2/4 已勾选并附执行记录，**Step 3（GUI 真机冒烟）刻意保持未勾选**（无法自动化的项按 Phase 18 先例标为 NOT VERIFIED 并移交用户），所以全计划的真实状态是"仅 Task 5 Step 3 一项留开"，不是"全部勾选"
 
 把本文件所有 `- [ ]` 改成 `- [x]`（用 Edit 工具逐处改，**不要**用 `sed -i`）。改完确认：
 

@@ -3,7 +3,7 @@ namespace DPlayer.ViewModels;
 /// <summary>
 /// 一次播放列表导入的结构化报告（Phase 18）。
 ///
-/// 分层纪律：VM 只返回数据，中文文案由 View 层 PlaylistImportReportFormatter 组装。
+/// 分层纪律：VM 只返回数据，中文文案由 PlaylistImportReportFormatter 组装（Phase 20 起该格式化器已随本 record 一起搬进 D-player.Core/ViewModels，两壳共用，不再是 View 层类型）。
 /// 不要在 VM 里拼展示字符串——两个入口（侧边栏新建 / 工具栏追加）与拖拽聚合报告
 /// 共用同一份文案规则，放 View 层才能 DRY。
 /// </summary>

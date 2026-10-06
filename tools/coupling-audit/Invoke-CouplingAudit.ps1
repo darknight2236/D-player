@@ -20,11 +20,19 @@ function Get-Layer([string]$ns) {
     return 'Root'
 }
 
-# ---- collect sources (layer dirs + repo root) ----
+# ---- collect sources (layer dirs under every project root + repo root files) ----
+# Phase 20 moved Models/Services/ViewModels/Configuration/Extensions into D-player.Core,
+# so a layer name can live under two roots (D-player.Core\Models AND Models). Views and
+# Converters still live at the repo root (they belong to the WPF shell). Each existing
+# layer dir under each scan root is collected; missing dirs are skipped.
+$scanRoots = @((Join-Path $RepoRoot 'D-player.Core'), $RepoRoot)
+
 $files = @()
-foreach ($d in $layerDirs) {
-    $p = Join-Path $RepoRoot $d
-    if (Test-Path $p) { $files += @(Get-ChildItem -Path $p -Filter *.cs -Recurse -File) }
+foreach ($root in $scanRoots) {
+    foreach ($d in $layerDirs) {
+        $p = Join-Path $root $d
+        if (Test-Path $p) { $files += @(Get-ChildItem -Path $p -Filter *.cs -Recurse -File) }
+    }
 }
 $files += @(Get-ChildItem -Path $RepoRoot -Filter *.cs -File)
 
@@ -118,7 +126,16 @@ $loc = foreach ($f in $files) {
 $big = @($loc | Where-Object { $_.Loc -gt 600 } | Sort-Object @{Expression='Loc';Descending=$true}, File)
 
 # ---- M6: DI registered-but-unconsumed ----
-$regFile = Join-Path $RepoRoot 'Extensions\ServiceCollectionExtensions.cs'
+# Phase 20 moved the DI registry into D-player.Core/Extensions; fall back to the repo root
+# so the check keeps working if the file moves back (a missing file would make M6 silently
+# inspect nothing instead of reporting the real registrations).
+$regCandidates = @(
+    (Join-Path (Join-Path $RepoRoot 'D-player.Core') 'Extensions\ServiceCollectionExtensions.cs'),
+    (Join-Path $RepoRoot 'Extensions\ServiceCollectionExtensions.cs')
+)
+$regFile = $null
+foreach ($c in $regCandidates) { if (Test-Path -LiteralPath $c) { $regFile = $c; break } }
+if (-not $regFile) { throw "DI registry not found (looked for Extensions\ServiceCollectionExtensions.cs under D-player.Core and the repo root)" }
 $regText = Get-Content -LiteralPath $regFile -Raw
 $registered = @([regex]::Matches($regText, 'Add\w+<\s*(I[A-Za-z0-9_]+)') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
 $unconsumed = @()

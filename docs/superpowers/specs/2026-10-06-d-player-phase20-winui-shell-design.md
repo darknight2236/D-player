@@ -46,6 +46,7 @@
 | 5 | 打法 | **垂直切片先行**（A 方案） | 每步可停、每步有可运行产物；最早撞上 WinUI 的三块硬骨头 |
 | 6 | 决策门 | **切片完成后由用户拍板**续投/停止 | 避免"一口气做到功能等价"的长周期与返工风险 |
 | 7 | WASDK 版本 | **不通就取新版**（不退回 `net9.0` 壳） | 用户拍板；nuget.org 可用，取最新稳定版优先于降 TFM |
+| 8 | 门禁隔离 | **解决方案筛选器**：`D-player.sln` 含全部工程，`D-player.slnf` 只含 Core+WPF+Tests，主门禁走筛选器 | 用户拍板；让 WinUI 工具链不进入既有构建/测试路径。**已实测**：`dotnet build probe.slnf` 0 警告 0 错误、`dotnet test probe.slnf` 总计 172 / 失败 0（在本仓现有 2 个工程上验证，2026-10-06） |
 
 ## 3. 勘察证据（现状）
 
@@ -75,6 +76,17 @@ D-player.Tests     → 改为引用 Core（断言零改动）
 - **`InternalsVisibleTo("D-player.Tests")`** 随 Core；WPF 壳若还需暴露内部成员给测试，再加一条。
 - **`Tests` 工程属性保持不变**（`net10.0-windows` + `UseWPF=true` + `OutputType=Exe` + MTP 配置），只把 `ProjectReference` 改指 Core（若 View 层测试仍需 WPF 壳，则同时保留对 WPF 壳的引用）。
 - **顺序安全**：20-1 只做 Core 提取 + 两处清理 + WPF 壳适配，产物是"行为零变化的 WPF 版 + 全绿测试"，可独立提交交付。
+
+### 4.1.1 解决方案与门禁隔离
+
+| 文件 | 内容 | 用途 |
+|---|---|---|
+| `D-player.sln` | Core + WPF + WinUI + Tests（四个工程全含） | IDE 里一次看到全部；不用于门禁 |
+| `D-player.slnf` | Core + WPF + Tests | **主门禁**：`dotnet build D-player.slnf -c Debug`、`dotnet test D-player.slnf -c Debug` |
+| WinUI 构建 | 直接构建 csproj：`dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug` | 只在做 WinUI 时用；不额外做第二个筛选器 |
+
+- **实测依据**（2026-10-06，在本仓现有工程上以 `probe.slnf` 验证）：`dotnet build <slnf>` 0 警告 0 错误；`dotnet test <slnf>` 总计 172 / 失败 0 —— 说明 `.slnf` 在 xunit.v3 + MTP + `global.json` 这套组合下可用。
+- 因门禁命令由 `.sln` 变为 `.slnf`，**PROJECT/README/COUPLING 与项目记忆里的命令必须同步改**（否则照旧命令跑会连带构建 WinUI，隔离失效）。
 
 ### 4.2 共享层的两处实质改动
 
@@ -112,7 +124,7 @@ D-player.Tests     → 改为引用 Core（断言零改动）
   4. 暂停/继续可用
   5. 关闭后重开按 ▶ **从断点续播**（数据落在 `%LocalAppData%\D-player-winui\`）
   6. 干净退出，无异常
-- **门禁命令保持不变**：`dotnet build D-player.sln` 与 `dotnet test D-player.sln`。注意 sln 将包含 WinUI 工程 → **工具链风险会落在主门禁上**，故 20-2（骨架验证）排在切片之前；若 WASDK×net10 组合不通，取最新稳定版 WASDK（若仍不通则停在 20-2 并如实报告，不降级、不伪造）。
+- **门禁命令（已隔离，见 §4.1.1）**：`dotnet build D-player.slnf -c Debug` 0 错误 0 警告；`dotnet test D-player.slnf -c Debug`（**不加 `--nologo`**）172 通过 / 0 失败。WinUI 工程不进主门禁，其工具链问题不会污染既有绿灯；但 20-2（骨架验证）仍排在切片之前——切片依赖它。若 WASDK×net10 组合不通，取 nuget.org 最新稳定版 WASDK（若仍不通则停在 20-2 并如实报告，不降级、不伪造）。
 - 无 WinUI XAML 层自动化测试（项目惯例）；VM/Service 的测试全部在 Core 侧，两个壳共享同一份覆盖率。
 
 ### 4.6 对比材料与决策门
@@ -137,14 +149,14 @@ D-player.Tests     → 改为引用 Core（断言零改动）
 | 文档 | 改动 |
 |---|---|
 | `docs/COUPLING.md` §5 | 新增契约：**Core 必须 WPF-free**（不得引用 `System.Windows.*` / `PresentationFramework`）；两壳共享同一份 VM/Service，业务行为只有一份实现；数据目录由壳注入（`D-player` vs `D-player-winui`，跨进程互不写同一份文件） |
-| `docs/COUPLING.md` §7 | 新增 ❌：不要在 Core 里引用 WPF 类型（含 `ICollectionView`）；不要给 WinUI 壳做 UmaPlayer 迁移；不要让两个壳共用同一数据目录（当前无跨进程锁） |
-| `docs/PROJECT.md` | 工程结构、依赖清单、数据目录（新增 winui 目录）、测试与构建命令、Phase 20 状态；`SortedView` 相关描述若存在需改 |
-| `README.md` | 项目结构树补两个新工程；运行方式补 WinUI 壳的启动命令；阶段表加 Phase 20 行 |
+| `docs/COUPLING.md` §7 | 新增 ❌：不要在 Core 里引用 WPF 类型（含 `ICollectionView`）；不要给 WinUI 壳做 UmaPlayer 迁移；不要让两个壳共用同一数据目录（当前无跨进程锁）；**不要把 WinUI 工程加进主门禁筛选器**（`D-player.slnf` 只含 Core+WPF+Tests） |
+| `docs/PROJECT.md` | 工程结构（三个工程 + 两个解决方案文件）、依赖清单、数据目录（新增 winui 目录）、**构建/测试命令改为 `dotnet build/test D-player.slnf`**、Phase 20 状态；`SortedView` 相关描述若存在需改 |
+| `README.md` | 项目结构树补两个新工程与 `D-player.slnf`；构建/测试命令改 `.slnf`；补 WinUI 壳的启动命令；阶段表加 Phase 20 行 |
 | 本 spec + 实施计划 | 按惯例落盘并勾选 |
 
 ## 6. 验收标准
 
-1. **20-1**：`dotnet build D-player.sln -c Debug` 0 错误 0 警告；`dotnet test D-player.sln -c Debug` **172 通过 / 0 失败**（断言零改动）；WPF 版真机冒烟通过；`grep -rn "System.Windows\|CollectionViewSource" D-player.Core/` 无命中（Core WPF-free 可 grep 验证）。
+1. **20-1**：新增 `D-player.Core` 与 `D-player.slnf`（只含 Core+WPF+Tests）；`dotnet build D-player.slnf -c Debug` 0 错误 0 警告；`dotnet test D-player.slnf -c Debug` **172 通过 / 0 失败**（断言零改动）；WPF 版真机冒烟通过；`grep -rn "System.Windows\|CollectionViewSource" D-player.Core/` 无命中（Core WPF-free 可 grep 验证）。
 2. **20-2**：`D-player.WinUI` 构建 0 警告、能起窗口；**记录实际可用的 WASDK 版本与 TFM 组合**（写进 PROJECT 与提交信息）。
 3. **20-3**：4.5 的真机清单 6 项由用户逐项确认通过（未做/未验的项如实标 NOT VERIFIED，不得凭空报通过）。
 4. **20-4**：对比材料（核对表 + 评分表）产出；用户给出续投/停止结论并记录；三份文档同步完成。
@@ -155,7 +167,7 @@ D-player.Tests     → 改为引用 Core（断言零改动）
 | 风险 | 影响 | 处置 |
 |---|---|---|
 | WASDK × net10 组合不通 | 20-2 阻塞 | 取 nuget.org 最新稳定 WASDK（用户已定：不退回 net9 壳）；仍不通则停在 20-2 并如实报告 |
-| WinUI 工具链让主门禁变脆（sln 含 WinUI 工程，`dotnet test` 会构建它） | 影响既有绿灯流程 | 20-2 先行验证；必要时评估"解决方案筛选器"分离构建（若采用，需在 PROJECT 记录） |
+| `D-player.WinUI` 工程把 WinUI 工具链拖进既有构建/测试路径 | 影响既有绿灯流程 | **已消解**：主门禁走 `D-player.slnf`（只含 Core+WPF+Tests），WinUI 只以 csproj 单独构建；`.slnf` 支持性已在 20-1 前实测（§4.1.1）。文档与记忆里的门禁命令须同步改为 `.slnf` |
 | 无 `Adorner` 的拖拽插入指示 | 第二阶段风险（本阶段不涉及） | 第二阶段用 overlay 指示线方案，届时单独验证 |
 | 频谱渲染 | 第二阶段风险 | WinUI 3 有 `Microsoft.UI.Xaml.Media.CompositionTarget.Rendering`；必要时上 Win2D |
 | Core 提取引入行为差异 | 影响 WPF 版稳定性 | 20-1 以"172 测试 + 真机冒烟"收口；`SortBy` 语义逐行对照，不做"顺手优化" |

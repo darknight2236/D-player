@@ -25,7 +25,14 @@ function Get-Layer([string]$ns) {
 # so a layer name can live under two roots (D-player.Core\Models AND Models). Views and
 # Converters still live at the repo root (they belong to the WPF shell). Each existing
 # layer dir under each scan root is collected; missing dirs are skipped.
-$scanRoots = @((Join-Path $RepoRoot 'D-player.Core'), $RepoRoot)
+# D-player.WinUI is the second UI shell and has its own layer dirs (Services), so it
+# needs to be a scan root as well; without it the shell is invisible to M1/M5/M6 (a
+# WinUI-only consumer of a registered service would still show up as "unconsumed").
+$scanRoots = @(
+    (Join-Path $RepoRoot 'D-player.Core'),
+    (Join-Path $RepoRoot 'D-player.WinUI'),
+    $RepoRoot
+)
 
 $files = @()
 foreach ($root in $scanRoots) {

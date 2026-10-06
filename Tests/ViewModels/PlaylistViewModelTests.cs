@@ -193,6 +193,59 @@ public class PlaylistViewModelTests
         Assert.True(vm.HasCurrentTrack);
     }
 
+    // —— SortBy（表头点击排序：PlaylistView.xaml.cs Header_Click → vm.SortBy(column)）——
+
+    /// <summary>
+    /// 入队 count 个时长**严格递减**的 Track（track0 最长 = count 秒，trackN-1 最短 = 1 秒）。
+    /// 故意让初始顺序 = "按 Duration 降序"，这样"升序"结果必然与初始顺序相反：
+    /// 断言的排列不是恒等排列，SortBy 若不再真正重排 Queue，下面的断言立刻失败。
+    /// </summary>
+    private static void AddTracksByDescendingDuration(PlaylistViewModel vm, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            vm.Queue.Add(new Track(
+                $"track{i}.mp3", $"Title {i}", null, null, null, null, null, null,
+                TimeSpan.FromSeconds(count - i), null));
+        }
+    }
+
+    /// <summary>Queue 的**物理**顺序（按下标串成一行，失败时可直接比对整条序列）。</summary>
+    private static string QueueOrder(PlaylistViewModel vm)
+        => string.Join(" > ", vm.Queue.Select(t => t.FilePath));
+
+    [Fact]
+    public void SortBy_Duration_ReordersQueuePhysically_AndSecondClickFlipsDirection()
+    {
+        var vm = CreateVm();
+        AddTracksByDescendingDuration(vm, 5);
+        var before = QueueOrder(vm); // track0(5s) > track1(4s) > ... > track4(1s)
+
+        vm.SortBy("Duration"); // 第一次点击「时长」表头 → 升序
+        Assert.Equal("track4.mp3 > track3.mp3 > track2.mp3 > track1.mp3 > track0.mp3", QueueOrder(vm));
+
+        vm.SortBy("Duration"); // 再次点击同列 → 降序，回到初始物理顺序
+        Assert.Equal(before, QueueOrder(vm));
+        Assert.Equal(5, vm.Queue.Count); // 重排只改顺序，不丢曲目
+    }
+
+    [Fact]
+    public void SortBy_Duration_MovesCurrentIndexTogetherWithTheCurrentTrack()
+    {
+        var vm = CreateVm();
+        AddTracksByDescendingDuration(vm, 5);
+        vm.CurrentIndex = 1;                 // 队列中段：track1.mp3（4 秒）
+        var current = vm.Queue[1];
+
+        vm.SortBy("Duration");               // 升序后 4 秒的曲落到 index 3
+
+        Assert.Equal(3, vm.Queue.IndexOf(current));
+        Assert.Equal(3, vm.CurrentIndex);
+        Assert.Equal(current, vm.Queue[vm.CurrentIndex]); // ▶ 标记跟着曲子走
+        Assert.NotEqual(current, vm.Queue[1]);            // 旧索引已被别的曲子占据
+        Assert.True(vm.HasCurrentTrack);
+    }
+
     // —— Phase 18: 播放列表文件导入/导出 ——
 
     private static PlaylistImportResult ImportResult(

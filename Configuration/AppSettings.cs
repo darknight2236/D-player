@@ -18,8 +18,11 @@ public sealed record AppSettings
     /// <summary>用户首选输出设备 ID (预留)。</summary>
     public string? PreferredDeviceId { get; init; }
 
-    /// <summary>上次播放的文件路径 (预留：用于"上次播放"恢复)。</summary>
+    /// <summary>上次播放的文件路径（断点续播：暂停/停止/切歌/关闭时写入，启动时据此就位）。</summary>
     public string? LastPlayedPath { get; init; }
+
+    /// <summary>上次播放位置（秒），与 <see cref="LastPlayedPath"/> 配对；启动恢复时 Seek 到该位置。</summary>
+    public double LastPlayedPositionSeconds { get; init; }
 
     // 窗口几何 —— 关闭时由 MainWindow.Window_Closing 写入，启动时读取
     public double WindowLeft { get; init; }

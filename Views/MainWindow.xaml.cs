@@ -56,7 +56,9 @@ public partial class MainWindow : Window
         // 失败 → JsonPlaylistService 内部已回 seed; UI 仍能用。
         try
         {
-            await _vm.InitializeAsync();
+            var restoreWarning = await _vm.InitializeAsync();
+            if (restoreWarning is not null)
+                ConfirmDialog.ShowInfo(this, "恢复播放位置", restoreWarning);
         }
         catch
         {

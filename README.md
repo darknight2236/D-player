@@ -82,7 +82,7 @@ dotnet test D-player.sln -c Debug                           # 同一个 runner �
 
 两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。
 
-当前共 **161** 个单元测试（Models / Services / ViewModels 全覆盖 + View 层纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测，由手动验收把关）。
+当前共 **172** 个单元测试（Models / Services / ViewModels 全覆盖 + View 层纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测，由手动验收把关）。
 
 ---
 

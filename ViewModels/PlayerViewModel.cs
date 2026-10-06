@@ -182,6 +182,7 @@ public partial class PlayerViewModel : ObservableObject
         // 拖动时不更新 Position，否则用户拖到的位置会被服务每 33ms 覆盖回去
         if (!IsSeeking)
             Position = position;
+        TrySaveLastPlayedState();
     }
 
     private void HandleDurationChanged(TimeSpan duration)
@@ -191,10 +192,46 @@ public partial class PlayerViewModel : ObservableObject
     {
         CurrentTrack = track;
         AlbumArtBytes = track?.AlbumArt;
+        SaveLastPlayedState();
     }
 
     private void HandleStateChanged(PlayState state)
-        => PlayState = state;
+    {
+        PlayState = state;
+        if (state != PlayState.Playing)
+            SaveLastPlayedState(); // 暂停/停止即写：这是最可能紧接着关闭应用的两个时刻
+    }
+
+    // —— 断点续播：上次播放（曲目 + 位置）的落盘 ——
+
+    private static readonly TimeSpan LastPlayedSaveInterval = TimeSpan.FromSeconds(30);
+    private DateTime _lastPlayedSaveUtc = DateTime.MinValue;
+
+    /// <summary>
+    /// 把"上次播放的曲目 + 位置"写入 settings.json。无当前曲目时不动磁盘上已有的值
+    /// （清空队列/卸载后，之前的断点仍然有效）。
+    /// 播放中由 PositionChanged 驱动，但最多每 30 秒写一次；暂停/停止/切歌/关闭时无条件写。
+    /// </summary>
+    public void SaveLastPlayedState()
+    {
+        var track = _player.CurrentTrack;
+        if (track is null) return;
+
+        var position = _player.Position;
+        _lastPlayedSaveUtc = DateTime.UtcNow;
+        _ = _persistence.UpdateAsync(s => s with
+        {
+            LastPlayedPath = track.FilePath,
+            LastPlayedPositionSeconds = position.TotalSeconds
+        });
+    }
+
+    private void TrySaveLastPlayedState()
+    {
+        if (_player.State != PlayState.Playing) return;
+        if (DateTime.UtcNow - _lastPlayedSaveUtc < LastPlayedSaveInterval) return;
+        SaveLastPlayedState();
+    }
 
     private void HandlePlaybackError(string error)
     {
@@ -339,6 +376,8 @@ public partial class PlayerViewModel : ObservableObject
 
         // Phase 13: 解绑频谱事件
         _player.SpectrumDataAvailable -= HandleSpectrumData;
+
+        SaveLastPlayedState(); // 关闭兜底：最后一次位置必须在 IPlaybackService.Dispose 之前读出
 
         await _persistence.UpdateAsync(s => s with { DefaultVolume = Volume });
     }

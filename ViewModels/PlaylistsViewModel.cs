@@ -121,6 +121,22 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 按文件路径在已水化的歌单里找曲目（"正在播放"歌单优先），供启动断点续播就位。
+    /// 找不到返回 null。
+    /// </summary>
+    public Track? FindTrackByPath(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath)) return null;
+
+        static Track? FindIn(PlaylistViewModel? vm, string path) => vm?.Queue.FirstOrDefault(
+            t => string.Equals(t.FilePath, path, StringComparison.OrdinalIgnoreCase));
+
+        var current = Playlists.FirstOrDefault(p => p.Id == CurrentPlaylistId);
+        return FindIn(current, filePath)
+            ?? Playlists.Select(p => FindIn(p, filePath)).FirstOrDefault(t => t is not null);
+    }
+
+    /// <summary>
     /// 把容器当前状态打包成持久化快照。MainViewModel debounce save 用。
     /// </summary>
     public QueueState BuildSnapshot() => new()

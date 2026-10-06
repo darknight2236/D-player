@@ -1,4 +1,5 @@
 using System.IO;
+using DPlayer.Configuration;
 using DPlayer.Models;
 using DPlayer.Services;
 
@@ -21,6 +22,7 @@ public sealed class MainViewModel : IAsyncDisposable
 
     private readonly IPlaybackService _player;
     private readonly IPlaylistService _playlistService;
+    private readonly ISettingsPersistence _settings;
     private CancellationTokenSource? _saveCts;
     private Task? _saveTask;
     private bool _hydrated;
@@ -32,27 +34,65 @@ public sealed class MainViewModel : IAsyncDisposable
         PlayerViewModel player,
         PlaylistsViewModel playlists,
         IPlaybackService playbackService,
-        IPlaylistService playlistService)
+        IPlaylistService playlistService,
+        ISettingsPersistence settings)
     {
         Player = player ?? throw new ArgumentNullException(nameof(player));
         Playlists = playlists ?? throw new ArgumentNullException(nameof(playlists));
         _player = playbackService ?? throw new ArgumentNullException(nameof(playbackService));
         _playlistService = playlistService ?? throw new ArgumentNullException(nameof(playlistService));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
     /// <summary>
-    /// MainWindow Loaded 时调用一次。读 queue.json (含 v1→v2 迁移), Hydrate 容器, 然后开始监听 StateChanged。
+    /// MainWindow Loaded 时调用一次。读 queue.json (含 v1→v2 迁移), Hydrate 容器, 开始监听 StateChanged,
+    /// 然后做断点续播就位（只加载不出声）。返回非 null = 恢复被跳过、需要向用户提示的原因。
     /// </summary>
-    public async Task InitializeAsync()
+    public async Task<string?> InitializeAsync()
     {
-        if (_hydrated) return;
+        if (_hydrated) return null;
         var snapshot = await _playlistService.LoadAsync().ConfigureAwait(true);
         Playlists.Hydrate(snapshot);
         Playlists.StateChanged += OnPlaylistsStateChanged;
         _hydrated = true;
 
+        var restoreWarning = await RestoreLastPlayedAsync().ConfigureAwait(true);
+
         // Phase 10: 后台扫描文件夹绑定歌单(不阻塞 UI)
         _ = Playlists.RescanFolderBoundPlaylistsAsync();
+
+        return restoreWarning;
+    }
+
+    /// <summary>
+    /// 断点续播：把上次播放的曲目与位置装进播放器（**不**自动出声，▶ 才出声）。
+    /// 跳过恢复时返回给用户看的原因；正常恢复或本就无记录返回 null。
+    /// </summary>
+    private async Task<string?> RestoreLastPlayedAsync()
+    {
+        AppSettings settings;
+        try { settings = await _settings.LoadAsync().ConfigureAwait(true); }
+        catch { return null; } // 设置读不出来时静默跳过，不打扰启动
+
+        var path = settings.LastPlayedPath;
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        if (!File.Exists(path))
+            return $"上次播放的文件已不存在，未恢复播放位置：\n{path}";
+
+        var track = Playlists.FindTrackByPath(path);
+        if (track is null)
+            return $"上次播放的曲目已不在任何歌单中，未恢复播放位置：\n{path}";
+
+        await _player.LoadAsync(track).ConfigureAwait(true);
+
+        var position = TimeSpan.FromSeconds(settings.LastPlayedPositionSeconds);
+        if (position > TimeSpan.Zero)
+            _player.Seek(position);
+
+        // 立即回写一次：启动后若马上退出/被杀，不会把位置退回 0
+        Player.SaveLastPlayedState();
+        return null;
     }
 
     private void OnPlaylistsStateChanged(object? sender, EventArgs e) => ScheduleSave();

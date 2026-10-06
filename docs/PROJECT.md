@@ -162,7 +162,7 @@ D-player/
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs # AddDPlayerServices(...) DI 注册
 │
-├── Tests/                       # xUnit v3 测试项目 (Phase 6+，共 161 个测试 = 153 个 [Fact] + 1 个 [Theory] 展开的 8 条 [InlineData]；下列逐文件括号计数之和即 161)
+├── Tests/                       # xUnit v3 测试项目 (Phase 6+，共 172 个测试 = 164 个 [Fact] + 1 个 [Theory] 展开的 8 条 [InlineData]；下列逐文件括号计数之和即 172)
 │   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit v3 + NSubstitute + Coverlet；OutputType=Exe，跑 Microsoft.Testing.Platform)
 │   ├── Smoke/
 │   │   └── SmokeTests.cs                 # 冒烟测试：Track record 结构相等 (1)
@@ -179,6 +179,7 @@ D-player/
 │   │   ├── PlaylistFileParserTests.cs    # 后缀判定 + M3U/PLS 解析 (16) (Phase 18)
 │   │   └── PlaylistFileServiceTests.cs   # 导入管道（归一化/过滤计数/不抛）+ 导出与往返 (20) (Phase 18)
 │   ├── ViewModels/
+│   │   ├── PlaybackResumeTests.cs         # 断点续播（落盘时机 + 启动恢复 + 缺文件提示）(11) (2026-10-06)
 │   │   ├── PlayerViewModelTests.cs        # Transport (15) (Phase 8)
 │   │   ├── PlayerViewModelSpectrumTests.cs# 频谱 (5) (Phase 13)
 │   │   ├── PlayerViewModelEqualizerTests.cs # 均衡器（启用态传播 + 构造期抑制写盘）(3) (Phase 14)
@@ -661,6 +662,7 @@ public Task CleanupAsync();
     "OutputMode": "WasapiShared",
     "PreferredDeviceId": null,
     "LastPlayedPath": null,
+    "LastPlayedPositionSeconds": 0,
     "WindowLeft": 100,
     "WindowTop": 100,
     "WindowWidth": 800,
@@ -677,8 +679,10 @@ public Task CleanupAsync();
 
 **更名数据迁移（UmaPlayer → D-player）**：数据目录从 `%LocalAppData%\UmaPlayer\` 改为 `%LocalAppData%\D-player\`。`App.OnStartup` 最早期调用 `LegacyDataMigration.MigrateIfNeeded()`（在任何持久化服务被 DI 构造前），把旧目录内文件逐个搬到新目录（新目录已有同名文件则跳过 → 幂等；失败静默吞掉不阻断启动，旧数据保留）。
 
-**当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`、**`SpectrumEnabled/SpectrumSensitivity/SpectrumColorTheme/SpectrumSmoothing`（Phase 13）**、**`EqualizerEnabled/EqualizerPreamp/EqualizerBands/EqualizerPreset`（Phase 14）**。
-**已建模但未启用**：`OutputMode`、`PreferredDeviceId`、`LastPlayedPath`。
+**当前被持久化的字段**：`DefaultVolume`、`WindowLeft/Top/Width/Height`、**`SpectrumEnabled/SpectrumSensitivity/SpectrumColorTheme/SpectrumSmoothing`（Phase 13）**、**`EqualizerEnabled/EqualizerPreamp/EqualizerBands/EqualizerPreset`（Phase 14）**、**`LastPlayedPath` / `LastPlayedPositionSeconds`（断点续播，2026-10-06）**。
+**已建模但未启用**：`OutputMode`、`PreferredDeviceId`。
+
+**断点续播（2026-10-06）**：`LastPlayedPath` + `LastPlayedPositionSeconds` 记录"上次播放的曲目与位置"——`PlayerViewModel` 在暂停/停止/切歌时**立即**写、播放中由 `PositionChanged` 驱动但**最多每 30 秒写一次**、关闭时在 `CleanupAsync` 兜底写（在 `IPlaybackService.Dispose` 之前读出）。启动时 `MainViewModel.InitializeAsync` 读回，在已水化的歌单里按路径找到该曲（`PlaylistsViewModel.FindTrackByPath`，"正在播放"歌单优先），`LoadAsync` + `Seek` **只就位不出声**——播放器栏显示曲目/时长/封面，按 `▶` 才从断点继续（`CurrentTrack != null` 后 ▶ 由 `PlayCurrent` 自动切回 `PlayPauseCommand`）。文件已缺失或该曲已不在任何歌单中时跳过恢复，由 `MainWindow` 弹一次 `ConfirmDialog.ShowInfo` 告知原因。恢复成功后立即回写一次，避免"启动后马上退出"把位置退回 0。无当前曲目时不写盘（清空队列/卸载后旧断点仍有效）。
 
 ### 6.3 队列快照：`%LocalAppData%\D-player\queue.json`（Phase 4/6/10）
 

@@ -299,6 +299,8 @@ private void RemoveTrack(int index)
 | **Phase 19 新增（依赖迁移后的测试栈契约）** | | |
 | 测试栈 = xunit.v3（`OutputType=Exe`）+ **单一 runner（MTP）的两个入口**；音频集成测试受并行度约束 | `Tests/D-player.Tests.csproj` + 仓库根 `global.json` + `Tests/Services/NAudioPlaybackService*Tests.cs` | 测试工程是可执行程序，`dotnet run --project Tests/D-player.Tests.csproj` 与 `dotnet test D-player.sln` 跑的是同一个 Microsoft.Testing.Platform runner。`dotnet test` 的路由机制是仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 就破坏 `dotnet test`**；csproj 的 `TestingPlatformDotnetTestSupport` 是 .NET 9 及更早版本的路由开关，在本 SDK 上不参与执行路径，`xunit.runner.visualstudio` / `Microsoft.NET.Test.Sdk` 同样只是为 IDE 测试发现（测试浏览器）的兼容性而保留 —— **该能力在本阶段未验证过**（验收只跑命令行两条路径），也不在跑测试的路径上。两条命令都不能加 `--nologo`（MTP 不识别该参数：一条测试都不跑，摘要却显示 `成功: 0`，退出码 5）。5 条音频测试真实占用 WASAPI 设备：xunit v3 默认并行实测稳定（10 次 MTP + 3 次 `dotnet test` 全绿），故既未加 `[Collection("AudioDevice")]` 也未全局禁用并行——新增音频测试若出现设备争用，按设计稿 §5.3 的顺序收紧（先集合串行，再全局禁用并行） |
 | 输出工厂 `StubAudioOutputFactory` 返回 `WasapiPlayer`（共享 + 事件同步 + 100ms，与播放链同参）；仓库 `#pragma warning disable CS0618` 数为 **0** | `Services/StubAudioOutputFactory.cs`、`Services/IAudioOutputFactory.cs` | 该工厂只注册、无消费方；Phase 19 收尾经用户拍板把它从 legacy 的 `WasapiOut` 迁到 `WasapiPlayer`（零契约改动：`WasapiPlayer` 实现 `IWavePlayer`，契约一字未改），顺带退休仓库最后一处过时 API 抑制。详见设计稿文末勘误与 §7 对应条目 |
+| **断点续播（2026-10-06）** | | |
+| 断点续播的写入时机（暂停/停止/切歌**立即**写、播放中由 `PositionChanged` 驱动但**最多 30 秒一次**、关闭时 `CleanupAsync` 兜底写）与恢复语义（**只就位不出声**；文件缺失/不在歌单则跳过并提示一次） | `PlayerViewModel.SaveLastPlayedState` / `TrySaveLastPlayedState` / `CleanupAsync`、`MainViewModel.RestoreLastPlayedAsync`、`PlaylistsViewModel.FindTrackByPath`、`Views/MainWindow.xaml.cs`（提示） | 每次 `PositionChanged` 无条件写盘 ≈ 30Hz 读改写，会持续打盘并与 `ISettingsPersistence` 的锁内读改写互相排队；恢复路径**不得**调用 `Play()`（启动主动出声违背"本地优先、不打扰"，`▶` 才出声）；无当前曲目时不得写（清空队列/卸载后旧断点仍有效）；恢复成功后必须立即回写一次，否则"启动后马上退出"会把位置退回 0（`Tests/ViewModels/PlaybackResumeTests.cs` 11 条钉住以上各点） |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
@@ -377,6 +379,7 @@ private void RemoveTrack(int index)
 - ❌ **为导入给 `PlaylistViewModel` 注入 `ILibraryScannerService`**（Phase 18）—— 追加路径复用既有 `DropExternalFiles`（服务层已过滤 + 逐个读元数据入队）；引入扫描服务会让歌单级 VM 背上容器级依赖，违反双 VM 互不持引用的既有拓扑
 - ❌ **把导出入口放到侧边栏**（Phase 18）—— 侧边栏按钮作用于"选中项"，导出语义是"当前查看的歌单"（`ViewedPlaylist`），两个指针在键盘导航下可能不同步，放侧边栏会产生"到底导出哪个"的歧义
 - ❌ **重新引入 `#pragma warning disable CS0618`（或任何抑制手段）来压 NAudio 的过时警告** —— 依赖已全部迁到 3.x 新 API，仓库当前 pragma 数为 **0**（`StubAudioOutputFactory` 已于 2026-10-06 收尾迁到 `WasapiPlayer`，经用户拍板；此前那条"不要顺手迁"的条目随迁移完成作废）。要压警告说明又用回了 legacy 类（`WasapiOut` 等），正确做法是改用 `WasapiPlayerBuilder → WasapiPlayer`（见 §5 输出工厂条目）
+- ❌ **在 `PositionChanged` 回写里无条件写盘，或在断点恢复路径里调用 `Play()`**（2026-10-06）—— 前者每帧一次"读盘→改→写盘"（≈30Hz）持续打盘并与 `ISettingsPersistence` 的锁竞争；后者让应用**启动即出声**，违背断点续播"只就位、`▶` 才出声"的既定语义（契约见 §5 断点续播条目）
 
 ---
 

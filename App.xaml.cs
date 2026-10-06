@@ -1,6 +1,7 @@
 using System.Windows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using DPlayer.Configuration;
 using DPlayer.Extensions;
 using DPlayer.Services;
 using DPlayer.ViewModels;
@@ -31,8 +32,12 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // WPF 壳的数据目录 = %LocalAppData%\D-player（与更名前落盘位置一致，老用户数据不搬家）。
+        // 同一个实例同时喂给迁移与 DI，避免两处字面量各改一半。
+        var dataPaths = new DPlayerDataPaths { FolderName = "D-player" };
+
         // 更名 UmaPlayer → D-player：在持久化服务被 DI 构造前，先把旧数据目录迁移到新目录
-        LegacyDataMigration.MigrateIfNeeded();
+        LegacyDataMigration.MigrateIfNeeded(dataPaths);
 
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -40,7 +45,7 @@ public partial class App : Application
             .Build();
 
         var services = new ServiceCollection();
-        services.AddDPlayerCore(configuration);
+        services.AddDPlayerCore(configuration, dataPaths);
         services.AddSingleton<IFileDialogService, Win32FileDialogService>();
         _services = services.BuildServiceProvider();
 

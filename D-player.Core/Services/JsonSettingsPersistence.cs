@@ -5,7 +5,8 @@ using DPlayer.Configuration;
 namespace DPlayer.Services;
 
 /// <summary>
-/// 将 AppSettings 序列化到 %LocalAppData%\D-player\settings.json。
+/// 将 AppSettings 序列化到 settings.json，落点目录由 <see cref="DPlayerDataPaths"/> 决定
+/// （WPF 壳为 %LocalAppData%\D-player\）。
 ///
 /// 并发控制：用 SemaphoreSlim(1,1) 把整个"读盘 → mutator → 写盘"封进临界区，
 /// 调用方只需提供 mutator (s => s with { Field = newValue })，
@@ -16,11 +17,12 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly string _path;
 
-    public JsonSettingsPersistence()
+    public JsonSettingsPersistence(DPlayerDataPaths paths)
     {
-        // 使用 LocalApplicationData 而非 ApplicationData：本机配置不漫游，避免多机互覆盖
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(appData, "D-player");
+        ArgumentNullException.ThrowIfNull(paths);
+
+        // Root 取自 LocalApplicationData 而非 ApplicationData：本机配置不漫游，避免多机互覆盖
+        var dir = paths.Directory;
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "settings.json");
     }

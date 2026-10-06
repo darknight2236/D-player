@@ -1,4 +1,5 @@
 using System.IO;
+using DPlayer.Configuration;
 using DPlayer.Models;
 using DPlayer.Services;
 using Xunit;
@@ -24,7 +25,7 @@ public sealed class JsonLibraryCacheTests : IDisposable
     [Fact]
     public async Task LoadAsync_NoFile_ReturnsEmpty()
     {
-        var cache = new JsonLibraryCache(_tempDir);
+        var cache = new JsonLibraryCache(new DPlayerDataPaths { Root = _tempDir });
 
         var result = await cache.LoadAsync(@"C:\Music\FolderA");
 
@@ -34,7 +35,7 @@ public sealed class JsonLibraryCacheTests : IDisposable
     [Fact]
     public async Task SaveAsync_ThenLoadAsync_RoundTrips()
     {
-        var cache = new JsonLibraryCache(_tempDir);
+        var cache = new JsonLibraryCache(new DPlayerDataPaths { Root = _tempDir });
         var folder = Path.Combine(_tempDir, "Music");
         var entries = new List<LibraryCacheEntry>
         {
@@ -61,7 +62,7 @@ public sealed class JsonLibraryCacheTests : IDisposable
     [Fact]
     public async Task SaveAsync_MultipleFolders_Independently()
     {
-        var cache = new JsonLibraryCache(_tempDir);
+        var cache = new JsonLibraryCache(new DPlayerDataPaths { Root = _tempDir });
         var folderA = Path.Combine(_tempDir, "FolderA");
         var folderB = Path.Combine(_tempDir, "FolderB");
 
@@ -95,7 +96,7 @@ public sealed class JsonLibraryCacheTests : IDisposable
     [Fact]
     public async Task LoadAsync_CorruptFile_ReturnsEmpty()
     {
-        var cache = new JsonLibraryCache(_tempDir);
+        var cache = new JsonLibraryCache(new DPlayerDataPaths { Root = _tempDir });
         var cacheFile = Path.Combine(_tempDir, "library-cache.json");
         await File.WriteAllTextAsync(cacheFile, "{ not valid json !!!", TestContext.Current.CancellationToken);
 
@@ -107,7 +108,7 @@ public sealed class JsonLibraryCacheTests : IDisposable
     [Fact]
     public async Task SaveAsync_OverwritesPreviousEntries()
     {
-        var cache = new JsonLibraryCache(_tempDir);
+        var cache = new JsonLibraryCache(new DPlayerDataPaths { Root = _tempDir });
         var folder = Path.Combine(_tempDir, "OverwriteFolder");
 
         var first = new List<LibraryCacheEntry>

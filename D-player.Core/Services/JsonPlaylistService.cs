@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DPlayer.Configuration;
 using DPlayer.Models;
 
 namespace DPlayer.Services;
@@ -24,10 +25,11 @@ public sealed class JsonPlaylistService : IPlaylistService
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly string _path;
 
-    public JsonPlaylistService()
+    public JsonPlaylistService(DPlayerDataPaths paths)
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(appData, "D-player");
+        ArgumentNullException.ThrowIfNull(paths);
+
+        var dir = paths.Directory;
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "queue.json");
     }

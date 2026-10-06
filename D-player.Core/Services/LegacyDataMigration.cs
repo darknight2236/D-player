@@ -1,4 +1,5 @@
 using System.IO;
+using DPlayer.Configuration;
 
 namespace DPlayer.Services;
 
@@ -10,6 +11,8 @@ namespace DPlayer.Services;
 /// 丢失已保存的设置/队列/元数据缓存，在应用启动最早期把旧目录内的文件搬到新目录。
 ///
 /// 纪律：
+///   - 仅 WPF 壳调用：UmaPlayer 是 WPF 壳的历史包袱，WinUI 壳从空目录开始，
+///     它用自己的数据目录，不该把老数据搬过去。
 ///   - 幂等：只在旧目录存在时执行；逐个文件"新目录没有才搬"，重复调用无副作用。
 ///   - 绝不抛：迁移失败（权限/占用等）静默吞掉，旧数据保留供用户手动处理，不阻断启动。
 ///   - 必须在任何持久化服务（JsonSettingsPersistence / JsonPlaylistService /
@@ -18,16 +21,17 @@ namespace DPlayer.Services;
 public static class LegacyDataMigration
 {
     private const string OldFolderName = "UmaPlayer";
-    private const string NewFolderName = "D-player";
 
-    /// <summary>把旧数据目录中的文件迁移到新目录（若新目录尚无同名文件）。</summary>
-    public static void MigrateIfNeeded()
+    /// <summary>把旧数据目录中的文件迁移到 <paramref name="paths"/> 指向的目标目录（若目标目录尚无同名文件）。</summary>
+    public static void MigrateIfNeeded(DPlayerDataPaths paths)
     {
+        ArgumentNullException.ThrowIfNull(paths);
+
         try
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             var oldDir = Path.Combine(appData, OldFolderName);
-            var newDir = Path.Combine(appData, NewFolderName);
+            var newDir = paths.Directory;
 
             if (!Directory.Exists(oldDir))
                 return; // 全新安装或已迁移过，无事可做

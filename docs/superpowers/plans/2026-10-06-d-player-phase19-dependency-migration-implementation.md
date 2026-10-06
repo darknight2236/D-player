@@ -50,7 +50,7 @@
 - Consumes: 现有代码对 NAudio 的类型使用（`WaveFormat`/`ISampleProvider`/`IWaveProvider`/`VolumeSampleProvider`/`BiQuadFilter`/`FastFourierTransform`/`WaveExtensionMethods` 来自 Core；`WasapiOut`/`MediaFoundationReader`/`AudioClientShareMode` 来自 Wasapi）
 - Produces: 收窄后的依赖图（供 Task 5 的 `dotnet list package --include-transitive` 验收）
 
-- [ ] **Step 1: 替换包引用**
+- [x] **Step 1: 替换包引用**
 
 把 `D-player.csproj` 的这一行：
 
@@ -67,24 +67,24 @@
 
 （其余 `PackageReference` 不动。）
 
-- [ ] **Step 2: restore + 构建**
+- [x] **Step 2: restore + 构建**
 
 Run: `dotnet restore D-player.sln --nologo -v q && dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。
 
 若出现 `CS0246`（找不到类型/命名空间）：该类型确实属于别的子包（最可能是 `NAudio.Dmo`——`WasapiOut` 的 exclusive 路径内部用到 `ResamplerDmoStream`）。此时把**最小**的那个子包加回（例如 `<PackageReference Include="NAudio.Dmo" Version="3.1.0" />`），并在 Task 4 的依赖清单里如实写明例外。
 
-- [ ] **Step 3: 全量测试**
+- [x] **Step 3: 全量测试**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: **161 通过 / 0 失败**。
 
-- [ ] **Step 4: 核验依赖图**
+- [x] **Step 4: 核验依赖图**
 
 Run: `dotnet list D-player.csproj package --include-transitive`
 Expected: 出现 `NAudio.Core` / `NAudio.Wasapi`（若 Step 2 走了兜底则还有 `NAudio.Dmo`）；**不应出现** `NAudio.WinForms` / `NAudio.Midi` / `NAudio.Asio` / `NAudio.WinMM`。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add D-player.csproj
@@ -110,7 +110,7 @@ Build 0 errors / 0 warnings, 161/161 tests green."
 - Consumes: `NAudio.Wave.WasapiPlayerBuilder`（`.WithSharedMode()` / `.WithEventSync()` / `.WithLatency(int)` / `.Build()`）与 `NAudio.Wave.WasapiPlayer`（`Init(IWaveProvider)` / `Play()` / `Pause()` / `Stop()` / `Dispose()` / `PlaybackState` / `PlaybackStopped`）；`WaveExtensionMethods.ToWaveProvider(this ISampleProvider)`
 - Produces: `private WasapiPlayer? _wavePlayer;` 字段（后续所有成员沿用；`_chainGate` / `_stopRequested` 语义不变）——Task 4 的文档要引用本文件的新注释文本
 
-- [ ] **Step 1: 字段类型收窄**
+- [x] **Step 1: 字段类型收窄**
 
 把字段声明：
 
@@ -126,7 +126,7 @@ Build 0 errors / 0 warnings, 161/161 tests green."
 
 （`using NAudio.Wave;` 已在文件顶部，无需新增 using。若编译器报告 `IWavePlayer` 不再被引用等，按提示清理，但**先别删任何注释**。）
 
-- [ ] **Step 2: 替换构造与 Init**
+- [x] **Step 2: 替换构造与 Init**
 
 把 `LoadAsync` 内的这一段：
 
@@ -157,7 +157,7 @@ Build 0 errors / 0 warnings, 161/161 tests green."
 - `ToWaveProvider()` 不可用 → 先跑 `grep -c "ToWaveProvider" ~/.nuget/packages/naudio.core/3.1.0/lib/net9.0/NAudio.Core.xml` 确认扩展存在；仍失败则改用显式包装 `_wavePlayer.Init(new SampleToWaveProvider(_volumeProvider))`，并在提交信息里记录。
 - `WithEventSync()` 不可用（API 改了名）→ 用 `WithPollingSync()`，并在提交信息与 Task 4 的 COUPLING 条目里记录语义差异。
 
-- [ ] **Step 3: 构建并确认 pragma 减少**
+- [x] **Step 3: 构建并确认 pragma 减少**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。
@@ -165,7 +165,7 @@ Expected: 0 错误 0 警告。
 Run: `grep -rn "pragma warning disable CS0618" --include=*.cs . | grep -v "/obj/\|/bin/"`
 Expected: **只剩 1 处**（`Services/StubAudioOutputFactory.cs`，Task 1-3 范围内刻意保留的那个）。
 
-- [ ] **Step 4: 重写两处论证注释（本 Task 的核心）**
+- [x] **Step 4: 重写两处论证注释（本 Task 的核心）**
 
 **(a) `_chainGate` 的 XML 注释**——把现在的：
 
@@ -262,12 +262,12 @@ Expected: **只剩 1 处**（`Services/StubAudioOutputFactory.cs`，Task 1-3 范
 
 **(e) `DisposePlayback()` 里的 `_stopRequested = true;` 与 `OnPlaybackStopped` 的自然播完判定块（含 try/catch 与"播放线程不取锁"的说明）保持原样。** 只确认它们措辞里不再出现 `WasapiOut` 字样；若出现（例如引用了 `WasapiOut.Stop()` 的 Join），改成中性表述"输出类的 Stop()"。
 
-- [ ] **Step 5: 音频集成测试（回归证据）**
+- [x] **Step 5: 音频集成测试（回归证据）**
 
 Run: `dotnet test D-player.sln -c Debug --nologo --filter "FullyQualifiedName~NAudioPlaybackService"`
 Expected: **5 通过 / 0 失败** —— 3 条并发/播完（`NAudioPlaybackServiceConcurrencyTests`）+ 2 条停止语义（`NAudioPlaybackServiceStopSemanticsTests`）。这 5 条是两处论证的直接证据：若新类破坏了"停止不冒充播完"或"生命周期串行化"，它们会红。
 
-- [ ] **Step 6: 全量测试 + 行尾核对**
+- [x] **Step 6: 全量测试 + 行尾核对**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: **161 通过 / 0 失败**。
@@ -275,7 +275,7 @@ Expected: **161 通过 / 0 失败**。
 Run: `git ls-files --eol Services/NAudioPlaybackService.cs`
 Expected: `i/lf    w/crlf`。若为 `w/lf`：`unix2dos Services/NAudioPlaybackService.cs` 后重新 `git add`。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add Services/NAudioPlaybackService.cs
@@ -316,7 +316,7 @@ and only the deliberately-kept pragma in StubAudioOutputFactory remains."
 - Consumes: Task 1-2 完成后的 161 条绿基线
 - Produces: `dotnet run --project Tests/D-player.Tests.csproj -c Debug`（MTP）与 `dotnet test D-player.sln -c Debug`（VSTest 路径，经 `TestingPlatformDotnetTestSupport` 也走 MTP）两条命令均可跑；并行度的最终选择（Task 4 要写进 PROJECT）
 
-- [ ] **Step 1: 替换测试工程配置**
+- [x] **Step 1: 替换测试工程配置**
 
 把 `Tests/D-player.Tests.csproj` 的 `<PropertyGroup>` 改为（新增三行）：
 
@@ -350,12 +350,12 @@ and only the deliberately-kept pragma in StubAudioOutputFactory remains."
 
 （`xunit.runner.visualstudio`、`Microsoft.NET.Test.Sdk`、`NSubstitute`、`coverlet.collector` 全部原样保留。）
 
-- [ ] **Step 2: restore（需要联网）**
+- [x] **Step 2: restore（需要联网）**
 
 Run: `dotnet restore D-player.sln --nologo -v q`
 Expected: 无错误。`xunit.v3 4.0.1` 不在本机缓存，此次会从 nuget.org 拉取；失败就重试（本机到 github.com 的链路不稳，nuget.org 正常）。**不要**手工放包或降级版本。
 
-- [ ] **Step 3: 构建**
+- [x] **Step 3: 构建**
 
 Run: `dotnet build D-player.sln -c Debug --nologo -v q`
 Expected: 0 错误 0 警告。测试代码预期**零改动**（无 `Xunit.Abstractions`/`ITestOutputHelper`/`IAsyncLifetime`/`IClassFixture` 用法；断言集合全在 v3 内）。
@@ -365,19 +365,19 @@ Expected: 0 错误 0 警告。测试代码预期**零改动**（无 `Xunit.Abstr
 - 命名空间缺失（`CS0246`，例如旧 `Xunit.Abstractions`）→ 换成 v3 的命名空间（`Xunit`）。
 - **不要**为通过编译而改测试语义（断言值、测试数量）。
 
-- [ ] **Step 4: MTP 路径跑一遍**
+- [x] **Step 4: MTP 路径跑一遍**
 
 Run: `dotnet run --project Tests/D-player.Tests.csproj -c Debug`
 Expected: MTP 原生输出（不是 VSTest 的输出格式：无 "测试运行" 汇总行，而是 MTP 自己的进度/统计面板），**161 条通过 / 0 失败**。若输出看起来仍是 VSTest 格式，说明 `UseMicrosoftTestingPlatformRunner` 没生效——检查属性拼写后重跑。
 
-- [ ] **Step 5: VSTest 路径跑一遍（命令必须不变）**
+- [x] **Step 5: VSTest 路径跑一遍（命令必须不变）**
 
 Run: `dotnet test D-player.sln -c Debug --nologo -v q`
 Expected: **161 通过 / 0 失败**，且命令与迁移前一致（`TestingPlatformDotnetTestSupport` 让 `dotnet test` 也路由到 MTP）。
 
 若 MTP 与 WPF 测试工程冲突（`dotnet run` 起不来 / 报宿主错误）：**回退到仅 VSTest** —— 移除 `UseMicrosoftTestingPlatformRunner` 与 `TestingPlatformDotnetTestSupport` 两个属性（保留 `OutputType=Exe` 与 `xunit.v3`），确认 `dotnet test` 仍 161 绿，并在提交信息与 Task 4 的 PROJECT 文字里如实记录"MTP 因 <具体错误> 延后"。这是 spec §8 允许的回退路径。
 
-- [ ] **Step 6: 并行度实测（5 次）**
+- [x] **Step 6: 并行度实测（5 次）**
 
 Run（PowerShell 或 bash 循环均可，逐次记录结果）：
 
@@ -387,7 +387,7 @@ for i in 1 2 3 4 5; do echo "--- run $i ---"; dotnet run --project Tests/D-playe
 
 Expected: 5 次都 161 通过。记录每次的通过/失败数与总耗时（写入本次提交信息）。
 
-- [ ] **Step 7: 抖动时的处置（仅在 Step 6 出现失败时执行）**
+- [x] **Step 7: 抖动时的处置（仅在 Step 6 出现失败时执行）** —— 未触发：Step 6 实测 xunit v3 默认并行稳定，(a) `[Collection("AudioDevice")]` 与 (b) 全局 `DisableTestParallelization` 两条均未应用（结论落在 `bf6068c` 的提交信息与 `docs/PROJECT.md` §9）
 
 按顺序，只做到达稳定的那一级：
 
@@ -419,7 +419,7 @@ using Xunit;
 
 **把最终停在的那一级写进提交信息**（Task 4 要据此写 PROJECT）。
 
-- [ ] **Step 8: 行尾核对 + 提交**
+- [x] **Step 8: 行尾核对 + 提交**
 
 Run: `git ls-files --eol Tests/D-player.Tests.csproj`（以及 Step 7 改过的文件）
 Expected: `w/crlf`；不是就 `unix2dos` 后重新 `git add`。
@@ -455,7 +455,7 @@ WASAPI device. Both runners report 161/161."
 - Consumes: Task 2 的新注释文本（COUPLING 条目要与之同口径）、Task 3 的并行度结论与 runner 事实
 - Produces: 文档与代码一致；本计划全部勾选
 
-- [ ] **Step 1: `README.md` 测试段**
+- [x] **Step 1: `README.md` 测试段**
 
 把：
 
@@ -480,7 +480,7 @@ dotnet test D-player.sln -c Debug
 当前共 **161** 个单元测试（Models / Services / ViewModels 全覆盖 + View 层纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测，由手动验收把关）。
 ````
 
-- [ ] **Step 2: `docs/PROJECT.md` 构建/测试章节（§8）**
+- [x] **Step 2: `docs/PROJECT.md` 构建/测试章节（§8）**
 
 在 §8.2 的命令块里补一行 MTP 跑法，并在其后加一段说明（按实际落地的 runner 情况写）：
 
@@ -496,12 +496,12 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 测试栈：xunit.v3（测试工程是**可执行程序**，`OutputType=Exe`）；MTP 与 VSTest 双路径，两条命令等价。音频集成测试（`NAudioPlaybackService*Tests`）真实占用 WASAPI 设备，并行度结论见 §9。
 ````
 
-- [ ] **Step 3: `docs/PROJECT.md` 目录树与计数**
+- [x] **Step 3: `docs/PROJECT.md` 目录树与计数**
 
 - 第 164 行的 `├── Tests/  # xUnit 测试项目 (Phase 6+，共 155 个测试)` → `共 161 个测试`，并把 `xUnit` 写成 `xUnit v3`。
 - 依赖清单处（NAudio 相关行）改成 `NAudio.Core` + `NAudio.Wasapi`（若 Task 1 走了兜底，把例外子包一并列出）。
 
-- [ ] **Step 4: `docs/PROJECT.md` §9 的播放链条目改写**
+- [x] **Step 4: `docs/PROJECT.md` §9 的播放链条目改写**
 
 把 Task 2 之前的播放链陷阱条目（"播放链生命周期必须串行化；'停止'意图必须显式标记"那一条）里所有 **NAudio 2.x 内部细节**替换为新口径，并在末尾补并行度结论。改写后的条目：
 
@@ -512,7 +512,7 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 
 （`<...>` 处必须填 Task 3 实测得到的真实结论，不许照抄占位。）
 
-- [ ] **Step 5: `docs/COUPLING.md` §5 两条条目改写 + 新增测试栈条目**
+- [x] **Step 5: `docs/COUPLING.md` §5 两条条目改写 + 新增测试栈条目**
 
 把 Phase 18 之后登记的这两行：
 
@@ -531,7 +531,7 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 | 测试栈 = xunit.v3（`OutputType=Exe`）+ MTP/VSTest 双路径；音频集成测试受并行度约束 | `Tests/D-player.Tests.csproj` + `Tests/Services/NAudioPlaybackService*Tests.cs` | 测试工程是可执行程序，`dotnet run --project Tests/…` 与 `dotnet test D-player.sln` 等价（后者经 `TestingPlatformDotnetTestSupport` 路由到 MTP）。5 条音频测试真实占用 WASAPI 设备：<按 Task 3 结论填写：默认并行 / 同 `[Collection("AudioDevice")]` / 全局禁用并行>——新增音频测试必须沿用同一约束 |
 ```
 
-- [ ] **Step 6: `docs/COUPLING.md` §7 补一条 ❌**
+- [x] **Step 6: `docs/COUPLING.md` §7 补一条 ❌** —— 实际落地：新增"别把 `StubAudioOutputFactory` 的 `WasapiOut` 顺手迁走"一条（措辞按实现期实测结论，见设计稿文末勘误，Step 6 原文里"`WasapiPlayer` 不实现 `IWavePlayer`"那句已证伪）；"不要在输出类 `PlaybackStopped` 回调里取 `_chainGate`"与 §7 既有条目重复，故就地改写既有条目（去掉 `Join(playThread)` 这类 NAudio 2.x 细节）而不是追加重复条目
 
 在 §7 末尾（Phase 14 那条之后、Phase 18 之后的三条之后）追加：
 
@@ -540,14 +540,14 @@ dotnet test    D-player.sln -c Debug                            # 跑测试（VS
 - ❌ **给 `StubAudioOutputFactory` 的 `WasapiOut` 用法"顺手"迁到 `WasapiPlayer`** —— 该工厂是刻意保留的"未来多后端"接缝（见 §7 首条），其契约 `IWavePlayer` 的重设计属于那件事本身；`WasapiPlayer` 不实现 `IWavePlayer`，硬换会破坏这个抽象的语义
 ```
 
-- [ ] **Step 7: 勾选本计划**
+- [x] **Step 7: 勾选本计划** —— Task 1–4 的步骤已全部勾选；Task 5（全量验收）的 4 个步骤保持未勾选，因为该任务尚未执行，不能提前记为完成
 
 把本文件所有 `- [ ]` 改成 `- [x]`（用 Edit 工具逐处改，**不要**用 `sed -i`）。改完确认：
 
 Run: `git ls-files --eol docs/superpowers/plans/2026-10-06-d-player-phase19-dependency-migration-implementation.md`
 Expected: `i/lf    w/crlf`（不是就先 `unix2dos`）。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 unix2dos README.md docs/PROJECT.md docs/COUPLING.md docs/superpowers/plans/2026-10-06-d-player-phase19-dependency-migration-implementation.md

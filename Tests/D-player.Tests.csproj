@@ -8,6 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
+    <!-- Phase 19 耦合点：`dotnet test D-player.sln` 能路由到 Microsoft.Testing.Platform 的真实机制是仓库根
+         global.json 的 {"test":{"runner":"Microsoft.Testing.Platform"}}（.NET 10 SDK 的原生 opt-in），
+         删掉 global.json 这条命令即失败。下面的 TestingPlatformDotnetTestSupport 是 .NET 9 及更早版本的
+         路由开关，在本 SDK 上不参与执行路径；它与 Microsoft.NET.Test.Sdk、xunit.runner.visualstudio 一样
+         属兼容性保留（IDE 测试浏览器），不是实际跑测试的那条路。 -->
     <OutputType>Exe</OutputType>
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>

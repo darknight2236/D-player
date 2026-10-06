@@ -44,9 +44,9 @@
 | MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
 | DI 容器 | `Microsoft.Extensions.DependencyInjection` 10.x |
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
-| 音频引擎 | [NAudio 2.2.x](https://github.com/naudio/NAudio)（`MediaFoundationReader` 解码 + `WasapiOut` WASAPI Shared 输出） |
-| 元数据/标签 | [z440.atl.core 7.13](https://github.com/Zeugma440/atldotnet) |
-| 测试 | xUnit + NSubstitute + Coverlet |
+| 音频引擎 | [NAudio 3.1.0](https://github.com/naudio/NAudio)（引用收窄为 `NAudio.Core` + `NAudio.Wasapi` 两个子包；`MediaFoundationReader` 解码 + `WasapiPlayer` WASAPI Shared 输出） |
+| 元数据/标签 | [z440.atl.core 7.18](https://github.com/Zeugma440/atldotnet) |
+| 测试 | xUnit v3（Microsoft.Testing.Platform）+ NSubstitute + Coverlet |
 
 ---
 
@@ -75,10 +75,14 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 ## 测试
 
 ```bash
-dotnet test D-player.sln -c Debug
+# xunit v3 的测试工程是可执行程序，runner 是 Microsoft.Testing.Platform（MTP）
+dotnet run --project Tests/D-player.Tests.csproj -c Debug   # 直接跑可执行程序
+dotnet test D-player.sln -c Debug                           # 同一个 runner 的另一条命令
 ```
 
-当前共 **155** 个单元测试（Models / Services / ViewModels 全覆盖 + View 层纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测，由手动验收把关）。
+两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。
+
+当前共 **161** 个单元测试（Models / Services / ViewModels 全覆盖 + View 层纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测，由手动验收把关）。
 
 ---
 
@@ -95,7 +99,7 @@ D-player/
 ├── Converters/          # 值转换器
 ├── Themes/              # 深色主题资源字典（Colors / Fonts / Controls）
 ├── Extensions/          # DI 注册扩展（AddDPlayerServices）
-├── Tests/               # xUnit 测试项目
+├── Tests/               # xUnit v3 测试项目（可执行程序，跑 MTP）
 └── docs/                # 项目文档、耦合登记册、各阶段设计稿与实现计划
 ```
 
@@ -114,8 +118,8 @@ D-player/
 播放链（`NAudioPlaybackService`）：
 
 ```
-MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiOut
-                        （10 段 EQ，Phase 14）      （FFT 频谱，Phase 13）
+MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiPlayer
+                        （10 段 EQ，Phase 14）      （FFT 频谱，Phase 13）        （Shared + 事件同步 + 100ms，Phase 19）
 ```
 
 核心抽象：`IPlaybackService`、`IPlaylistService`、`ISettingsPersistence`、`ITrackMetadataReader`、`ILibraryScannerService`、`ILibraryCache`、`IPlaylistFileService`（Phase 18 播放列表文件读写门面：导入绝不抛、导出抛给 VM 转文案）。

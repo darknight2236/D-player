@@ -56,7 +56,7 @@
 | `PlayerBar` | — | `PlayerViewModel`（`DataContext as PlayerViewModel`，3 处）；跨级访问 `Playlist.<Cmd>`（含 Phase 4 ▶ DataTrigger 的 `PlayCurrentCommand`） |
 | `PlaylistView` | — | `PlaylistViewModel`（`DataContext as PlaylistViewModel`）；订阅 `PropertyChanged` / `Queue.CollectionChanged`；Phase 5 直接消费 `DragDropExtensions` / `DropInsertionAdorner` / `MoveTracksArgs`，但全部走 RelayCommand 与 VM 通信；Phase 6 双击路由走 `App.GetService<PlaylistsViewModel>().HandleDoubleClickPlay`；Phase 18 消费 `PlaylistImportUi` / `DragDropExtensions.FilterPlaylistPaths` + await VM 公开方法（导入/导出，非命令），导出错误经 `ConfirmDialog.ShowError` |
 | `PlaylistsSidebarView` | — | `PlaylistsViewModel`（`DataContext as PlaylistsViewModel`）；订阅 `PropertyChanged` / `Playlists.CollectionChanged`；消费 `PromptDialog`；Phase 18 消费 `PlaylistImportUi` / `DragDropExtensions.FilterPlaylistPaths` + await `ImportPlaylistFileAsync`（导入按钮与列表文件拖拽） |
-| `NAudioPlaybackService` | `IPlaybackService` | `MediaFoundationReader`, `WasapiOut`, `VolumeSampleProvider`, `SampleAggregator`（Phase 13）, `EqualizerSampleProvider`（Phase 14，在 `LoadAsync` 内按曲创建） |
+| `NAudioPlaybackService` | `IPlaybackService` | `MediaFoundationReader`, `WasapiPlayer`（Phase 19：经 `WasapiPlayerBuilder` 构造，仍按 `IWavePlayer` 持有与调用）, `VolumeSampleProvider`, `SampleAggregator`（Phase 13）, `EqualizerSampleProvider`（Phase 14，在 `LoadAsync` 内按曲创建） |
 | `Win32FileDialogService` | `IFileDialogService` | `Microsoft.Win32.OpenFileDialog` / `OpenFolderDialog` / `SaveFileDialog`（Phase 18 导出） |
 | `JsonSettingsPersistence` | `ISettingsPersistence` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
 | `JsonPlaylistService` (Phase 6) | `IPlaylistService` | `File`, `JsonSerializer`, `Environment.SpecialFolder` |
@@ -187,7 +187,7 @@ private void RemoveTrack(int index)
 | 接口 | 实现 | 状态 |
 |------|------|------|
 | `IAudioDeviceManager` | `StubAudioDeviceManager` | 注册了，**无人消费** |
-| `IAudioOutputFactory` | `StubAudioOutputFactory` | 注册了，**无人消费**（`NAudioPlaybackService` 自己 `new WasapiOut`） |
+| `IAudioOutputFactory` | `StubAudioOutputFactory` | 注册了，**无人消费**（`NAudioPlaybackService` 在 `LoadAsync` 内直接经 `WasapiPlayerBuilder` 建输出，不经此工厂；工厂自身刻意保留 `WasapiOut`，理由见 §7 与 `Services/StubAudioOutputFactory.cs` 的类注释） |
 
 **判断：** 这是 YAGNI 违规。但成本几乎为零（4 个空文件 + 2 行注册）。
 
@@ -293,9 +293,11 @@ private void RemoveTrack(int index)
 | `DropExternalFilesCommand` 的"paths 已过滤"契约新增调用方 | `PlaylistViewModel.ImportPlaylistFileAsync`（原本只有 View 拖拽入口） | VM 信任入参已过滤、不二次过滤；导入路径天然满足（过滤在服务层 `Classify` 完成）。任何新增调用方必须自己保证路径已过滤 |
 
 | **Bug 修复新增（播放链并发 / 曲尾停止，2026-10-06）** | | |
-| 播放链生命周期（`LoadAsync` 重建 / `Unload` / `Dispose` / 传输命令）统一受 `_chainGate` 串行化；持锁期间不得 await | `NAudioPlaybackService` 全部取锁点（`LoadAsync` 的 lambda 体、`Play`/`Pause`/`Stop`/`Seek`/`Unload`/`Dispose`） | 缺串行化时，重叠的 `LoadAsync`（或并发 `Unload`）会释放另一个正在 `Init` 的 `WasapiOut` 实例 —— 异常从 NAudio 内部（`WasapiOut.Init` / provider 构造）抛出并冒进 `async void` 事件处理器（进程崩溃）。commit `cb5ca1a` |
-| `OnPlaybackStopped`（NAudio 播放线程）**不得**取 `_chainGate` | `NAudioPlaybackService.OnPlaybackStopped` | 持锁方可能正阻塞在 `_wavePlayer.Stop()` 的 `Join(playThread)` 上；在播放线程回调里取同一把锁会立即死锁。该方法对 `_reader` 的读取因此是防御式的（并发拆除中的 reader 会抛） |
-| `TrackEnded` 只代表"曲目自然播完"：任何主动停止（`Stop()` / `DisposePlayback()`）都必须**先**置 `_stopRequested = true`，`Play()` 开新播放会话时清零 | `NAudioPlaybackService._stopRequested`（`OnPlaybackStopped` 命中即提前返回） | NAudio 播放线程退出时**同步**回调 PlaybackStopped（WasapiOut 建在线程池线程上、捕获的 `SynchronizationContext` 为 null），而 `Stop()` 内部 Join 该线程 —— 用户按停止与自然播完走同一个回调，仅凭"播放头距 TotalTime ≤ 200ms"无法区分。漏置位 = 曲尾 200ms 内按停止被误判为播完，停止后立刻自动推进下一首 |
+| 播放链生命周期（`LoadAsync` 重建 / `Unload` / `Dispose` / 传输命令）统一受 `_chainGate` 串行化；持锁期间不得 await | `NAudioPlaybackService` 全部取锁点（`LoadAsync` 的 lambda 体、`Play`/`Pause`/`Stop`/`Seek`/`Unload`/`Dispose`） | 缺串行化时，重叠的 `LoadAsync`（或并发 `Unload`）会释放前一次正在使用或构建的链 —— `_reader` / `_volumeProvider` / `_wavePlayer` 三个共享字段被交错读写，异常从链内部抛出并冒进 `async void` 事件处理器（进程崩溃）。**NAudio 3 的 guarded dispose 不使这条失效**（它只保护 NAudio 自己的对象）。commit `cb5ca1a`，Phase 19 迁移到 `WasapiPlayer` 后重述 |
+| `OnPlaybackStopped`（播放线程回调）**不得**取 `_chainGate` | `NAudioPlaybackService.OnPlaybackStopped` | 持锁方可能正阻塞在输出类的 `Stop()` 上等待播放线程退出；在回调里取同一把锁会立即死锁。该方法对 `_reader` 的读取因此是防御式的（并发拆除中的 reader 会抛） |
+| `TrackEnded` 只代表"曲目自然播完"：任何主动停止（`Stop()` / `DisposePlayback()`）都必须**先**置 `_stopRequested = true`，`Play()` 开新播放会话时清零 | `NAudioPlaybackService._stopRequested`（`OnPlaybackStopped` 命中即提前返回） | 用户停止与自然播完都只表现为一次 `PlaybackStopped`，输出类不告知发起方；仅凭"播放头距 TotalTime ≤ 200ms"无法区分，漏置位 = 曲尾 200ms 内按停止被误判为播完并自动推进下一首。该不确定性不随实现（同步/异步派发、`WasapiOut`/`WasapiPlayer`）变化 |
+| **Phase 19 新增（依赖迁移后的测试栈契约）** | | |
+| 测试栈 = xunit.v3（`OutputType=Exe`）+ **单一 runner（MTP）的两个入口**；音频集成测试受并行度约束 | `Tests/D-player.Tests.csproj` + 仓库根 `global.json` + `Tests/Services/NAudioPlaybackService*Tests.cs` | 测试工程是可执行程序，`dotnet run --project Tests/D-player.Tests.csproj` 与 `dotnet test D-player.sln` 跑的是同一个 Microsoft.Testing.Platform runner。`dotnet test` 的路由机制是仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 就破坏 `dotnet test`**；csproj 的 `TestingPlatformDotnetTestSupport` 是 .NET 9 及更早版本的路由开关，在本 SDK 上不参与执行路径，`xunit.runner.visualstudio` / `Microsoft.NET.Test.Sdk` 同属兼容性保留。两条命令都不能加 `--nologo`（MTP 不识别该参数：一条测试都不跑，摘要却显示 `成功: 0`，退出码 5）。5 条音频测试真实占用 WASAPI 设备：xunit v3 默认并行实测稳定（10 次 MTP + 3 次 `dotnet test` 全绿），故既未加 `[Collection("AudioDevice")]` 也未全局禁用并行——新增音频测试若出现设备争用，按设计稿 §5.3 的顺序收紧（先集合串行，再全局禁用并行） |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
@@ -361,7 +363,7 @@ private void RemoveTrack(int index)
 - ❌ **忘记在 `SpectrumView.Unloaded` 解绑 `CompositionTarget.Rendering`**（Phase 13）—— 全局渲染事件会持有控件引用导致内存泄漏
 - ❌ **让 `EqualizerSampleProvider.Update` 重建 `BiQuadFilter`（而非 `SetPeakingEq` 就地改）**（Phase 14）—— 重建会清空 x1/x2/y1/y2 延迟线，拖动滑块时爆音
 - ❌ **在 `NAudioPlaybackService` 里绕过 `_chainGate` 直接碰 `_wavePlayer` / `_reader` / 播放链字段**（新加传输命令也不例外）—— 会退回到"释放另一个正在 Init 的实例 → 异常冒进 async void"的崩溃面
-- ❌ **在 `OnPlaybackStopped`（NAudio 播放线程）里取 `_chainGate`** —— 持锁方可能正阻塞在 `Stop()` 的 `Join(playThread)` 上，取锁即死锁
+- ❌ **在输出类的 `PlaybackStopped` 回调（播放线程）里取 `_chainGate`**（Phase 19 起输出类为 `WasapiPlayer`）—— 持锁方可能正阻塞在其 `Stop()` 上等待播放线程退出，取锁即死锁
 - ❌ **新增任何"主动停止播放"的路径时忘记置 `_stopRequested`** —— 曲尾 200ms 内的用户停止会被误报为自然播完，停止后自动推进下一首
 - ❌ **给 `IPlaybackService` 加成员却漏改 `PlaylistsViewModel` 内的手写 `NullPlaybackService`**（Phase 14）—— 它是该接口的第二个生产实现者，漏改会 CS0535 编译失败
 - ❌ **在 `EqualizerDialog.OnLoaded` 未抑制就填充预设下拉**（Phase 14）—— WPF ComboBox 向空集合添加首项会自动选中 index 0 并触发 `SelectionChanged`，打开即误 push 一次 Flat/禁用配置扰动播放中的 EQ
@@ -373,6 +375,7 @@ private void RemoveTrack(int index)
 - ❌ **让 `UnloadCurrentTrack`（经 `ClearQueue`/`RemoveTrack`）无条件操作全局 `IPlaybackService`**（2026-10-05 修复）—— 只有 `IsActivePlaylist` 歌单才有权 `Unload()`，否则清空另一歌单会误停当前播放
 - ❌ **为导入给 `PlaylistViewModel` 注入 `ILibraryScannerService`**（Phase 18）—— 追加路径复用既有 `DropExternalFiles`（服务层已过滤 + 逐个读元数据入队）；引入扫描服务会让歌单级 VM 背上容器级依赖，违反双 VM 互不持引用的既有拓扑
 - ❌ **把导出入口放到侧边栏**（Phase 18）—— 侧边栏按钮作用于"选中项"，导出语义是"当前查看的歌单"（`ViewedPlaylist`），两个指针在键盘导航下可能不同步，放侧边栏会产生"到底导出哪个"的歧义
+- ❌ **给 `StubAudioOutputFactory` 的 `WasapiOut` 用法"顺手"迁到 `WasapiPlayer`** —— 该工厂是刻意保留的"未来多后端"接缝（见 §7 首条）；迁移本身零契约改动（`WasapiPlayer` 实现 `IWavePlayer`），但这是独立决定：接缝目前只注册、无任何调用点，输出策略（设备 / 延迟 / 同步模式）该定成什么属于多后端那件事，不在"不改行为"的迁移阶段拍板
 
 ---
 

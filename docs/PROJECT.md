@@ -52,10 +52,10 @@
 | MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
 | DI 容器 | `Microsoft.Extensions.DependencyInjection` 10.x |
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
-| 音频引擎 | [NAudio 2.2.x](https://github.com/naudio/NAudio) |
+| 音频引擎 | [NAudio 3.1.0](https://github.com/naudio/NAudio)（Phase 19 把 meta 包 `NAudio` 收窄为实际用到的两个子包：`NAudio.Core` + `NAudio.Wasapi`；`NAudio.Wasapi 3.1.0` 的 nuspec 只依赖 `NAudio.Core`，输出目录里也只有这两个 DLL） |
 | 音频解码 | `MediaFoundationReader` |
-| 输出后端 | WASAPI Shared (`WasapiOut`) |
-| 元数据/标签 | [z440.atl.core 7.13](https://github.com/Zeugma440/atldotnet) |
+| 输出后端 | WASAPI Shared（`WasapiPlayer`：经 `WasapiPlayerBuilder` 建链 —— `WithSharedMode()` + `WithEventSync()` + `WithLatency(100)`，与迁移前的 `WasapiOut(Shared, 100)` 语义等价；Phase 19 起替代 legacy 的 `WasapiOut`，`WasapiPlayer` 实现 `IWavePlayer` 故服务侧字段类型未变） |
+| 元数据/标签 | [z440.atl.core 7.18](https://github.com/Zeugma440/atldotnet)（`40338f5` 与 NAudio 同批升级；7.14–7.18 全是解析层修复，零 API 变更，故无代码改动） |
 
 ---
 
@@ -161,8 +161,8 @@ D-player/
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs # AddDPlayerServices(...) DI 注册
 │
-├── Tests/                       # xUnit 测试项目 (Phase 6+，共 155 个测试)
-│   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit + NSubstitute + Coverlet)
+├── Tests/                       # xUnit v3 测试项目 (Phase 6+，共 161 个测试)
+│   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit v3 + NSubstitute + Coverlet；OutputType=Exe，跑 Microsoft.Testing.Platform)
 │   ├── Smoke/
 │   │   └── SmokeTests.cs                 # 冒烟测试：Track record 结构相等 (1)
 │   ├── Models/
@@ -375,7 +375,7 @@ D-player/
 
 | 成员 | 说明 |
 |------|------|
-| `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `ToSampleProvider` → **`EqualizerSampleProvider`（Phase 14 均衡器中间件）** → **`SampleAggregator`（Phase 13 频谱中间件）** → `VolumeSampleProvider` → `WasapiOut(Shared, 100ms)`；触发 `DurationChanged` / `TrackChanged` · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
+| `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `ToSampleProvider` → **`EqualizerSampleProvider`（Phase 14 均衡器中间件）** → **`SampleAggregator`（Phase 13 频谱中间件）** → `VolumeSampleProvider` → `WasapiPlayer`（Phase 19：`new WasapiPlayerBuilder().WithSharedMode().WithEventSync().WithLatency(100).Build()`，与迁移前的 `WasapiOut(Shared, 100ms)` 语义等价；`WasapiPlayer` 无公开构造函数，只能经 builder 建立，之后仍按 `IWavePlayer` 使用）；触发 `DurationChanged` / `TrackChanged` · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
 | `Play / Pause / Stop` | 委派给 `IWavePlayer`；`Stop` 同时将 `CurrentTime` 归零（保留底层资源，再 `Play()` 会重播同一首） |
 | `Unload()` | **完全释放**底层 reader/wavePlayer，清掉 `_currentTrack`；之后 `Play()` 是 no-op。**Phase 3：同时广播 `TrackChanged(null) + DurationChanged(Zero) + PositionChanged(Zero)`** 让 VM 清屏（标题/封面/时长/进度全归零）。`PlaylistViewModel.UnloadCurrentTrack` 在清空队列/删当前曲时调用 |
 | `Seek(TimeSpan)` | 写 `reader.CurrentTime` 后**主动广播 PositionChanged**（Phase 3：暂停态下 PollPositionAsync 已退出，否则进度条不刷新，看上去像"没跳转"）；通过 `ClampToDuration` 截到 [0, TotalTime] |
@@ -409,7 +409,7 @@ D-player/
 `EqualizerSampleProvider` 是实现 `ISampleProvider` 的**透明中间件**，插在 `MediaFoundationReader.ToSampleProvider()` 与 `SampleAggregator` 之间（**在 SampleAggregator 之前** → Phase 13 频谱可视化反映 EQ 处理后的信号）。10 段图形均衡器：ISO 倍频程中心频率 31/62/125/250/500/1k/2k/4k/8k/16k Hz，每段 ±12 dB 峰值滤波（`BiQuadFilter.PeakingEQ`，Q≈1.1 约一个倍频程带宽）+ preamp（−12~+12 dB）。
 
 关键实现点：
-1. **插入点（LoadAsync 建链）**：`ToSampleProvider → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiOut`；EQ 在频谱聚合器之前，故频谱与 EQ 后听感一致。
+1. **插入点（LoadAsync 建链）**：`ToSampleProvider → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiPlayer`（Phase 19 起链尾是 `WasapiPlayer`）；EQ 在频谱聚合器之前，故频谱与 EQ 后听感一致。
 2. **每声道独立滤波**：`BiQuadFilter?[][] _filters`，索引 `[channel][band]`；立体声左右声道各持一组滤波器，避免共享实例串扰滤波状态（x1/x2/y1/y2 延迟线）。
 3. **preamp 线性增益**：`EqualizerConfig.PreampLinearGain = 10^(PreampDb/20)`，在逐级滤波前对样本统一缩放（多段提升时留余量防削波）。
 4. **`Update` 就地 `SetPeakingEq`**：运行时改配置**不重建** `BiQuadFilter`，而是对已有实例调 `SetPeakingEq(...)` 就地重算系数 —— 保留 x1/x2/y1/y2 状态（延迟线不清空），拖动滑块时无爆音/咔哒声。首次（slot 为 null）才 `PeakingEQ` 新建。
@@ -766,14 +766,14 @@ PlayTrackAtAsync (PlaylistViewModel)
   → Queue[index] = meta（占位 Track → 完整 Track，ObservableCollection 触发 Replace）
   → await IPlaybackService.LoadAsync(meta)  ── Task.Run ──▶ MediaFoundationReader
                                                               VolumeSampleProvider
-                                                              WasapiOut(Shared, 100ms)
+                                                              WasapiPlayer(Shared + 事件同步, 100ms；Phase 19 前为 WasapiOut)
                                                               track with { Duration, SampleRate }
     │
     │ 事件:  PositionChanged(Zero)  ─▶ PlayerViewModel.Position
     │       DurationChanged       ─▶ PlayerViewModel.Duration
     │       TrackChanged          ─▶ PlayerViewModel.CurrentTrack + AlbumArtImage
     ▼
-IPlaybackService.Play() ─▶ WasapiOut.Play() + PollPositionAsync 循环
+IPlaybackService.Play() ─▶ WasapiPlayer.Play() + PollPositionAsync 循环
     │
     │ (每 33ms)
     ▼
@@ -793,7 +793,7 @@ IPlaybackService.OnPlaybackStopped 检测距 TotalTime ≤ 200ms
 ### 7.5 频谱数据流（Phase 13）
 
 ```
-WasapiOut 拉流 → VolumeSampleProvider → SampleAggregator.Read(buffer)
+WasapiPlayer 拉流 → VolumeSampleProvider → SampleAggregator.Read(buffer)
   → 混单声道 + 填 FFT 缓冲区（满 8192 点）
   → 汉宁窗 → FFT → 对数分组 32 桶（RMS + gain8x + dB + gamma）→ 50% 重叠
   → SpectrumDataReady(float[32].ToArray())   ── 音频线程 ──▶
@@ -819,7 +819,7 @@ TrackInfoView → SpectrumView.SpectrumData (DP) → OnSpectrumDataChanged 算 _
 
 播放：PlaylistViewModel.PlayTrackAtAsync → IPlaybackService.LoadAsync(track)
   → DisposePlayback 重建链：ToSampleProvider → new EqualizerSampleProvider(sampleProvider, _equalizerConfig)
-    → new SampleAggregator(_equalizer, _spectrumConfig) → VolumeSampleProvider → WasapiOut
+    → new SampleAggregator(_equalizer, _spectrumConfig) → VolumeSampleProvider → WasapiPlayer
   （EQ 在 SampleAggregator 之前 → 频谱反映 EQ 后信号）
 
 拖动/预设（实时）：EqualizerDialog.BandSlider_ValueChanged / PresetCombo_SelectionChanged / Enable_Changed
@@ -899,9 +899,19 @@ ExportListButton_Click：Queue.Count==0 → 静默返回
 dotnet restore D-player.sln
 dotnet build   D-player.sln -c Debug
 dotnet run     --project D-player.csproj
+dotnet run     --project Tests/D-player.Tests.csproj -c Debug   # 跑测试（MTP，直接跑测试可执行程序）
+dotnet test    D-player.sln -c Debug                            # 跑测试（同一个 runner 的另一条命令）
 ```
 
 输出目录：`bin/Debug/net10.0-windows/`，可执行：`D-player.exe`。
+
+**测试栈（Phase 19）**：`xunit.v3` 4.0.1（测试工程是**可执行程序**，`OutputType=Exe`）。runner 只有一个 —— Microsoft.Testing.Platform（MTP）；上面两条命令是同一个 runner 的两个入口，不是"MTP + VSTest 双 runner"。
+
+> `dotnet test` 之所以还能跑，靠仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）。csproj 里的 `TestingPlatformDotnetTestSupport` 是 .NET 9 及更早版本的路由开关，在本 SDK 上不参与执行路径；`xunit.runner.visualstudio` 4.0.0 与 `Microsoft.NET.Test.Sdk` 18.10.1 是兼容性保留（IDE 测试浏览器），不在跑测试的路径上。**删除 `global.json` 会让 `dotnet test D-player.sln` 失败**（Microsoft.Testing.Platform 2.x 在 .NET 10 SDK 上不再支持 VSTest 目标）。
+>
+> **两条测试命令都不要加 `--nologo`**：MTP 不识别该参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际输出是"运行了零个测试"+ 退出码 5）。`--filter "FullyQualifiedName~X"` 照常可用。
+
+音频集成测试（`NAudioPlaybackService*Tests`）真实占用 WASAPI 设备，并行度结论见 §9。
 
 ### 8.3 发布（独立可执行）
 
@@ -929,7 +939,8 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **频谱事件跨线程（Phase 13）**：`SampleAggregator.SpectrumDataReady` 在 NAudio 音频渲染线程触发，`NAudioPlaybackService.OnSpectrumDataReady` 必须经 `_syncContext.Post` 封送到 UI 线程再广播 `SpectrumDataAvailable`；`PlayerViewModel.HandleSpectrumData` 直接在 UI 线程更新 `SpectrumData` 绑定属性。若跳过封送会跨线程触碰 DP 抛异常。`SettingsDialog.Save_Click` 同理故意不用 `ConfigureAwait(false)`，留在 UI 线程才能直接写 `PlayerViewModel` 属性。
 - **EQ 系数实时更新的线程安全（Phase 14）**：`EqualizerSampleProvider.Read`（NAudio 音频线程）与 `Update`（UI 线程）共用 buffer 粒度 `lock` 互斥，防止撕裂系数；`Update` **必须用 `SetPeakingEq` 就地重算**（保留 x1/x2/y1/y2 延迟线状态），若重建 `BiQuadFilter` 会清空延迟线导致拖动时爆音。立体声必须每声道独立 `BiQuadFilter?[channel][band]`（左右共享实例会串扰滤波状态）；中心频率 ≥ 奈奎斯特（`sampleRate/2`）的频段置 null slot 旁路（PeakingEQ 在 ≥Nyquist 时不稳定）。`EqualizerDialog.Save_Click` 同 `SettingsDialog` 故意不用 `ConfigureAwait(false)`，留在 UI 线程才能写 `PlayerViewModel.EqualizerEnabled`。
 - **WPF ComboBox 向空集合添加首项会自动选中 index 0（Phase 14）**：`ComboBox` 在从空集合添加第一个项时会自动选中该项并触发一次 `SelectionChanged`。`EqualizerDialog.OnLoaded` 填充预设下拉必须在 `_suppress` 窗口内进行，否则打开对话框即误 push 一次 Flat/禁用配置，扰动正在播放的 EQ（Phase 14 code review 拦下的 Critical）。
-- **播放链生命周期必须串行化；"停止"意图必须显式标记**（Phase 18 之后修复，commit `cb5ca1a` 与同批）：`NAudioPlaybackService.LoadAsync` 在线程池上重建整条播放链，而 `Unload` / `Dispose` / 传输命令来自 UI 线程。缺串行化时重叠的 `LoadAsync` 会释放另一个正在 `Init` 的 `WasapiOut` 实例 → 异常从 `WasapiOut.Init` 内部抛出并冒进 `async void` 事件处理器（进程崩溃）；修复是单闸门 `_chainGate`，唯一例外是 `OnPlaybackStopped`（NAudio 播放线程）——它取锁会与 `Stop()` 的 `Join(playThread)` 死锁，故其读取一律防御式。同源的第二条陷阱：播放线程退出时会**同步**回调 `PlaybackStopped`（WasapiOut 建在线程池线程上、捕获的 `SynchronizationContext` 为 null），于是"用户按停止"与"自然播完"走同一个回调，仅凭"播放头距 TotalTime ≤ 200ms"无法区分 → 曲尾 200ms 内按停止会被误判为播完、停止后立刻自动推进下一首；修复是 `_stopRequested` 意图标记（`Stop`/`DisposePlayback` 置位、`Play` 清零、`OnPlaybackStopped` 命中即提前返回）。回归测试：`NAudioPlaybackServiceConcurrencyTests`（重叠 Load / Unload 撞 Load / 播完再推进）与 `NAudioPlaybackServiceStopSemanticsTests`（用 `Seek` 把播放头推到距曲尾 100ms 再停止/卸载，确定性钉住"停止不得冒充播完"；既有 `PlayToNaturalEnd_ThenAdvance` 钉住反向——真自然播完仍须触发 `TrackEnded`）。
+- **播放链生命周期必须串行化；"停止"意图必须显式标记**（Phase 18 后修复，Phase 19 迁移到 WasapiPlayer）：`NAudioPlaybackService.LoadAsync` 在线程池上重建整条播放链，而 `Unload` / `Dispose` / 传输命令来自 UI 线程。缺串行化时，后一次重建会释放前一次正在使用或构建的链（`_reader` / `_volumeProvider` / `_wavePlayer` 三个共享字段被交错读写）→ 异常从链内部抛出并冒进 `async void` 事件处理器（进程崩溃）。修复是单闸门 `_chainGate`，唯一例外是 `OnPlaybackStopped`（播放线程回调）——持锁方可能正阻塞在输出类的 `Stop()` 上等待播放线程退出，回调里取锁即死锁，故其读取一律防御式。**NAudio 3 的 guarded dispose 不使这条失效**：它只保护 NAudio 自己的对象，管不到我们的共享字段。同源的第二条陷阱：用户停止与自然播完都只表现为一次 `PlaybackStopped`，输出类不告知发起方，仅凭播放头位置无法区分（曲尾 200ms 内按停止会被误判为播完并自动推进下一首）；修复是 `_stopRequested` 意图标记（`Stop`/`DisposePlayback` 置位、`Play` 清零、`OnPlaybackStopped` 命中即提前返回）——该不确定性不随实现变化，故换类后依然必要。回归测试：`NAudioPlaybackServiceConcurrencyTests` 与 `NAudioPlaybackServiceStopSemanticsTests`（后者用 `Seek` 把播放头推到距曲尾 100ms 再停止/卸载，确定性钉住"停止不得冒充播完"；`PlayToNaturalEnd_ThenAdvance` 钉住反向）。
+- **音频集成测试的并行度**（Phase 19）：仓库有 5 条测试真实占用 WASAPI 设备（`NAudioPlaybackServiceConcurrencyTests` 3 条 + `NAudioPlaybackServiceStopSemanticsTests` 2 条）。迁到 xunit v3 时在默认并行下实测：结论是 **level 0 —— 沿用 xunit v3 的默认并行，既没有加 `[Collection("AudioDevice")]`，也没有 `Tests/AssemblyInfo.cs` / `DisableTestParallelization`**。证据：10 次 MTP 运行 + 3 次 `dotnet test` 运行，每次都是 161 通过 / 0 失败 / 0 跳过（含那 5 条真设备用例），单次墙钟 5.875–6.249 s、runner 内 1.69–1.95 s。改这两个测试类或新增音频测试时沿用同一约束；若真出现设备争用/时序漂移，再按设计稿 §5.3 的顺序收紧（先给音频测试类加同一个 `[Collection("AudioDevice")]`，仍不稳才全局禁用并行）。
 - **给 `IPlaybackService` 加成员必须同步改 `NullPlaybackService`（Phase 14）**：`PlaylistsViewModel` 内有一个手写的 `NullPlaybackService` 空对象（该接口的第二个生产实现者，供 internal 测试构造器用），NSubstitute 只覆盖测试替身。给 `IPlaybackService` 加 `EqualizerConfig` 时必须同步给 `NullPlaybackService` 补上该成员，否则 CS0535 编译失败。
 - **矢量图标经 `Application.Current.FindResource` 解析（Phase 16）**：`PlayStateToIconConverter` / `RepeatModeToIconConverter` / `BoolToVolumeIconConverter` 返回的 `Geometry` 依赖 `Icons.xaml` 已在 `App.xaml` 合并；若漏合并会运行时抛异常。新增图标须同步 `Icons.xaml` 键与使用处（COUPLING.md §5 Phase 16 契约）。▶ 标记元素类型为 `Path`：`FindChildByName<Path>(container, "PART_Marker"/"PART_SidebarMarker")`，改回 TextBlock 或改泛型会静默失效。
 - **WindowChrome 自绘按钮必须 `IsHitTestVisibleInChrome=True`（Phase 17）**：caption 高度（32px）区域内的自绘按钮不加此 attached 属性会被 caption 拖动吞掉点击；改动标题栏按钮/新增标题栏控件时必查。

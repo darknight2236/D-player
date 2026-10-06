@@ -27,7 +27,7 @@
 
 ### Non-Goals
 
-- **不重构预留的 `IAudioOutputFactory` / `StubAudioOutputFactory`**：`COUPLING.md §7` 明确要求保留（"删了未来加多设备支持还要写回来"）。其契约是 `IWavePlayer`，而 `WasapiPlayer` 不实现该接口 —— 重新设计它的契约属于"未来多后端"那件事的一部分，本阶段只**记录**这个事实（§4.3）。
+- **不重构预留的 `IAudioOutputFactory` / `StubAudioOutputFactory`**：`COUPLING.md §7` 明确要求保留（"删了未来加多设备支持还要写回来"）。其契约是 `IWavePlayer`，而 `WasapiPlayer` 不实现该接口（此句已证伪，见文末勘误）—— 重新设计它的契约属于"未来多后端"那件事的一部分，本阶段只**记录**这个事实（§4.3）。
 - **不改任何产品行为**：不引入 `WasapiPlayer` 的新能力（零拷贝缓冲、MMCSS 线程优先级、`IAudioClient3` 低延迟、`WithCategory`/`WithRawMode`/`WithMmcsThreadPriority`）。
 - **不迁移到 MTP-only**：保留 VSTest 兼容路径，`dotnet test D-player.sln -c Debug` 必须继续可用。
 - 不动 z440.atl.core（7.14–7.18 零 API 变更，纯解析修复）、NSubstitute、Test.Sdk、coverlet 的用法。
@@ -72,8 +72,8 @@ NAudio.Wasapi : WasapiOut, WasapiPlayer(+Builder), MediaFoundationReader, AudioC
 | 现在 | 迁移后 | 说明 |
 |------|--------|------|
 | `new WasapiOut(AudioClientShareMode.Shared, 100)` | `new WasapiPlayerBuilder().WithSharedMode().WithEventSync().WithLatency(100).Build()` | 2 参构造等价于 `(Shared, useEventSync:true, 100)`；`WithEventSync()` 显式保持事件同步语义 |
-| `IWavePlayer? _wavePlayer` | `WasapiPlayer? _wavePlayer` | **`WasapiPlayer` 不实现 `IWavePlayer`**（XML 文档零提及）→ 字段与局部变量类型都必须改 |
-| `_wavePlayer.Init(_volumeProvider)`（经 `WaveExtensionMethods.Init(IWavePlayer, ISampleProvider)`） | `_wavePlayer.Init(_volumeProvider.ToWaveProvider())` | `WasapiPlayer.Init` 只接受 `IWaveProvider`；`WaveExtensionMethods.ToWaveProvider(this ISampleProvider)` 仍在 Core 3.1.0 中 ✓。实施时若该扩展方法不便，退路是显式 `new SampleToWaveProvider(_volumeProvider)` |
+| `IWavePlayer? _wavePlayer` | `WasapiPlayer? _wavePlayer` | **`WasapiPlayer` 不实现 `IWavePlayer`**（XML 文档零提及）→ 字段与局部变量类型都必须改（此句已证伪，见文末勘误） |
+| `_wavePlayer.Init(_volumeProvider)`（经 `WaveExtensionMethods.Init(IWavePlayer, ISampleProvider)`） | `_wavePlayer.Init(_volumeProvider.ToWaveProvider())` | `WasapiPlayer.Init` 只接受 `IWaveProvider`；`WaveExtensionMethods.ToWaveProvider(this ISampleProvider)` 仍在 Core 3.1.0 中 ✓。实施时若该扩展方法不便，退路是显式 `new SampleToWaveProvider(_volumeProvider)`（此行的迁移结果与理由均已修正，见文末勘误） |
 | `_wavePlayer.PlaybackStopped` / `.PlaybackState` / `.Play()` / `.Pause()` / `.Stop()` / `.Dispose()` | 同名成员均存在 | 逐个核对过 XML 文档 ✓；`PollPositionAsync` 继续用 `PlaybackState` |
 | `IWaveProvider.Read(Span<byte>)` | —— | 3.x 的 Span 化；我们**不实现** `IWaveProvider`（只有 NAudio 自己实现），无代码影响 |
 
@@ -81,11 +81,11 @@ NAudio.Wasapi : WasapiOut, WasapiPlayer(+Builder), MediaFoundationReader, AudioC
 
 ### 4.2 `_wavePlayer` 的类型收窄与访问控制
 
-字段类型改为 `WasapiPlayer?` 后，所有使用点（`LoadAsync` 内构造与 `Init`、`Play/Pause/Stop/Seek/DisposePlayback/Unload/OnPlaybackStopped`）的静态类型同步收窄。**不改**各方法的锁语义与调用顺序（§4.4）。
+字段类型改为 `WasapiPlayer?` 后，所有使用点（`LoadAsync` 内构造与 `Init`、`Play/Pause/Stop/Seek/DisposePlayback/Unload/OnPlaybackStopped`）的静态类型同步收窄。**不改**各方法的锁语义与调用顺序（§4.4）。（本节前提已证伪：字段类型实际保持 `IWavePlayer?`，见文末勘误。）
 
 ### 4.3 预留输出工厂（保留现状）
 
-`IAudioOutputFactory.CreateOutput() → IWavePlayer` 与返回 `new WasapiOut(Shared, 100)` 的 `StubAudioOutputFactory` **本次不动**：它们是 COUPLING §7 明确要求保留的"未来多后端"接缝，而 `WasapiPlayer` 不实现 `IWavePlayer` 意味着该接缝的契约需要整体重新设计——那件事应当在做多后端时、把两类实现放在一起看。处置：在该文件顶部注释里写明"本类保留 `WasapiOut` 是刻意的（3.x 仍可用），与 `NAudioPlaybackService` 已迁到 `WasapiPlayer` 的现状不矛盾；契约重设计属于多后端工作"，并在 COUPLING 登记。
+`IAudioOutputFactory.CreateOutput() → IWavePlayer` 与返回 `new WasapiOut(Shared, 100)` 的 `StubAudioOutputFactory` **本次不动**：它们是 COUPLING §7 明确要求保留的"未来多后端"接缝，而 `WasapiPlayer` 不实现 `IWavePlayer`（此句已证伪，见文末勘误）意味着该接缝的契约需要整体重新设计——那件事应当在做多后端时、把两类实现放在一起看。处置：在该文件顶部注释里写明"本类保留 `WasapiOut` 是刻意的（3.x 仍可用），与 `NAudioPlaybackService` 已迁到 `WasapiPlayer` 的现状不矛盾；契约重设计属于多后端工作"，并在 COUPLING 登记。
 
 ### 4.4 两条论证的重推（本阶段的技术核心）
 
@@ -137,7 +137,7 @@ NAudio.Wasapi : WasapiOut, WasapiPlayer(+Builder), MediaFoundationReader, AudioC
 - `xunit`（v2 元包）与 `xunit.abstractions` 从引用中移除；`xunit.v3` 会带入 `xunit.v3.core` / `xunit.v3.assert` / v3 运行器。
 - 需要一次联网 restore（本机缓存目前只有 v2 系与 `xunit.runner.visualstudio`；`xunit.v3` 尚未缓存）——若 restore 失败则本阶段阻塞，不降级为手工放包（§8）。
 
-### 5.2 代码影响：零
+### 5.2 代码影响：零（此结论已被实测推翻，见文末勘误）
 
 盘点结论（本机实测）：全仓测试代码**没有** `Xunit.Abstractions` / `ITestOutputHelper` 用法；无 `IAsyncLifetime` / `IClassFixture` / `ICollectionFixture`；属性只用 `[Fact]`（153）与 `[Theory]`+`[InlineData]`（1+8）；断言全集 `Equal/Empty/True/False/Null/NotNull/Same/Contains/DoesNotContain/All/ThrowsAny/StartsWith/Record.Exception/Fail` 均为 v3 保留 API；fixture 是 `IDisposable`（v3 仍支持）。
 
@@ -152,7 +152,7 @@ v3 的并行策略与 v2 不同（默认按测试集合并行）。本仓有 5 �
 ### 5.4 双 runner 的行为
 
 - MTP（默认）：`dotnet run --project Tests/D-player.Tests.csproj -c Debug`，输出为 MTP 的原生 UI，支持 `--filter` 等原生参数。
-- VSTest：`dotnet test D-player.sln -c Debug` —— 经 `TestingPlatformDotnetTestSupport` 也路由到 MTP；**命令不变**。
+- VSTest：`dotnet test D-player.sln -c Debug` —— 经 `TestingPlatformDotnetTestSupport` 也路由到 MTP；**命令不变**。（此条机制描述已证伪，实际靠仓库根 `global.json`，见文末勘误）
 - 两条路径都必须在验收里各跑一遍并全绿（161 条）。
 - 若 IDE 测试发现出现异常，官方逃生开关是 `DisableTestingPlatformServerCapability`；**默认不加**，出现问题再说。
 
@@ -191,3 +191,21 @@ v3 的并行策略与 v2 不同（默认按测试集合并行）。本仓有 5 �
 - xunit v3：[迁移指南](https://xunit.net/docs/getting-started/v3/migration) · [Microsoft.Testing.Platform 配置](https://xunit.net/docs/getting-started/v3/microsoft-testing-platform)
 - 其它包：[atldotnet releases](https://github.com/Zeugma440/atldotnet/releases) · [NSubstitute releases](https://github.com/nsubstitute/NSubstitute/releases) · [xunit.runner.visualstudio 4.0.0](https://xunit.net/releases/visualstudio/4.0.0)
 - 本仓相关：`Services/NAudioPlaybackService.cs`（闸门 + 停止意图）、`Tests/Services/NAudioPlaybackServiceConcurrencyTests.cs`、`Tests/Services/NAudioPlaybackServiceStopSemanticsTests.cs`、`Tests/Services/TestAudio.cs`、`docs/COUPLING.md` §5/§7、`40338f5`（前置升级）
+
+---
+
+## 勘误（2026-10-06，实现期实测）
+
+实现阶段（Task 1–3）以反射与真机运行为准，推翻了本文的若干前提。原文一律保持不动以留可审计记录，被证伪的句子已在原句旁标注"见文末勘误"。
+
+1. **§4.1 / §4.2 —— `WasapiPlayer` 确实实现 `IWavePlayer`**。对随包发布的 NAudio.Wasapi 3.1.0 程序集反射（commit `50d9ba3` 记录）：
+   - `typeof(WasapiPlayer).GetInterfaces()` → `IWavePlayer, IDisposable, IWavePosition, IWaveLatency, IAsyncDisposable`。
+   - `typeof(IWavePlayer)` 声明 `Init`；该接口的 `Init` 收 `IWaveProvider`，而 `WaveExtensionMethods` 另有 `Init(IWavePlayer, ISampleProvider)` 扩展。
+   - `typeof(WasapiPlayer).GetConstructors()` 为空 —— 两个构造函数都是 nonpublic，所以"只能经 `WasapiPlayerBuilder` 建立"这一半前提成立，"`IWavePlayer` 那一半"不成立。
+   - 后果：`NAudioPlaybackService` 的字段保持 `IWavePlayer? _wavePlayer`，调用保持 `_wavePlayer.Init(_volumeProvider)`（绑到 `ISampleProvider` 扩展）——与迁移前**形状完全一致**。§4.1 表格里"字段与局部变量类型都必须改"与"`Init` 只接受 `IWaveProvider` → 迁移后写 `ToWaveProvider()`"两行均不适用于落地代码。
+2. **§1 Non-Goals / §4.3 —— 保留 `StubAudioOutputFactory` 的理由换了**。"接口对不上"不成立：`WasapiPlayer` 可以原样经既有的 `IAudioOutputFactory`（契约 `IWavePlayer`）返回，**零契约改动**。真正保留 `WasapiOut` 的理由是：这条接缝只被注册、没有任何调用点，改它的输出策略（设备 / 延迟 / 同步模式）是一次独立决定，不该在"不改行为"的依赖迁移阶段拍板。处置结论（本次不动）不变，论证基础变了。
+3. **§5.1 / §5.4 —— `dotnet test` 的路由机制是仓库根 `global.json`，不是 `TestingPlatformDotnetTestSupport`**。xunit.v3 4.0.1 带入 Microsoft.Testing.Platform 2.4.0 并置 `IsTestingPlatformApplication=true`；MTP 2.x 在 .NET 10 SDK 上取消了对 VSTest 目标的重定向，于是 `dotnet test` 在跑任何东西之前就失败（"Testing with VSTest target is no longer supported by Microsoft.Testing.Platform on .NET 10 SDK and later"）。让命令保持可用的，是新增的仓库根 `global.json`：`{"test":{"runner":"Microsoft.Testing.Platform"}}`（Microsoft 为 .NET 10 SDK 记录的原生 opt-in）。`TestingPlatformDotnetTestSupport` 是 .NET 9 及更早版本的路由开关，在本 SDK 上不参与执行路径；`xunit.runner.visualstudio` 4.0.0 与 `Microsoft.NET.Test.Sdk` 18.10.1 属兼容性保留（IDE 测试浏览器），也不在跑测试的路径上。**删除 `global.json` 会让 `dotnet test D-player.sln` 失败。** 准确表述是：**runner 只有一个（MTP），到达它的命令有两条**（`dotnet run --project Tests/D-player.Tests.csproj -c Debug` 与 `dotnet test D-player.sln -c Debug`），不是"双 runner"，也不是"VSTest 路径经属性路由到 MTP"。
+4. **§5.2"代码影响：零"不成立**。xunit.v3 捆绑 `xunit.analyzers` 2.1.0，其 `xUnit1051` 在 8 个调用点报警（3 个文件）。0 警告门禁是靠**改代码**满足的：把 `TestContext.Current.CancellationToken` 传给既有的 `Task.Delay` / `Task.WhenAny` / `File.WriteAllTextAsync` 调用；未用 `NoWarn` 或 pragma 压制。断言、延时数值、特性与测试条数一条未变 —— 可说"零语义改动"，不可说"零测试代码改动"。
+5. **§5.3 并行度实测结论 = level 0（沿用 xunit v3 默认并行）**。10 次 MTP 运行 + 3 次 `dotnet test` 运行，每次 161 通过 / 0 失败 / 0 跳过（含 5 条真实占用 WASAPI 设备的用例）；单次墙钟 5.875–6.249 s，runner 内 1.69–1.95 s。未加 `[Collection("AudioDevice")]`，未新建 `Tests/AssemblyInfo.cs`，未启用 `DisableTestParallelization`。
+6. **§8 的 `NAudio.Dmo` 兜底没有触发**。`NAudio.Wasapi 3.1.0` 的 nuspec 只依赖 `NAudio.Core`；没有任何源文件使用 Dmo / WinMM / WinForms / Midi / Asio 的类型；`bin\` 里只落 `NAudio.Core.dll` + `NAudio.Wasapi.dll`。依赖清单不存在例外子包，文档也不记这个例外。
+7. **本文与实现计划里的 `--nologo` 命令形式不可照抄执行**。实测 `dotnet test D-player.sln -c Debug --nologo`：一条测试都不跑，摘要显示"运行了零个测试 / 总计: 0 / 成功: 0"，退出码 5 —— 扫一眼汇总行会读成"全绿"。去掉 `--nologo` 才报出 161 条通过（`--filter "FullyQualifiedName~X"` 仍可用）。验收（Task 5）与文档示例一律用不带 `--nologo` 的写法。

@@ -20,7 +20,7 @@
   > - **172 → 174**：Task 1 评审指出"本 Task 唯一用户可感的改动"（`SortedView` 删除、列表改绑 `Queue`，即表头点击排序）**零测试覆盖**，172 条测试对它无感；于是补了两条 `SortBy` 事实（`dc3b0cc`）。基线整体 +2（P-8）。
   > - **括号里的"174"本身是 175 的笔误**（P-2）：Task 2 Step 7 与 Task 3 Step 4 都写 175（= 172 + 新增 3 条 `DPlayerDataPathsTests`），计划自相矛盾，裁定以 175 为准；叠加上面的 +2，真实值 177。
   > - **180 的分解**（P-19，逐步累加，每步给出中间值）：**172** → +2（Task 1 补的 `SortBy` 两条事实）→ **174** → +3（Task 2 `DPlayerDataPathsTests`）→ **177** → +1（Task 4 首轮新增的 `PlayIndexAsync` 事实）、+1（R-5 壳路径钉桩）→ **179** → −1（那条 `PlayIndexAsync` 事实随该 API 一起删除，与上一步的 +1 相抵为**净零**）、+1（越界事实改落在共享入口上）、+1（DI 图解析）→ **180**。此前这里漏写了 `+1（PlayIndexAsync 事实）` 却保留了它的 `−1`，所以链条只加到 179。计划正文其余出现 **176** 的地方（Task 4 Step 3 的 Expected、Task 5 Step 2 的"测试计数改 176"、Step 3 的 Expected）同样作废，一律按 180 读。
-- **Core 必须 WPF-free**：`D-player.Core/` 下不得出现 `System.Windows.*` / `PresentationFramework` / `ICollectionView` / `CollectionViewSource`。可 grep 验证：`grep -rn "System.Windows\|CollectionViewSource" D-player.Core/` 无命中。
+- **Core 必须 WPF-free**：`D-player.Core/` 下不得出现 `System.Windows.*` / `PresentationFramework` / `ICollectionView` / `CollectionViewSource`。可 grep 验证（四个类型名一个都不能少，与 `docs/PROJECT.md` §9 的自检同口径；Step 10 用的是同一条命令）：`grep -rn "System.Windows\|PresentationFramework\|ICollectionView\|CollectionViewSource" D-player.Core --include=*.cs | grep -v "/obj/\|/bin/"` 无命中。
 - **WPF 版行为与视觉零变化**：Task 1-2 只做搬迁与依赖注入改造，不改任何业务逻辑、不改 XAML 外观、不动播放链与并发不变量（Phase 19 契约）。
 - **WinUI 工程不得进入主门禁**：`D-player.slnf` 只含 `D-player.Core`、`D-player`、`Tests/D-player.Tests`；WinUI 只以 csproj 单独构建。
 - **数据隔离**：WPF 壳用 `%LocalAppData%\D-player\`，WinUI 壳用 `%LocalAppData%\D-player-winui\`；两壳不得共用目录（无跨进程锁）。
@@ -185,7 +185,7 @@ Expected：构建 **0 错误 0 警告**；测试 **总计 172 / 失败 0**。
 - [x] **Step 10: 验证 Core 确实 WPF-free**
 
 ```bash
-grep -rn "System.Windows\|CollectionViewSource\|PresentationFramework" D-player.Core/ --include=*.cs | grep -v "/obj/\|/bin/"
+grep -rn "System.Windows\|PresentationFramework\|ICollectionView\|CollectionViewSource" D-player.Core --include=*.cs | grep -v "/obj/\|/bin/"
 ```
 
 Expected：**无输出**（`PlayerViewModel.cs` / `Models/Track.cs` 里提到 `BitmapImage` 的只是注释，若 grep 命中注释行，人工确认后放行并在报告里写明）。

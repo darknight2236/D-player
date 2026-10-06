@@ -11,10 +11,13 @@ namespace DPlayer.Tests.Services;
 /// 播放链生命周期的并发回归测试。
 ///
 /// 背景：<see cref="NAudioPlaybackService.LoadAsync"/> 在线程池上重建整条播放链，
-/// 而 Unload/Dispose 可能来自 UI 线程。两者没有串行化时，后一次重建的
-/// DisposePlayback 会释放前一次正在 Init 的 WasapiOut 实例 —— 异常从
-/// NAudio 内部（WasapiOut.Init / provider 构造）抛出，并一路冒到 async void 事件处理器，
+/// 而 Unload/Dispose/传输命令可能来自 UI 线程。两者没有串行化时，后一次重建的
+/// DisposePlayback 会拆掉前一次"正在构建或正在使用"的链 —— reader / provider /
+/// wavePlayer 三个共享链字段被交错读写，异常从链内部抛出并一路冒到 async void 事件处理器，
 /// 表现为"播完一首歌后进程崩溃"。
+///
+/// 归因落在我们自己的共享字段上，与输出类内部是否防护无关：服务里的 `_chainGate`
+/// 串行化的正是我们的链生命周期（重建/拆除/传输命令），它管不到也无需管输出类自己的对象。
 ///
 /// 这些用例需要真实音频设备（WASAPI）与 naudio 解码链，属集成级测试；
 /// 修复（链生命周期闸门）之后它们必须稳定通过。
@@ -51,7 +54,7 @@ public sealed class NAudioPlaybackServiceConcurrencyTests : IDisposable
             var ex = await Record.ExceptionAsync(async () =>
             {
                 var first = service.LoadAsync(TrackFor(_wav));
-                await Task.Delay(staggerMs);           // 让第二次的 DisposePlayback 落进第一次的 Init 窗口
+                await Task.Delay(staggerMs, TestContext.Current.CancellationToken);   // 让第二次的 DisposePlayback 落进第一次的 Init 窗口
                 var second = service.LoadAsync(TrackFor(_wav));
                 await Task.WhenAll(first, second);
             });
@@ -70,7 +73,7 @@ public sealed class NAudioPlaybackServiceConcurrencyTests : IDisposable
             var ex = await Record.ExceptionAsync(async () =>
             {
                 var load = service.LoadAsync(TrackFor(_wav));
-                await Task.Delay(staggerMs);
+                await Task.Delay(staggerMs, TestContext.Current.CancellationToken);
                 service.Unload();                      // UI 线程路径：直接 DisposePlayback
                 await load;
             });
@@ -100,7 +103,7 @@ public sealed class NAudioPlaybackServiceConcurrencyTests : IDisposable
                 await service.LoadAsync(TrackFor(silent));
                 service.Play();
 
-                var finished = await Task.WhenAny(ended.Task, Task.Delay(TimeSpan.FromSeconds(15)));
+                var finished = await Task.WhenAny(ended.Task, Task.Delay(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
                 Assert.Same(ended.Task, finished);   // 必须真的播到自然结束，否则本用例无意义
 
                 await service.LoadAsync(TrackFor(silent));   // ← 崩溃复现点：结束后推进下一首

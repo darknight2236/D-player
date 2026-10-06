@@ -97,7 +97,7 @@ public sealed class JsonLibraryCacheTests : IDisposable
     {
         var cache = new JsonLibraryCache(_tempDir);
         var cacheFile = Path.Combine(_tempDir, "library-cache.json");
-        await File.WriteAllTextAsync(cacheFile, "{ not valid json !!!");
+        await File.WriteAllTextAsync(cacheFile, "{ not valid json !!!", TestContext.Current.CancellationToken);
 
         var result = await cache.LoadAsync(@"C:\Music\AnyFolder");
 

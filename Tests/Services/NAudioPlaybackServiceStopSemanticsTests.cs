@@ -11,11 +11,12 @@ namespace DPlayer.Tests.Services;
 /// <summary>
 /// 传输命令在"播放头已接近曲尾"时的语义回归测试。
 ///
-/// 背景：NAudio 的播放线程在退出时会**同步**回调 PlaybackStopped（WasapiOut 在
-/// 线程池线程上构造，SynchronizationContext 为 null），而 Stop() 内部会 Join 该线程——
-/// 于是"用户按停止"与"曲目自然播完"都以同一个回调到达，仅凭
-/// "播放头距 TotalTime 在容差内"无法区分。旧实现因此把"曲尾附近按停止"误判为
-/// 自然播完，向 VM 发出 TrackEnded → 自动推进下一首。
+/// 背景："用户按停止"与"曲目自然播完"到达服务时是同一个 PlaybackStopped 回调：
+/// 输出类不会告诉我们是谁发起的停止，而仅凭"播放头距 TotalTime 在容差内"也区分不了——
+/// 曲尾 200ms 容差内的停止会被当成自然播完，于是向 VM 发出 TrackEnded 并自动推进下一首。
+/// 这个不确定性不随实现变化：无论回调是同步触发还是经 SynchronizationContext 异步派发、
+/// 无论回调时播放头是否已被归零，两条路径的信号都完全相同，所以停止意图必须由发起方
+/// 显式标记（即服务里的 `_stopRequested`）。旧实现缺这一步，才有上面那类误判。
 ///
 /// 这些用例需要真实音频设备（WASAPI）；用静音样本，运行时不发声。
 /// </summary>
@@ -68,9 +69,9 @@ public sealed class NAudioPlaybackServiceStopSemanticsTests : IDisposable
 
             // 推到距曲尾 100ms —— 落在服务判定"自然播完"的 200ms 容差内，再按停止
             service.Seek(service.Duration - TimeSpan.FromMilliseconds(100));
-            await Task.Delay(50);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
             service.Stop();
-            await Task.Delay(300); // 事件经 Post 派发，留出窗口
+            await Task.Delay(300, TestContext.Current.CancellationToken); // 事件经 Post 派发，留出窗口
 
             Assert.Equal(0, ended);
         }
@@ -93,9 +94,9 @@ public sealed class NAudioPlaybackServiceStopSemanticsTests : IDisposable
             await StartAndWaitForPlayheadAsync(service);
 
             service.Seek(service.Duration - TimeSpan.FromMilliseconds(100));
-            await Task.Delay(50);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
             service.Unload();
-            await Task.Delay(300);
+            await Task.Delay(300, TestContext.Current.CancellationToken);
 
             Assert.Equal(0, ended);
         }

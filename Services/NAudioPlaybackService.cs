@@ -20,7 +20,7 @@ namespace DPlayer.Services;
 public sealed class NAudioPlaybackService : IPlaybackService
 {
     private readonly SynchronizationContext _syncContext;
-    private WasapiPlayer? _wavePlayer;
+    private IWavePlayer? _wavePlayer;
     private MediaFoundationReader? _reader;
     private VolumeSampleProvider? _volumeProvider;
     private Track? _currentTrack;
@@ -152,14 +152,14 @@ public sealed class NAudioPlaybackService : IPlaybackService
                         Volume = _volume
                     };
                     // NAudio 3 的输出入口：builder → WasapiPlayer（WasapiOut 已降级为 legacy placeholder）。
-                    // WithEventSync 对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义；Init 只收
-                    // IWaveProvider，故用 ToWaveProvider() 把采样链桥接成 WaveProvider。
+                    // WithEventSync 对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义；
+                    // WasapiPlayer 没有公开构造函数，只能经 builder 建立，之后仍按 IWavePlayer 使用。
                     _wavePlayer = new WasapiPlayerBuilder()
                         .WithSharedMode()
                         .WithEventSync()
                         .WithLatency(100)
                         .Build();
-                    _wavePlayer.Init(_volumeProvider.ToWaveProvider());
+                    _wavePlayer.Init(_volumeProvider);
 
                     _wavePlayer.PlaybackStopped += OnPlaybackStopped;
 
@@ -269,7 +269,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// 区分逻辑:
     ///   - 有异常 → 上报 PlaybackError + Stopped 状态
     ///   - 无异常 + 播放位置接近 TotalTime (200ms 容差) → 自然播完 → 触发 TrackEnded
-    ///     (注：用户 Stop() 已先把 CurrentTime 归零，差值 = TotalTime，不会误判)
+    ///     (注：归零发生在输出类 Stop() 之后，回调时播放头可能仍停在曲尾，故须由 _stopRequested 区分意图)
     ///   - 其他 → 仅 Stopped 状态（如:从中段 Pause 后再 Stop 的边缘场景）
     /// </summary>
     private void OnPlaybackStopped(object? sender, StoppedEventArgs e)

@@ -718,12 +718,4 @@ public partial class PlaylistViewModel : ObservableObject
         if (CurrentIndex < 0 || CurrentIndex >= Queue.Count) return;
         await PlayTrackAtAsync(CurrentIndex);
     }
-
-    /// <summary>按索引播放本歌单曲目（供 UI 双击列表项等直接定位播放；等价于既有 PlayCurrent 的带参版本）。</summary>
-    [RelayCommand]
-    public async Task PlayIndexAsync(int index)
-    {
-        if (index < 0 || index >= Queue.Count) return;
-        await PlayTrackAtAsync(index);
-    }
 }

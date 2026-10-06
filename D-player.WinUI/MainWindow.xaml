@@ -6,13 +6,21 @@
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
 
     <!--
-      根背景按 brief 用页面底色。曾怀疑"Mica 被不透明根背景挡住"并把这里改成 Transparent 实测：
-      两种取值下截图像素完全一致（导航栏 #202020 / 内容区 #272727），说明这层底色不是可见表面的
-      来源，而是框架在材质不可用时画的实色回退。MicaController.IsSupported()=True，但
-      DWMWA_SYSTEMBACKDROP_TYPE 读回 0（未挂载）—— 本机 unpackaged + self-contained 形态下
-      Mica 材质没生效，深色 Fluent 外观成立。详见 Task 4 报告。
+      根背景必须是 Transparent，Mica 才看得见（fix round 1 实测推翻上一轮"Mica 未挂载"的结论）：
+      同一组采样点（标题栏 / 导航栏 / 内容区 / 播放器栏）在三种形态下的像素——
+        1) SystemBackdrop=MicaBackdrop + 不透明页面底色（上一轮提交形态）：#202020 / #272727，
+           换窗口位置**不变** —— 材质被这层不透明刷整片盖住；
+        2) SystemBackdrop=MicaBackdrop + 本 Grid Transparent：#1E2024 / #232733，
+           换到另一块桌布位置变成 #1C2027 / #1A212C —— 随窗外内容变化 = 活的材质；
+        3) 不挂任何 backdrop + Transparent（对照组）：#000000 / #111111，换位置不变 —— 没有材质层。
+      手动 Microsoft.UI.Composition.SystemBackdrops.MicaController + SystemBackdropConfiguration
+      （AddSystemBackdropTarget(window as ICompositionSupportsSystemBackdrop) 不抛、
+      SetSystemBackdropConfiguration 返回、IsSupported=True、State=Fallback）产出的像素与 2) 完全一致，
+      所以保留更简单的框架属性路线，手动控制器已删除。
+      注：DWMWA_SYSTEMBACKDROP_TYPE 三条都读回 0 —— WinUI 的 backdrop 由组合器挂载，
+      该 DWM 属性不是判据，上一轮就是被它误导的。
     -->
-    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid x:Name="RootGrid" Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />

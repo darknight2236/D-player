@@ -13,8 +13,9 @@ using Microsoft.UI.Xaml.Media;
 namespace DPlayer.WinUI;
 
 /// <summary>
-/// Phase 20 切片主窗口：Fluent 深色 + 自绘标题栏 + 三区布局（左歌单 / 中曲目 / 下播放器栏）。
-/// MicaBackdrop 按 brief 挂上，但本机 unpackaged 形态下材质未挂载（实测见 MainWindow.xaml 注释）。
+/// Phase 20 切片主窗口：Fluent 深色 + Mica + 自绘标题栏 + 三区布局（左歌单 / 中曲目 / 下播放器栏）。
+/// Mica 走框架的 Window.SystemBackdrop（不是手动 MicaController），前提是根 Grid 背景为 Transparent，
+/// 实测数据与判读见 MainWindow.xaml 顶部注释。
 /// 只消费 Core 的公开成员；关闭路径复刻 WPF 壳的 cancel-and-close（见 AppWindow_Closing）。
 ///
 /// 底部栏的四个投影属性（PlayPauseGlyph / NowPlayingText / TimeText / PositionFraction）
@@ -35,9 +36,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// <summary>当前挂了 Queue.CollectionChanged 的歌单，换查看项时解绑重挂。</summary>
     private PlaylistViewModel? _hookedPlaylist;
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    /// <summary>
+    /// 左栏重建重入守卫：本方法里设 Nav.SelectedItem 会同步回调 Nav_SelectionChanged，
+    /// 那里回写 ViewedPlaylist 又触发 Playlists_PropertyChanged → 再次进入本方法。
+    /// 第二次进来时菜单已经就是我们要的样子，跳过即可（深度锁在 1）。
+    /// </summary>
+    private bool _syncingMenu;
 
-    public MainViewModel ViewModel => _vm;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public MainWindow(MainViewModel vm)
     {
@@ -47,41 +53,67 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         Title = "D-player";
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        // 材质在本机 unpackaged 形态下实测未挂载（见 MainWindow.xaml 顶部注释），仍按 brief 接上。
+        // Mica 生效（fix round 1 实测，见 MainWindow.xaml 顶部注释）：材质挂在窗口上，
+        // 但它只在**没有不透明背景刷**的表面后面可见——所以根 Grid 必须是 Transparent，
+        // 否则整扇材质会被页面底色盖住（上一轮"材质未挂载"的结论就是这个遮挡造成的误判）。
         SystemBackdrop = new MicaBackdrop();
 
         // Window 本身没有 Loaded 事件（那是 FrameworkElement 的）——挂根 Grid
         RootGrid.Loaded += (_, _) => SyncPlaylistMenu();
         // 歌单是 InitializeAsync 里异步水化的，比 Loaded 晚 → 集合变化时必须重建左栏
         _vm.Playlists.Playlists.CollectionChanged += (_, _) => SyncPlaylistMenu();
-        _vm.Playlists.PropertyChanged += (_, _) => ResyncView();
+        _vm.Playlists.PropertyChanged += Playlists_PropertyChanged;
         _vm.Player.PropertyChanged += Player_PropertyChanged;
         AppWindow.Closing += AppWindow_Closing;
     }
 
     // —— 左栏：歌单导航 ——
 
+    /// <summary>
+    /// 左栏是 <see cref="PlaylistsViewModel.ViewedPlaylist"/> 的投影（WPF 侧的 sidebar 就是直接
+    /// TwoWay 绑定它），所以选中项的优先级固定是：VM 的 ViewedPlaylist → 重建前已选项 → 第一项。
+    /// 把"第一项"放在最前会在首次重建时把 Core 按持久化 CurrentPlaylistId 恢复出来的 ViewedPlaylist 顶掉。
+    /// </summary>
     private void SyncPlaylistMenu()
     {
-        var previous = (Nav.SelectedItem as NavigationViewItem)?.Tag as PlaylistViewModel;
+        if (_syncingMenu) return;      // 见字段注释：设 SelectedItem 会绕回这里
+        _syncingMenu = true;
+        try
+        {
+            var previous = (Nav.SelectedItem as NavigationViewItem)?.Tag as PlaylistViewModel;
 
-        Nav.MenuItems.Clear();
-        foreach (var pl in _vm.Playlists.Playlists)
-            Nav.MenuItems.Add(new NavigationViewItem { Content = pl.Name, Tag = pl });
+            Nav.MenuItems.Clear();
+            foreach (var pl in _vm.Playlists.Playlists)
+                Nav.MenuItems.Add(new NavigationViewItem { Content = pl.Name, Tag = pl });
 
-        // 尽量保住用户原来选中的那一项（集合变化会整栏重建）
-        var target = Nav.MenuItems.OfType<NavigationViewItem>().FirstOrDefault(i => ReferenceEquals(i.Tag, previous))
-            ?? Nav.MenuItems.OfType<NavigationViewItem>().FirstOrDefault();
-        if (target is not null) Nav.SelectedItem = target;   // 触发 SelectionChanged → 绑定列表
+            var items = Nav.MenuItems.OfType<NavigationViewItem>().ToList();
+            var target = items.FirstOrDefault(i => ReferenceEquals(i.Tag, _vm.Playlists.ViewedPlaylist))
+                ?? items.FirstOrDefault(i => ReferenceEquals(i.Tag, previous))
+                ?? items.FirstOrDefault();
+            if (target is not null) Nav.SelectedItem = target;   // 触发 SelectionChanged → 换列表数据源
+        }
+        finally { _syncingMenu = false; }
     }
 
     private void Nav_SelectionChanged(object sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is NavigationViewItem { Tag: PlaylistViewModel pl })
         {
-            _vm.Playlists.ViewedPlaylist = pl;
+            // 已经是 ViewedPlaylist 时不回写：整栏重建也会走到这里，回写等于把导航当成权威。
+            if (!ReferenceEquals(_vm.Playlists.ViewedPlaylist, pl))
+                _vm.Playlists.ViewedPlaylist = pl;
             ResyncView();   // 换列表数据源 + 重挂 Queue 事件 + 刷新空状态
         }
+    }
+
+    /// <summary>
+    /// ViewedPlaylist 也可能由 Core 侧改（Hydrate 恢复 / Add / Remove / Move / 导入），
+    /// 这些改动比 CollectionChanged 晚，必须回灌左栏，否则 pane 停在第一项而列表已是恢复出来的那单。
+    /// </summary>
+    private void Playlists_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PlaylistsViewModel.ViewedPlaylist)) SyncPlaylistMenu();
+        ResyncView();
     }
 
     private void ResyncView()
@@ -122,10 +154,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var index = IndexOfByReference(pl.Queue, track);
         if (index < 0) return;
 
-        // 与 WPF 的 PlaylistsViewModel.HandleDoubleClickPlay 同语义：先切"正在播放"指针再出声，
-        // 否则队列侧的 CurrentPlaylistId / IsActivePlaylist 会与真正在响的歌单脱钩。
-        _vm.Playlists.CurrentPlaylistId = pl.Id;
-        await pl.PlayIndexAsync(index);
+        // 与 WPF 壳共用同一条入口（Views/Controls/PlaylistView.xaml.cs → PlaylistsViewModel.HandleDoubleClickPlay）：
+        // 它内部先切 CurrentPlaylistId，再走 PlayTrackAtCommand —— 而 PlayTrackAt 的第一步是
+        // _shuffleHistory.Clear()（"视为新会话"）。两壳的双击因此语义一致；自己拼一半必然漂移。
+        await _vm.Playlists.HandleDoubleClickPlay(pl, index);
     }
 
     /// <summary>

@@ -266,6 +266,9 @@ public class PlaylistsViewModelTests
     }
 
     // —— HandleDoubleClickPlay ——
+    // Phase 20: 这条是**两个壳共用**的双击入口（WPF: Views/Controls/PlaylistView.xaml.cs；
+    // WinUI: MainWindow.TrackList_DoubleTapped），所以它的语义必须由测试钉住，
+    // 而不是让每个壳各自拼一半（那正是两壳漂移的来源）。
 
     [Fact]
     public async Task HandleDoubleClickPlay_SamePlaylist_DoesNotChangeCurrentPlaylistId()
@@ -283,6 +286,10 @@ public class PlaylistsViewModelTests
         await container.HandleDoubleClickPlay(container.Playlists[0], 0);
 
         Assert.Equal("id1", container.CurrentPlaylistId);
+        // 有效索引必须真的派出一次播放（load + play），否则"双击出声"这条什么都没测到
+        await _player.Received(1).LoadAsync(Arg.Any<Track>());
+        _player.Received(1).Play();
+        Assert.Equal(0, container.Playlists[0].CurrentIndex);
     }
 
     [Fact]
@@ -304,6 +311,38 @@ public class PlaylistsViewModelTests
         await container.HandleDoubleClickPlay(container.Playlists[1], 0);
 
         Assert.Equal("id2", container.CurrentPlaylistId);
+        _player.Received(1).Play();
+    }
+
+    /// <summary>
+    /// 判别式测试：越界索引必须"什么都不做"。
+    /// 只断言 DidNotReceive().Play() 不够 —— PlayTrackAtAsync 自己也有越界分支，
+    /// 守卫被删掉时同样不会 Play，那条断言没有鉴别力。删掉 HandleDoubleClickPlay 的范围守卫后，
+    /// 调用会落进 PlayTrackAt → PlayTrackAtAsync(99)，其越界分支执行 _player.Stop()
+    /// 并把 CurrentIndex 打回 -1 —— 这里钉的就是这两个痕迹。
+    /// 判别力实测：把本事实的调用临时换成"守卫已删"的等价调用
+    /// <c>target.PlayTrackAtCommand.ExecuteAsync(99)</c> → 该事实变红
+    /// （"DidNotReceive(s) Stop() / Actually received 1 matching call: Stop()"），随后已还原。
+    /// </summary>
+    [Fact]
+    public async Task HandleDoubleClickPlay_OutOfRangeIndex_TouchesNothing()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[] { new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off) },
+            CurrentPlaylistId = "id1"
+        });
+        var target = container.Playlists[0];
+        target.Queue.Add(new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero, null));
+        target.CurrentIndex = 0;   // 留一个可见痕迹：落进越界分支会被打回 -1
+
+        await container.HandleDoubleClickPlay(target, 99);
+
+        _player.DidNotReceive().Play();
+        _player.DidNotReceive().Stop();
+        await _player.DidNotReceive().LoadAsync(Arg.Any<Track>());
+        Assert.Equal(0, target.CurrentIndex);
     }
 
     // —— IsActivePlaylist ——

@@ -2,7 +2,13 @@
     x:Class="DPlayer.WinUI.Views.TrackList"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:models="using:DPlayer.Models">
+    xmlns:models="using:DPlayer.Models"
+    xmlns:local="using:DPlayer.WinUI.Views">
+
+    <UserControl.Resources>
+        <local:NullableIntToDashConverter x:Key="NullableIntToDash" />
+        <local:TimeSpanToMmSsConverter x:Key="TimeSpanToMmSs" />
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -16,6 +22,7 @@
         -->
         <Grid x:Name="Header" Grid.Row="0" Height="{StaticResource RowHeight}"
               Padding="{StaticResource TrackListHeaderPadding}"
+              ColumnSpacing="{StaticResource SpacingMd}"
               Background="{ThemeResource LayerFillColorDefaultBrush}">
             <Grid.ColumnDefinitions>
                 <!-- 与表头同步：# 40 / 标题 * / 艺术家 220 / 时长 72 -->
@@ -62,9 +69,9 @@
                             <ColumnDefinition Width="220" />
                             <ColumnDefinition Width="72" />
                         </Grid.ColumnDefinitions>
-                        <!-- 序号：TrackNumber null 时显示 "-"（x:Bind int? 会 WMC9999，改代码后置赋值） -->
+                        <!-- 序号：TrackNumber null 时显示 "-" -->
                         <TextBlock Grid.Column="0"
-                                   Text="-"
+                                   Text="{x:Bind TrackNumber, Converter={StaticResource NullableIntToDash}}"
                                    FontSize="{StaticResource FontSizeBody}"
                                    TextAlignment="Right" VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -78,9 +85,9 @@
                                    FontSize="{StaticResource FontSizeBody}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                        <!-- 时长：mm:ss 等宽数字（Consolas；x:Bind TimeSpan 会 WMC9999，改代码后置） -->
+                        <!-- 时长：mm:ss 等宽数字 -->
                         <TextBlock Grid.Column="3"
-                                   Text="0:00"
+                                   Text="{x:Bind Duration, Converter={StaticResource TimeSpanToMmSs}}"
                                    FontSize="{StaticResource FontSizeCaption}"
                                    FontFamily="Consolas"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"

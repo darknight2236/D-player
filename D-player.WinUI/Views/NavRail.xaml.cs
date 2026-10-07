@@ -81,8 +81,9 @@ public sealed partial class NavRail : UserControl
             // 已经是 ViewedPlaylist 时不回写：整栏重建也会走到这里，回写等于把导航当成权威。
             if (!ReferenceEquals(Playlists.ViewedPlaylist, pl))
                 Playlists.ViewedPlaylist = pl;
-            // 拆分前这里还调 ResyncView()（换中区数据源 + 刷底栏投影）。现在中区/底栏各自订阅
-            // ViewedPlaylist 的变化，回写上面那行就够了 —— 同一次赋值不会漏刷新，也不会重复刷新。
+            // 拆分前这里还调 ResyncView()（换中区数据源 + 刷底栏投影）。现在只回写上面那行 ViewedPlaylist 就够：
+            // 中区订阅 Playlists.PropertyChanged 自刷；底栏的三个投影只依赖 Player，由 player.PropertyChanged
+            // 驱动，歌单切换不改变它们的值。
         }
     }
 

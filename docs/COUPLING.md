@@ -320,7 +320,7 @@ private void RemoveTrack(int index)
 
 | **Phase 21 新增（WinUI 视觉层契约）** | | |
 | 令牌三档时长 + 颜色只走主题资源 + 六态齐备 | `D-player.WinUI/Theme/Tokens.xaml`（间距 4/8/12/16/24、圆角 4/8/12、字号 12/13.5/15/20、结构尺寸）+ `Theme/Motion.cs`（`MotionTokens.Fast`=100ms / `Normal`=150ms / `Slow`=200ms + `StandardEasing`）+ `Theme/Styles.xaml`（六态容器模板：default/hover/pressed/selected/focus/disabled）；所有颜色引用 `{ThemeResource …}`，壳内无写死 `#RRGGBB` | 新增第四个时长或 >250ms 动画违反令牌纪律；壳内出现硬编码色值违反颜色契约 |
-| 折叠与阈值契约 | NavRail 200↔48px、InfoPanel 260↔0px；`<960px` 窗口宽度自动收起 InfoPanel（8px 迟滞：收起阈值 960px、展开阈值 968px）；手动覆盖优先，直到窗口宽度穿越回 threshold+16px 才重新接管 | 无迟滞会在阈值边界抖动；手动覆盖被自动逻辑覆盖会让用户失去控制感 |
+| 折叠与阈值契约 | NavRail 200↔48px、InfoPanel 260↔0px；`<960px` 窗口宽度自动收起 InfoPanel（8px 迟滞：收起阈值 960px、展开阈值 968px）；手动覆盖优先，直到窗口宽度穿越回 threshold+8px 才重新接管 | 无迟滞会在阈值边界抖动；手动覆盖被自动逻辑覆盖会让用户失去控制感 |
 | 无跨层 `x:Bind` 链 | `{x:Bind Playlists.ViewedPlaylist.Queue}` 这类两层以上链式绑定会让 XamlCompiler 报 WMC9999 崩溃；只绑一层或在 code-behind 赋值 | 跨层 `x:Bind` 链触发 XamlCompiler 内部错误，构建直接失败 |
 | 动效纪律：单一驱动源 + 防叠加 | 所有动画使用 `MotionTokens.Fast/Normal/Slow`；无循环；无 >250ms；动画启动前先 `_storyboard?.Stop()` + `Completed` 回调用 `ReferenceEquals` 守卫防止旧回调干扰 | 不做防叠加会导致连续快速操作（如折叠 5 次）动画堆积、抽搐、终态不对 |
 

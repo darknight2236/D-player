@@ -48,6 +48,15 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// <summary>Slider 模板 Thumb 只挂一次（<c>Loaded</c> 可能重复触发）。</summary>
     private bool _dragHooked;
 
+    /// <summary>轨道单击的挂接同样只做一次。</summary>
+    private bool _railHooked;
+
+    /// <summary>挂好接的拖动滑块：单击定位要按它的宽度算出滑块中心的可行程（见 TryGetTrackFraction）。</summary>
+    private Thumb? _positionThumb;
+
+    /// <summary>模板里的轨道元素（HorizontalTemplate）：单击定位以它自己的边界为准，而不是 Slider 的整体宽度。</summary>
+    private FrameworkElement? _positionTrack;
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public MainWindow(MainViewModel vm)
@@ -63,6 +72,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         // 否则整扇材质会被页面底色盖住（上一轮"材质未挂载"的结论就是这个遮挡造成的误判）。
         SystemBackdrop = new MicaBackdrop();
 
+        // 进度条的两条用户输入路径都在模板部件上，所以都在代码后置里挂（HookSliderParts）：
         // 拖动进度条：WinUI 3 的 Slider **没有** DragStarted/DragCompleted —— 实测三条路都走不通：
         //   1) XAML `DragStarted="…"`            → XamlCompiler WMC0011 "Unknown member"
         //   2) XAML `prim:Thumb.DragStarted="…"`  → XamlCompiler WMC0010 "Unknown attachable member"
@@ -72,9 +82,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         // HorizontalThumb / VerticalThumb）订阅 DragStarted/DragCompleted —— 这正是 WPF 的
         // Views/Controls/PlayerBar.xaml.cs:70-74 订阅的那一对事件的同一个来源，语义一致：
         // 拖动期间 Core 的 IsSeeking 为真 → 30 Hz 位置回写不会把滑块拽回（PlayerViewModel.cs:180-186），
-        // 拖动结束时才提交一次 Seek。
+        // 拖动结束时才提交一次 Seek。单击定位挂在模板轨道元素上（Position_TrackPressed）：原生处理是
+        // Slider 自己的类处理器，只有比它更深的元素能在它把 Value 量化到端点之前拿到这次按下。
         // Window 本身没有 Loaded 事件（那是 FrameworkElement 的）——挂根 Grid
-        RootGrid.Loaded += (_, _) => { SyncPlaylistMenu(); HookSliderThumbs(); };
+        RootGrid.Loaded += (_, _) => { SyncPlaylistMenu(); HookSliderParts(); };
         // 歌单是 InitializeAsync 里异步水化的，比 Loaded 晚 → 集合变化时必须重建左栏
         _vm.Playlists.Playlists.CollectionChanged += (_, _) => SyncPlaylistMenu();
         _vm.Playlists.PropertyChanged += Playlists_PropertyChanged;
@@ -201,23 +212,50 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 把 Slider 模板的 Thumb 部件挂上 DragStarted/DragCompleted（部件名见调用处注释）。
-    /// 先显式 <c>ApplyTemplate()</c> 再找部件，使这条查找不依赖"模板在本方法跑过时已经应用完"这个
-    /// 没人保证的前提；找不到部件时**静默跳过**，退化方向与代价写在调用处注释里。
-    /// Loaded 可能多次触发，故用 <see cref="_dragHooked"/> 保证只挂一次。
+    /// 给 Slider 的模板部件挂上进度条的两条用户输入路径：Thumb 的 DragStarted/DragCompleted（拖动）
+    /// 与轨道元素的 PointerPressed（单击定位）。先显式 <c>ApplyTemplate()</c> 再找部件，使这条查找不依赖
+    /// "模板在本方法跑过时已经应用完"这个没人保证的前提；找不到部件时**静默跳过**，各自的退化方向写在
+    /// 下面的注释里。Loaded 可能多次触发，故用 <see cref="_dragHooked"/> / <see cref="_railHooked"/> 各挂一次。
     /// </summary>
-    private void HookSliderThumbs()
+    private void HookSliderParts()
     {
-        if (_dragHooked) return;
+        if (_dragHooked && _railHooked) return;
+        PositionSlider.ApplyTemplate();
+
         // 首选模板部件名 HorizontalThumb（来源：Windows App SDK 自带 Themes/generic.xaml 的 Slider 模板），
         // 退路是向下找第一个后代 Thumb（不依赖名字；SliderInnerThumb 是 Thumb 模板里的 Ellipse，不是 Thumb）。
-        // 本壳取到过的证据只到"空队列（Duration=0）下拖动进程存活、窗口完好"；那种情形下
-        // Position_Changed 会在下面的 Duration 守卫处直接返回，挂没挂上部件 observable 上没有区别，
-        // 所以**没有任何归档证据能说明部件真的被找到并挂上了**。唯一的检测器是用户在有曲目时看
-        // 松手后滑块是否停在手指处（退化成连续 Seek 就等于没挂上）——见 docs/PHASE20-COMPARISON.md §2.1。
-        PositionSlider.ApplyTemplate();
-        var thumb = PositionSlider.FindName("HorizontalThumb") as Thumb
+        // 2026-10-07 实测：本壳上 `PositionSlider.FindName("HorizontalThumb")` 取不到东西（同一个方法里
+        // FindName("HorizontalTemplate") 读出的是 null），命中的是向下找那条退路 —— 原生控件的模板名字
+        // 不在托管 namescope 里。所以下面找轨道也不单靠名字。
+        // 挂没挂上曾经只有"空队列（Duration=0）下拖动不崩"这种**不区分**的证据（那种情形 Position_Changed
+        // 在下面的 Duration 守卫处就返回了，挂上挂不上 observable 上没区别）；2026-10-07 用真机注入鼠标
+        // 量到了区分得出来的读数：按住滑块拖到行程 30% → IsSeeking 翻一次 True→False、松手后 Value 停在
+        // 0.3 → 部件确实被找到并挂上了（见 .superpowers/sdd/…/click-to-position-report.md §3）。
+        var thumb = _positionThumb
+            ?? PositionSlider.FindName("HorizontalThumb") as Thumb
             ?? FindDescendant<Thumb>(PositionSlider);
+        _positionThumb = thumb;
+
+        // 轨道元素：单击定位挂在它上面（见 Position_TrackPressed），几何量也从它读 —— 轨道边界与
+        // Slider 边界在本模板里恰好相同（实测 x=0 / w=904），但那是量出来的，不是假设出来的。
+        // 先按部件名找，找不到就用"挂好接的滑块的可视化父节点"：实测模板树里 HorizontalThumb 的直接
+        // 父节点就是 HorizontalTemplate（两条 Rail Rect 与三根 TickBar 也挂在它下面）。
+        // 两处都落空时**不挂**：此时单击退回控件自己的 move-to-point（StepFrequency 已在 XAML 里调到
+        // 千分之一程，实测落点仍在 0.248 / 0.499 / 0.749 这种点上，只是精度约一个像素），
+        // 不会退回"饱和到端点"。
+        if (!_railHooked)
+        {
+            _positionTrack = PositionSlider.FindName("HorizontalTemplate") as FrameworkElement
+                ?? (thumb is null ? null : VisualTreeHelper.GetParent(thumb) as FrameworkElement);
+            if (_positionTrack is not null)
+            {
+                _positionTrack.AddHandler(UIElement.PointerPressedEvent,
+                    new PointerEventHandler(Position_TrackPressed), handledEventsToo: true);
+                _railHooked = true;
+            }
+        }
+
+        if (_dragHooked) return;
         if (thumb is null) return;          // 两条路都没命中：保持未挂状态，拖动退回"连续 Seek"的旧行为
         thumb.DragStarted += Position_DragStarted;
         thumb.DragCompleted += Position_DragCompleted;
@@ -257,24 +295,56 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             _vm.Player.PlayPauseCommand.Execute(null);
     }
 
+    /// <summary>
+    /// 轨道上按下 = 单击定位。挂在模板轨道元素（HorizontalTemplate）的 PointerPressed 上，
+    /// 而且必须挂在**比 Slider 更深的元素**上：原生处理是 Slider 自己的类处理器，事件冒泡到它时
+    /// 已经晚了 —— 实测在 Slider 上观察时 <c>Value</c> 已经被改成端点值，在轨道元素上观察时还是旧值。
+    /// 原生那条路做的事：把按下点换算成分数后按 <c>StepFrequency</c>（默认 1）量化，
+    /// 在 0..1 的量程上只剩 {0,1} 两个落点，所以点哪儿都饱和到端点（2026-10-07 用户实测到的缺陷，
+    /// 根因见 .superpowers/sdd/…/click-to-position-report.md §1，`LargeChange` 那条解释已被量掉）。
+    /// 这里把事件吃掉、自己按测出来的几何算落点，并且照拖动那条路的纪律提交：按住 IsSeeking，一次提交。
+    /// </summary>
+    private void Position_TrackPressed(object sender, PointerRoutedEventArgs e)
+    {
+        // 按在滑块上：交给 DragStarted / DragCompleted（既不在这里重复提交，也不跳位）
+        if (FindAncestor<Thumb>(e.OriginalSource as DependencyObject) is not null) return;
+        if (!TryGetTrackFraction(e, out var fraction)) return;   // 几何读不到就别动，让原生那半（已量化到千分之一程）接手
+        e.Handled = true;                 // 必须在提交前吃掉：否则 Slider 的类处理器会把 Value 改到端点
+        var player = _vm.Player;
+        if (player.Duration <= TimeSpan.Zero) return;   // 没有载入曲目：什么都不提交
+        player.SeekStartedCommand.Execute(null);        // 与拖动同纪律：提交期间抑制 30 Hz 位置回写
+        PositionSlider.Value = fraction;               // 程序写入不参与 StepFrequency 量化（实测）
+        player.SeekCompletedCommand.Execute(fraction); // 归一化 [0,1] → 服务，唯一一次提交
+    }
+
+    /// <summary>
+    /// 按下点在轨道上的分数：以**轨道元素自己的边界**为准（不是 Slider 的整体宽度，也不是模板的
+    /// 视觉根）。滑块中心只在 [thumbWidth/2, trackWidth - thumbWidth/2] 之间移动 —— 本机实测轨道
+    /// 904 px、滑块 18 px → 可行程 9..895，与 Value=0.1637 时实测的滑块中心 154.1 吻合。
+    /// </summary>
+    private bool TryGetTrackFraction(PointerRoutedEventArgs e, out double fraction)
+    {
+        fraction = 0;
+        var track = _positionTrack;         // 就是本方法所属的那次挂接（HookSliderParts）找到的轨道元素
+        if (track is null) return false;
+        var thumbWidth = _positionThumb?.ActualWidth ?? 0;
+        var travel = track.ActualWidth - thumbWidth;
+        if (travel <= 0) return false;
+        var x = e.GetCurrentPoint(track).Position.X;
+        fraction = Math.Clamp((x - thumbWidth / 2) / travel, 0, 1);
+        return true;
+    }
+
     private void Position_Changed(object sender, RangeBaseValueChangedEventArgs e)
     {
-        // 本壳的进度条只有两条写回路径：
-        //   1) 拖动 → Slider 的 DragStarted / DragCompleted（见下两个 handler），拖动期间
-        //      Core 的 `IsSeeking` 为真，位置回写被 PlayerViewModel.HandlePositionChanged 抑制；
-        //   2) 单击轨道跳转 —— **机制未确认，别在这里臆造解释**。
-        //      `IsMoveToPointEnabled` 是 **WPF** 的属性（本仓库在 Themes/Controls.xaml:106 与
-        //      Views/Controls/PlayerBar.xaml:145 显式设它），WinUI 3 的 `Slider` 上并没有它：
-        //      WASDK 2.5.1 反思读出的属性面是 Header / HeaderTemplate / IntermediateValue /
-        //      IsDirectionReversed / IsThumbToolTipEnabled / Orientation / SnapsTo / StepFrequency /
-        //      ThumbToolTipValueConverter / TickFrequency / TickPlacement，加上 RangeBase 的
-        //      LargeChange / Maximum / Minimum / SmallChange / Value —— 没有这一项，投影里也没有
-        //      `SliderBase` 这个类型；2026-10-07 再以引用试探编译 → CS1061。
-        //      所以单击是否真跳转、靠什么跳转，本波从未测过（切片没有曲目，`Duration = 0` 时
-        //      下面那道守卫就直接返回了）→ 待用户确认（docs/PHASE20-COMPARISON.md §2.1）。
-        // 单击是否同时发 DragStarted/DragCompleted 在不同版本上没有可靠承诺，所以这里做双保险：
-        // 只有"不在拖动中"且"这次的新值不等于 Core 的位置投影"时才提交 Seek ——
-        // 后者正是"30 Hz 位置回写把滑块写回来"的特征（那条路径上新值就是 PositionNormalized）。
+        // 进度条写回 Value 的三条路里，只有"用户改的"才该提交 Seek：
+        //   1) 拖动 —— Slider 模板 Thumb 的 DragStarted / DragCompleted（见下面两个 handler）：
+        //      拖动期间 Core 的 `IsSeeking` 为真，位置回写被 PlayerViewModel.HandlePositionChanged 抑制，
+        //      松手才提交一次；
+        //   2) 单击轨道 —— 由 Position_TrackPressed 自己提交，它按住 IsSeeking 走上面同一条抑制路径，
+        //      所以到这里会被第一道守卫挡下（2026-10-07 之前这里就是缺陷现场：原生按 StepFrequency=1
+        //      把落点量化成端点，然后被这里提交出去）；
+        //   3) 30 Hz 位置回写与键盘步进 —— 回写这条路的新值就是 PositionNormalized，用第二道守卫跳过。
         if (_vm.Player.IsSeeking) return;
         if (Math.Abs(e.NewValue - _vm.Player.PositionNormalized) < 1e-9) return;
         if (_vm.Player.Duration <= TimeSpan.Zero) return;

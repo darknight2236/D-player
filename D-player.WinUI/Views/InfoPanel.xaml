@@ -1,0 +1,16 @@
+<UserControl
+    x:Class="DPlayer.WinUI.Views.InfoPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      右信息栏（spec §5：默认 260px，<960px 自动收起）。本 Task 只占位 + 把宽度接到令牌上，
+      内容（封面 + 标题/艺术家/专辑/时长 + 无曲时「未在播放」）与折叠在 Task 2 实现。
+      根不写背景刷：Mica 材质只在没有不透明背景刷的表面后面可见（实测见 MainWindow.xaml 顶部注释）。
+    -->
+    <Grid Width="{StaticResource InfoPanelWidth}">
+        <TextBlock Text="信息面板"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Grid>
+</UserControl>

@@ -1,0 +1,100 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      列表项容器（NavRail 的 ListView 与 TrackList 的 ListView 共用）。
+      本 Task 只立"六态容器模板"的公共架子：列表行侧的表头/列宽、TrackList 专用样式在 Task 3 再补。
+
+      ── 状态名是量出来的，不是猜的（2026-10-07）──
+      组名与状态名都由控件按**名字**驱动，写错不报错、只会让该状态静默不生效。因此下面的名字逐字抄自
+      Windows App SDK 自带的 Themes/generic.xaml（本机解析到的包：
+      ~/.nuget/packages/microsoft.windowsappsdk.winui/2.3.9/lib/net6.0-windows10.0.17763.0/
+      Microsoft.WinUI/Themes/generic.xaml；lib/native/Microsoft.UI/Themes/generic.xaml 与之 md5 相同），
+      取自 TargetType="ListViewItem" 的三套当代模板 ListViewItemRevealStyle / ListViewItemExpanded /
+      RadioButtonsItemStyle。抄到的原始名字清单：
+        · CommonStates    -> Normal / PointerOver / Pressed / Selected / PointerOverSelected /
+                             PressedSelected            （Reveal 版另有 PointerOverPressed）
+        · DisabledStates  -> Enabled / Disabled
+      与计划稿占位的三处差异（计划稿已声明"以 generic.xaml 为准"）：
+        1) **没有 SelectionStates 这个组**：ListViewItem 的选中态就在 CommonStates 里，
+           和指针态合成一个名字；generic.xaml 里的 SelectionStates 属于
+           ListPickerFlyoutPresenterItemStyle / CalendarDatePicker / PivotHeaderItem，不是本控件。
+        2) SelectedPointerOver → **PointerOverSelected**，SelectedPressed → **PressedSelected**
+           （顺序相反；SelectedPointerOver 在 generic.xaml 里只出现在 ComboBoxItem / ItemContainer /
+           SelectorBarItem / PivotHeaderItem 的模板里）。
+        3) Disabled **不在 CommonStates**，它在独立的 DisabledStates 组里，与 Enabled 成对。
+      左侧强调条在选中系状态从 0 长到 3px（Opacity 0→1）。
+    -->
+    <Style x:Key="RailListViewItemStyle" TargetType="ListViewItem">
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="MinHeight" Value="{StaticResource RowHeight}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Grid x:Name="ItemRoot" Background="{TemplateBinding Background}"
+                          Control.IsTemplateFocusTarget="True">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Rectangle x:Name="SelectionBar" Width="3" Opacity="0"
+                                   Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                        <ContentPresenter x:Name="ContentPresenter" Grid.Column="1"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Padding="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center" />
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="PointerOverPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Selected">
+                                    <VisualState.Setters>
+                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                        <Setter Target="SelectionBar.Opacity" Value="1" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="PointerOverSelected">
+                                    <VisualState.Setters>
+                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                        <Setter Target="SelectionBar.Opacity" Value="1" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="PressedSelected">
+                                    <VisualState.Setters>
+                                        <Setter Target="SelectionBar.Opacity" Value="1" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="DisabledStates">
+                                <VisualState x:Name="Enabled" />
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="ItemRoot.Opacity" Value="0.4" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

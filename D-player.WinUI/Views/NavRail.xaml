@@ -1,0 +1,25 @@
+<UserControl
+    x:Class="DPlayer.WinUI.Views.NavRail"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      左导航栏（spec §5：默认 200px、折叠 48px）。宽度取 Tokens.xaml 的 NavRailWidth。
+      根不写背景刷：Mica 是挂在窗口上的材质，只有**没有不透明背景刷**的表面后面才看得见
+      （实测见 MainWindow.xaml 顶部注释），InfoPanel/TrackList 同理。
+      折叠钮与「歌单」小标题属 Task 2/3，本 Task 只搬家。
+    -->
+    <Grid Width="{StaticResource NavRailWidth}">
+        <!--
+          本 Task 刻意保留"整栏重建"的命令式版本（SyncPlaylistMenu），与拆分前的 MainWindow 逐行等价：
+          一次只动一件事，好让评审能把"回归出在哪"定位到单个 Task。
+          Task 2 才把它换成声明式（ItemsSource 绑 Playlists + SelectedItem 双向绑 ViewedPlaylist）。
+          行容器样式用 Theme/Styles.xaml 的 RailListViewItemStyle（组名/状态名逐字抄自 SDK 的
+          generic.xaml，见该文件注释）。
+        -->
+        <ListView x:Name="Nav"
+                  SelectionChanged="Nav_SelectionChanged"
+                  ItemContainerStyle="{StaticResource RailListViewItemStyle}"
+                  AutomationProperties.Name="歌单" />
+    </Grid>
+</UserControl>

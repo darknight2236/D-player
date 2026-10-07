@@ -23,6 +23,21 @@
     <ItemGroup>
         <!-- 本机实测: 原先的 Version="*" 解析到 2.5.1, 故钉死具体版本以保证可复现构建 -->
         <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+        <!--
+          本机实测钉版本（2026-10-07，与上面 WASDK 的 P-7 同纪律）：计划稿点名的 CommunityToolkit.WinUI
+          在 nuget.org 上只有到 7.1.2 的发布（`dotnet add package CommunityToolkit.WinUI` 不带版本时
+          直接报「没有可用于包"CommunityToolkit.WinUI"的版本」），而 7.1.2 那份程序集反射出来的 36 个
+          导出类型里**没有任何动效类型**（动效在 8.x 拆到了 CommunityToolkit.WinUI.Animations）；
+          同时它的类型面在本图里已经加载不动（GetExportedTypes 抛
+          "Could not load type 'CommunityToolkit.Common.Helpers.ISettingsStorageHelper`1' from assembly
+          'CommunityToolkit.Common, Version=8.2.0.0'" —— Common 被统一到 8.2 了）。
+          故这里只引真正带动效的那一个：8.2.250402 是本机解析到的最新稳定版，
+          落到 lib/net9.0-windows10.0.19041（Extensions 8.2.250402 与 Common 8.2.1 随之传递进来），
+          对 WASDK 2.5.1 构建 0 警告 / 0 错误。实测类型面清单见
+          .superpowers/sdd/…/task-1-report.md（Task 5 只按那份清单写 toolkit 代码）。
+          注意：运行期（真机起窗后实际驱动一次 toolkit 动画）**尚未验证**。
+        -->
+        <PackageReference Include="CommunityToolkit.WinUI.Animations" Version="8.2.250402" />
     </ItemGroup>
 
     <ItemGroup>

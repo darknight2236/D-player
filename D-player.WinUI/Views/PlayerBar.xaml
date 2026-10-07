@@ -1,0 +1,45 @@
+<UserControl
+    x:Class="DPlayer.WinUI.Views.PlayerBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 播放器栏（底栏）。列布局与内边距与拆分前一致；64px 高度与圆钮属 Task 2/3 的形状改造。 -->
+    <Grid Padding="16,8" ColumnSpacing="12"
+          Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Button x:Name="PlayPauseButton" Click="PlayPause_Click"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="播放/暂停">
+            <FontIcon Glyph="{x:Bind PlayPauseGlyph, Mode=OneWay}" />
+        </Button>
+        <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
+            <TextBlock Text="{x:Bind NowPlayingText, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+            <!--
+              进度条的两条用户输入路径都挂在模板部件上，**在代码后置里订阅**（PlayerBar.xaml.cs 的
+              HookSliderParts），而不是在 markup 里：WinUI 的 XamlCompiler 不认 markup 写法
+              —— `DragStarted="…"` 报 WMC0011 "Unknown member"，`prim:Thumb.DragStarted="…"`
+              报 WMC0010 "Unknown attachable member"（两者都在本壳上实测过，2026-10-07）。
+              · 拖动 → 模板 Thumb（HorizontalThumb）的 DragStarted / DragCompleted。
+              · 单击定位 → 模板轨道（HorizontalTemplate）的 PointerPressed，见 Position_TrackPressed。
+              StepFrequency 必须显式给：默认值 1 配上默认 SnapsTo=StepValues（枚举里没有 None，
+              量化关不掉）在 0..1 的量程上把整条轨道量化成 {0,1} 两个落点 —— 2026-10-07 实测量出的
+              缺陷根因。0.001 = 千分之一程，比一个像素还细（本机轨道 904 px / 滑块 18 px →
+              一格约 0.9 px）。单击在轨道挂上时不依赖它（轨道上的按下被我们自己吃掉了，落点由
+              TryGetTrackFraction 算）；万一轨道找不到、退回控件自己那条 move-to-point，
+              落点精度就是靠它兜着的（实测 0.248 / 0.499 / 0.749，仍是点上而不是端点）。
+              拖动这一半则始终靠它。
+              Value 绑的是 Core 的 `PlayerViewModel.PositionNormalized`（壳侧不抄第二份公式，见 A4）。
+            -->
+            <Slider x:Name="PositionSlider" Minimum="0" Maximum="1" StepFrequency="0.001"
+                    Value="{x:Bind Player.PositionNormalized, Mode=OneWay}"
+                    ValueChanged="Position_Changed"
+                    AutomationProperties.Name="播放进度" />
+        </StackPanel>
+        <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                   Text="{x:Bind TimeText, Mode=OneWay}" />
+    </Grid>
+</UserControl>

@@ -6,6 +6,14 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <!--
+                  顺序有承重（2026-10-07 实测）：Styles.xaml 里的 Setter 用 {StaticResource RowHeight}
+                  引用 Tokens.xaml 的键，跨字典的 StaticResource 只能向上找到**已合并在前**的字典，
+                  所以 Tokens 必须在 Styles 之前。顺序反了不是"样式不生效"，而是 XAML 加载期直接抛
+                  找不到资源——起窗即崩。
+                -->
+                <ResourceDictionary Source="Theme/Tokens.xaml" />
+                <ResourceDictionary Source="Theme/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

@@ -4,13 +4,39 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      右信息栏（spec §5：默认 260px，<960px 自动收起）。本 Task 只占位 + 把宽度接到令牌上，
-      内容（封面 + 标题/艺术家/专辑/时长 + 无曲时「未在播放」）与折叠在 Task 2 实现。
+      右信息栏（spec §5：默认 260px，<960px 自动收起；Task 2 起内容与折叠都落地）。
       根不写背景刷：Mica 材质只在没有不透明背景刷的表面后面可见（实测见 MainWindow.xaml 顶部注释）。
+
+      折叠的两个量在 InfoPanel.xaml.cs：`IsCollapsed` 让 Panel 的 Width 在 260 与 0 之间走 Storyboard，
+      `ContentHost` 的文字/封面先淡出 100ms 再收宽度（§6 第 4 项）。
+      Width=0 时 WinUI **不裁剪**子元素（FrameworkElement 没有 WPF 的 IsClippedToBounds），
+      260px 的内容会照画到中列上方 = A3 的"折叠后仍有残留"失败态；所以根上加了 Clip（代码里跟随尺寸更新）。
+
+      折叠钮**不在这里**：面板收成 0 宽之后它自己那颗钮也点不到了，改由宿主 MainWindow 挂在标题栏右端，
+      理由与实测见 task-2-report.md §2。
     -->
-    <Grid Width="{StaticResource InfoPanelWidth}">
-        <TextBlock Text="信息面板"
-                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    <Grid x:Name="Panel" Width="{StaticResource InfoPanelWidth}">
+        <StackPanel x:Name="ContentHost" Spacing="{StaticResource SpacingMd}" Padding="{StaticResource PanelPadding}">
+
+            <!-- 封面：正方形（228 = InfoPanelWidth 260 - 两侧 PanelPadding 16），圆角 8；无封面＝音符占位 -->
+            <Grid Width="{StaticResource InfoPanelCoverSize}" Height="{StaticResource InfoPanelCoverSize}">
+                <Border x:Name="CoverPlaceholder" CornerRadius="{StaticResource RadiusItem}"
+                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                    <FontIcon Glyph="&#xE8D6;" FontSize="{StaticResource CoverGlyphSize}" Opacity="0.4"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <!-- CoverArtLoader 按 InfoPanelCoverSize 解码后赋 Source；交叉淡入是 Task 5（§6 第 6/9 项） -->
+                <Image x:Name="Cover" Stretch="UniformToFill" />
+            </Grid>
+
+            <TextBlock x:Name="TitleText" FontSize="{StaticResource FontSizeSubtitle}" FontWeight="SemiBold"
+                       TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="ArtistText" FontSize="{StaticResource FontSizeBody}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="AlbumText" FontSize="{StaticResource FontSizeBody}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="DurationText" FontSize="{StaticResource FontSizeCaption}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
     </Grid>
 </UserControl>

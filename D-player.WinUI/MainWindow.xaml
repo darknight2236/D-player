@@ -29,10 +29,28 @@
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="{StaticResource TitleBarHeight}">
             <TextBlock x:Name="AppTitle" Text="D-player" Margin="16,0,0,0"
                        VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" />
+
+            <!--
+              右栏（信息面板）的折叠钮住在标题栏右端，**不在 InfoPanel 里**。理由：brief Step 3 把右栏的
+              折叠终值钉成 260 <-> **0**，面板收成 0 宽之后它自己那颗钮也跟着点不到，A3 的"折叠钮各两次"
+              就只剩单向；而折叠状态**不许持久化**（要往 settings.json 加字段就动了 Core，本阶段明确不做），
+              所以必须留一个与宽度无关的常驻入口。位置取 Tokens 的 InfoPanelToggleMargin：右端让开系统
+              Caption Buttons（3 x 46 = 138，本机 scale=1.0 实测量到），正好落在右栏的正上方。
+              左栏那颗钮仍在栏内（折叠态 48px 仍看得见、点得到），见 Views/NavRail.xaml。
+            -->
+            <Button x:Name="InfoPanelToggle" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
+                    HorizontalAlignment="Right" VerticalAlignment="Center"
+                    Margin="{StaticResource InfoPanelToggleMargin}" Padding="0" BorderThickness="0"
+                    Background="{ThemeResource SubtleFillColorTransparentBrush}"
+                    Click="InfoPanelToggle_Click"
+                    AutomationProperties.Name="收起或展开信息栏" ToolTipService.ToolTip="收起或展开信息栏">
+                <FontIcon x:Name="InfoPanelToggleGlyph" Glyph="&#xE76C;" FontSize="{StaticResource FontSizeCaption}" />
+            </Button>
         </Grid>
 
         <!--
-          三栏槽位（左导航 / 中列表 / 右信息），列宽由 Tokens 的 NavRailWidth / InfoPanelWidth 决定，
+          三栏槽位（左导航 / 中列表 / 右信息），列宽由控件自己的宽度（Tokens 的 NavRailWidth / InfoPanelWidth）
+          决定 —— 三列都是 Auto/*，所以栏宽一变小中列就跟着变宽（A2 的"中列表变宽"）。
           底栏由代码加进 RootGrid 的第 2 行。
 
           四个控件为什么在代码里装配而不是写在这里：XAML 里声明元素要求 public 无参构造，而计划钉住的

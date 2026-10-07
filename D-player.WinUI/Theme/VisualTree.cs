@@ -29,4 +29,19 @@ internal static class VisualTree
         }
         return null;
     }
+
+    /// <summary>
+    /// 全量后代（深度优先，迭代器）。与上面单命中的 <see cref="FindDescendant{T}"/> 并存、不改它。
+    /// 用在左栏折叠：条目里的名称标签每行一份、住在 DataTemplate 里，声明式之后没有 namescope 可按名字取，
+    /// 只能从根往下收再按 Tag 筛（调用方见 Views/NavRail.xaml.cs 的 CollectFadeTargets）。
+    /// </summary>
+    public static IEnumerable<DependencyObject> FindDescendants(DependencyObject root)
+    {
+        for (int i = 0, n = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root); i < n; i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+            yield return child;
+            foreach (var deeper in FindDescendants(child)) yield return deeper;
+        }
+    }
 }

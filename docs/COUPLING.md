@@ -1,6 +1,6 @@
 # D-player 耦合分析与重构备忘
 
-> 创建日期：2026-06-06 · 更新日期：2026-10-07（代码基线 `71613f2`） · 对应分支：`master` · 对应阶段：**Phase 20 已交付（`D-player.Core` 抽取 + WinUI 3 第二壳切片 + 门禁改走 `D-player.slnf`）；WPF 壳行为与外观零变化；两壳去留的决策门尚未发生（对比材料见 [`PHASE20-COMPARISON.md`](./PHASE20-COMPARISON.md)）** · 上一阶段：Phase 19 完成（NAudio 收窄 + 输出迁移到 `WasapiPlayer` + 测试栈迁到 xunit.v3，无产品行为变化）
+> 创建日期：2026-06-06 · 更新日期：2026-10-07（代码基线 `69d49bb`） · 对应分支：`master` · 对应阶段：**Phase 21 已交付（WinUI 壳视觉与交互打磨：三栏 IA + 令牌层 + 六态 + 键盘/无障碍 + 9 项动效；验收清单 20 项已交付，起窗崩溃 0xC0000005 阻塞用户手测）** · Phase 20 已交付（`D-player.Core` 抽取 + WinUI 3 第二壳切片 + 门禁改走 `D-player.slnf`）；WPF 壳行为与外观零变化；两壳去留的决策门已拍板：续投 WinUI · 上一阶段：Phase 20 完成
 >
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。Phase 16 图标矢量化（emoji/字形图标 → `Themes/Icons.xaml` 统一描边矢量 Geometry 集，转换器返回 Geometry，▶ 标记 TextBlock→Path；纯表现层，0 新依赖）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式；纯表现层，0 新依赖）。Phase 18 播放列表文件导入导出（新增 `Services/PlaylistFiles` 门面模块 + `IPlaylistFileService` 1 个新 Singleton DI 服务；两个 VM 各加 1 个依赖 + 可 await 公开方法；追加路径复用既有 `DropExternalFiles` 不加新元数据依赖；无新架构债，新增 7 条隐式契约，详见 §5）。Phase 19 依赖迁移（NAudio 收窄到 `NAudio.Core` + `NAudio.Wasapi`、输出经 `WasapiPlayerBuilder` 建链、测试栈迁到 xunit.v3 + 单一 MTP runner；**无新增架构债**，仅新增 1 条测试栈隐式契约，详见 §5）。Phase 20 WinUI 3 第二 UI 壳（共享层物理抽成 WPF-free 的 `D-player.Core` 类库；`IFileDialogService` 的实现与用户数据目录 `DPlayerDataPaths` 改由各壳注入；门禁改走 `D-player.slnf`；新建 `D-player.WinUI` 切片壳。**架构债仍是 0 项，但新增 9 条跨壳隐式契约**（Core 不得引 WPF / 两壳共用一份 VM-Service / 同一手势共用 Core 公开入口 / 数据目录由壳注入 / 每壳自注册自己的对话框 / 门禁走筛选器且 WinUI 刻意在外 / 仓库根级新工程必须进 glob 排除集 / Mica 依赖根背景 Transparent / 每壳各自 await `CleanupAsync` 且不同步 Dispose 容器），详见 §5 与 §7）。
 
@@ -318,6 +318,12 @@ private void RemoveTrack(int index)
 | WinUI 的 Mica 只在**根背景透明**时可见 | `D-player.WinUI/MainWindow.xaml` 根 `Grid Background="Transparent"` + `MainWindow.xaml.cs` 的 `SystemBackdrop = new MicaBackdrop()`；三行像素对照写在该文件顶部注释 | 往根 Grid 或任何铺满容器加不透明背景刷 = 材质"看起来消失"（肉眼与截图都像没挂上）。反向陷阱：`DWMWA_SYSTEMBACKDROP_TYPE` 对组合器挂载的 backdrop **不是判据**（本项目实测恒为 0），拿它做断言曾经把已生效的 Mica 误判成"未挂载" |
 | 每壳各自负责关闭落盘，且**不得**同步 Dispose 容器 | WPF `Views/MainWindow.xaml.cs:Window_Closing`（cancel-and-close，Phase 4）；WinUI `D-player.WinUI/MainWindow.xaml.cs:AppWindow_Closing` → `await MainViewModel.CleanupAsync()` → `Close()` | 少了这一步，最终断点位置只能靠 30 秒节流或"先暂停"才落盘，WASAPI 设备也不释放。同步 `Dispose(ServiceProvider)` 会抛（`MainViewModel` 只实现 `IAsyncDisposable`）—— WPF 壳 `App.OnExit` 那条是**已知既有缺陷**（数据已落盘，表现为退出码非 0），Phase 20 刻意没有把它复制进第二壳；两处该一起修，属 Phase 20 之后的独立决策 |
 
+| **Phase 21 新增（WinUI 视觉层契约）** | | |
+| 令牌三档时长 + 颜色只走主题资源 + 六态齐备 | `D-player.WinUI/Theme/Tokens.xaml`（间距 4/8/12/16/24、圆角 4/8/12、字号 12/13.5/15/20、结构尺寸）+ `Theme/Motion.cs`（`MotionTokens.Fast`=100ms / `Normal`=150ms / `Slow`=200ms + `StandardEasing`）+ `Theme/Styles.xaml`（六态容器模板：default/hover/pressed/selected/focus/disabled）；所有颜色引用 `{ThemeResource …}`，壳内无写死 `#RRGGBB` | 新增第四个时长或 >250ms 动画违反令牌纪律；壳内出现硬编码色值违反颜色契约 |
+| 折叠与阈值契约 | NavRail 200↔48px、InfoPanel 260↔0px；`<960px` 窗口宽度自动收起 InfoPanel（8px 迟滞：收起阈值 960px、展开阈值 968px）；手动覆盖优先，直到窗口宽度穿越回 threshold+16px 才重新接管 | 无迟滞会在阈值边界抖动；手动覆盖被自动逻辑覆盖会让用户失去控制感 |
+| 无跨层 `x:Bind` 链 | `{x:Bind Playlists.ViewedPlaylist.Queue}` 这类两层以上链式绑定会让 XamlCompiler 报 WMC9999 崩溃；只绑一层或在 code-behind 赋值 | 跨层 `x:Bind` 链触发 XamlCompiler 内部错误，构建直接失败 |
+| 动效纪律：单一驱动源 + 防叠加 | 所有动画使用 `MotionTokens.Fast/Normal/Slow`；无循环；无 >250ms；动画启动前先 `_storyboard?.Stop()` + `Completed` 回调用 `ReferenceEquals` 守卫防止旧回调干扰 | 不做防叠加会导致连续快速操作（如折叠 5 次）动画堆积、抽搐、终态不对 |
+
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
 > **Phase 15 审计核对（M7）：** §5 全部契约与代码一致，无新增未登记契约。
@@ -359,7 +365,8 @@ private void RemoveTrack(int index)
 - [x] 图标矢量化（Phase 16 完成）—— Icons.xaml 矢量 Geometry 集 + IconPath 样式；转换器 string→Geometry；▶ 标记与 sidebar 活跃标记改 Path（Fill=AccentPrimary 实心）
 - [x] UI 深度深色定制（Phase 17 完成）—— 自定义无边框标题栏（TitleBar + WindowChrome，含最大化常量边距）+ ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu/MenuItem 深色模板
 - [x] 播放列表文件导入导出（Phase 18 完成）—— 导入 M3U/M3U8/PLS（相对路径解析 + UTF-8/UTF-16(BOM)/GBK 编码探测 + URL/后缀/存在性过滤计数报告）+ 导出 M3U8（绝对路径 + `#EXTINF`，UTF-8 无 BOM + CRLF）；无新 NuGet 包（CodePages 在 net10.0 框架隐含）
-- [x] WinUI 3 第二 UI 壳 + 决策门材料（Phase 20 **已交付**）—— `D-player.Core` 抽取（WPF-free）+ 数据目录由壳注入 + 门禁改走 `D-player.slnf` + `D-player.WinUI` 第一条纵向切片（真机起窗、Mica、双击走共享入口、关闭落盘）。**0 新增架构债，新增 9 条跨壳契约（§5 末尾的 9 行）**；"续投还是停止"的决策门**尚未发生**，等材料由用户填完再记状态
+- [x] WinUI 3 第二 UI 壳 + 决策门材料（Phase 20 **已交付**）—— `D-player.Core` 抽取（WPF-free）+ 数据目录由壳注入 + 门禁改走 `D-player.slnf` + `D-player.WinUI` 第一条纵向切片（真机起窗、Mica、双击走共享入口、关闭落盘）。**0 新增架构债，新增 9 条跨壳契约（§5 末尾的 9 行）**；"续投还是停止"的决策门**已拍板：续投 WinUI（2026-10-07）**
+- [x] WinUI 壳视觉与交互打磨（Phase 21 **已交付**）—— 三栏 IA（NavRail/TrackList/InfoPanel/PlayerBar）+ 令牌层（间距/圆角/字号/时长）+ 六态样式 + 键盘/无障碍 + 9 项动效；新增 4 条视觉层契约（§5 末尾）+ 5 条 ❌ 纪律（§7）。**验收清单 20 项已交付（`docs/PHASE21-ACCEPTANCE.md`），但起窗崩溃（exit 0xC0000005，非 Phase 21 回归）阻塞用户手测**
 
 ---
 
@@ -410,6 +417,11 @@ private void RemoveTrack(int index)
 - ❌ **用 `DWMWA_SYSTEMBACKDROP_TYPE` 断言 WinUI 的 Mica 是否生效**（Phase 20）—— 组合器挂载的 backdrop 不写这个 DWM 属性（实测恒为 0），照它判定会把已生效的材质判成"未挂载"。有效判据是"透明表面后的像素是否随窗外内容变化"
 - ❌ **往 WinUI 根 Grid 或铺满容器上加不透明背景刷**（Phase 20）—— Mica 会整片被盖住，视觉退化成实色深色；这条约定和像素对照就在 `MainWindow.xaml` 顶部注释里
 - ❌ **新增仓库根级工程却不补 `D-player.csproj` 的 glob 排除集**（Phase 20）—— 门禁会以重复类型或 `MC3074`/`CS0234` 炸掉；排除集与 `.slnf` 的隔离是一对，改一个要看另一个
+- ❌ **在 WinUI 壳内写死十六进制色值 `#RRGGBB`**（Phase 21）—— 颜色必须走 `{ThemeResource …}` 引用 Fluent 主题资源；写死色值会让深色/浅色主题切换失效，且违反令牌化纪律（B5 清单项）
+- ❌ **引入第四个动效时长或 >250ms 动画**（Phase 21）—— 令牌层只允许三档（Fast 100ms / Normal 150ms / Slow 200ms）；新增时长或超长动画会让动效节奏失控，违反"丰富但不烦人"的设计目标
+- ❌ **在 WinUI 侧使用跨层 `x:Bind` 链**（Phase 21）—— `{x:Bind Playlists.ViewedPlaylist.Queue}` 这类两层以上的链式绑定会让 XamlCompiler 报 WMC9999 崩溃；只绑一层或在 code-behind 赋值
+- ❌ **把折叠状态写进 `settings.json`**（Phase 21）—— 折叠/展开的默认态是展开（左栏/右栏），不持久化用户手动折叠状态；持久化需要新增 `settings.json` 字段，属功能面契约，本阶段（纯视觉打磨）刻意不做
+- ❌ **在 WinUI 侧新增功能项**（Phase 21）—— 本阶段只做视觉与交互打磨，不加任何功能（排序、拖拽、频谱、EQ、设置、导入导出等全部留给后续功能阶段）
 
 ---
 

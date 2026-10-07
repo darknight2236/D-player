@@ -1,7 +1,7 @@
 # D-player
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（.NET 10 + NAudio）。
-> 共享层 `D-player.Core`（WPF-free）之上跑两套 UI 壳：**WPF 壳**（完整功能，日常使用的那一个）与 **WinUI 3 壳**（Phase 20 的第一条纵向切片，用于对比去留）。
+> 共享层 `D-player.Core`（WPF-free）之上跑两套 UI 壳：**WPF 壳**（完整功能，日常使用的那一个）与 **WinUI 3 壳**（Phase 20 的第一条纵向切片，用于对比去留；切片已交付、验收已由用户 2026-10-07 在真机走完、**除"进度条单击定位"是一处缺陷外全部通过**，而**去留仍未拍板**——逐项结果见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) §2.2）。
 > 灵感来源于 foobar2000。原名 UmaPlayer。
 
 ---
@@ -117,7 +117,7 @@ dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q
 dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 ```
 
-两条命令都不需要额外传 `-p:Platform=x64`（`<Platforms>` 只声明支持面、不设默认值，所以 csproj 里同时钉了 `<Platform>x64</Platform>`）。它的数据目录与 WPF 壳分开（`%LocalAppData%\D-player-winui\`），也没有导入入口——首启是空状态，怎么喂测试数据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 2.1 节。
+两条命令都不需要额外传 `-p:Platform=x64`（`<Platforms>` 只声明支持面、不设默认值，所以 csproj 里同时钉了 `<Platform>x64</Platform>`）。它的数据目录与 WPF 壳分开（`%LocalAppData%\D-player-winui\`），也没有导入入口——首启是空状态，怎么喂测试数据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 2.1 节（该节现在同时是 2026-10-07 那次验收走查的执行记录，复现步骤原样保留；逐项结论在第 2.2 节）。
 
 **要一次 restore 全部四个工程（含 WinUI）时才用 `dotnet restore D-player.sln`**：它会首次从 nuget.org 拉 `Microsoft.WindowsAppSDK`（2.5.1，带 9 个子包），实测约 8.1 分钟，且自包含输出目录很大。**日常请走上面的 `.slnf` 门禁两条命令**（构建约 2 秒级）；`tools/verify-gates.ps1 -Full` 会把壳侧构建检查也带上（增量，秒级）。
 
@@ -220,7 +220,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 17 | UI 深度深色定制（无边框自定义标题栏 + ComboBox/CheckBox/ScrollBar 等深色化） |
 | 18 | 播放列表文件导入导出（M3U/M3U8/PLS 导入 + M3U8 导出） |
 | 19 | 依赖迁移（NAudio 收窄为 Core + Wasapi、输出改经 `WasapiPlayerBuilder` 建 `WasapiPlayer`、测试栈迁到 xunit.v3；无产品行为变化） |
-| 20 | WinUI 3 第二 UI 壳：抽出 WPF-free 的 `D-player.Core`、数据目录由壳注入、门禁改用 `D-player.slnf`、做出第一条纵向切片并交付对比材料（WPF 壳行为与外观零变化；**续投还是停止的决策门尚未发生**） |
+| 20 | WinUI 3 第二 UI 壳：抽出 WPF-free 的 `D-player.Core`、数据目录由壳注入、门禁改用 `D-player.slnf`、做出第一条纵向切片并交付对比材料（WPF 壳行为与外观零变化；**切片已交付，§2.1 那份验收走查已由用户 2026-10-07 在真机走完，除"进度条单击定位"是一处缺陷外全部通过**（结果记在对比材料 §2.2）；**续投还是停止的决策门仍未拍板**） |
 
 每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。Phase 20 的两壳对比材料与决策门记录位在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。
 
@@ -233,4 +233,4 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
 - 按艺术家/专辑组织的音乐库视图尚未实现。
-- **WinUI 3 壳是切片，不是可用的日常播放器**：没有导入/新建入口（首启空状态，需手工放测试数据才能看到曲目列表）、没有频谱/拖拽/对话框/EQ/设置/导入导出/音量/上下一首/随机循环/表头排序，且不进门禁（XAML 编译、左栏逻辑、关闭落盘均无自动回归；它唯一的自动化保护是**需要手跑**的壳侧构建检查，`powershell -File tools/verify-gates.ps1 -Full`，触发条件见"构建与运行"）。去留由 Phase 20 决策门判定，见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。
+- **WinUI 3 壳是切片，不是可用的日常播放器**：**已知缺陷一处（2026-10-07 用户实测）——进度条单击定位不工作**，点靠近开头的半边跳到开头、点靠近结尾的半边跳到结尾，位置不落到点击处（机制未量，对比材料 §2.2 只给了一条标注为假设的解释）；拖动与位置刷新那两半经用户实测正常（双击出声、进度推进、暂停/继续、断点续播均通过）。此外：没有导入/新建入口（首启空状态，需手工放测试数据才能看到曲目列表）、没有频谱/拖拽/对话框/EQ/设置/导入导出/音量/上下一首/随机循环/表头排序，且不进门禁（XAML 编译、左栏逻辑、关闭落盘均无自动回归；它唯一的自动化保护是**需要手跑**的壳侧构建检查，`powershell -File tools/verify-gates.ps1 -Full`，触发条件见"构建与运行"）。去留由 Phase 20 决策门判定，**决策门仍未拍板**，见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。

@@ -40,6 +40,9 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     private Storyboard? _thumbScaleStoryboard;
     private ScaleTransform? _thumbScale;
 
+    // ⑦ 播放/暂停图标交叉淡入
+    private Storyboard? _iconStoryboard;
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public PlayerViewModel Player { get; }
@@ -96,13 +99,16 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     /// <summary>
     /// ⑧ 给进度条 Thumb 挂 ScaleTransform + 缩放动画。
     /// DragStarted → Scale ×1.15（100ms）；DragCompleted → Scale ×1.0（100ms）。
+    /// CenterX/CenterY 延迟到 DragStarted 时计算（此时 Thumb 必定已布局完成）。
     /// </summary>
     private void HookThumbScale(Thumb thumb)
     {
         // Thumb 模板里已有一个 ScaleTransform（用于内部渲染），我们不能覆盖它。
         // 改为在 Thumb 的 RenderTransform 上包一层 CompositeTransform，或在找不到合适位置时静默跳过。
         // 实际上 Thumb 的 RenderTransform 默认是 null，我们可以直接设置。
-        var scale = new ScaleTransform { CenterX = thumb.ActualWidth / 2, CenterY = thumb.ActualHeight / 2 };
+        // CenterX/CenterY 不在这里计算——首次 Loaded 时 ActualWidth 可能仍为 0，
+        // 推迟到 Position_DragStarted（用户拖动时 Thumb 必定已布局）。
+        var scale = new ScaleTransform();
         thumb.RenderTransform = scale;
         _thumbScale = scale;
     }
@@ -174,6 +180,14 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     private void Position_DragStarted(object sender, DragStartedEventArgs e)
     {
         Player.SeekStartedCommand.Execute(null);
+
+        // ⑧ 延迟计算缩放中心：此时 Thumb 必定已布局完成，ActualWidth/Height 可靠
+        if (_thumbScale is not null && _positionThumb is not null)
+        {
+            _thumbScale.CenterX = _positionThumb.ActualWidth / 2;
+            _thumbScale.CenterY = _positionThumb.ActualHeight / 2;
+        }
+
         AnimateThumbScale(1.15);
     }
 
@@ -276,6 +290,8 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         var playTarget = isPlaying ? 0.0 : 1.0;
         var pauseTarget = isPlaying ? 1.0 : 0.0;
 
+        _iconStoryboard?.Stop();
+
         var sb = new Storyboard();
 
         var playAnim = new DoubleAnimation
@@ -298,6 +314,7 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         Storyboard.SetTargetProperty(pauseAnim, "Opacity");
         sb.Children.Add(pauseAnim);
 
+        _iconStoryboard = sb;
         sb.Begin();
     }
 

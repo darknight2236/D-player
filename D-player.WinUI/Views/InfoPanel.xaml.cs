@@ -27,6 +27,8 @@ public sealed partial class InfoPanel : UserControl
     private readonly int _coverDecodeSize = (int)TokenResource.Double("InfoPanelCoverSize");
 
     private Storyboard? _foldStoryboard;
+    private Storyboard? _coverStoryboard;
+    private Storyboard? _textStoryboard;
 
     /// <summary>
     /// 切歌序号：CoverArtLoader 是异步的，连点两首播了两张封面时**后到的旧结果必须丢弃**。
@@ -93,6 +95,8 @@ public sealed partial class InfoPanel : UserControl
     /// </summary>
     private void AnimateTextSlideUp()
     {
+        _textStoryboard?.Stop();
+
         var sb = new Storyboard();
 
         // Title slide-up
@@ -137,6 +141,7 @@ public sealed partial class InfoPanel : UserControl
         Storyboard.SetTargetProperty(artistOpacityAnim, "Opacity");
         sb.Children.Add(artistOpacityAnim);
 
+        _textStoryboard = sb;
         sb.Begin();
     }
 
@@ -203,6 +208,9 @@ public sealed partial class InfoPanel : UserControl
         // 先设置新图的 Source（此时 Opacity 还是 0，不会闪）
         incomingImage.Source = source;
 
+        // 防叠加：停止上一个封面动画
+        _coverStoryboard?.Stop();
+
         // 交叉淡入：incoming 0→1, outgoing 1→0
         var sb = new Storyboard();
 
@@ -228,12 +236,14 @@ public sealed partial class InfoPanel : UserControl
 
         sb.Completed += (_, _) =>
         {
+            if (!ReferenceEquals(_coverStoryboard, sb)) return;
             // 切换活跃封面
             _coverAIsActive = !_coverAIsActive;
             // 清除旧图的 Source 释放内存
             outgoingImage.Source = null;
         };
 
+        _coverStoryboard = sb;
         sb.Begin();
     }
 

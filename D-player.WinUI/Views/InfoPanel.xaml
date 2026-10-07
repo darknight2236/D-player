@@ -15,7 +15,7 @@
       折叠钮**不在这里**：面板收成 0 宽之后它自己那颗钮也点不到了，改由宿主 MainWindow 挂在标题栏右端，
       理由与实测见 task-2-report.md §2。
     -->
-    <Grid x:Name="Panel" Width="{StaticResource InfoPanelWidth}">
+    <Grid x:Name="Panel" Width="{StaticResource InfoPanelWidth}" IsTabStop="False">
         <StackPanel x:Name="ContentHost" Spacing="{StaticResource SpacingMd}" Padding="{StaticResource PanelPadding}">
 
             <!-- 封面：正方形（228 = InfoPanelWidth 260 - 两侧 PanelPadding 16），圆角 8；无封面＝音符占位 -->

@@ -197,6 +197,19 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     private void Position_DragCompleted(object sender, DragCompletedEventArgs e)
         => Player.SeekCompletedCommand.Execute(PositionSlider.Value);
 
+    /// <summary>
+    /// 空格键全局播放/暂停入口（C3）：MainWindow 的 RootGrid KeyDown handler 在焦点不在
+    /// Button/Slider/ListViewItem 上时调用本方法。内部逻辑与 PlayPause_Click 完全一致——
+    /// 无曲目时走歌单的 PlayCurrentCommand，有曲目时走播放器的 PlayPauseCommand。
+    /// </summary>
+    public void TogglePlayPause()
+    {
+        if (Player.CurrentTrack is null)
+            Playlists.ViewedPlaylist?.PlayCurrentCommand.Execute(null);
+        else
+            Player.PlayPauseCommand.Execute(null);
+    }
+
     private void PlayPause_Click(object sender, RoutedEventArgs e)
     {
         if (Player.CurrentTrack is null)

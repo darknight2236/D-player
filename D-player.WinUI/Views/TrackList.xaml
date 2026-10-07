@@ -58,6 +58,7 @@
         -->
         <ListView x:Name="TrackItems" Grid.Row="1"
                   DoubleTapped="TrackList_DoubleTapped"
+                  ContainerContentChanging="List_ContainerContentChanging"
                   ItemContainerStyle="{StaticResource RailListViewItemStyle}">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:Track">

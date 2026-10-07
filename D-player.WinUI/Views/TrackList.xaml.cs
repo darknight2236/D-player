@@ -4,6 +4,7 @@ using DPlayer.Models;
 using DPlayer.ViewModels;
 using DPlayer.WinUI.Theme;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
@@ -88,6 +89,19 @@ public sealed partial class TrackList : UserControl
         // 它内部先切 CurrentPlaylistId，再走 PlayTrackAtCommand —— 而 PlayTrackAt 的第一步是
         // _shuffleHistory.Clear()（"视为新会话"）。两壳的双击因此语义一致；自己拼一半必然漂移。
         await Playlists.HandleDoubleClickPlay(pl, index);
+    }
+
+    /// <summary>
+    /// C5：为每行设置 UIA Name，使屏幕阅读器读出"曲名，艺术家，时长"。
+    /// 走 ContainerContentChanging 而不是 x:Bind 静态函数绑定：WinUI 3 的 XamlCompiler
+    /// 不支持 {x:Bind local:TrackRowLabels.Build(...)} 这种静态方法调用（报 WMC 错误），
+    /// 实测不可用。ContainerContentChanging 在每次容器回收/重用时都触发，保证 UIA Name
+    /// 与当前数据同步。
+    /// </summary>
+    private void List_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.Item is Track t)
+            AutomationProperties.SetName(args.ItemContainer, TrackRowLabels.Build(t.Title, t.Artist, t.Duration));
     }
 
     /// <summary>

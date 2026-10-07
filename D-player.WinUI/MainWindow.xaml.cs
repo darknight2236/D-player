@@ -4,11 +4,13 @@ using DPlayer.WinUI.Views;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 // MicaBackdrop 就住在这个命名空间（不是 Microsoft.UI.Composition.SystemBackdrops —— 那里面的是
 // MicaController / SystemBackdropConfiguration 那套手动路线，本壳不用）。2026-10-07 实测：
 // 删掉本行 → CS0246 找不到 MicaBackdrop；删掉 SystemBackdrops 那行 → 构建照样 0/0。
 // WinUI 不在任何门禁里，这种 using 一旦被当成"死引用"清掉，只有单壳构建能发现（见 README 的门禁规则）。
 using Microsoft.UI.Xaml.Media;
+using Windows.System;
 
 namespace DPlayer.WinUI;
 
@@ -35,6 +37,11 @@ public sealed partial class MainWindow : Window
     /// 只调公开方法/读公开属性，**不**伸进控件的可视化树；其余三个控件仍是局部变量。
     /// </summary>
     private readonly InfoPanel _infoPanel;
+
+    /// <summary>
+    /// 底栏实例：空格键全局播放/暂停（C3）需要调 <see cref="PlayerBar.TogglePlayPause"/>。
+    /// </summary>
+    private readonly PlayerBar _bar;
 
     /// <summary>
     /// 用户手动动过右栏：在"手动口径"和"自动口径"重新对得上之前，SizeChanged 不再替用户改宽度
@@ -73,7 +80,7 @@ public sealed partial class MainWindow : Window
         var rail = new NavRail(_vm.Playlists);
         var tracks = new TrackList(_vm.Playlists);
         _infoPanel = new InfoPanel(_vm.Player);
-        var bar = new PlayerBar(_vm.Player) { Playlists = _vm.Playlists };
+        _bar = new PlayerBar(_vm.Player) { Playlists = _vm.Playlists };
 
         Grid.SetColumn(rail, 0);
         Grid.SetColumn(tracks, 1);
@@ -82,13 +89,20 @@ public sealed partial class MainWindow : Window
         BodyGrid.Children.Add(tracks);
         BodyGrid.Children.Add(_infoPanel);
 
-        Grid.SetRow(bar, 2);
-        RootGrid.Children.Add(bar);
+        Grid.SetRow(_bar, 2);
+        RootGrid.Children.Add(_bar);
 
         // 阈值 + 迟滞：挂在 RootGrid 上（它的宽度就是客户区宽度，比读 AppWindow.Size 少一层 DPI 换算）。
         // 写在代码里、不写成 XAML 的 SizeChanged="…"，是为了不碰 RootGrid 那行承重的 Background="Transparent"。
         RootGrid.SizeChanged += RootGrid_SizeChanged;
         SyncInfoPanelToggleGlyph();
+
+        // C3：空格键全局播放/暂停。handledEventsToo=true 确保即使焦点控件已处理也能拦截；
+        // handler 内部再判断焦点是否在 Button/Slider/ListViewItem 上来决定是否消费。
+        RootGrid.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(RootGrid_KeyDown), handledEventsToo: true);
+
+        // A4：标题栏双击最大化/还原。OverlappedPresenter 在 Microsoft.UI.Windowing 命名空间。
+        AppTitleBar.DoubleTapped += AppTitleBar_DoubleTapped;
 
         AppWindow.Closing += AppWindow_Closing;
     }
@@ -140,6 +154,43 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void SyncInfoPanelToggleGlyph()
         => InfoPanelToggleGlyph.Glyph = ((char)(_infoPanel.IsCollapsed ? 0xE76B : 0xE76C)).ToString();
+
+    // —— C3：空格键全局播放/暂停 ——
+
+    /// <summary>
+    /// 空格键播放/暂停（spec §7 C 组 C3）。挂在 RootGrid 上、handledEventsToo=true，
+    /// 但**只在焦点不在消费空格的控件上时**才触发——Button/Slider/ListViewItem 自己需要 Space
+    /// （按钮点击、滑块微调、列表行选中），抢了就是 regression。用 VisualTree.FindAncestor 向上解析
+    /// 判断焦点元素是否在消费空格的控件内部（唯一实现住在 Theme/VisualTree.cs，不在这里留副本）。
+    /// </summary>
+    private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Space) return;
+        var focused = FocusManager.GetFocusedElement(RootGrid.XamlRoot) as DependencyObject;
+        if (focused is null) return;
+        // 焦点在 Button（含其子元素）/ Slider / ListViewItem 上时不抢：那是它们的键
+        if (VisualTree.FindAncestor<Button>(focused) is not null) return;
+        if (focused is Slider) return;
+        if (VisualTree.FindAncestor<Slider>(focused) is not null) return;
+        if (VisualTree.FindAncestor<ListViewItem>(focused) is not null) return;
+        _bar.TogglePlayPause();
+        e.Handled = true;
+    }
+
+    // —— A4：标题栏双击最大化/还原 ——
+
+    /// <summary>
+    /// 标题栏双击切换最大化/还原（spec §7 清单 A4）。OverlappedPresenter 是 WinUI 3 的窗口呈现器，
+    /// 只在 overlapped（非全屏/非 snap）模式下可用；全屏或 snap 时 Presenter 不是 OverlappedPresenter，
+    /// as 转换返回 null → 静默跳过，不抛。
+    /// </summary>
+    private void AppTitleBar_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        var presenter = AppWindow.Presenter as OverlappedPresenter;
+        if (presenter is null) return;
+        if (presenter.State == OverlappedPresenterState.Maximized) presenter.Restore();
+        else presenter.Maximize();
+    }
 
     // —— 关闭：落盘 + 释放音频设备（R-4） ——
 

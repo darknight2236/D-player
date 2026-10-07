@@ -37,11 +37,13 @@
               Value 绑的是 Core 的 `PlayerViewModel.PositionNormalized`（壳侧不抄第二份公式，见 A4）。
             -->
             <Slider x:Name="PositionSlider" Minimum="0" Maximum="1" StepFrequency="0.001"
+                    SmallChange="0.005" LargeChange="0.05"
                     Style="{StaticResource ProgressSliderStyle}"
                     IsEnabled="{x:Bind HasDuration, Mode=OneWay}"
                     Value="{x:Bind Player.PositionNormalized, Mode=OneWay}"
                     ValueChanged="Position_Changed"
-                    AutomationProperties.Name="播放进度" />
+                    AutomationProperties.Name="播放进度"
+                    AutomationProperties.HelpText="方向键微调约 0.5%，PageUp/PageDown 约 5%" />
         </StackPanel>
         <TextBlock Grid.Column="2" VerticalAlignment="Center"
                    Text="{x:Bind TimeText, Mode=OneWay}" />

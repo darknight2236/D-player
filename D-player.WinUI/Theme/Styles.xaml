@@ -41,8 +41,14 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Rectangle x:Name="SelectionBar" Width="3" Opacity="0"
+                        <!-- ② 选中强调条：Width 由 0 动画到 3（100ms，MotionTokens.Fast） -->
+                        <Rectangle x:Name="SelectionBar" Width="0"
                                    Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                        <!-- ① 悬停/选中背景过渡层：Opacity 走 150ms DoubleAnimation 而非瞬变 Setter -->
+                        <Rectangle x:Name="HoverOverlay" Grid.ColumnSpan="2"
+                                   Fill="{ThemeResource SubtleFillColorSecondaryBrush}" Opacity="0" />
+                        <Rectangle x:Name="SelectedOverlay" Grid.ColumnSpan="2"
+                                   Fill="{ThemeResource SubtleFillColorSecondaryBrush}" Opacity="0" />
                         <ContentPresenter x:Name="ContentPresenter" Grid.Column="1"
                                           Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
@@ -54,36 +60,64 @@
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal" />
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters>
-                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
-                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverOverlay"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.150"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="PointerOverPressed">
-                                    <VisualState.Setters>
-                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
-                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverOverlay"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.150"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters>
-                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
-                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverOverlay"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.150"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Selected">
-                                    <VisualState.Setters>
-                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
-                                        <Setter Target="SelectionBar.Opacity" Value="1" />
-                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SelectedOverlay"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.150"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                        <DoubleAnimation Storyboard.TargetName="SelectionBar"
+                                                         Storyboard.TargetProperty="Width"
+                                                         To="3" Duration="0:0:0.100"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="PointerOverSelected">
-                                    <VisualState.Setters>
-                                        <Setter Target="ItemRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
-                                        <Setter Target="SelectionBar.Opacity" Value="1" />
-                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SelectedOverlay"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.150"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                        <DoubleAnimation Storyboard.TargetName="SelectionBar"
+                                                         Storyboard.TargetProperty="Width"
+                                                         To="3" Duration="0:0:0.100"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="PressedSelected">
-                                    <VisualState.Setters>
-                                        <Setter Target="SelectionBar.Opacity" Value="1" />
-                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SelectedOverlay"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.150"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                        <DoubleAnimation Storyboard.TargetName="SelectionBar"
+                                                         Storyboard.TargetProperty="Width"
+                                                         To="3" Duration="0:0:0.100"
+                                                         EasingFunction="{StaticResource StandardEasing}" />
+                                    </Storyboard>
                                 </VisualState>
                             </VisualStateGroup>
                             <VisualStateGroup x:Name="DisabledStates">

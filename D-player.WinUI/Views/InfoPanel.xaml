@@ -25,18 +25,30 @@
                     <FontIcon Glyph="&#xE8D6;" FontSize="{StaticResource CoverGlyphSize}" Opacity="0.4"
                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
-                <!-- CoverArtLoader 按 InfoPanelCoverSize 解码后赋 Source；交叉淡入是 Task 5（§6 第 6/9 项） -->
-                <Image x:Name="Cover" Stretch="UniformToFill" />
+                <!-- ⑥⑨ 两张封面叠放，交叉淡入 150ms（避免闪白） -->
+                <Image x:Name="CoverA" Stretch="UniformToFill" Opacity="1" />
+                <Image x:Name="CoverB" Stretch="UniformToFill" Opacity="0" />
             </Grid>
 
-            <TextBlock x:Name="TitleText" FontSize="{StaticResource FontSizeSubtitle}" FontWeight="SemiBold"
-                       TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="ArtistText" FontSize="{StaticResource FontSizeBody}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="AlbumText" FontSize="{StaticResource FontSizeBody}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="DurationText" FontSize="{StaticResource FontSizeCaption}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <!-- ⑥ 文本上移动画容器：TranslateTransform.Y 4→0 + Opacity 0→1（100ms） -->
+            <StackPanel x:Name="TextBlockHost">
+                <TextBlock x:Name="TitleText" FontSize="{StaticResource FontSizeSubtitle}" FontWeight="SemiBold"
+                           TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform x:Name="TitleTranslate" Y="0" />
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+                <TextBlock x:Name="ArtistText" FontSize="{StaticResource FontSizeBody}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform x:Name="ArtistTranslate" Y="0" />
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+                <TextBlock x:Name="AlbumText" FontSize="{StaticResource FontSizeBody}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="DurationText" FontSize="{StaticResource FontSizeCaption}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
         </StackPanel>
     </Grid>
 </UserControl>

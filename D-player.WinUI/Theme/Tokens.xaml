@@ -69,4 +69,10 @@
       直接写在 TrackList.xaml 的 ColumnDefinition 里（GridLength 不能存进 StaticResource 做类型转换）。
       注释标出"与表头同步"以便审计。
     -->
+    <!--
+      动效缓动：Fluent 标准 CubicEase EaseOut（与 MotionTokens.StandardEasing 同源）。
+      XAML Storyboard 需要 StaticResource 引用，故在此定义一份；C# 侧的 MotionTokens.StandardEasing
+      给代码里 new DoubleAnimation 用。两处值相同，只是引用方式不同。
+    -->
+    <CubicEase x:Key="StandardEasing" EasingMode="EaseOut" />
 </ResourceDictionary>

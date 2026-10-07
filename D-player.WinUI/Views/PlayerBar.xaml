@@ -15,8 +15,20 @@
                 Style="{StaticResource PlayPauseButtonStyle}"
                 IsEnabled="{x:Bind HasPlayableSource, Mode=OneWay}"
                 VerticalAlignment="Center"
+                RenderTransformOrigin="0.5,0.5"
+                PointerEntered="PlayPauseButton_PointerEntered"
+                PointerExited="PlayPauseButton_PointerExited"
+                PointerPressed="PlayPauseButton_PointerPressed"
+                PointerReleased="PlayPauseButton_PointerReleased"
                 AutomationProperties.Name="播放/暂停">
-            <FontIcon Glyph="{x:Bind PlayPauseGlyph, Mode=OneWay}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+            <Button.RenderTransform>
+                <ScaleTransform x:Name="PlayPauseScale" ScaleX="1" ScaleY="1" />
+            </Button.RenderTransform>
+            <!-- ⑦ 两个 FontIcon 叠放，交叉淡入 100ms（不旋转） -->
+            <Grid>
+                <FontIcon x:Name="PlayIcon" Glyph="&#xE768;" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Opacity="1" />
+                <FontIcon x:Name="PauseIcon" Glyph="&#xE769;" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Opacity="0" />
+            </Grid>
         </Button>
         <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
             <TextBlock Text="{x:Bind NowPlayingText, Mode=OneWay}" TextTrimming="CharacterEllipsis" />

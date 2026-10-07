@@ -99,9 +99,14 @@
         </ListView>
 
         <!-- 空状态：产品话术（spec §5），不承诺本阶段没有的能力 -->
+        <!-- ⑨ 首次可见时淡入 150ms + 上移 8px -->
         <StackPanel x:Name="EmptyHint" Grid.Row="1"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Spacing="{StaticResource SpacingSm}" IsHitTestVisible="False">
+                    Spacing="{StaticResource SpacingSm}" IsHitTestVisible="False"
+                    Opacity="0">
+            <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="EmptyHintTranslate" Y="8" />
+            </StackPanel.RenderTransform>
             <TextBlock Text="还没有曲目" HorizontalAlignment="Center"
                        Style="{StaticResource SubtitleTextBlockStyle}" />
             <TextBlock Text="导入入口将在下一阶段加入" HorizontalAlignment="Center" MaxWidth="360"

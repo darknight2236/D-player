@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 
 namespace DPlayer.WinUI.Views;
 
@@ -22,6 +23,9 @@ public sealed partial class TrackList : UserControl
 {
     /// <summary>当前挂了 Queue.CollectionChanged 的歌单，换查看项时解绑重挂。</summary>
     private PlaylistViewModel? _hookedPlaylist;
+
+    /// <summary>⑨ 空态是否已经动画过（首次可见时才播放淡入+上移）。</summary>
+    private bool _emptyAnimated;
 
     /// <summary>列表要跟着看的两个量：查看项（ViewedPlaylist）与它自己的 Queue。</summary>
     public PlaylistsViewModel Playlists { get; }
@@ -61,7 +65,49 @@ public sealed partial class TrackList : UserControl
     private void UpdateEmptyHint()
     {
         var pl = Playlists.ViewedPlaylist;
-        EmptyHint.Visibility = pl is null || pl.Queue.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var isEmpty = pl is null || pl.Queue.Count == 0;
+        var wasVisible = EmptyHint.Visibility == Visibility.Visible;
+        EmptyHint.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
+
+        // ⑨ 首次从 Collapsed→Visible 时播放淡入+上移动画（150ms + 8px）
+        if (isEmpty && !wasVisible && !_emptyAnimated)
+        {
+            _emptyAnimated = true;
+            AnimateEmptyStateIn();
+        }
+        // 如果有曲目了，重置动画标记，下次变空时再播一次
+        if (!isEmpty) _emptyAnimated = false;
+    }
+
+    /// <summary>
+    /// ⑨ 空态淡入+上移：Opacity 0→1（150ms）+ TranslateTransform.Y 8→0（150ms）。
+    /// 仅首次显示时播放，避免每次切到空歌单都重复。
+    /// </summary>
+    private void AnimateEmptyStateIn()
+    {
+        var sb = new Storyboard();
+
+        var opacityAnim = new DoubleAnimation
+        {
+            From = 0.0, To = 1.0,
+            Duration = MotionTokens.D(MotionTokens.Normal),
+            EasingFunction = MotionTokens.StandardEasing,
+        };
+        Storyboard.SetTarget(opacityAnim, EmptyHint);
+        Storyboard.SetTargetProperty(opacityAnim, "Opacity");
+        sb.Children.Add(opacityAnim);
+
+        var translateAnim = new DoubleAnimation
+        {
+            From = 8.0, To = 0.0,
+            Duration = MotionTokens.D(MotionTokens.Normal),
+            EasingFunction = MotionTokens.StandardEasing,
+        };
+        Storyboard.SetTarget(translateAnim, EmptyHintTranslate);
+        Storyboard.SetTargetProperty(translateAnim, "Y");
+        sb.Children.Add(translateAnim);
+
+        sb.Begin();
     }
 
     private async void TrackList_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

@@ -69,25 +69,24 @@ dotnet list D-player.WinUI/D-player.WinUI.csproj package | grep -i communitytool
 
 把 csproj 里的浮动版本改成解析出的**确切版本**（与 WASDK 的 P-7 同纪律），并在 csproj 里加一行注释说明是本机实测钉的。
 
-**探针（必须实测，不许假设 API 名字）**：新建临时文件 `D-player.WinUI/Theme/_Probe.cs`，用反射把该包里 `*Animations*` 相关命名空间的类型与成员列出来写入 `%TEMP%`，再删掉探针：
+**探针（必须实测，不许假设 API 名字）**：**不要凭记忆写 toolkit 的类型名**。用"解析出的引用路径 + PowerShell 反射"两步拿到真实类型面，全程不写一行 toolkit 的 C# 代码：
 
-```csharp
-// 临时探针：只跑一次，把 CommunityToolkit.WinUI 的动画类型面写进 $TEMP，跑完连文件带代码一起删
-internal static class Probe
-{
-    public static void Dump()
-    {
-        var asm = typeof(CommunityToolkit.WinUI.Animations.AnimationSet).Assembly;
-        var lines = asm.GetExportedTypes()
-            .Where(t => t.Namespace?.Contains("Animation") == true)
-            .Select(t => $"{t.FullName} :: {string.Join(", ", t.GetMembers().Select(m => m.Name).Distinct().Take(20))}");
-        System.IO.File.WriteAllLines(
-            System.IO.Path.Combine(System.IO.Path.GetTempPath(), "winui-anim-surface.txt"), lines);
-    }
-}
+```bash
+# 1) 让 MSBuild 把已解析的引用路径打出来，定位 CommunityToolkit 的程序集文件
+dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v d 2>&1 \
+  | grep -i "communitytoolkit" | grep -i "\.dll" | head -20
 ```
 
-在 `App` 构造函数里临时调一次 `Probe.Dump()`，构建 → 起窗 → 读 `%TEMP%\winui-anim-surface.txt` → **把前 40 行原样粘进你的报告**（Task 5 要按这份实测清单写动效代码），然后**删除探针代码与文件**。若引用即编译不过（版本与 WASDK 2.5.1 不兼容）：**移除该包**、在报告里记下实测错误原文，并在 Task 5 全用 Storyboard 实现（技术选型退路，spec D6 已授权）——这条退路必须写进报告的"结论"段。
+```powershell
+# 2) 对上一步找到的每个 dll 反射列类型（纯 ASCII 输出）
+$dll = '<上一步得到的 dll 绝对路径>'
+$a = [Reflection.Assembly]::LoadFrom($dll)
+try { $t = $a.GetExportedTypes() } catch { $t = $a.GetTypes() }
+$t | Where-Object { $_.FullName -match 'Animat|Fade|Offset|Scale|Implicit' } |
+  ForEach-Object { $_.FullName } | Sort-Object | Out-File -Encoding ascii $env:TEMP\winui-anim-surface.txt
+```
+
+**把该文件前 40 行原样粘进报告**——Task 5 只能按这份实测清单写 toolkit 相关代码。**若反射也拿不到类型面**（缺依赖、`BadImageFormatException` 等）：**本阶段不使用 toolkit**，9 项动效全部走 Storyboard，并在报告结论段写明原因。**在未拿到实测类型面之前，任何 Task 都不许写 toolkit 类型的代码。**
 
 - [ ] **Step 2: 写 `Theme/Tokens.xaml`**
 
@@ -155,7 +154,9 @@ internal static class MotionTokens
 
 - [ ] **Step 4: 写 `Theme/Styles.xaml` 骨架（本 Task 只放两块：行容器模板与滚动条）**
 
-本 Task 的 Styles.xaml 先建立 **六态容器模板** 的公共架子（Task 3 会往里加细则）。核心是给"我们自己的列表项"一个可控模板——**不抄 Fluent 的整份模板**，而是写最小可控版，六态由我们自己给：
+本 Task 的 Styles.xaml 先建立 **六态容器模板** 的公共架子（Task 3 会往里加细则）。核心是给"我们自己的列表项"一个可控模板——**不抄 Fluent 的整份模板**，而是写最小可控版，六态由我们自己给。
+
+> **先量再写（重要）**：下面这段 XAML 里的 `CommonStates` / `SelectionStates` 两组**组名与状态名都是控件按名字驱动的**——名字写错不会报错，只会让状态**静默不生效**（正是本项目最恨的失败）。写之前先读 WASDK 自带的 `Themes/generic.xaml`（Phase 20 量 `HorizontalThumb` 用的就是它，路径可在 `dotnet build -v d` 的输出或 NuGet 包目录里找到）里 `ListViewItem` 的默认模板，**把它的组名与全部状态名逐字抄过来**，再按下述结构填 Setter；本文件里的 `SelectedPointerOver` / `SelectedPressed` 只是占位写法，**以 `generic.xaml` 为准**（若它是 `PointerOverSelected` / `PressedSelected`，就改成那两个名字）。报告里要贴出抄到的原始状态名列表。
 
 ```xml
 <ResourceDictionary
@@ -255,6 +256,36 @@ internal static class MotionTokens
 - `Views/NavRail.xaml(.cs)`：本 Task 先搬"整栏重建"版（`SyncPlaylistMenu` 的手工版本）以保证行为等价，**Task 2 再改声明式**（一次只动一件事，便于评审定位）。
 - `Views/TrackList.xaml(.cs)`：搬 `TrackList`/`EmptyHint`/`ResyncView` 的列表部分（`ItemsSource` 代码赋值、`DoubleTapped` 命中测试、`IndexOfByReference`、`FindAncestor`、`FindDescendant` 中列表需要的那份）。构造签名 `public TrackList(PlaylistsViewModel playlists)`，内部订阅 `ViewedPlaylist` 变化。
 - `Views/InfoPanel.xaml(.cs)`：本 Task 先只放占位（`TextBlock`「信息面板」），Task 2 实现内容。
+- `Theme/VisualTree.cs`（新，**唯一一份**）：把 `MainWindow.xaml.cs` 现有的 `FindAncestor<T>` 与 `FindDescendant<T>` 搬进来当 `internal static` 帮助方法。**三个控件都要用它们**（TrackList 找 `ListViewItem`、PlayerBar 找 `Thumb`、MainWindow 找 `Button`），所以不许各留一份、也不许在搬家时顺手改逻辑：
+
+```csharp
+namespace DPlayer.WinUI.Theme;
+
+/// <summary>可视化树查找：全壳唯一实现（原来散在 MainWindow 里，拆分后三处都要用）。</summary>
+internal static class VisualTree
+{
+    public static T? FindAncestor<T>(DependencyObject? obj) where T : DependencyObject
+    {
+        while (obj is not null)
+        {
+            if (obj is T match) return match;
+            obj = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(obj);
+        }
+        return null;
+    }
+
+    public static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (int i = 0, n = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root); i < n; i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is T hit) return hit;
+            if (FindDescendant<T>(child) is { } deeper) return deeper;
+        }
+        return null;
+    }
+}
+```
 
 **`MainWindow.xaml` 结构改为**：
 
@@ -327,7 +358,7 @@ Windows App SDK 2.5.1; the probe's type surface is in the task report."
 
 **Interfaces:**
 - Consumes: Task 1 的四个控件与 `{StaticResource NavRailWidth}` 等令牌。
-- Produces: `NavRail.IsCollapsed`（`bool`，双向可读）、`InfoPanel.IsCollapsed`（同上）、`CoverArtLoader.LoadAsync(byte[]? bytes, int decodeSize) → Task<ImageSource?>`；`MainWindow` 持有阈值与手动覆盖逻辑。
+- Produces: `NavRail.IsCollapsed`（`bool`，双向可读）与 `NavRail.SetCollapsed(bool collapsed, bool animate)`；`InfoPanel.IsCollapsed` / `InfoPanel.SetCollapsed(bool collapsed, bool animate)`（两侧同构，MainWindow 只调方法不直接改字段）；`CoverArtLoader.LoadAsync(byte[]? bytes, int decodeSize) → Task<ImageSource?>`；`MainWindow` 持有阈值与手动覆盖逻辑。
 
 - [ ] **Step 1: NavRail 改声明式**
 
@@ -539,7 +570,7 @@ private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
 }
 ```
 
-（`VirtualKey` 来自 `Windows.System`；`FindAncestor` 用壳内已有的那两处之一，Task 2 搬家后放哪里由你定，**只留一份实现**。）
+（`VirtualKey` 来自 `Windows.System`；`FindAncestor` 用 Task 1 建好的 `Theme/VisualTree.cs` 那**唯一一份**，不要在 `MainWindow` 里再留副本。）
 
 - [ ] **Step 3: Tab 顺序（C4）**
 
@@ -608,7 +639,7 @@ AppTitleBar.DoubleTapped += (_, _) =>
 
 | # | 实现方式（按探针结果二选一） |
 |---|---|
-| ① 列表行悬停/选中渐变 | 有 toolkit → `ItemContainerStyle` 的 `VisualState` 上挂 `ImplicitAnimationSet`（Background 150ms）；无 → 在 `RailListViewItemStyle` 的两个 VisualState 里各加一条 `ColorAnimation` Storyboard？**不可行**（Background 是 Brush）。退路：用 toolkit 的 implicit；再退：改 `ItemRoot` 的 `Opacity` 微调（150ms DoubleAnimation on `ItemRoot.Opacity`，0.95→1）并**在报告里写明"颜色渐变无法在无 toolkit 时用 Storyboard 做，改为不透明度过渡"** |
+| ① 列表行悬停/选中渐变 | **先看探针结果**：若类型面里有 implicit/animation API，就在 `RailListViewItemStyle` 的 VisualState 上挂它（Background 150ms）。否则**只做能诚实做到的**：VisualStateManager 的 Setter 换 Brush 是**瞬变**，而 `ObjectAnimationUsingKeyFrames` 对 Brush 也只能离散关键帧（不产生渐隐）——此时如实实现为"悬停切换底色（无渐变）"并在报告里写明"渐变需要 toolkit，探针结果不支持/未拿到类型面，本项降级"。**不许假称有淡入淡出。** |
 | ② 导航项强调条 0→3px | `SelectionBar.Width` 的 `DoubleAnimation`（100ms，走 VSM Setter 不成立 → 用 `VisualState` 里的 `Storyboard`：`<Storyboard><DoubleAnimation Storyboard.TargetName="SelectionBar" Storyboard.TargetProperty="Width" …`），VSM 的 `VisualState` 内可直接嵌 `Storyboard` |
 | ③ 按钮按下/悬停缩放 | `PlayerBar` 播放钮加 `ScaleTransform`（`RenderTransformOrigin=0.5,0.5`），`PointerEntered/Pressed/Released/Exited` 里用 `Storyboard` 动 `ScaleX/ScaleY`（100/150ms） |
 | ④ 折叠宽度 200ms + 内容先淡出 100ms | 折叠钮点击 → 先 `Storyboard` 动内层 `Opacity` 到 0（100ms），完成后动栏 `Width`（200ms，`MotionTokens.Slow`），再逆向展开 |

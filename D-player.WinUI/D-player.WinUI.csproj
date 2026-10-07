@@ -23,17 +23,6 @@
     <ItemGroup>
         <!-- 本机实测: 原先的 Version="*" 解析到 2.5.1, 故钉死具体版本以保证可复现构建 -->
         <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
-        <!--
-          本机实测钉版本（2026-10-07，与上面 WASDK 的 P-7 同纪律）。结论（探针过程、逐条读数与实测类型面清单见
-          .superpowers/sdd/2026-10-07-d-player-phase21-winui-polish-implementation/task-1-report.md，原始类型面同目录
-          progress.md 的「Task 1 探针·实测类型面」节）：计划稿点名的 CommunityToolkit.WinUI 在 nuget.org 只到 7.1.2，
-          那份程序集不带动效类型（动效在 8.x 拆到了 CommunityToolkit.WinUI.Animations），在本图里还加载不动，
-          故这里只引真正带动效的那一个。8.2.250402 是本机解析到的最新稳定版，落到 lib/net9.0-windows10.0.19041
-          （Extensions 8.2.250402 与 Common 8.2.1 随之传递进来），对 WASDK 2.5.1 构建 0 警告 / 0 错误。
-          Task 5 只按那份实测清单写 toolkit 相关代码。
-          注意：运行期（真机起窗后实际驱动一次 toolkit 动画）尚未验证——本 Task 未接入 toolkit 动画。
-        -->
-        <PackageReference Include="CommunityToolkit.WinUI.Animations" Version="8.2.250402" />
     </ItemGroup>
 
     <ItemGroup>

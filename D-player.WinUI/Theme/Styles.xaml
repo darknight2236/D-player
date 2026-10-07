@@ -242,12 +242,4 @@
       列宽与 TrackList 行模板同步（注释标出"与表头同步"），样式名仅作命名标记。
     -->
 
-    <!--
-      列表滚动条样式。WinUI 默认 ScrollViewer/ScrollBar 已提供"细窄、悬停加宽"行为
-      （ScrollView 的默认 VisualState 里 HorizontalScrollBarIndicator 在 PointerOver 时加粗），
-      本样式仅确认此行为存在，不额外覆盖。B1 的 hover 反馈由 RailListViewItemStyle 提供。
-    -->
-    <Style x:Key="RailScrollViewerStyle" TargetType="ScrollViewer">
-        <Setter Property="UseSystemFocusVisuals" Value="True" />
-    </Style>
 </ResourceDictionary>

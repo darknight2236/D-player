@@ -39,6 +39,12 @@ public sealed partial class NavRail : UserControl
     /// 左栏是 <see cref="PlaylistsViewModel.ViewedPlaylist"/> 的投影（WPF 侧的 sidebar 就是直接
     /// TwoWay 绑定它），所以选中项的优先级固定是：VM 的 ViewedPlaylist → 重建前已选项 → 第一项。
     /// 把"第一项"放在最前会在首次重建时把 Core 按持久化 CurrentPlaylistId 恢复出来的 ViewedPlaylist 顶掉。
+    ///
+    /// 条目实例用的是 <see cref="ListViewItem"/> 而不是 ListBoxItem：`ListView.IsItemItsOwnContainerOverride`
+    /// 只认 ListViewItem，喂别的类型会被再生成一层 ListViewItem 包住，于是
+    /// `ItemContainerStyle`（RailListViewItemStyle）落在外层容器上、手工条目只是它的内容 ——
+    /// 2026-10-07 真机量到过这个：那时行高读回 19（MinHeight=36 没生效），六态也就没挂在我以为挂的地方。
+    /// 这也和拆分前的写法同形（当年直接 new NavigationViewItem 塞进 MenuItems）。
     /// </summary>
     private void SyncPlaylistMenu()
     {
@@ -46,11 +52,11 @@ public sealed partial class NavRail : UserControl
         _syncingMenu = true;
         try
         {
-            var previous = (Nav.SelectedItem as ListBoxItem)?.Tag as PlaylistViewModel;
+            var previous = (Nav.SelectedItem as ListViewItem)?.Tag as PlaylistViewModel;
 
             Nav.Items.Clear();
             foreach (var pl in Playlists.Playlists)
-                Nav.Items.Add(new ListBoxItem
+                Nav.Items.Add(new ListViewItem
                 {
                     Content = pl.Name,
                     Tag = pl,
@@ -59,7 +65,7 @@ public sealed partial class NavRail : UserControl
                     Padding = new Thickness(12, 0, 12, 0),
                 });
 
-            var items = Nav.Items.OfType<ListBoxItem>().ToList();
+            var items = Nav.Items.OfType<ListViewItem>().ToList();
             var target = items.FirstOrDefault(i => ReferenceEquals(i.Tag, Playlists.ViewedPlaylist))
                 ?? items.FirstOrDefault(i => ReferenceEquals(i.Tag, previous))
                 ?? items.FirstOrDefault();
@@ -70,7 +76,7 @@ public sealed partial class NavRail : UserControl
 
     private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (Nav.SelectedItem is ListBoxItem { Tag: PlaylistViewModel pl })
+        if (Nav.SelectedItem is ListViewItem { Tag: PlaylistViewModel pl })
         {
             // 已经是 ViewedPlaylist 时不回写：整栏重建也会走到这里，回写等于把导航当成权威。
             if (!ReferenceEquals(Playlists.ViewedPlaylist, pl))

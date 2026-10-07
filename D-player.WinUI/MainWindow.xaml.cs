@@ -45,6 +45,13 @@ public sealed partial class MainWindow : Window
     /// <summary>cancel-and-close 守卫：首次 Closing 拦下、做完异步收尾再放行。</summary>
     private bool _isClosing;
 
+    /// <summary>
+    /// 缓存自 Tokens.xaml 的阈值（避免每次 SizeChanged 都查字典）。
+    /// 与 NavRail 缓存 _expandedWidth/_collapsedWidth 同纪律：尺寸集中在 Tokens，代码只读一次。
+    /// </summary>
+    private readonly double _autoCollapseThreshold = TokenResource.Double("InfoPanelAutoCollapseWidth");
+    private readonly double _autoCollapseHysteresis = TokenResource.Double("AutoCollapseHysteresis");
+
     public MainWindow(MainViewModel vm)
     {
         _vm = vm;
@@ -97,27 +104,25 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var threshold = TokenResource.Double("InfoPanelAutoCollapseWidth");
-        var hysteresis = TokenResource.Double("AutoCollapseHysteresis");
         var width = e.NewSize.Width;
         var animate = e.PreviousSize.Width > 0;
 
         if (_infoPanelManualOverride)
         {
-            // 手动选择优先；只有当尺寸让两边重新一致时才把方向盘交还自动：
-            //   · 窄到自动口径也要收 & 用户那边确实收着 -> 一致，交还自动；
-            //   · 宽到自动口径要展开（阈值 + 迟滞带）& 用户那边确实展开着 -> 一致，交还自动。
-            // brief 的样例只写了后一条；那样"在宽窗口手动收起"会在下一次 resize 被自动弹回展开，
-            // 等于把用户的选择当噪声，与 spec §5「手动优先」相反，所以这里补上前一条。
-            var autoWouldCollapse = width < threshold;
+            var autoWouldCollapse = width < _autoCollapseThreshold;
             var agrees = (autoWouldCollapse && _infoPanel.IsCollapsed)
-                || (!autoWouldCollapse && width >= threshold + hysteresis && !_infoPanel.IsCollapsed);
+                || (!autoWouldCollapse && width >= _autoCollapseThreshold + _autoCollapseHysteresis && !_infoPanel.IsCollapsed);
             if (agrees) _infoPanelManualOverride = false;
             return;
         }
 
-        var shouldCollapse = width < threshold;
-        if (_infoPanel.IsCollapsed != shouldCollapse) _infoPanel.SetCollapsed(shouldCollapse, animate);
+        var shouldCollapse = width < _autoCollapseThreshold;
+        if (_infoPanel.IsCollapsed != shouldCollapse)
+        {
+            _infoPanel.SetCollapsed(shouldCollapse, animate);
+            // 自动收起/恢复后也要同步 chevron 指向（否则窗口打开 <960px 时 chevron 方向不对）。
+            SyncInfoPanelToggleGlyph();
+        }
     }
 
     /// <summary>标题栏那颗右栏折叠钮：置手动覆盖（见上），然后在收起/展开之间往返。</summary>

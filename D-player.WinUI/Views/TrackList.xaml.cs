@@ -5,6 +5,7 @@ using DPlayer.ViewModels;
 using DPlayer.WinUI.Theme;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 
 namespace DPlayer.WinUI.Views;
@@ -101,4 +102,31 @@ public sealed partial class TrackList : UserControl
         }
         return -1;
     }
+}
+
+/// <summary>
+/// <c>int?</c> → 显示文本：null 时回落成 "-"（表头序号列）。
+/// x:Bind 的 FallbackValue 只覆盖绑定路径抛异常的情形，不覆盖值为 null；
+/// 所以这里用 Converter 显式判空。
+/// </summary>
+internal sealed class NullableIntToDashConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, string language)
+        => value is int n ? n.ToString() : "-";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, string language)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// <see cref="TimeSpan"/> → "mm:ss" 文本（等宽数字列）。
+/// 与 PlayerBar.FormatClock 同格式（<c>mm\:ss</c>），但走 IValueConverter 以便 XAML 侧 {x:Bind}。
+/// </summary>
+internal sealed class TimeSpanToMmSsConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, string language)
+        => value is TimeSpan ts ? ts.ToString(@"mm\:ss") : "-";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, string language)
+        => throw new NotSupportedException();
 }

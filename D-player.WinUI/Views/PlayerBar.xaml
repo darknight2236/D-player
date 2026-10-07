@@ -12,9 +12,11 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Button x:Name="PlayPauseButton" Click="PlayPause_Click"
+                Style="{StaticResource PlayPauseButtonStyle}"
+                IsEnabled="{x:Bind HasPlayableSource, Mode=OneWay}"
                 VerticalAlignment="Center"
                 AutomationProperties.Name="播放/暂停">
-            <FontIcon Glyph="{x:Bind PlayPauseGlyph, Mode=OneWay}" />
+            <FontIcon Glyph="{x:Bind PlayPauseGlyph, Mode=OneWay}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
         </Button>
         <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
             <TextBlock Text="{x:Bind NowPlayingText, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
@@ -35,6 +37,8 @@
               Value 绑的是 Core 的 `PlayerViewModel.PositionNormalized`（壳侧不抄第二份公式，见 A4）。
             -->
             <Slider x:Name="PositionSlider" Minimum="0" Maximum="1" StepFrequency="0.001"
+                    Style="{StaticResource ProgressSliderStyle}"
+                    IsEnabled="{x:Bind HasDuration, Mode=OneWay}"
                     Value="{x:Bind Player.PositionNormalized, Mode=OneWay}"
                     ValueChanged="Position_Changed"
                     AutomationProperties.Name="播放进度" />

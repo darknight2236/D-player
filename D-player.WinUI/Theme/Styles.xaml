@@ -3,8 +3,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      列表项容器（NavRail 的 ListView 与 TrackList 的 ListView 共用）。
-      本 Task 只立"六态容器模板"的公共架子：列表行侧的表头/列宽、TrackList 专用样式在 Task 3 再补。
+      列表项容器（NavRail 与 TrackList 的 ListView 共用，两个视图都通过 ItemContainerStyle 引用本样式
+      或它的 BasedOn 派生）。NavRail 在本地 RailItemStyle 里只补 Padding；TrackList 在 TrackList.xaml
+      里直接引用本样式（Task 3 落地）。
 
       ── 状态名是量出来的，不是猜的（2026-10-07）──
       组名与状态名都由控件按**名字**驱动，写错不报错、只会让该状态静默不生效。因此下面的名字逐字抄自
@@ -46,6 +47,8 @@
                                           Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
                                           VerticalAlignment="Center" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
@@ -96,5 +99,121 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!--
+      折叠钮样式（左右两颗折叠钮共用）：透明底、悬停 SubtleFillColorSecondaryBrush、按下 tertiary。
+      六态：Normal(透明) / PointerOver(secondary) / Pressed(tertiary) / Disabled(0.4 不透明)。
+      边框默认 0，Padding 0 —— 几何由钮的 Width/Height（FoldButtonSize）与 FontIcon 的字号决定。
+    -->
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter x:Name="Root"
+                                      Background="{TemplateBinding Background}"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="Center"
+                                      VerticalContentAlignment="Center"
+                                      CornerRadius="{ThemeResource ControlCornerRadius}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.4" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </ContentPresenter>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      播放/暂停钮（44px 圆钮）。六态：Normal / PointerOver(SubtleFillColorSecondary) /
+      Pressed(SubtleFillColorTertiary) / Disabled(Opacity 0.4)。
+      圆角 = 半径 22 = PlayButtonSize/2（Tokens.xaml 提供 PlayButtonSize）。
+      UseSystemFocusVisuals=True 让 Tab 聚焦时出现 2px 焦点环（B4）。
+    -->
+    <Style x:Key="PlayPauseButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="{StaticResource PlayButtonSize}" />
+        <Setter Property="Height" Value="{StaticResource PlayButtonSize}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter x:Name="Root"
+                                      Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                      Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="Center"
+                                      VerticalContentAlignment="Center"
+                                      CornerRadius="22">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource AccentFillColorSecondaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource AccentFillColorTertiaryBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.4" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </ContentPresenter>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      进度滑块样式。默认 Slider 模板已含完整六态（Normal/PointerOver/Pressed/Disabled 等），
+      本样式只补 UseSystemFocusVisuals 确保 Tab 聚焦时出现 2px 焦点环（B4）。
+    -->
+    <Style x:Key="ProgressSliderStyle" TargetType="Slider">
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
+    </Style>
+
+    <!--
+      表头行：静态 Grid，不可点击——表头不可点是有意的，排序属功能阶段（spec §5）。
+      列宽与 TrackList 行模板同步（注释标出"与表头同步"），样式名仅作命名标记。
+    -->
+
+    <!--
+      列表滚动条样式。WinUI 默认 ScrollViewer/ScrollBar 已提供"细窄、悬停加宽"行为
+      （ScrollView 的默认 VisualState 里 HorizontalScrollBarIndicator 在 PointerOver 时加粗），
+      本样式仅确认此行为存在，不额外覆盖。B1 的 hover 反馈由 RailListViewItemStyle 提供。
+    -->
+    <Style x:Key="RailScrollViewerStyle" TargetType="ScrollViewer">
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
     </Style>
 </ResourceDictionary>

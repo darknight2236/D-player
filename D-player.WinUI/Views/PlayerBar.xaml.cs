@@ -76,6 +76,10 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         Loaded += (_, _) => HookSliderParts();
 
         player.PropertyChanged += Player_PropertyChanged;
+        // B3：播放钮的 IsEnabled 取决于是否有可播内容（CurrentTrack 或歌单有曲目）。
+        // Playlists.ViewedPlaylist 变化时也要刷新，所以挂一条 PropertyChanged。
+        // Playlists 是 required 属性，构造时由宿主赋值，不会为 null（CS8602 是分析器的保守警告）。
+        Playlists!.PropertyChanged += (_, _) => RefreshView();
     }
 
     /// <summary>
@@ -206,10 +210,12 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     /// <summary>
     /// 将播放器状态重发到本壳自有的三个呈现投影（进度条位置不在此列：它绑的是 Core 的
     /// <see cref="PlayerViewModel.PositionNormalized"/>，由 Core 自己发通知）。
+    /// 同时刷新 B3 的两个禁用态投影（<see cref="HasPlayableSource"/> / <see cref="HasDuration"/>）。
     /// </summary>
     private static readonly string[] ViewProjections =
     [
         nameof(PlayPauseGlyph), nameof(NowPlayingText), nameof(TimeText),
+        nameof(HasPlayableSource), nameof(HasDuration),
     ];
 
     private void RefreshView()
@@ -224,6 +230,17 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     public string NowPlayingText => Player.CurrentTrack is { } t
         ? $"{t.Title} — {t.Artist}" : "未在播放";
     public string TimeText => $"{FormatClock(Player.Position)} / {FormatClock(Player.Duration)}";
+
+    /// <summary>
+    /// B3：播放钮是否有可播内容。当前有曲目 或 查看歌单有曲目 → 启用；否则禁用（灰化，Opacity 0.4）。
+    /// </summary>
+    public bool HasPlayableSource => Player.CurrentTrack is not null
+        || (Playlists.ViewedPlaylist?.Queue.Count ?? 0) > 0;
+
+    /// <summary>
+    /// B3：进度条是否可用。Duration > 0 表示有载入曲目；空队列时禁用。
+    /// </summary>
+    public bool HasDuration => Player.Duration > TimeSpan.Zero;
 
     /// <summary>
     /// mm:ss 时钟文本。TimeSpan 自定义格式里的 ":" 必须写成 "\:"，而 brief 给的

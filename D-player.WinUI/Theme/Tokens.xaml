@@ -46,6 +46,8 @@
     <x:Double x:Key="RailBadgeSize">24</x:Double>
     <x:Double x:Key="InfoPanelCoverSize">228</x:Double>
     <x:Double x:Key="FoldButtonSize">24</x:Double>
+    <!-- 播放/暂停钮直径（spec §5「44px 圆钮」）。PlayPauseButtonStyle 的 CornerRadius = 22 = 此值/2 -->
+    <x:Double x:Key="PlayButtonSize">44</x:Double>
     <!-- 无封面时的音符字号（spec §5 占位封面；排版细则归 Task 3，这里先给一个不散落的值） -->
     <x:Double x:Key="CoverGlyphSize">48</x:Double>
     <!--
@@ -58,6 +60,13 @@
     <Thickness x:Key="PanelPadding">16</Thickness>
     <Thickness x:Key="RailItemPadding">12,0,12,0</Thickness>
     <Thickness x:Key="RailHeaderPadding">12,8,12,0</Thickness>
+    <!-- TrackList 表头内边距：左右 12（= SpacingMd），上下 0 -->
+    <Thickness x:Key="TrackListHeaderPadding">12,0,12,0</Thickness>
     <!-- 标题栏右端给系统 Caption Buttons（3 x 46px）让位：右栏折叠钮的右边距，本机 scale=1.0 实测 138 -->
     <Thickness x:Key="InfoPanelToggleMargin">0,0,138,0</Thickness>
+    <!--
+      TrackList 列宽（表头与行模板共用，改一处两处同步）：# 40 / 标题 * / 艺术家 220 / 时长 72。
+      直接写在 TrackList.xaml 的 ColumnDefinition 里（GridLength 不能存进 StaticResource 做类型转换）。
+      注释标出"与表头同步"以便审计。
+    -->
 </ResourceDictionary>

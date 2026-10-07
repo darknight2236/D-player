@@ -76,8 +76,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Button x:Name="FoldButton" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
-                    Padding="0" BorderThickness="0" VerticalAlignment="Center"
-                    Background="{ThemeResource SubtleFillColorTransparentBrush}"
+                    Style="{StaticResource IconButtonStyle}"
                     Click="FoldButton_Click"
                     AutomationProperties.Name="折叠或展开歌单栏" ToolTipService.ToolTip="折叠或展开歌单栏">
                 <FontIcon x:Name="FoldButtonGlyph" Glyph="&#xE76B;" FontSize="{StaticResource FontSizeCaption}" />

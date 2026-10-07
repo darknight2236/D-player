@@ -5,35 +5,99 @@
     xmlns:models="using:DPlayer.Models">
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!--
+          静态表头（不可点击——表头不可点是有意的，排序属功能阶段，spec §5）。
+          列宽与行模板同步：# 40 / 标题 * / 艺术家 220 / 时长 72（与表头同步）。
+        -->
+        <Grid x:Name="Header" Grid.Row="0" Height="{StaticResource RowHeight}"
+              Padding="{StaticResource TrackListHeaderPadding}"
+              Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <Grid.ColumnDefinitions>
+                <!-- 与表头同步：# 40 / 标题 * / 艺术家 220 / 时长 72 -->
+                <ColumnDefinition Width="40" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="72" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="#" FontSize="{StaticResource FontSizeCaption}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextAlignment="Right" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="标题" FontSize="{StaticResource FontSizeCaption}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <TextBlock Grid.Column="2" Text="艺术家" FontSize="{StaticResource FontSizeCaption}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <TextBlock Grid.Column="3" Text="时长" FontSize="{StaticResource FontSizeCaption}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+        </Grid>
+
         <!--
           ItemsSource 走代码后置赋值（ResyncView 里），不用 x:Bind：
           brief 给的 {x:Bind ViewModel.ViewedPlaylist.Queue, Mode=OneWay} 会让 XamlCompiler
           在 MarkupCompilePass1 里抛 WMC9999（可空中间段 ViewedPlaylist 是普通 INPC 属性，
-          不是依赖属性，编译器内部崩溃且连错误消息都本地化失败）。见 Task 4 报告。
+          不是依赖属性，编译器内部崩溃且连错误消息都本地化失败）。见 Phase 20 Task 4 报告。
+
+          ItemContainerStyle 取 RailListViewItemStyle（六态容器：Normal/PointerOver/Pressed/Selected/
+          PointerOverSelected/PressedSelected + Disabled），MinHeight=36（Tokens 的 RowHeight）。
+          HorizontalContentAlignment=Stretch 已在基样式的 ContentPresenter 上 TemplateBinding
+          （Task 3 修复），行内容可以撑满整行。
         -->
-        <ListView x:Name="TrackItems" DoubleTapped="TrackList_DoubleTapped">
+        <ListView x:Name="TrackItems" Grid.Row="1"
+                  DoubleTapped="TrackList_DoubleTapped"
+                  ItemContainerStyle="{StaticResource RailListViewItemStyle}">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:Track">
-                    <Grid ColumnSpacing="12" Padding="4,6">
+                    <!-- 列宽与表头同步：# 40 / 标题 * / 艺术家 220 / 时长 72 -->
+                    <Grid ColumnSpacing="{StaticResource SpacingMd}">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="72" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="1" Text="{x:Bind Artist}"
+                        <!-- 序号：TrackNumber null 时显示 "-"（x:Bind int? 会 WMC9999，改代码后置赋值） -->
+                        <TextBlock Grid.Column="0"
+                                   Text="-"
+                                   FontSize="{StaticResource FontSizeBody}"
+                                   TextAlignment="Right" VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <!-- 标题：截断 -->
+                        <TextBlock Grid.Column="1" Text="{x:Bind Title}"
+                                   FontSize="{StaticResource FontSizeBody}"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        <!-- 艺术家：截断，次要色；null 时显示空（Artist 是 string?，x:Bind 对引用类型 null 不崩溃） -->
+                        <TextBlock Grid.Column="2"
+                                   Text="{x:Bind Artist}"
+                                   FontSize="{StaticResource FontSizeBody}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        <!-- 时长：mm:ss 等宽数字（Consolas；x:Bind TimeSpan 会 WMC9999，改代码后置） -->
+                        <TextBlock Grid.Column="3"
+                                   Text="0:00"
+                                   FontSize="{StaticResource FontSizeCaption}"
+                                   FontFamily="Consolas"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
 
-        <!-- 空状态：切片期没有导入入口（第二阶段接 picker），首启就是这个样子 -->
-        <StackPanel x:Name="EmptyHint" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Spacing="6" IsHitTestVisible="False">
-            <TextBlock Text="当前歌单没有曲目" HorizontalAlignment="Center"
+        <!-- 空状态：产品话术（spec §5），不承诺本阶段没有的能力 -->
+        <StackPanel x:Name="EmptyHint" Grid.Row="1"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Spacing="{StaticResource SpacingSm}" IsHitTestVisible="False">
+            <TextBlock Text="还没有曲目" HorizontalAlignment="Center"
                        Style="{StaticResource SubtitleTextBlockStyle}" />
-            <TextBlock Text="本切片不提供导入入口：把曲目写进 %LocalAppData%\D-player-winui\queue.json 后重启。"
-                       HorizontalAlignment="Center" MaxWidth="360" TextWrapping="Wrap"
+            <TextBlock Text="导入入口将在下一阶段加入" HorizontalAlignment="Center" MaxWidth="360"
+                       TextWrapping="Wrap"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
     </Grid>

@@ -40,8 +40,8 @@
             -->
             <Button x:Name="InfoPanelToggle" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                    Margin="{StaticResource InfoPanelToggleMargin}" Padding="0" BorderThickness="0"
-                    Background="{ThemeResource SubtleFillColorTransparentBrush}"
+                    Margin="{StaticResource InfoPanelToggleMargin}"
+                    Style="{StaticResource IconButtonStyle}"
                     Click="InfoPanelToggle_Click"
                     AutomationProperties.Name="收起或展开信息栏" ToolTipService.ToolTip="收起或展开信息栏">
                 <FontIcon x:Name="InfoPanelToggleGlyph" Glyph="&#xE76C;" FontSize="{StaticResource FontSizeCaption}" />

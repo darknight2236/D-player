@@ -786,6 +786,8 @@ public sealed partial class MainWindow : Window
 
 > **勘误（最终修复波 A2：这条差异已修掉，不要再抄进任何提交信息或对比表）**：上面这句在 `dc67f13` 之后不再成立。WinUI 3 的 `SliderBase` **不暴露** `DragStarted`/`DragCompleted`（三条路都实测失败：XAML 属性 → WMC0011、附加属性 → WMC0010、C# 订阅 → CS1061），所以这对事件从 `Slider` **模板的 `Thumb`（`HorizontalThumb`）** 上取——与 WPF `Views/Controls/PlayerBar.xaml.cs:70-74` 订阅的是同一对事件，语义一致：拖动期间 `IsSeeking` 为真、30 Hz 回写被抑制，**松手才提交一次 Seek**；`ValueChanged` 只剩单击轨道跳转，并显式跳过"程序把值写回来"那条路径（`_suppressSeek` 随之删除）。**残留的真实风险不是行为差异，而是这条挂接依赖模板部件名、找不到时静默退回旧行为，而 WinUI 不进门禁 → 没有自动回归能发现退化**（对比材料 §5 关切 5）。同期 A3 也让双击与 WPF 对齐（空白区双击不再回播上次选中的曲目）。
 
+> **勘误（2026-10-07 单击定位修复 `27f5e39`；按 P-12 只注解，上面那条一个字不改）**：上面这条勘误自己也有两处过期。**①** 它写"WinUI 3 的 `SliderBase` **不暴露** `DragStarted`/`DragCompleted`"——`SliderBase` 这个类型在 WASDK 2.5.1 的托管投影里**根本不存在**（台账 P-23/P-25 已据此更正对比材料与 `docs/PROJECT.md`，当时没回来更正本文件）；事实是 `Slider` 不暴露这对事件，它们只在模板内部的 `Thumb`（`HorizontalThumb`）上。**②** 它写"`ValueChanged` 只剩单击轨道跳转"——单击**不再走控件那步换算**了。实测的机制：原生 `Slider` 用**自己的类处理器**把按下点换算成分数、再按 `StepFrequency` 量化，而 `StepFrequency=1` 配 `SnapsTo=StepValues`（该枚举只有 `StepValues`/`Ticks`，**没有 `None`**）在 `Minimum=0 Maximum=1` 上只剩 {0,1} 两个落点，分界正是几何中点——这就是用户 2026-10-07 报的"点左半跳开头、点右半跳结尾"。**对比材料当时那条标注为假设的 `RangeBase.LargeChange` 翻页解释，被同一批实测否掉了**（`LargeChange=10` 确实是读到的值，但滑块停在 0 时点它右边的 x=0.10/0.25/0.50 三点 `Value` 一动不动，翻页步进说不通）。修法是壳侧在比 `Slider` 更深的模板轨道（`HorizontalTemplate`）上接管这次按下、自己按实测几何算落点、照拖动同一条 `IsSeeking` 纪律经现成的 `SeekCompletedCommand` 提交一次，XAML 里另显式给 `StepFrequency="0.001"`（≈0.9 px 一格）——单击不再靠它，**拖动**与"轨道找不到时退回原生那条路"靠它。修后仪器读数：点行程 25/50/75% → `Value` 0.2483 / 0.4989 / 0.7494（修前 0 / 0 / 1）；听的那一半待用户复验。详见对比材料 §2「进度显示」与 §2.2。
+
 - [x] **Step 3: 补一个 Core 侧公开入口（唯一允许的 Core 改动）**
 
 > **勘误（裁定 P-16：本节被整体推翻，这个"唯一允许的 Core 改动"最后被删掉了）**：

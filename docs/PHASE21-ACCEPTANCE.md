@@ -1,6 +1,6 @@
 # Phase 21 验收清单
 
-**状态**：代码已交付，起窗崩溃（exit 0xC0000005）**已修复并验证**（`bba9ad4`）。根因是对象初始化器与构造函数体的执行时序：`MainWindow` 用 `new PlayerBar(_vm.Player) { Playlists = _vm.Playlists }` 建底栏，而初始化器在构造函数体**之后**才执行——ctor 体末尾已在订阅 `Playlists!.PropertyChanged`，此刻仍为 null → 起窗即 NRE（`required` 只约束调用点，`!` 还压掉了本会报警的编译器警告）。修复把 `Playlists` 改为构造参数（与其余三个兄弟控件同形）；该缺陷 Phase 21 Task 3（`7324677`）引入，Task 3/4/5 均未起窗故未被发现（Task 2 起过，阶段因此看似健康）。起窗已实测验证：窗口 12 秒内起来、存活 3+ 分钟，四区经 UIA + 截图确认，关窗退出码 0 且无 0xC0000005。**下方清单已就绪，可按 A/B/C/D/E 逐项验收。**
+**状态**：**23 项全部通过（20 项自动化 + B3/D1/D3/E1 由用户 2026-10-08 确认），Phase 21 验收闭合**。代码已交付，起窗崩溃（exit 0xC0000005）**已修复并验证**（`bba9ad4`）。根因是对象初始化器与构造函数体的执行时序：`MainWindow` 用 `new PlayerBar(_vm.Player) { Playlists = _vm.Playlists }` 建底栏，而初始化器在构造函数体**之后**才执行——ctor 体末尾已在订阅 `Playlists!.PropertyChanged`，此刻仍为 null → 起窗即 NRE（`required` 只约束调用点，`!` 还压掉了本会报警的编译器警告）。修复把 `Playlists` 改为构造参数（与其余三个兄弟控件同形）；该缺陷 Phase 21 Task 3（`7324677`）引入，Task 3/4/5 均未起窗故未被发现（Task 2 起过，阶段因此看似健康）。起窗已实测验证：窗口 12 秒内起来、存活 3+ 分钟，四区经 UIA + 截图确认，关窗退出码 0 且无 0xC0000005。**逐项结果与证据**见走查报告 `.superpowers/sdd/2026-10-07-d-player-phase21-winui-polish-implementation/acceptance-report.md`（git-ignored）。
 
 **验收方式**：逐项走 A/B/C/D/E 五组，每项三列（操作 / 通过标准 / 失败长什么样）。E 组三项（播放回归 / 续播回归 / 门禁）是硬门槛。
 

@@ -223,7 +223,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 18 | 播放列表文件导入导出（M3U/M3U8/PLS 导入 + M3U8 导出） |
 | 19 | 依赖迁移（NAudio 收窄为 Core + Wasapi、输出改经 `WasapiPlayerBuilder` 建 `WasapiPlayer`、测试栈迁到 xunit.v3；无产品行为变化） |
 | 20 | WinUI 3 第二 UI 壳：抽出 WPF-free 的 `D-player.Core`、数据目录由壳注入、门禁改用 `D-player.slnf`、做出第一条纵向切片并交付对比材料（WPF 壳行为与外观零变化；**切片已交付，§2.1 那份验收走查已由用户 2026-10-07 在真机走完并在同日第二轮复验里收口——无待复验项**，唯一报出的"进度条单击定位"缺陷当晚已量出根因并修掉（结果与那处缺陷的实测机制记在对比材料 §2.2）；**决策门已拍板：续投 WinUI（2026-10-07，用户理由：切片只是基本骨架、不足以公平打分），六维评分延后至第二阶段之后**） |
-| 21 | WinUI 壳视觉与交互打磨：三栏 IA（NavRail/TrackList/InfoPanel/PlayerBar）+ 设计令牌层（间距/圆角/字号/时长三档）+ 六态样式 + 键盘与无障碍 + 9 项动效；**验收清单 23 项已交付（`docs/PHASE21-ACCEPTANCE.md`）；起窗崩溃（exit 0xC0000005）已在 `bba9ad4` 修复并验证——根因是对象初始化器在构造函数体之后执行（`Playlists` 订阅时仍为 null），壳现已能起窗，清单就绪待逐项走** |
+| 21 | WinUI 壳视觉与交互打磨：三栏 IA（NavRail/TrackList/InfoPanel/PlayerBar）+ 设计令牌层（间距/圆角/字号/时长三档）+ 六态样式 + 键盘与无障碍 + 9 项动效；**23 项验收全部通过、验收闭合（2026-10-08），逐项结果见 `docs/PHASE21-ACCEPTANCE.md`；起窗崩溃（exit 0xC0000005）已在 `bba9ad4` 修复并验证——根因是对象初始化器在构造函数体之后执行（`Playlists` 订阅时仍为 null）** |
 
 每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。Phase 20 的两壳对比材料与决策门记录位在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。
 
@@ -236,4 +236,4 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
 - 按艺术家/专辑组织的音乐库视图尚未实现。
-- **WinUI 3 壳已打磨视觉与交互（Phase 21），但仍是功能切片，不是可用的日常播放器**：Phase 21 交付了三栏 IA + 令牌层 + 六态 + 键盘/无障碍 + 9 项动效（验收清单 23 项见 `docs/PHASE21-ACCEPTANCE.md`）；起窗崩溃（exit 0xC0000005）**已在 `bba9ad4` 修复并验证（根因：对象初始化器在构造函数体之后执行）——壳已能起窗，清单就绪待走**。功能面仍缺：没有导入/新建入口（首启空状态）、没有频谱/拖拽/对话框/EQ/设置/导入导出/音量/上下一首/随机循环/表头排序，且不进门禁（XAML 编译、左栏逻辑、关闭落盘均无自动回归；它唯一的自动化保护是**需要手跑**的壳侧构建检查，`powershell -File tools/verify-gates.ps1 -Full`，触发条件见"构建与运行"）。去留已由 Phase 20 决策门在 2026-10-07 判定：**续投 WinUI**，见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。
+- **WinUI 3 壳已打磨视觉与交互（Phase 21），但仍是功能切片，不是可用的日常播放器**：Phase 21 交付了三栏 IA + 令牌层 + 六态 + 键盘/无障碍 + 9 项动效（**验收已闭合：23 项全部通过，2026-10-08，见 `docs/PHASE21-ACCEPTANCE.md`**）；起窗崩溃（exit 0xC0000005）**已在 `bba9ad4` 修复并验证（根因：对象初始化器在构造函数体之后执行）**。功能面仍缺：没有导入/新建入口（首启空状态）、没有频谱/拖拽/对话框/EQ/设置/导入导出/音量/上下一首/随机循环/表头排序，且不进门禁（XAML 编译、左栏逻辑、关闭落盘均无自动回归；它唯一的自动化保护是**需要手跑**的壳侧构建检查，`powershell -File tools/verify-gates.ps1 -Full`，触发条件见"构建与运行"）。去留已由 Phase 20 决策门在 2026-10-07 判定：**续投 WinUI**，见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)。

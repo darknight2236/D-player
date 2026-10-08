@@ -47,17 +47,23 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
     public PlayerViewModel Player { get; }
 
-    public required PlaylistsViewModel Playlists { get; set; }
+    public PlaylistsViewModel Playlists { get; }
 
-    public PlayerBar(PlayerViewModel player)
+    /// <summary>
+    /// Playlists 走构造参数，**不**走 <c>required</c> + 对象初始化器：初始化器在 ctor 体返回**之后**才执行，
+    /// 而本 ctor 体里的订阅（下方最后一行）与 <c>InitializeComponent()</c> 里的 x:Bind 都要求它此刻已就位 ——
+    /// 初始化器时代这里先抛 NullReferenceException，整窗起不来（Phase 21 收尾的起窗崩溃根因）。
+    /// </summary>
+    public PlayerBar(PlayerViewModel player, PlaylistsViewModel playlists)
     {
+        // 顺序有承重：x:Bind（Player.PositionNormalized 等）在 InitializeComponent() 里就求值一遍，
+        // 两个绑定源必须先赋值再 InitializeComponent() —— 与 NavRail.xaml.cs:49 同纪律。
         Player = player;
+        Playlists = playlists;
         InitializeComponent();
-
         Loaded += (_, _) => HookSliderParts();
-
         player.PropertyChanged += Player_PropertyChanged;
-        Playlists!.PropertyChanged += (_, _) => RefreshView();
+        Playlists.PropertyChanged += (_, _) => RefreshView();
     }
 
     /// <summary>

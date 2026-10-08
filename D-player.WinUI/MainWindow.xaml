@@ -55,7 +55,7 @@
 
           四个控件为什么在代码里装配而不是写在这里：XAML 里声明元素要求 public 无参构造，而计划钉住的
           构造签名是 NavRail(PlaylistsViewModel) / TrackList(PlaylistsViewModel) / InfoPanel(PlayerViewModel) /
-          PlayerBar(PlayerViewModel)（spec §3.1：每个控件自己持有它那一块的绑定源），
+          PlayerBar(PlayerViewModel, PlaylistsViewModel)（spec §3.1：每个控件自己持有它那一块的绑定源），
           并且 x:Bind 的源必须在 InitializeComponent() 之前就位（见 PlayerBar.xaml.cs 构造函数注释）。
         -->
         <Grid x:Name="BodyGrid" Grid.Row="1" ColumnSpacing="0">

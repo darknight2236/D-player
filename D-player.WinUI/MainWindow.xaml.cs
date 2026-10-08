@@ -80,7 +80,7 @@ public sealed partial class MainWindow : Window
         var rail = new NavRail(_vm.Playlists);
         var tracks = new TrackList(_vm.Playlists);
         _infoPanel = new InfoPanel(_vm.Player);
-        _bar = new PlayerBar(_vm.Player) { Playlists = _vm.Playlists };
+        _bar = new PlayerBar(_vm.Player, _vm.Playlists);
 
         Grid.SetColumn(rail, 0);
         Grid.SetColumn(tracks, 1);

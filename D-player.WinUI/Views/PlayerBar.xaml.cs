@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using Windows.System;
 
 namespace DPlayer.WinUI.Views;
 
@@ -27,6 +28,9 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     /// <summary>轨道单击的挂接同样只做一次。</summary>
     private bool _railHooked;
 
+    /// <summary>PageUp/PageDown 的键盘补挂同样只做一次（见 <see cref="Position_KeyDown"/>）。</summary>
+    private bool _keysHooked;
+
     /// <summary>挂好接的拖动滑块：单击定位要按它的宽度算出滑块中心的可行程（见 TryGetTrackFraction）。</summary>
     private Thumb? _positionThumb;
 
@@ -42,6 +46,9 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
     // ⑦ 播放/暂停图标交叉淡入
     private Storyboard? _iconStoryboard;
+
+    /// <summary>最近一次已应用到图标的 PlayState；位置心跳（~30 Hz PropertyChanged）不再重启动画。</summary>
+    private PlayState? _lastIconState;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -67,13 +74,22 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 给 Slider 的模板部件挂上进度条的两条用户输入路径：Thumb 的 DragStarted/DragCompleted（拖动）
-    /// 与轨道元素的 PointerPressed（单击定位）。找不到部件时**静默跳过**。
+    /// 给 Slider 挂上进度条的用户输入路径：模板部件 Thumb 的 DragStarted/DragCompleted（拖动）
+    /// 与轨道元素的 PointerPressed（单击定位），外加控件本身的 KeyDown（PageUp/PageDown，见
+    /// <see cref="Position_KeyDown"/>）。找不到部件时**静默跳过**。
     /// </summary>
     private void HookSliderParts()
     {
-        if (_dragHooked && _railHooked) return;
+        if (_dragHooked && _railHooked && _keysHooked) return;
         PositionSlider.ApplyTemplate();
+
+        if (!_keysHooked)
+        {
+            // PageUp/PageDown 补挂（见 Position_KeyDown）。handledEventsToo=true 与 MainWindow 的
+            // 空格守卫同款：即使基础控件先标记 handled，事件仍会送到本处理器。
+            PositionSlider.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(Position_KeyDown), handledEventsToo: true);
+            _keysHooked = true;
+        }
 
         var thumb = _positionThumb
             ?? PositionSlider.FindName("HorizontalThumb") as Thumb
@@ -182,6 +198,25 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         Player.SeekCompletedCommand.Execute(e.NewValue);
     }
 
+    /// <summary>
+    /// PageUp/PageDown → ±<c>LargeChange</c>（spec G7「PageUp 5% 步进」）。WinUI 3 基础 Slider 的
+    /// 键盘路径只接方向键/Home/End，不把 PageUp/PageDown 映射到 LargeChange——Phase 21 验收 C2
+    /// 实测步进为 0，而 <c>AutomationProperties.HelpText</c> 已向用户承诺「约 5%」。这里补上：
+    /// 写回的仍是 <c>PositionSlider.Value</c>，与方向键/单击/拖动共用 <see cref="Position_Changed"/>
+    /// 这唯一提交点（不新增第二条 seek 路径）；结果 clamp 到 [Minimum, Maximum]，端点处重复按不再提交。
+    /// </summary>
+    private void Position_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key is not (VirtualKey.PageUp or VirtualKey.PageDown)) return;
+        e.Handled = true;   // 无论是否步进都由本处理器消费，避免被其它键盘路径接走
+        if (Player.Duration <= TimeSpan.Zero) return;
+
+        var delta = e.Key == VirtualKey.PageUp ? PositionSlider.LargeChange : -PositionSlider.LargeChange;
+        var target = Math.Clamp(PositionSlider.Value + delta, PositionSlider.Minimum, PositionSlider.Maximum);
+        if (Math.Abs(target - PositionSlider.Value) < 1e-9) return;   // 已在端点：无提交
+        PositionSlider.Value = target;
+    }
+
     /// <summary>拖动开始：让 VM 进入 IsSeeking + ⑧ 拇指放大 ×1.15。</summary>
     private void Position_DragStarted(object sender, DragStartedEventArgs e)
     {
@@ -282,16 +317,22 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         foreach (var name in ViewProjections)
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-        // ⑦ 播放/暂停图标交叉淡入
+        // ⑦ 播放/暂停图标交叉淡入（内部只认 PlayState 真变化；位置心跳 tick 上早退）
         UpdatePlayPauseIcons();
     }
 
     /// <summary>
     /// ⑦ 更新播放/暂停图标的 Opacity：播放态 → PauseIcon 可见、PlayIcon 隐藏；暂停态反之。
-    /// 交叉淡入 100ms 由 Storyboard 驱动。
+    /// 交叉淡入 100ms 由 Storyboard 驱动。**只在 <see cref="PlayState"/> 真变化时**重播——RefreshView
+    /// 由每次 Player.PropertyChanged 触发（含 ~30 Hz 位置心跳），无条件重播会让图标永远停在
+    /// 交叉淡入的混合帧（Phase 21 验收 E1 实测）；心跳 tick 上直接早退，让上一条动画自行落定。
+    /// 真切换时保留既有反叠机制：先 Stop() 旧 Storyboard 再 Begin() 新的。
     /// </summary>
     private void UpdatePlayPauseIcons()
     {
+        if (_lastIconState == Player.PlayState) return;
+        _lastIconState = Player.PlayState;
+
         var isPlaying = Player.PlayState == PlayState.Playing;
         var playTarget = isPlaying ? 0.0 : 1.0;
         var pauseTarget = isPlaying ? 1.0 : 0.0;

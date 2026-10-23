@@ -338,7 +338,7 @@ public partial class PlaylistViewModel : ObservableObject
     [RelayCommand]
     private async Task AddToQueue()
     {
-        var files = _fileDialog.OpenFiles(
+        var files = await _fileDialog.OpenFilesAsync(
             "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
             multiselect: true);
         if (files.Count == 0) return;
@@ -354,7 +354,7 @@ public partial class PlaylistViewModel : ObservableObject
     [RelayCommand]
     private async Task ImportFolderToCurrent()
     {
-        var folder = _fileDialog.OpenFolder();
+        var folder = await _fileDialog.OpenFolderAsync();
         if (folder is null) return;
 
         var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -410,7 +410,7 @@ public partial class PlaylistViewModel : ObservableObject
     /// </summary>
     public async Task<PlaylistImportReport?> ImportPlaylistFileAsync(string? presetPath = null)
     {
-        var path = presetPath ?? _fileDialog.OpenFiles(PlaylistFileFormats.OpenFilter).FirstOrDefault();
+        var path = presetPath ?? (await _fileDialog.OpenFilesAsync(PlaylistFileFormats.OpenFilter)).FirstOrDefault();
         if (string.IsNullOrWhiteSpace(path)) return null;
 
         var sourceFile = Path.GetFileName(path);
@@ -437,7 +437,7 @@ public partial class PlaylistViewModel : ObservableObject
     {
         if (Queue.Count == 0) return null;   // View 层已拦一次，这里兜底
 
-        var dest = _fileDialog.SaveFile(
+        var dest = await _fileDialog.SaveFileAsync(
             PlaylistFileFormats.SaveFilter, SanitizeFileName(Name), ".m3u8");
         if (string.IsNullOrWhiteSpace(dest)) return null;
 

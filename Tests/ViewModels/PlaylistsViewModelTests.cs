@@ -519,7 +519,8 @@ public class PlaylistsViewModelTests
     [Fact]
     public async Task ImportPlaylistFileAsync_CreatesNewPlaylistAndViewIt()
     {
-        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\rock.m3u8" });
+        _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(new[] { @"D:\lists\rock.m3u8" }));
         _playlistFiles.ImportAsync(@"D:\lists\rock.m3u8")
             .Returns(ImportResult("rock", new[] { @"D:\m\a.mp3", @"D:\m\b.flac" }));
         _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
@@ -545,7 +546,8 @@ public class PlaylistsViewModelTests
     [Fact]
     public async Task ImportPlaylistFileAsync_AllEntriesSkipped_DoesNotCreatePlaylist()
     {
-        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\old.pls" });
+        _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(new[] { @"D:\lists\old.pls" }));
         _playlistFiles.ImportAsync(@"D:\lists\old.pls")
             .Returns(ImportResult("old", Array.Empty<string>(), missing: 3, unsupported: 2));
         var container = CreateContainerVmWithMocks();
@@ -561,7 +563,8 @@ public class PlaylistsViewModelTests
     [Fact]
     public async Task ImportPlaylistFileAsync_NoTracksFromMetadataBatch_DoesNotCreatePlaylist()
     {
-        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\x.m3u" });
+        _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(new[] { @"D:\lists\x.m3u" }));
         _playlistFiles.ImportAsync(@"D:\lists\x.m3u").Returns(ImportResult("x", new[] { @"D:\m\a.mp3" }));
         _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
             .Returns(Array.Empty<Track>());
@@ -576,7 +579,8 @@ public class PlaylistsViewModelTests
     [Fact]
     public async Task ImportPlaylistFileAsync_UserCancels_ReturnsNull()
     {
-        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(Array.Empty<string>());
+        _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()));
         var container = CreateContainerVmWithMocks();
 
         var report = await container.ImportPlaylistFileAsync();
@@ -598,6 +602,6 @@ public class PlaylistsViewModelTests
 
         Assert.Equal(1, report!.Imported);
         Assert.Equal("y", container.Playlists[0].Name);
-        _fileDialog.DidNotReceive().OpenFiles(Arg.Any<string>(), Arg.Any<bool>());
+        await _fileDialog.DidNotReceive().OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>());
     }
 }

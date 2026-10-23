@@ -25,9 +25,11 @@ public sealed class AddDPlayerCoreTests
     /// <summary>壳侧注册的替身：真实壳注册的是 WinUiFileDialogService（WPF 壳注册它的对应物）。</summary>
     private sealed class StubFileDialogService : IFileDialogService
     {
-        public IReadOnlyList<string> OpenFiles(string filter, bool multiselect = false) => Array.Empty<string>();
-        public string? OpenFolder() => null;
-        public string? SaveFile(string filter, string defaultFileName, string defaultExtension) => null;
+        public Task<IReadOnlyList<string>> OpenFilesAsync(string filter, bool multiselect = false)
+            => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+        public Task<string?> OpenFolderAsync() => Task.FromResult<string?>(null);
+        public Task<string?> SaveFileAsync(string filter, string defaultFileName, string defaultExtension)
+            => Task.FromResult<string?>(null);
     }
 
     /// <summary>

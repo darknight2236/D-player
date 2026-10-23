@@ -255,7 +255,8 @@ public class PlaylistViewModelTests
     [Fact]
     public async Task ImportPlaylistFileAsync_UserCancelsDialog_ReturnsNull()
     {
-        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(Array.Empty<string>());
+        _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()));
         var vm = CreateVm();
 
         var report = await vm.ImportPlaylistFileAsync();
@@ -268,7 +269,8 @@ public class PlaylistViewModelTests
     [Fact]
     public async Task ImportPlaylistFileAsync_AppendsAcceptedPathsInOrder()
     {
-        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\rock.m3u8" });
+        _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(new[] { @"D:\lists\rock.m3u8" }));
         _playlistFiles.ImportAsync(@"D:\lists\rock.m3u8")
             .Returns(ImportResult("rock", new[] { @"D:\m\a.mp3", @"D:\m\b.flac" }));
         _metadataReader.ReadAsync(Arg.Any<string>())
@@ -291,7 +293,8 @@ public class PlaylistViewModelTests
     [Fact]
     public async Task ImportPlaylistFileAsync_AllEntriesSkipped_LeavesQueueUntouched()
     {
-        _fileDialog.OpenFiles(Arg.Any<string>(), Arg.Any<bool>()).Returns(new[] { @"D:\lists\old.pls" });
+        _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(new[] { @"D:\lists\old.pls" }));
         _playlistFiles.ImportAsync(@"D:\lists\old.pls")
             .Returns(ImportResult("old", Array.Empty<string>(), missing: 3, unsupported: 2));
         var vm = CreateVm();
@@ -319,7 +322,7 @@ public class PlaylistViewModelTests
         var report = await vm.ImportPlaylistFileAsync(@"D:\drop\x.m3u");
 
         Assert.Equal(1, report!.Imported);
-        _fileDialog.DidNotReceive().OpenFiles(Arg.Any<string>(), Arg.Any<bool>());
+        await _fileDialog.DidNotReceive().OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>());
     }
 
     [Fact]
@@ -330,7 +333,7 @@ public class PlaylistViewModelTests
         var error = await vm.ExportPlaylistFileAsync();
 
         Assert.Null(error);
-        _fileDialog.DidNotReceive().SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+        await _fileDialog.DidNotReceive().SaveFileAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -338,11 +341,12 @@ public class PlaylistViewModelTests
     {
         var vm = CreateVm(name: @"My/List:1*");
         vm.Queue.Add(new Track(@"D:\m\a.mp3", "A", null, null, null, null, null, null, TimeSpan.Zero, null));
-        _fileDialog.SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns((string?)null);
+        _fileDialog.SaveFileAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult<string?>(null));
 
         await vm.ExportPlaylistFileAsync();
 
-        _fileDialog.Received(1).SaveFile(PlaylistFileFormats.SaveFilter, "My_List_1_", ".m3u8");
+        await _fileDialog.Received(1).SaveFileAsync(PlaylistFileFormats.SaveFilter, "My_List_1_", ".m3u8");
     }
 
     [Fact]
@@ -350,7 +354,8 @@ public class PlaylistViewModelTests
     {
         var vm = CreateVm();
         vm.Queue.Add(new Track(@"D:\m\a.mp3", "A", null, null, null, null, null, null, TimeSpan.Zero, null));
-        _fileDialog.SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns((string?)null);
+        _fileDialog.SaveFileAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult<string?>(null));
 
         var error = await vm.ExportPlaylistFileAsync();
 
@@ -363,7 +368,8 @@ public class PlaylistViewModelTests
     {
         var vm = CreateVm();
         vm.Queue.Add(new Track(@"D:\m\a.mp3", "A", null, null, null, null, null, null, TimeSpan.Zero, null));
-        _fileDialog.SaveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(@"D:\out\a.m3u8");
+        _fileDialog.SaveFileAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult<string?>(@"D:\out\a.m3u8"));
         _playlistFiles.ExportAsync(@"D:\out\a.m3u8", Arg.Any<System.Collections.Generic.IReadOnlyList<Track>>())
             .Returns(Task.FromException(new System.IO.IOException("被占用")));
 

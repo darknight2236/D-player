@@ -333,7 +333,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     [RelayCommand]
     private async Task ImportFolderAsync()
     {
-        var folderPath = _fileDialog.OpenFolder();
+        var folderPath = await _fileDialog.OpenFolderAsync();
         if (folderPath is null) return;
 
         var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -381,7 +381,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     /// </summary>
     public async Task<PlaylistImportReport?> ImportPlaylistFileAsync(string? presetPath = null)
     {
-        var path = presetPath ?? _fileDialog.OpenFiles(PlaylistFileFormats.OpenFilter).FirstOrDefault();
+        var path = presetPath ?? (await _fileDialog.OpenFilesAsync(PlaylistFileFormats.OpenFilter)).FirstOrDefault();
         if (string.IsNullOrWhiteSpace(path)) return null;
 
         var sourceFile = Path.GetFileName(path);
@@ -601,9 +601,11 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
     private sealed class NullFileDialogService : IFileDialogService
     {
-        public IReadOnlyList<string> OpenFiles(string filter, bool multiselect = false) => Array.Empty<string>();
-        public string? OpenFolder() => null;
-        public string? SaveFile(string filter, string defaultFileName, string defaultExtension) => null;
+        public Task<IReadOnlyList<string>> OpenFilesAsync(string filter, bool multiselect = false)
+            => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+        public Task<string?> OpenFolderAsync() => Task.FromResult<string?>(null);
+        public Task<string?> SaveFileAsync(string filter, string defaultFileName, string defaultExtension)
+            => Task.FromResult<string?>(null);
     }
 
     private sealed class NullLibraryScannerService : ILibraryScannerService

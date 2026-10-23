@@ -7,6 +7,7 @@ using DPlayer.Extensions;
 using DPlayer.Services;
 using DPlayer.ViewModels;
 using DPlayer.WinUI.Services;
+using WinRT.Interop;
 
 namespace DPlayer.WinUI;
 
@@ -25,6 +26,7 @@ public partial class App : Application
 {
     private ServiceProvider? _services;
     private Window? _window;
+    private IntPtr _hwnd;
 
     public App()
     {
@@ -54,13 +56,17 @@ public partial class App : Application
         // WinUI 壳自己的数据目录：与 WPF 壳的 D-player 分开，两个壳互不覆盖落盘。
         services.AddDPlayerCore(configuration, new DPlayerDataPaths { FolderName = "D-player-winui" });
         // Core 的 PlaylistViewModel 工厂从容器解析 IFileDialogService，注册在各壳自己做（R-7）。
-        services.AddSingleton<IFileDialogService, WinUiFileDialogService>();
+        // 工厂捕获 () => _hwnd：服务在 GetRequiredService<MainViewModel>() 期间构造，
+        // 那时 _hwnd 还是 Zero；服务只在用户首次触发 picker 时才懒读这个字段。
+        services.AddSingleton<IFileDialogService>(_ => new WinUiFileDialogService(() => _hwnd));
         _services = services.BuildServiceProvider();
 
         // 需在 UI 线程构造状态与恢复；窗口显示后立刻执行
         var vm = _services.GetRequiredService<MainViewModel>();
-        _window = new MainWindow(vm);
-        _window.Activate();
+        var window = new MainWindow(vm);
+        _window = window;
+        _hwnd = WindowNative.GetWindowHandle(window);
+        window.Activate();
 
         // 启动后就位（断点续播）——不自动出声
         _ = StartAsync(vm);

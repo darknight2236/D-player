@@ -1,29 +1,144 @@
+using System.Diagnostics;
 using DPlayer.Services;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace DPlayer.WinUI.Services;
 
 /// <summary>
-/// 切片阶段的最小实现：本阶段不暴露文件选择入口（导入文件夹 / 导入播放列表文件 / 导出
-/// 都留待第二阶段），但 <see cref="IFileDialogService"/> 必须在容器里可解析，否则
-/// PlaylistViewModel 工厂（ServiceCollectionExtensions 里从容器取本服务）在第一次构造歌单时抛。
-/// 因此三个方法各自返回"用户取消"的语义值：空集合 / null / null。
-///
-/// 第二阶段接入真 picker 时的已知障碍（此处不解决，仅记录）：
-/// 本接口是**同步**的，而 WinUI 的 FileOpenPicker / FolderPicker 只有异步 API
-/// （PickSingleFileAsync 返回 IAsyncOperation）。要用同步接口驱动异步 picker 只能在 UI 线程上
-/// 阻塞等待（.Result / GetAwaiter().GetResult()），而模态 picker 的消息又正需要这条 UI 线程——
-/// 那就是死锁。所以真正的接法要么把 Core 侧接口改成异步（跨壳改动，本阶段禁止），
-/// 要么在壳侧用异步入口 + 完成后回调，属于第二阶段工作。
+/// 真正的 WinUI picker 实现。HWND 由 App 在窗口创建后写入，服务通过 Func&lt;IntPtr&gt; 懒读。
+/// 所有失败（未初始化 HWND / COM 异常 / 空虚拟路径）都回落成"取消"语义并写调试输出；
+/// Task 6 会把 Debug.WriteLine 换成 AppLog.Write。
 /// </summary>
 public sealed class WinUiFileDialogService : IFileDialogService
 {
-    /// <summary>切片期无入口：固定返回空集合（= 用户在对话框里点了取消）。</summary>
-    public IReadOnlyList<string> OpenFiles(string filter, bool multiselect = false)
-        => Array.Empty<string>();
+    private readonly Func<IntPtr> _hwndProvider;
 
-    /// <summary>切片期无入口：固定返回 null（= 用户取消）。</summary>
-    public string? OpenFolder() => null;
+    public WinUiFileDialogService(Func<IntPtr> hwndProvider) => _hwndProvider = hwndProvider;
 
-    /// <summary>切片期无入口：固定返回 null（= 用户取消）。</summary>
-    public string? SaveFile(string filter, string defaultFileName, string defaultExtension) => null;
+    public async Task<IReadOnlyList<string>> OpenFilesAsync(string filter, bool multiselect = false)
+    {
+        var hwnd = _hwndProvider();
+        if (hwnd == IntPtr.Zero)
+        {
+            Debug.WriteLine("[WinUI 壳] FileOpenPicker 跳过：窗口 HWND 尚未就绪");
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary };
+            foreach (var pattern in ParseOpenPatterns(filter)) picker.FileTypeFilter.Add(pattern);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            if (multiselect)
+            {
+                var files = await picker.PickMultipleFilesAsync();
+                return files is null
+                    ? Array.Empty<string>()
+                    : files.Select(f => f.Path).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+            }
+
+            var file = await picker.PickSingleFileAsync();
+            return string.IsNullOrWhiteSpace(file?.Path) ? Array.Empty<string>() : new[] { file.Path };
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[WinUI 壳] FileOpenPicker 失败：{ex}");
+            return Array.Empty<string>();
+        }
+    }
+
+    public async Task<string?> OpenFolderAsync()
+    {
+        var hwnd = _hwndProvider();
+        if (hwnd == IntPtr.Zero)
+        {
+            Debug.WriteLine("[WinUI 壳] FolderPicker 跳过：窗口 HWND 尚未就绪");
+            return null;
+        }
+
+        try
+        {
+            var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary };
+            picker.FileTypeFilter.Add("*");
+            InitializeWithWindow.Initialize(picker, hwnd);
+            var folder = await picker.PickSingleFolderAsync();
+            return string.IsNullOrWhiteSpace(folder?.Path) ? null : folder.Path;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[WinUI 壳] FolderPicker 失败：{ex}");
+            return null;
+        }
+    }
+
+    public async Task<string?> SaveFileAsync(string filter, string defaultFileName, string defaultExtension)
+    {
+        var hwnd = _hwndProvider();
+        if (hwnd == IntPtr.Zero)
+        {
+            Debug.WriteLine("[WinUI 壳] FileSavePicker 跳过：窗口 HWND 尚未就绪");
+            return null;
+        }
+
+        var choice = ParseSaveChoice(filter);
+        if (choice is null)
+        {
+            Debug.WriteLine($"[WinUI 壳] FileSavePicker 跳过：无法从过滤器解析扩展名 '{filter}'");
+            return null;
+        }
+
+        try
+        {
+            var picker = new FileSavePicker
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+                SuggestedFileName = defaultFileName
+            };
+            picker.FileTypeChoices.Add(choice.Value.Description, choice.Value.Extensions.ToList());
+            if (!string.IsNullOrWhiteSpace(defaultExtension) && defaultExtension.StartsWith('.'))
+                picker.DefaultFileExtension = defaultExtension;
+
+            InitializeWithWindow.Initialize(picker, hwnd);
+            var file = await picker.PickSaveFileAsync();
+            return string.IsNullOrWhiteSpace(file?.Path) ? null : file.Path;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[WinUI 壳] FileSavePicker 失败：{ex}");
+            return null;
+        }
+    }
+
+    /// <summary>"Audio Files|*.mp3;*.wma" -> [".mp3", ".wma"]（WinUI 的 FileTypeFilter 不接受通配符）。</summary>
+    private static IReadOnlyList<string> ParseOpenPatterns(string filter)
+    {
+        var segment = filter.Split('|').Skip(1).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(segment)) return new[] { "*" };
+
+        var patterns = segment
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => p.StartsWith("*.", StringComparison.Ordinal) ? p[1..] : p)
+            .Where(p => p == "*" || p.StartsWith('.'))
+            .ToList();
+
+        return patterns.Count == 0 ? new[] { "*" } : patterns;
+    }
+
+    /// <summary>"M3U8 播放列表|*.m3u8" -> ("M3U8 播放列表", [".m3u8"]).</summary>
+    private static (string Description, IReadOnlyList<string> Extensions)? ParseSaveChoice(string filter)
+    {
+        var parts = filter.Split('|', StringSplitOptions.TrimEntries);
+        if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[0])) return null;
+
+        var extensions = parts[1]
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => p.StartsWith("*.", StringComparison.Ordinal) ? p[1..] : p)
+            .Where(p => p.StartsWith('.'))
+            .ToList();
+
+        return extensions.Count == 0 ? null : (parts[0], extensions);
+    }
 }

@@ -4,40 +4,103 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      播放器栏（底栏）。高度由 Tokens 的 PlayerBarHeight 钉死（spec §5：64px）。
-      垂直内边距 6+6 留出 52px 内容区，刚好容纳 19px 文本行 + 32px 滑块（合计 51px）不裁切；
-      旧的 16,8（8+8 只留 48 < 51）是 Phase 21 验收 A1 FAIL 的根因——栏高被内容撑到 67px。
+      播放器栏（底栏）。Phase 22：单行 64px 运输控件 —— 当前曲目 / 上一首 / 播放暂停 / 下一首 /
+      随机 / 循环 / 进度+时间 / 静音+音量。高度由 Tokens 的 PlayerBarHeight 钉死（spec §5：64px），
+      Padding 12,6 留出 52px 内容区：19px 文本行与 32px 滑块并排后仍在 64px 内，不撑高。
+      响应式（窗口宽度）：<1100 收起音量滑块，<860 再收起当前曲目文本；中途档位不会重叠。
     -->
-    <Grid Height="{StaticResource PlayerBarHeight}"
-          Padding="16,6" ColumnSpacing="12"
+    <Grid Height="{StaticResource PlayerBarHeight}" Padding="12,6"
+          ColumnSpacing="{StaticResource SpacingSm}"
           Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="BarWidthStates">
+                <VisualState x:Name="Wide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1100" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="Medium">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="860" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="VolumeSlider.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="VolumeSlider.Visibility" Value="Collapsed" />
+                        <Setter Target="NowPlayingLabel.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <Button x:Name="PlayPauseButton" Click="PlayPause_Click"
-                Style="{StaticResource PlayPauseButtonStyle}"
-                IsEnabled="{x:Bind HasPlayableSource, Mode=OneWay}"
-                VerticalAlignment="Center"
-                RenderTransformOrigin="0.5,0.5"
-                PointerEntered="PlayPauseButton_PointerEntered"
-                PointerExited="PlayPauseButton_PointerExited"
-                PointerPressed="PlayPauseButton_PointerPressed"
-                PointerReleased="PlayPauseButton_PointerReleased"
-                AutomationProperties.Name="播放/暂停">
-            <Button.RenderTransform>
-                <ScaleTransform x:Name="PlayPauseScale" ScaleX="1" ScaleY="1" />
-            </Button.RenderTransform>
-            <!-- ⑦ 两个 FontIcon 叠放，交叉淡入 100ms（不旋转） -->
-            <Grid>
-                <FontIcon x:Name="PlayIcon" Glyph="&#xE768;" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Opacity="1" />
-                <FontIcon x:Name="PauseIcon" Glyph="&#xE769;" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Opacity="0" />
-            </Grid>
-        </Button>
-        <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
-            <TextBlock Text="{x:Bind NowPlayingText, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+
+        <TextBlock x:Name="NowPlayingLabel" Grid.Column="0" Width="180"
+                   Text="{x:Bind NowPlayingText, Mode=OneWay}"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingXs}" VerticalAlignment="Center">
+            <Button x:Name="PrevButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
+                    Click="PrevButton_Click" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
+                <FontIcon Glyph="&#xE892;" FontSize="{StaticResource FontSizeBody}" />
+            </Button>
+
+            <Button x:Name="PlayPauseButton" Click="PlayPause_Click"
+                    Style="{StaticResource PlayPauseButtonStyle}"
+                    IsEnabled="{x:Bind HasPlayableSource, Mode=OneWay}"
+                    VerticalAlignment="Center"
+                    RenderTransformOrigin="0.5,0.5"
+                    PointerEntered="PlayPauseButton_PointerEntered"
+                    PointerExited="PlayPauseButton_PointerExited"
+                    PointerPressed="PlayPauseButton_PointerPressed"
+                    PointerReleased="PlayPauseButton_PointerReleased"
+                    AutomationProperties.Name="播放/暂停">
+                <Button.RenderTransform>
+                    <ScaleTransform x:Name="PlayPauseScale" ScaleX="1" ScaleY="1" />
+                </Button.RenderTransform>
+                <!-- ⑦ 两个 FontIcon 叠放，交叉淡入 100ms（不旋转） -->
+                <Grid>
+                    <FontIcon x:Name="PlayIcon" Glyph="&#xE768;" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Opacity="1" />
+                    <FontIcon x:Name="PauseIcon" Glyph="&#xE769;" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Opacity="0" />
+                </Grid>
+            </Button>
+
+            <Button x:Name="NextButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
+                    Click="NextButton_Click" AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
+                <FontIcon Glyph="&#xE893;" FontSize="{StaticResource FontSizeBody}" />
+            </Button>
+
+            <Button x:Name="ShuffleButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
+                    Click="ShuffleButton_Click" AutomationProperties.Name="随机播放：关" ToolTipService.ToolTip="随机播放：关">
+                <FontIcon x:Name="ShuffleIcon" Glyph="&#xE8B1;" FontSize="{StaticResource FontSizeCaption}" />
+            </Button>
+
+            <Button x:Name="RepeatButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
+                    Click="RepeatButton_Click" AutomationProperties.Name="循环：关" ToolTipService.ToolTip="循环：关">
+                <FontIcon x:Name="RepeatIcon" Glyph="&#xE8EE;" FontSize="{StaticResource FontSizeCaption}" />
+            </Button>
+        </StackPanel>
+
+        <Grid Grid.Column="2" ColumnSpacing="{StaticResource SpacingSm}" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
             <!--
+              保留 Phase 21 的全部属性与事件：StepFrequency、拖动/单击两条路径、Value 绑定、HelpText。
               进度条的两条用户输入路径都挂在模板部件上，**在代码后置里订阅**（PlayerBar.xaml.cs 的
               HookSliderParts），而不是在 markup 里：WinUI 的 XamlCompiler 不认 markup 写法
               —— `DragStarted="…"` 报 WMC0011 "Unknown member"，`prim:Thumb.DragStarted="…"`
@@ -61,8 +124,20 @@
                     ValueChanged="Position_Changed"
                     AutomationProperties.Name="播放进度"
                     AutomationProperties.HelpText="方向键微调约 0.5%，PageUp/PageDown 约 5%" />
+
+            <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" VerticalAlignment="Center" />
+        </Grid>
+
+        <StackPanel Grid.Column="3" Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingXs}" VerticalAlignment="Center">
+            <Button x:Name="MuteButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
+                    Click="MuteButton_Click" AutomationProperties.Name="静音" ToolTipService.ToolTip="静音">
+                <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" FontSize="{StaticResource FontSizeBody}" />
+            </Button>
+
+            <Slider x:Name="VolumeSlider" Width="88" Minimum="0" Maximum="1" StepFrequency="0.01"
+                    ValueChanged="VolumeSlider_ValueChanged"
+                    AutomationProperties.Name="音量" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Grid.Column="2" VerticalAlignment="Center"
-                   Text="{x:Bind TimeText, Mode=OneWay}" />
     </Grid>
 </UserControl>

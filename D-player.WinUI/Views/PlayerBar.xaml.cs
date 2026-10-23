@@ -1,8 +1,10 @@
 using System.ComponentModel;
+using System.Globalization;
 using DPlayer.Models;
 using DPlayer.ViewModels;
 using DPlayer.WinUI.Theme;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
@@ -50,6 +52,25 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     /// <summary>最近一次已应用到图标的 PlayState；位置心跳（~30 Hz PropertyChanged）不再重启动画。</summary>
     private PlayState? _lastIconState;
 
+    // —— Phase 22：运输控件状态同步 ——
+
+    /// <summary>SyncTransportVisuals 写 VolumeSlider.Value 时的重入 guard（ValueChanged 不再回写 Player.Volume）。</summary>
+    private bool _syncingVolume;
+
+    /// <summary>最近一次已应用的运输控件状态签名；位置心跳（~30 Hz）上早退，不刷画笔/滑块。</summary>
+    private string _lastTransportSignature = string.Empty;
+
+    private static Brush ThemeBrush(string key, Brush fallback)
+    {
+        try { return Application.Current.Resources[key] as Brush ?? fallback; }
+        catch { return fallback; }
+    }
+
+    private readonly Brush _accentBrush =
+        ThemeBrush("AccentFillColorDefaultBrush", new SolidColorBrush(Microsoft.UI.Colors.White));
+    private readonly Brush _secondaryBrush =
+        ThemeBrush("TextFillColorSecondaryBrush", new SolidColorBrush(Microsoft.UI.Colors.Gray));
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public PlayerViewModel Player { get; }
@@ -71,6 +92,9 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         Loaded += (_, _) => HookSliderParts();
         player.PropertyChanged += Player_PropertyChanged;
         Playlists.PropertyChanged += (_, _) => RefreshView();
+        // Queue/state changes do not raise Playlists.PropertyChanged; StateChanged does.
+        Playlists.StateChanged += (_, _) => RefreshView();
+        SyncTransportVisuals();
     }
 
     /// <summary>
@@ -319,6 +343,55 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
         // ⑦ 播放/暂停图标交叉淡入（内部只认 PlayState 真变化；位置心跳 tick 上早退）
         UpdatePlayPauseIcons();
+
+        SyncTransportVisuals();
+    }
+
+    /// <summary>
+    /// Phase 22 运输控件状态同步：上一首/下一首可用性、随机/循环/静音图标与提示、音量滑块。
+    /// 按签名早退 —— RefreshView 由每次 Player.PropertyChanged 触发（含 ~30 Hz 位置心跳），
+    /// 无变化时不再重设画笔与滑块值；写 VolumeSlider.Value 时用 <see cref="_syncingVolume"/> 挡住回写。
+    /// </summary>
+    private void SyncTransportVisuals()
+    {
+        var viewed = Playlists.ViewedPlaylist;
+        var signature =
+            $"{Playlists.ShuffleEnabled}|{Playlists.RepeatMode}|{Player.IsMuted}|" +
+            $"{Player.Volume.ToString("F3", CultureInfo.InvariantCulture)}|" +
+            $"{viewed?.Id ?? "-"}|{viewed?.HasCurrentTrack ?? false}";
+        if (signature == _lastTransportSignature) return;
+        _lastTransportSignature = signature;
+
+        var hasTrack = viewed?.HasCurrentTrack == true;
+        PrevButton.IsEnabled = hasTrack;
+        NextButton.IsEnabled = hasTrack;
+
+        ShuffleIcon.Foreground = Playlists.ShuffleEnabled ? _accentBrush : _secondaryBrush;
+        var shuffleText = Playlists.ShuffleEnabled ? "随机播放：开" : "随机播放：关";
+        ToolTipService.SetToolTip(ShuffleButton, shuffleText);
+        AutomationProperties.SetName(ShuffleButton, shuffleText);
+
+        var repeat = Playlists.RepeatMode;
+        RepeatIcon.Glyph = ((char)(repeat == RepeatMode.One ? 0xE8ED : 0xE8EE)).ToString();
+        RepeatIcon.Foreground = repeat == RepeatMode.Off ? _secondaryBrush : _accentBrush;
+        var repeatText = repeat switch
+        {
+            RepeatMode.Off => "循环：关",
+            RepeatMode.List => "循环：列表",
+            RepeatMode.One => "循环：单曲",
+            _ => "循环：关",
+        };
+        ToolTipService.SetToolTip(RepeatButton, repeatText);
+        AutomationProperties.SetName(RepeatButton, repeatText);
+
+        var muteText = Player.IsMuted ? "取消静音" : "静音";
+        MuteIcon.Glyph = ((char)(Player.IsMuted ? 0xE74F : 0xE767)).ToString();
+        ToolTipService.SetToolTip(MuteButton, muteText);
+        AutomationProperties.SetName(MuteButton, muteText);
+
+        _syncingVolume = true;
+        VolumeSlider.Value = Player.Volume;
+        _syncingVolume = false;
     }
 
     /// <summary>
@@ -363,6 +436,29 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
         _iconStoryboard = sb;
         sb.Begin();
+    }
+
+    // —— Phase 22：运输控件与音量 ——
+
+    private void PrevButton_Click(object sender, RoutedEventArgs e)
+        => Playlists.ViewedPlaylist?.PrevTrackCommand.Execute(null);
+
+    private void NextButton_Click(object sender, RoutedEventArgs e)
+        => Playlists.ViewedPlaylist?.NextTrackCommand.Execute(null);
+
+    private void ShuffleButton_Click(object sender, RoutedEventArgs e)
+        => Playlists.ToggleShuffleCommand.Execute(null);
+
+    private void RepeatButton_Click(object sender, RoutedEventArgs e)
+        => Playlists.CycleRepeatCommand.Execute(null);
+
+    private void MuteButton_Click(object sender, RoutedEventArgs e)
+        => Player.ToggleMuteCommand.Execute(null);
+
+    private void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_syncingVolume) return;
+        Player.Volume = (float)e.NewValue;
     }
 
     // —— x:Bind 只读投影 ——

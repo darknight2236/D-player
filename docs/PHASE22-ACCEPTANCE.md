@@ -48,10 +48,10 @@
 
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
-| C1 移动/缩放窗口 → 关闭 → 重开：位置与尺寸恢复。 |  |  |  |
-| C2 最大化关闭 → 重开：回到上次的普通几何。 |  |  |  |
-| C3 断点续播回归：播放中关窗 → 重开按 ▶ 从断点继续。 |  |  |  |
-| C4 屏外自愈（用户手测）：窗口中心不在任何显示器内 → 主屏居中。 |  |  |  |
+| C1 移动/缩放窗口 → 关闭 → 重开：位置与尺寸恢复。 | PASS | `SetWindowPos` 把外框移到 `(300,200) 1000x640`（关闭前读数 `outer 300,200 1000x640 client 984x632 zoomed=False`），用标题栏 `Close` 按钮关闭（点击 `1269,216`），3 秒后进程表为空；重新启动同一 exe 后 UIA 读数 `outer 300,200 1000x640 client 984x632 zoomed=False uia=300,200,1000x640`，位置与尺寸逐像素一致。走查后已还原为 `(200,80) 1200x800` 并再次关闭/重开验证（读数 `outer 200,80 1200x800`）。 | `%TEMP%\p22-acc\c1-01-moved.txt`、`c1-02-geom-before-close.txt`、`c1-03-closeclick.txt`、`c1-04-relaunch-geom.txt`、`c1-05-restore-move.txt`、`c1-06-restore-geom.txt` |
+| C2 最大化关闭 → 重开：回到上次的普通几何。 | PASS | 先处于普通几何 `(200,80) 1200x800`，点标题栏 `Maximize` 按钮（按钮随即改名 `Restore`）→ `outer -8,-8 1936x1064 client 1920x1048 zoomed=True`；在最大化态点 `Close`（`1897,16`）关闭，重开后读数为 `outer 200,80 1200x800 client 1184x792 zoomed=False`，即回到最大化前的普通几何而非最大化尺寸，证明最大化态未落盘。 | `%TEMP%\p22-acc\c2-01-maxclick.txt`、`c2-02-geom-maximized.txt`、`c2-03-close.txt`、`c2-04-relaunch-geom.txt` |
+| C3 断点续播回归：播放中关窗 → 重开按 ▶ 从断点继续。 | PASS | 临时歌单 `C3resume` 加入 `%TEMP%\p22-acc\audio\toneA30s.wav`（30s），双击播放后暂停并把进度条设为 `0.25` → 时间文本 `00:07 / 00:30`（`RangeValue=0.25`，静止 2 秒读数不变，确认已暂停）；点 `Close` 关闭，重开后时间栏即显示 `00:07 / 00:30`（断点已回灌，非 `00:00`），点 `▶` 后 3 秒读数为 `00:11 / 00:30`（`RangeValue=0.4049992`），播放从断点继续。全程在 30s 片段结束前停止，规避既有 `TrackEnded` 竞态。 | `%TEMP%\p22-acc\c3-24-pause.txt`、`c3-27-seek25.txt`、`c3-29-pos-check.txt`、`c3-31-relaunched.txt`、`c3-32-playclick.txt`、`c3-33-playing-after.txt`、`c3-34-pos-after.txt` |
+| C4 屏外自愈（用户手测）：窗口中心不在任何显示器内 → 主屏居中。 | NOT VERIFIED | 代理无法在不改产品代码的前提下把窗口中心移到所有显示器工作区之外再触发恢复（`SetWindowPos` 到屏外后 UIA 读不到窗口，且落盘值会被下一轮普通关闭覆盖，污染用户几何）。交用户手测，步骤见“交给用户”第 2 项。 | 无（未执行） |
 
 ## D 日志与门禁
 

@@ -136,6 +136,7 @@
             </Button>
 
             <Slider x:Name="VolumeSlider" Width="88" Minimum="0" Maximum="1" StepFrequency="0.01"
+                    SmallChange="0.05" LargeChange="0.1"
                     ValueChanged="VolumeSlider_ValueChanged"
                     AutomationProperties.Name="音量" VerticalAlignment="Center" />
         </StackPanel>

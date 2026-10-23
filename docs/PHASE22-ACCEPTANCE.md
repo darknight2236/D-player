@@ -1,6 +1,6 @@
 # Phase 22 WinUI 功能补齐验收清单
 
-**状态**：**部分执行（Task 8）**。本清单覆盖 Phase 22 已交付的功能层（异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、播放控制、基础设置、窗口几何、本地日志）。A 段已填写；B、D、E 段与 C 段在本轮后续提交中补齐。
+**状态**：**部分执行（Task 8，记录-复核轮）**。本清单覆盖 Phase 22 已交付的功能层（异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、播放控制、基础设置、窗口几何、本地日志）。已填写：A1–A7、B1–B6、D2、E1、E3；仍待填写：C1–C4、D1、D3、E2（由后续走查代理与用户完成）。
 
 执行者：acceptance agent（自动化部分）+ 用户（手测部分）。
 规则：不修改任何产品文件；只追加本验收记录。证据截图/UIA dump 位于 `%TEMP%\p22-acc\`。
@@ -37,12 +37,12 @@
 
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
-| B1 上一首/下一首在当前曲目为空时禁用，有曲目时切歌正确。 |  |  |  |
-| B2 随机开/关：图标强调态、ToolTip、实际随机行为。 |  |  |  |
-| B3 循环三态：Off/List/One 图标与 ToolTip 正确；单曲循环播完重播。 |  |  |  |
-| B4 音量滑块与静音：即时生效、图标状态正确、重启后恢复。 |  |  |  |
-| B5 底栏 64px 实测；宽/中/窄三档无重叠、无横向滚动。 |  |  |  |
-| B6 设置对话框：音量立即生效；音频输出只读；日志入口可打开日志目录。 |  |  |  |
+| B1 上一首/下一首在当前曲目为空时禁用，有曲目时切歌正确。 | PASS | 空歌单/无当前曲目时 `上一首`、`下一首` 均 `enabled=False`（`播放/暂停` 亦禁用）；播放 `tlong-A` 后两者变 `enabled=True`，连点下一首依次到 `tlong-D`，再点上一首回 `tlong-C`、`tlong-B`，标题/时间同步刷新且每次从 `00:02` 重新开始。 | `%TEMP%\p22-acc\t55-b1-playing.txt`、`t57-b1-next3.txt`、`t58-b1-prev.txt`、`t59-b1-prev2.txt`、`t56-b1-playing.png` |
+| B2 随机开/关：图标强调态、ToolTip、实际随机行为。 | PASS | UIA 名称/即时 ToolTip 由 `随机播放：开` 切到 `随机播放：关`（同一字符串同时驱动 ToolTipService）；开启后图标由次级灰变强调蓝（裁切图像素对比）；实际行为：4 曲歌单从 `tlong-A` 出发连点 3 次下一首得到 `B → D → C`，非顺序推进，证明随机生效。走查后已还原为 `随机播放：关`。 | `%TEMP%\p22-acc\t61-shuffle-state.txt`、`t60-b2-shuffle-on.png`、`t60-crop.png`、`b2-next1.txt`–`b2-next3.txt`、`b2-final.txt` |
+| B3 循环三态：Off/List/One 图标与 ToolTip 正确；单曲循环播完重播。 | PASS（单曲播完重播为 NOT VERIFIED） | 连点 `循环` 按钮三次，UIA 名称即 ToolTip 依次为 `循环：关` → `循环：列表` → `循环：单曲` → `循环：关`；裁切截图显示 List 为灰色 E8EE 环形箭头、One 为强调蓝 E8ED（带 “1”）字形，Off 为灰色。**单曲循环播完重播未验证**：需让 30s 短音频自然结束，而 Core 既有 `TrackEnded` 竞态会让其它歌单 VM 抢走播放（见“已知问题 1”），短音频还会干扰用户歌单，故标记 NOT VERIFIED；该分支由 Core 单元测试覆盖。 | `%TEMP%\p22-acc\b3-05-buttons.txt`、`b3-07-one.txt`、`b3-09-off.txt`、`b3-crop-list.png`、`b3-crop-one.png` |
+| B4 音量滑块与静音：即时生效、图标状态正确、重启后恢复。 | PASS | UIA `RangeValue` 读数 `1 → 0.85`（Left×3，malformed rounding 显示 `0.85000002`），静音后名称 `静音`→`取消静音`、滑块读数立刻 `0`、图标 E767→E74F（裁切图像素可见）；取消静音回到 `0.85`。关闭壳（WM_CLOSE）后重新启动，UIA 读回 `音量 = 0.850000023841858`，与关闭前一致，证明 `DefaultVolume` 已落盘并在启动时回灌。走查后 Right×3 还原为 `1.0000`（原始值，见 `t01-volume-orig.txt`）。 | `%TEMP%\p22-acc\b4-01-vol85.png`、`b4-03-muted.png`、`b4-crop-muted.png`、`b4-crop-unmuted.png`、`b4-04-unmuted.txt`、`t01-volume-orig.txt` |
+| B5 底栏 64px 实测；宽/中/窄三档无重叠、无横向滚动。 | PASS | 引用 Task 4 真机像素测量：底栏 y = 693..756（含）共 **64 px**，y = 757 为 1px 窗口边框；UIA 顺序 `上一首/播放暂停/下一首/随机/循环/播放进度/时间/静音/音量/设置`。响应式：外框 1000px（客户区 986）时 `音量` 滑块从树中消失、`正在播放`标签保留；外框 800px（客户区 786）时两者均收起，底栏无重叠、无横向滚动。本轮未重测，直接引用。 | Task 4 report §Manual smoke 1 / 5（`task-4-report.md`） |
+| B6 设置对话框：音量立即生效；音频输出只读；日志入口可打开日志目录。 | PASS | 引用 Task 5 真机结果：`设置` 打开对话框，UIA 暴露 `设置 / 音量 / VolumeSlider / VolumePercent / 音频输出 / 日志 / LogPathText / 打开日志文件夹 / 完成`；音量 `1.0000 / 100%` → Left → `0.0000 / 0%` 即时生效且关闭重开仍为 `0%`；`音频输出` 是不可编辑文本；点击 `打开日志文件夹` 弹出标题为 `...\D-player-winui\logs - 文件资源管理器` 的 Explorer。 | Task 5 report §Manual smoke 1 / 5（`task-5-report.md`） |
 
 ## C 持久化与窗口
 
@@ -58,7 +58,7 @@
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
 | D1 启动后日志文件存在且含启动记录；损坏音频触发 `PlaybackError`；断点文件缺失/失效走 `断点续播被跳过`；日志 IO 失败不影响应用。 |  |  |  |
-| D2 `powershell -File tools/verify-gates.ps1 -Full` → 三道门禁全绿。 |  |  |  |
+| D2 `powershell -File tools/verify-gates.ps1 -Full` → 三道门禁全绿。 | PASS | `mode: Full (3 gates…)`；gate 1/3 `-> ok (exit 0, 0 warning lines)`，gate 2/3 `总计 180 / 失败 0`，gate 3/3 `-> ok (exit 0, 0 warning lines)`，结尾 `all requested steps passed.`（进程退出码 0）。 | `%TEMP%\p22-acc\gates.log` |
 | D3 WPF 壳的导入/导出/文件夹对话框行为不变（用户手测）。 |  |  |  |
 
 > D1 口径补充：断点文件缺失/失效走的是 `断点续播被跳过：<原因>` 记录，不是 `PlaybackError`；`PlaybackError` 由播放失败（如损坏音频）触发。两者都写同一个 `app.log`。
@@ -67,9 +67,9 @@
 
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
-| E1 `.slnf` 180 通过 / 0 失败；WinUI 单壳 0 警告 0 错误。 |  |  |  |
+| E1 `.slnf` 180 通过 / 0 失败；WinUI 单壳 0 警告 0 错误。 | PASS | 逐条实跑：`dotnet build D-player.slnf -c Debug --nologo -v q` → `0 个警告 0 个错误`（1.80 s，exit 0）；`dotnet test D-player.slnf -c Debug -v q`（无 `--nologo`）→ `总计 180 / 失败 0 / 成功 180 / 已跳过 0`（exit 0）；`dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q` → `0 个警告 0 个错误`（13.60 s，exit 0）。 | `%TEMP%\p22-acc\gates.log` |
 | E2 Phase 21 的折叠、Tab 顺序、空格播放/暂停、方向键步进、9 项动效抽样不回退。 |  |  |  |
-| E3 Core 除 `IFileDialogService` 外无公开面变化；WPF 用户可见行为零变化。 |  |  |  |
+| E3 Core 除 `IFileDialogService` 外无公开面变化；WPF 用户可见行为零变化。 | PASS | `git diff 9cc28ba..HEAD -- D-player.Core` **无输出**（交付基线之后 Core 未再改动）。整个 Phase 22 窗口 `git diff 18f6486..HEAD -- D-player.Core` 只触及 3 个文件：`IFileDialogService.cs`（唯一公开面变化：三个同步方法 → `Task<...>` 的 `OpenFilesAsync` / `OpenFolderAsync` / `SaveFileAsync`）、`PlaylistViewModel.cs` / `PlaylistsViewModel.cs`（仅 `await` 调用点与私有嵌套 `NullFileDialogService` 的实现，无其它 public/protected 成员增删）。WPF 工程只改了 `D-player/Services/Win32FileDialogService.cs`：原同步方法体原样保留为 `private static`，公开方法改为 `Task.FromResult(...)` 包装，对话框类型/过滤器/标题/默认扩展名/OverwritePrompt 全部未变。WPF 的肉眼确认属 D3（用户手测）。 | `git diff 9cc28ba..HEAD -- D-player.Core`（空）、`git diff 18f6486..HEAD -- D-player.Core`、`git diff 18f6486..HEAD -- D-player/Services/Win32FileDialogService.cs` |
 
 ---
 

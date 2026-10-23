@@ -78,7 +78,7 @@
   ```
 - Consumes: existing `PlaylistFileFormats.OpenFilter` / `SaveFilter`; existing Core commands.
 
-- [ ] **Step 1: Replace the interface**
+- [x] **Step 1: Replace the interface**
 
 `D-player.Core/Services/IFileDialogService.cs`:
 
@@ -103,12 +103,12 @@ public interface IFileDialogService
 }
 ```
 
-- [ ] **Step 2: Run the build and confirm the expected call-site failures**
+- [x] **Step 2: Run the build and confirm the expected call-site failures**
 
 Run: `dotnet build D-player.slnf -c Debug --nologo -v q`
 Expected: fails with `CS0535` on both `IFileDialogService` implementations and `CS1061` at the six Core call sites. This is the failing step; do not fix tests yet.
 
-- [ ] **Step 3: Update the six Core call sites**
+- [x] **Step 3: Update the six Core call sites**
 
 In `D-player.Core/ViewModels/PlaylistViewModel.cs`:
 
@@ -152,7 +152,7 @@ private sealed class NullFileDialogService : IFileDialogService
 }
 ```
 
-- [ ] **Step 4: Update the WPF implementation**
+- [x] **Step 4: Update the WPF implementation**
 
 `D-player/Services/Win32FileDialogService.cs`:
 
@@ -205,7 +205,7 @@ public sealed class Win32FileDialogService : IFileDialogService
 }
 ```
 
-- [ ] **Step 5: Implement the WinUI pickers**
+- [x] **Step 5: Implement the WinUI pickers**
 
 `D-player.WinUI/Services/WinUiFileDialogService.cs`:
 
@@ -356,7 +356,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
 }
 ```
 
-- [ ] **Step 6: Wire the HWND in `App.xaml.cs`**
+- [x] **Step 6: Wire the HWND in `App.xaml.cs`**
 
 Add `using WinRT.Interop;`, a field `private IntPtr _hwnd;`, and change the registration/window creation:
 
@@ -372,7 +372,7 @@ window.Activate();
 
 The service is constructed during `GetRequiredService<MainViewModel>()`, before `_hwnd` is written; it reads the field lazily on the first picker call, which happens only after user interaction.
 
-- [ ] **Step 7: Update the test doubles and expectations**
+- [x] **Step 7: Update the test doubles and expectations**
 
 `Tests/Extensions/AddDPlayerCoreTests.cs` — replace `StubFileDialogService` members:
 
@@ -407,7 +407,7 @@ _fileDialog.DidNotReceive().SaveFileAsync(Arg.Any<string>(), Arg.Any<string>(), 
 
 `Tests/ViewModels/PlaybackResumeTests.cs` — no call sites; it only constructs the substitute, so it compiles unchanged. Leave it alone.
 
-- [ ] **Step 8: Promote the WinUI build to gate 3 in `-Full`**
+- [x] **Step 8: Promote the WinUI build to gate 3 in `-Full`**
 
 In `tools/verify-gates.ps1`:
 
@@ -426,7 +426,7 @@ In `tools/verify-gates.ps1`:
   ```
 - Keep the script pure ASCII.
 
-- [ ] **Step 9: Run all gates**
+- [x] **Step 9: Run all gates**
 
 ```bash
 dotnet build D-player.slnf -c Debug --nologo -v q
@@ -437,7 +437,7 @@ powershell -File tools/verify-gates.ps1 -Full
 
 Expected: 0/0; 180 passed / 0 failed; 0/0; three passed steps ending with `all requested steps passed.`
 
-- [ ] **Step 10: CRLF check and commit**
+- [x] **Step 10: CRLF check and commit**
 
 ```bash
 git ls-files --eol D-player.Core/Services/IFileDialogService.cs D-player.Core/ViewModels/PlaylistViewModel.cs D-player.Core/ViewModels/PlaylistsViewModel.cs D-player/Services/Win32FileDialogService.cs D-player.WinUI/Services/WinUiFileDialogService.cs D-player.WinUI/App.xaml.cs Tests/ViewModels/PlaylistViewModelTests.cs Tests/ViewModels/PlaylistsViewModelTests.cs Tests/Extensions/AddDPlayerCoreTests.cs tools/verify-gates.ps1
@@ -471,7 +471,7 @@ git commit -m "feat(core): make file dialogs async across both shells"
   ```
 - Consumes: `PlaylistsViewModel.AddPlaylistCommand`, `RenamePlaylistCommand`, `RemovePlaylistCommand`, `ImportPlaylistFileAsync`, `PlaylistImportReportFormatter`.
 
-- [ ] **Step 1: Create the converter**
+- [x] **Step 1: Create the converter**
 
 `D-player.WinUI/Views/Converters.cs`:
 
@@ -491,7 +491,7 @@ internal sealed class BoolToVisibilityConverter : IValueConverter
 }
 ```
 
-- [ ] **Step 2: Create the dialog host**
+- [x] **Step 2: Create the dialog host**
 
 `D-player.WinUI/Services/WinUiDialogService.cs`:
 
@@ -607,7 +607,7 @@ internal static class WinUiDialogService
 }
 ```
 
-- [ ] **Step 3: Extend the Space guard in `MainWindow.xaml.cs`**
+- [x] **Step 3: Extend the Space guard in `MainWindow.xaml.cs`**
 
 Add `using System.Linq;`, `using Microsoft.UI.Xaml.Controls.Primitives;`, `using Microsoft.UI.Xaml.Media;`, `using DPlayer.WinUI.Services;`.
 
@@ -634,7 +634,7 @@ private bool IsContentDialogOpen()
            .Any(p => p.Child is not null && VisualTree.FindDescendant<ContentDialog>(p.Child) is not null);
 ```
 
-- [ ] **Step 4: Add the NavRail toolbar and active marker**
+- [x] **Step 4: Add the NavRail toolbar and active marker**
 
 In `NavRail.xaml` resources add:
 
@@ -696,7 +696,7 @@ In `RailItemTemplate`, add the marker as the first child of the root Grid (it ov
           Visibility="{x:Bind IsActivePlaylist, Converter={StaticResource BoolToVisibility}, Mode=OneWay}" />
 ```
 
-- [ ] **Step 5: Wire NavRail behavior**
+- [x] **Step 5: Wire NavRail behavior**
 
 In `NavRail.xaml.cs` add `using DPlayer.WinUI.Services;`, `using Microsoft.UI.Xaml.Input;`, and:
 
@@ -768,7 +768,7 @@ private async void PlaylistList_DoubleTapped(object sender, DoubleTappedRoutedEv
 }
 ```
 
-- [ ] **Step 6: Build and smoke-test**
+- [x] **Step 6: Build and smoke-test**
 
 ```bash
 dotnet build D-player.slnf -c Debug --nologo -v q
@@ -784,7 +784,7 @@ Manual smoke (launch `dotnet run --project D-player.WinUI/D-player.WinUI.csproj 
 4. With focus in the rename TextBox, type a space; playback must **not** toggle.
 If no GUI automation is available, boot the shell, verify it stays alive, and report the four interactions as NOT VERIFIED for the user.
 
-- [ ] **Step 7: CRLF check and commit**
+- [x] **Step 7: CRLF check and commit**
 
 ```bash
 git ls-files --eol D-player.WinUI/Services/WinUiDialogService.cs D-player.WinUI/Views/Converters.cs D-player.WinUI/Views/NavRail.xaml D-player.WinUI/Views/NavRail.xaml.cs D-player.WinUI/MainWindow.xaml.cs
@@ -804,7 +804,7 @@ git commit -m "feat(winui): add playlist management and dialog host"
 - Consumes: `PlaylistViewModel.AddToQueueCommand`, `ImportFolderToCurrentCommand`, `ImportPlaylistFileAsync()`, `ExportPlaylistFileAsync()`, `ClearQueueCommand`; `WinUiDialogService`; `PlaylistImportReportFormatter`.
 - Produces: a 40px toolbar row above the header; busy state; updated empty-state copy.
 
-- [ ] **Step 1: Add the tokens**
+- [x] **Step 1: Add the tokens**
 
 In `Theme/Tokens.xaml`:
 
@@ -813,7 +813,7 @@ In `Theme/Tokens.xaml`:
 <x:Double x:Key="ToolbarButtonSize">28</x:Double>
 ```
 
-- [ ] **Step 2: Add the toolbar row**
+- [x] **Step 2: Add the toolbar row**
 
 In `TrackList.xaml`, change the root Grid to three rows:
 
@@ -884,7 +884,7 @@ Toolbar markup:
 </Grid>
 ```
 
-- [ ] **Step 3: Implement the toolbar state and handlers**
+- [x] **Step 3: Implement the toolbar state and handlers**
 
 Add `using DPlayer.WinUI.Services;` and `using DPlayer.ViewModels;` (already present) to `TrackList.xaml.cs`.
 
@@ -984,7 +984,7 @@ private void OnViewedQueueChanged(object? sender, NotifyCollectionChangedEventAr
 }
 ```
 
-- [ ] **Step 4: Update the empty-state copy**
+- [x] **Step 4: Update the empty-state copy**
 
 Replace the second empty-state line:
 
@@ -994,7 +994,7 @@ Replace the second empty-state line:
            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 ```
 
-- [ ] **Step 5: Build, boot and smoke-test**
+- [x] **Step 5: Build, boot and smoke-test**
 
 Run the four gate commands from Global Constraints. Then launch the shell and verify:
 1. Toolbar buttons are visible, have tooltips, and `导出`/`清空` are disabled on an empty playlist.
@@ -1003,7 +1003,7 @@ Run the four gate commands from Global Constraints. Then launch the shell and ve
 4. `导出` on a non-empty playlist opens the save picker.
 If no GUI automation is available, boot the shell, verify it stays alive, and report the picker interactions as NOT VERIFIED for the user.
 
-- [ ] **Step 6: CRLF check and commit**
+- [x] **Step 6: CRLF check and commit**
 
 ```bash
 git ls-files --eol D-player.WinUI/Views/TrackList.xaml D-player.WinUI/Views/TrackList.xaml.cs D-player.WinUI/Theme/Tokens.xaml
@@ -1024,7 +1024,7 @@ git commit -m "feat(winui): add import and export toolbar"
 - Consumes: `Playlists.ViewedPlaylist.PrevTrackCommand` / `NextTrackCommand`, `Playlists.ToggleShuffleCommand`, `Playlists.CycleRepeatCommand`, `Playlists.ShuffleEnabled`, `Playlists.RepeatMode`, `Player.ToggleMuteCommand`, `Player.Volume`, `Player.IsMuted`.
 - Produces: `PrevButton`, `PlayPauseButton`, `NextButton`, `ShuffleButton`, `RepeatButton`, `MuteButton`, `VolumeSlider`; `SyncTransportVisuals()`.
 
-- [ ] **Step 1: Replace the PlayerBar XAML layout**
+- [x] **Step 1: Replace the PlayerBar XAML layout**
 
 Keep the existing `PositionSlider` attributes/handlers and the `PlayPauseButton` style/animations exactly as they are. The new structure is:
 
@@ -1145,7 +1145,7 @@ Keep the existing `PositionSlider` attributes/handlers and the `PlayPauseButton`
 </Grid>
 ```
 
-- [ ] **Step 2: Add the transport state sync**
+- [x] **Step 2: Add the transport state sync**
 
 In `PlayerBar.xaml.cs` add `using System.Globalization;`, `using DPlayer.Models;`, `using Microsoft.UI.Xaml.Automation;`, `using Microsoft.UI.Xaml.Media;`, and:
 
@@ -1219,7 +1219,7 @@ SyncTransportVisuals();
 
 Then call `SyncTransportVisuals()` at the end of `RefreshView()`.
 
-- [ ] **Step 3: Add the click and volume handlers**
+- [x] **Step 3: Add the click and volume handlers**
 
 ```csharp
 private void PrevButton_Click(object sender, RoutedEventArgs e)
@@ -1244,7 +1244,7 @@ private void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEvent
 }
 ```
 
-- [ ] **Step 4: Build and inspect the bar**
+- [x] **Step 4: Build and inspect the bar**
 
 Run the four gate commands. Then launch the shell and verify:
 1. Bar is 64px (pixel/UIA measurement).
@@ -1253,7 +1253,7 @@ Run the four gate commands. Then launch the shell and verify:
 4. Narrow the window below 1100 and 860: volume slider hides, then the now-playing text hides; no overlap or horizontal scroll.
 If no GUI automation is available, boot the shell and report the visual checks as NOT VERIFIED for the user.
 
-- [ ] **Step 5: CRLF check and commit**
+- [x] **Step 5: CRLF check and commit**
 
 ```bash
 git ls-files --eol D-player.WinUI/Views/PlayerBar.xaml D-player.WinUI/Views/PlayerBar.xaml.cs
@@ -1289,7 +1289,7 @@ git commit -m "feat(winui): complete the 64px transport bar"
   ```
 - Consumes: `ISettingsPersistence.LoadAsync/UpdateAsync`, `AppSettings.WindowLeft/Top/Width/Height`, `PlayerViewModel.Volume`.
 
-- [ ] **Step 1: Add the path constants**
+- [x] **Step 1: Add the path constants**
 
 `D-player.WinUI/Services/WinUiAppPaths.cs`:
 
@@ -1311,7 +1311,7 @@ internal static class WinUiAppPaths
 
 In `App.xaml.cs`, replace `FolderName = "D-player-winui"` with `FolderName = WinUiAppPaths.DataFolderName`.
 
-- [ ] **Step 2: Create the settings dialog**
+- [x] **Step 2: Create the settings dialog**
 
 `D-player.WinUI/Views/Dialogs/SettingsDialog.xaml`:
 
@@ -1419,7 +1419,7 @@ public sealed partial class SettingsDialog : ContentDialog
 }
 ```
 
-- [ ] **Step 3: Add the settings button to PlayerBar**
+- [x] **Step 3: Add the settings button to PlayerBar**
 
 In the right-side StackPanel of `PlayerBar.xaml`, after `VolumeSlider`:
 
@@ -1448,7 +1448,7 @@ private async void SettingsButton_Click(object sender, RoutedEventArgs e)
 }
 ```
 
-- [ ] **Step 4: Restore/save window geometry**
+- [x] **Step 4: Restore/save window geometry**
 
 In `MainWindow.xaml.cs` add `using System.Diagnostics;`, `using System.Linq;`, `using DPlayer.Configuration;`, `using DPlayer.Services;`, `using DPlayer.WinUI.Services;`, `using Microsoft.UI.Windowing;`, `using Windows.Graphics;`.
 
@@ -1560,7 +1560,7 @@ private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs
 }
 ```
 
-- [ ] **Step 5: Update `App.xaml.cs` window construction**
+- [x] **Step 5: Update `App.xaml.cs` window construction**
 
 ```csharp
 var settings = _services.GetRequiredService<ISettingsPersistence>();
@@ -1570,7 +1570,7 @@ _hwnd = WindowNative.GetWindowHandle(window);
 window.Activate();
 ```
 
-- [ ] **Step 6: Build and verify geometry**
+- [x] **Step 6: Build and verify geometry**
 
 Run the four gate commands. Then launch the shell:
 1. Move/resize the window; close; reopen; verify the same position/size (UIA `GetWindowRect` or a screenshot).
@@ -1579,7 +1579,7 @@ Run the four gate commands. Then launch the shell:
 4. Log folder button opens Explorer at the log directory (the agent must not inspect the files).
 If no GUI automation is available, boot the shell and report the interactions as NOT VERIFIED for the user.
 
-- [ ] **Step 7: CRLF check and commit**
+- [x] **Step 7: CRLF check and commit**
 
 ```bash
 git ls-files --eol D-player.WinUI/Services/WinUiAppPaths.cs D-player.WinUI/Views/Dialogs/SettingsDialog.xaml D-player.WinUI/Views/Dialogs/SettingsDialog.xaml.cs D-player.WinUI/Views/PlayerBar.xaml D-player.WinUI/Views/PlayerBar.xaml.cs D-player.WinUI/MainWindow.xaml.cs D-player.WinUI/App.xaml.cs
@@ -1608,7 +1608,7 @@ git commit -m "feat(winui): add settings and persist window geometry"
   ```
 - Consumes: `WinUiAppPaths.LogDirectory`, `IPlaybackService.PlaybackError`.
 
-- [ ] **Step 1: Create `AppLog`**
+- [x] **Step 1: Create `AppLog`**
 
 `D-player.WinUI/Services/AppLog.cs`:
 
@@ -1676,7 +1676,7 @@ internal static class AppLog
 }
 ```
 
-- [ ] **Step 2: Hook the app**
+- [x] **Step 2: Hook the app**
 
 In `App.xaml.cs` constructor, after `InitializeComponent()`:
 
@@ -1713,7 +1713,7 @@ catch (Exception ex)
 
 Add `AppLog.Write("WinUI shell starting")` right after `AppLog.Initialize(...)`.
 
-- [ ] **Step 3: Route picker and geometry failures to the log**
+- [x] **Step 3: Route picker and geometry failures to the log**
 
 In `WinUiFileDialogService.cs`, replace each `Debug.WriteLine(...)` with:
 
@@ -1733,14 +1733,14 @@ In `MainWindow.xaml.cs`, replace the geometry-save `Debug.WriteLine` with:
 AppLog.Write("保存窗口几何失败", ex);
 ```
 
-- [ ] **Step 4: Build and verify the log path structurally**
+- [x] **Step 4: Build and verify the log path structurally**
 
 Run the four gate commands. Launch the shell once. The agent must **not** read the log file (the data directory is off-limits by policy); instead verify:
 1. The app starts and stays alive.
 2. Settings → 打开日志文件夹 opens Explorer at the expected directory (visual check).
 3. The log file content and `PlaybackError` record are handed to the user in the acceptance checklist.
 
-- [ ] **Step 5: CRLF check and commit**
+- [x] **Step 5: CRLF check and commit**
 
 ```bash
 git ls-files --eol D-player.WinUI/Services/AppLog.cs D-player.WinUI/App.xaml.cs D-player.WinUI/Services/WinUiFileDialogService.cs D-player.WinUI/MainWindow.xaml.cs
@@ -1761,7 +1761,7 @@ git commit -m "feat(winui): add a file log outlet"
 
 **Interfaces:** none (documentation only).
 
-- [ ] **Step 1: Create the acceptance checklist**
+- [x] **Step 1: Create the acceptance checklist**
 
 Create `docs/PHASE22-ACCEPTANCE.md` with the same format as `PHASE21-ACCEPTANCE.md`:
 
@@ -1806,7 +1806,7 @@ Create `docs/PHASE22-ACCEPTANCE.md` with the same format as `PHASE21-ACCEPTANCE.
 - E3 Core 除 `IFileDialogService` 外无公开面变化；WPF 用户可见行为零变化。
 ```
 
-- [ ] **Step 2: Update `docs/PHASE20-COMPARISON.md` §3**
+- [x] **Step 2: Update `docs/PHASE20-COMPARISON.md` §3**
 
 Add a note under the §3 heading: “Phase 22 已闭合下列行；频谱/EQ/拖拽/排序/文件夹绑定管理仍留给后续阶段。” Then update these rows:
 
@@ -1822,7 +1822,7 @@ Add a note under the §3 heading: “Phase 22 已闭合下列行；频谱/EQ/拖
 | 曲目信息面板 | ✅ | 🟡 | 封面/标题/艺术家/专辑/时长已有；采样率与频谱仍缺 |
 | 频谱 / EQ / 拖拽 / 排序 / 文件夹绑定管理 | ✅ | ❌ | Phase 23 / 24 |
 
-- [ ] **Step 3: Update `docs/COUPLING.md`**
+- [x] **Step 3: Update `docs/COUPLING.md`**
 
 Add a Phase 22 block:
 
@@ -1835,7 +1835,7 @@ Add a Phase 22 block:
 | 对话框宿主 | 所有 `ContentDialog` 经壳内 `WinUiDialogService`；`IsOpen` 供空格守卫判断 | 不让 Core VM 驱动 UI 提示 |
 ```
 
-- [ ] **Step 4: Update `docs/PROJECT.md`**
+- [x] **Step 4: Update `docs/PROJECT.md`**
 
 Add a Phase 22 row after Phase 21:
 
@@ -1850,14 +1850,14 @@ Update the gate vocabulary in §4/§5 (wherever “壳侧检查（不是门禁�
 - 门禁 3（`-Full`，每个 Phase 22 任务必跑）：WinUI 单工程构建 0 警告。
 ```
 
-- [ ] **Step 5: Update `README.md`**
+- [x] **Step 5: Update `README.md`**
 
 - Features section: change the WinUI paragraph from “仍是功能切片” to “已具备导入/导出、歌单管理、完整播放控制、设置、窗口几何与日志；仍缺频谱/EQ/拖拽/排序/文件夹绑定管理”.
 - “构建与运行” gate section: replace “壳侧检查 = WinUI 单工程构建。它不是门禁” with the three-gate vocabulary; `-Fast` = gates 1+2, `-Full` = gates 1+2+3.
 - “已知限制” WinUI bullet: remove the no-import/no-controls claims; keep spectrum/EQ/drag/sort/folder-bound gaps and the `-Full`-only protection note.
 - Phase table: add Phase 22.
 
-- [ ] **Step 6: Final gates + commit**
+- [x] **Step 6: Final gates + commit**
 
 ```bash
 powershell -File tools/verify-gates.ps1 -Full
@@ -1878,7 +1878,7 @@ Expected: `all requested steps passed.`
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Run the automated gates and record the exact output**
+- [x] **Step 1: Run the automated gates and record the exact output**
 
 ```bash
 dotnet build D-player.slnf -c Debug --nologo -v q
@@ -1889,7 +1889,7 @@ powershell -File tools/verify-gates.ps1 -Full
 
 Expected: 0/0; 180 passed / 0 failed; 0/0; three gates passed. Save the console log under `%TEMP%\p22-acc\gates.log`.
 
-- [ ] **Step 2: Launch the shell and walk A/B/C/D/E**
+- [x] **Step 2: Launch the shell and walk A/B/C/D/E**
 
 Launch `dotnet run --project D-player.WinUI/D-player.WinUI.csproj -c Debug`. For each item in `docs/PHASE22-ACCEPTANCE.md`:
 - Use the UI (real mouse/keyboard) wherever possible.
@@ -1897,7 +1897,7 @@ Launch `dotnet run --project D-player.WinUI/D-player.WinUI.csproj -c Debug`. For
 - Never read/write `%LOCALAPPDATA%\D-player-winui\*`; items that need it (log content, off-screen self-heal) are marked NOT VERIFIED and handed to the user with exact steps.
 - Do not modify product files during the walkthrough; the acceptance record is the only tracked file you append to.
 
-- [ ] **Step 3: Fill the results and hand off the user-only items**
+- [x] **Step 3: Fill the results and hand off the user-only items**
 
 Append per-item rows in the standard format. At the end, add a “交给用户” section listing:
 - D1 log file content.
@@ -1905,7 +1905,7 @@ Append per-item rows in the standard format. At the end, add a “交给用户�
 - B5/B6 visual feel if no GUI automation was available.
 - D3 WPF dialog behavior.
 
-- [ ] **Step 4: Commit the acceptance record**
+- [x] **Step 4: Commit the acceptance record**
 
 ```bash
 git ls-files --eol docs/PHASE22-ACCEPTANCE.md

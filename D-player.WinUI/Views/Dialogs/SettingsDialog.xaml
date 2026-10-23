@@ -15,6 +15,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Slider x:Name="VolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
+                        SmallChange="0.05" LargeChange="0.1"
                         ValueChanged="VolumeSlider_ValueChanged" AutomationProperties.Name="音量" />
                 <TextBlock x:Name="VolumePercent" Grid.Column="1" VerticalAlignment="Center" />
             </Grid>

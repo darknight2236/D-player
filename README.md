@@ -1,7 +1,7 @@
 # D-player
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（.NET 10 + NAudio）。
-> 共享层 `D-player.Core`（WPF-free）之上跑两套 UI 壳：**WPF 壳**（完整功能，日常使用的那一个）与 **WinUI 3 壳**（Phase 21 视觉打磨 + Phase 22 功能补齐：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何与本地日志；仍缺频谱 / EQ / 拖拽 / 排序 / 文件夹绑定管理 / TrackList ▶ / InfoPanel 采样率。**验收已完成**（自动化 19 项 PASS；C4/D1/D3 及 A6 的“删最后一个歌单重建默认”、B3 的“单曲循环自然播完”交用户手测，步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）；Phase 20 的去留结论与 Phase 21/22 的历史证据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)）。
+> 共享层 `D-player.Core`（WPF-free）之上跑两套 UI 壳：**WPF 壳**（完整功能，日常使用的那一个）与 **WinUI 3 壳**（Phase 21 视觉打磨 + Phase 22 功能补齐：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何与本地日志；仍缺频谱 / EQ / 拖拽 / 排序 / 文件夹绑定管理 / TrackList ▶ / InfoPanel 采样率。**验收已完成**（自动化 20 项 PASS；C4/D1/D3 及 A6 的“删最后一个歌单重建默认”、B3 的“单曲循环自然播完”交用户手测，步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）；Phase 20 的去留结论与 Phase 21/22 的历史证据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)）。
 > 灵感来源于 foobar2000。原名 UmaPlayer。
 
 ---
@@ -224,7 +224,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 19 | 依赖迁移（NAudio 收窄为 Core + Wasapi、输出改经 `WasapiPlayerBuilder` 建 `WasapiPlayer`、测试栈迁到 xunit.v3；无产品行为变化） |
 | 20 | WinUI 3 第二 UI 壳：抽出 WPF-free 的 `D-player.Core`、数据目录由壳注入、门禁改用 `D-player.slnf`、做出第一条纵向切片并交付对比材料（WPF 壳行为与外观零变化；**切片已交付，§2.1 那份验收走查已由用户 2026-10-07 在真机走完并在同日第二轮复验里收口——无待复验项**，唯一报出的"进度条单击定位"缺陷当晚已量出根因并修掉（结果与那处缺陷的实测机制记在对比材料 §2.2）；**决策门已拍板：续投 WinUI（2026-10-07，用户理由：切片只是基本骨架、不足以公平打分），六维评分延后至第二阶段之后**） |
 | 21 | WinUI 壳视觉与交互打磨：三栏 IA（NavRail/TrackList/InfoPanel/PlayerBar）+ 设计令牌层（间距/圆角/字号/时长三档）+ 六态样式 + 键盘与无障碍 + 9 项动效；**23 项验收全部通过、验收闭合（2026-10-08），逐项结果见 `docs/PHASE21-ACCEPTANCE.md`；起窗崩溃（exit 0xC0000005）已在 `bba9ad4` 修复并验证——根因是对象初始化器在构造函数体之后执行（`Playlists` 订阅时仍为 null）** |
-| 22 | WinUI 功能补齐（日常可用闭环）：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何持久化、本地日志；WinUI 构建纳入 `verify-gates.ps1 -Full` 的门禁 3。频谱/EQ/拖拽/排序/文件夹绑定管理留 Phase 23/24；**验收已完成**（自动化 19 项 PASS；C4/D1/D3 及 A6 的“删最后一个歌单重建默认”、B3 的“单曲循环自然播完”交用户手测，步骤见 `docs/PHASE22-ACCEPTANCE.md`）** |
+| 22 | WinUI 功能补齐（日常可用闭环）：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何持久化、本地日志；WinUI 构建纳入 `verify-gates.ps1 -Full` 的门禁 3。频谱/EQ/拖拽/排序/文件夹绑定管理留 Phase 23/24；**验收已完成**（自动化 20 项 PASS；C4/D1/D3 及 A6 的“删最后一个歌单重建默认”、B3 的“单曲循环自然播完”交用户手测，步骤见 `docs/PHASE22-ACCEPTANCE.md`） |
 
 每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。Phase 20 的两壳对比材料与决策门记录位在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)；Phase 22 验收清单在 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)。
 
@@ -237,4 +237,4 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
 - 按艺术家/专辑组织的音乐库视图尚未实现。
-- **WinUI 3 壳已具备日常可用闭环（Phase 22），但不是与 WPF 完全等价**：Phase 22 交付了异步文件对话框 + 真实 picker、导入/导出（添加文件 / 递归导入文件夹 / M3U(M3U8)/PLS 追加 / M3U8 导出）、歌单新建/重命名/删除与 ▶ 活跃标记、上一首/下一首/随机/循环三态/音量/静音（64px 底栏）、基础设置（音量 + 只读音频输出 + 日志入口）、窗口几何持久化与屏外自愈、本地日志（`%LOCALAPPDATA%\D-player-winui\logs\app.log`，1 MiB 轮转）；验收已完成（自动化 19 项 PASS；C4/D1/D3 及 A6 的“删最后一个歌单重建默认”、B3 的“单曲循环自然播完”交用户手测，步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。仍缺：频谱、EQ、拖拽（外部入队 / 队列内重排 / 歌单重排）、表头排序、文件夹绑定歌单的管理与刷新、TrackList 的 ▶ 当前曲标记、InfoPanel 的采样率读数（封面/标题/艺术家/专辑/时长已有）。WinUI 仍不在 `D-player.slnf` 里：门禁 1/2 覆盖不到它，只有 `-Full` 的门禁 3 会编译它；壳的行为没有单测，靠真机手测。已知问题见验收文档的「已知问题 / 交给用户」一节（含 Core 的 `TrackEnded` 竞态、删除查看中歌单后的选中不一致、文件夹 picker 输入路径等效取消等）。
+- **WinUI 3 壳已具备日常可用闭环（Phase 22），但不是与 WPF 完全等价**：Phase 22 交付了异步文件对话框 + 真实 picker、导入/导出（添加文件 / 递归导入文件夹 / M3U(M3U8)/PLS 追加 / M3U8 导出）、歌单新建/重命名/删除与 ▶ 活跃标记、上一首/下一首/随机/循环三态/音量/静音（64px 底栏）、基础设置（音量 + 只读音频输出 + 日志入口）、窗口几何持久化与屏外自愈、本地日志（`%LOCALAPPDATA%\D-player-winui\logs\app.log`，1 MiB 轮转）；验收已完成（自动化 20 项 PASS；C4/D1/D3 及 A6 的“删最后一个歌单重建默认”、B3 的“单曲循环自然播完”交用户手测，步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。仍缺：频谱、EQ、拖拽（外部入队 / 队列内重排 / 歌单重排）、表头排序、文件夹绑定歌单的管理与刷新、TrackList 的 ▶ 当前曲标记、InfoPanel 的采样率读数（封面/标题/艺术家/专辑/时长已有）。WinUI 仍不在 `D-player.slnf` 里：门禁 1/2 覆盖不到它，只有 `-Full` 的门禁 3 会编译它；壳的行为没有单测，靠真机手测。已知问题见验收文档的「已知问题 / 交给用户」一节（含 Core 的 `TrackEnded` 竞态、删除查看中歌单后的选中不一致、文件夹 picker 输入路径等效取消等）。

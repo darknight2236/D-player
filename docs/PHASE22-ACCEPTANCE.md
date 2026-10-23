@@ -1,6 +1,6 @@
 # Phase 22 WinUI 功能补齐验收清单
 
-**状态**：**已完成（用户手测项除外）**。A1–A7、B1–B6、C1–C3、D2、E1–E3 已填写；C4、D1、D3 为 NOT VERIFIED（用户手测，步骤见下）。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”为子项 NOT VERIFIED。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch），`-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0）。
+**状态**：**已完成（用户手测项除外）**。A1–A7、B1–B6、C1–C3、D2、E1–E3 已填写；C4、D1、D3 为 NOT VERIFIED（用户手测，步骤见下）。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”为子项 NOT VERIFIED。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch）；修复后 `-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0，证据 `%TEMP%\p22-acc\gates-postfix.log`）。
 
 执行者：acceptance agent（自动化部分）+ 用户（手测部分）。
 规则：不修改任何产品文件；只追加本验收记录。证据截图/UIA dump 位于 `%TEMP%\p22-acc\`。
@@ -58,7 +58,7 @@
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
 | D1 启动后日志文件存在且含启动记录；损坏音频触发 `PlaybackError`；断点文件缺失/失效走 `断点续播被跳过`；日志 IO 失败不影响应用。 | NOT VERIFIED（用户手测） | 代理不得读写 `%LOCALAPPDATA%\D-player-winui\*`，未打开日志。交用户：① 启动后打开 `%LOCALAPPDATA%\D-player-winui\logs\app.log`，每次启动应有一行 `<时间> [T<线程>] WinUI shell starting`；② 在一次性歌单里播放一个损坏的 .mp3（任意字节写成 .mp3），应出现 `PlaybackError: <原因>`；③ 把最近播放的文件移走后启动，应出现 `断点续播被跳过：<原因>`；④ 1 MiB 轮转未专门压测（代码路径已评审）。 | 无（未执行） |
-| D2 `powershell -File tools/verify-gates.ps1 -Full` → 三道门禁全绿。 | PASS | `mode: Full (3 gates…)`；gate 1/3 `-> ok (exit 0, 0 warning lines)`，gate 2/3 `总计 180 / 失败 0`，gate 3/3 `-> ok (exit 0, 0 warning lines)`，结尾 `all requested steps passed.`（进程退出码 0）。 | `%TEMP%\p22-acc\gates.log` |
+| D2 `powershell -File tools/verify-gates.ps1 -Full` → 三道门禁全绿。 | PASS | `mode: Full (3 gates…)`；gate 1/3 `-> ok (exit 0, 0 warning lines)`，gate 2/3 `总计 180 / 失败 0`，gate 3/3 `-> ok (exit 0, 0 warning lines)`，结尾 `all requested steps passed.`（进程退出码 0）。修复后（`adc0fbf`）复跑同样全绿；中途一次门禁 3 失败是测试进程锁住 `D-player.Core.dll`（MSB3027），关闭进程后复跑通过，不是代码缺陷。 | `%TEMP%\p22-acc\gates.log`、`gates-postfix.log` |
 | D3 WPF 壳的导入/导出/文件夹对话框行为不变（用户手测）。 | NOT VERIFIED（用户手测） | 代理在 WinUI 壳内走查，未启动 WPF 壳做对照。交用户：`dotnet run --project D-player/D-player.csproj -c Debug`，分别试添加文件、导入文件夹、导出 M3U8；对话框的标题/过滤器/取消行为应与 Phase 21 一致（代码仅把同步体包进 `Task.FromResult`）。 | 无（未执行） |
 
 > D1 口径补充：断点文件缺失/失效走的是 `断点续播被跳过：<原因>` 记录，不是 `PlaybackError`；`PlaybackError` 由播放失败（如损坏音频）触发。两者都写同一个 `app.log`。
@@ -81,6 +81,6 @@
 2. **删除当前查看歌单后的 NavRail/列表选中不一致（既有缺陷）**：删除正在查看的歌单并重启后，左栏高亮与中间列表显示的可能是两个不同歌单；点击一次左栏即恢复同步。Phase 22 未改 NavRail 的选中恢复逻辑，记录待后续 NavRail 梳理。
 3. **两个 `Debug.WriteLine` 未接入 `AppLog`**：`SettingsDialog`（打开日志文件夹失败）与 `PlayerBar`（设置对话框 `ShowAsync` 异常）仍用 `Debug.WriteLine`，WinExe 下不可见。Task 6 只迁移了 brief 指定的调用点，未顺手扩大范围。
 4. **文件夹选择器“输入路径”等效取消**：在 Windows `FolderPicker` 的路径框里键入路径并确认，可能返回 `StorageFolder.Path == ""`；`WinUiFileDialogService.OpenFolderAsync` 按既有契约把空路径映射为 null（取消）。选择列表中的真实文件夹项工作正常，A2 请按“选中文件夹项”的方式操作。
-5. **只能由用户确认的项**：日志文件内容、真实 `PlaybackError` 记录、1 MiB 轮转、屏外自愈（C4）、WPF 壳对话框行为（D3）。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，这些项交用户在 Task 8 走查时确认。
+5. **只能由用户确认的项**：日志文件内容、真实 `PlaybackError` 记录、1 MiB 轮转、屏外自愈（C4）、WPF 壳对话框行为（D3）、首启空态提示的修复后冷启动复验（选一个空歌单 → 关闭 → 重开，应看到「还没有曲目」与「点击上方…」）。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，这些项交用户在走查时确认。
 6. **冒烟副作用（透明披露）**：Task 3/4/5 的真机冒烟可能改变了持久化的“查看歌单”指针、某歌单的当前曲索引与窗口几何（Task 5 结束时记录为 1200×800 @ (360,124)）；所有用户歌单的**内容**未被编辑。
 7. **本轮走查副作用**：创建并删除了 AccProbe、list3、验收临时、acc-list、A6tmpRenamed、A7a、Btmp、C3resume、SpaceProbe 等一次性歌单；用户歌单 新歌单/幻灯/1 的内容未被编辑。走查结束时窗口 1200×800@(200,80)、音量 1.0、随机/循环关，查看歌单切回 幻灯。断点续播可能指向已删除的临时 WAV（`%TEMP%\p22-acc\audio\*`），下次启动会走“断点续播被跳过”。

@@ -139,6 +139,11 @@
                     SmallChange="0.05" LargeChange="0.1"
                     ValueChanged="VolumeSlider_ValueChanged"
                     AutomationProperties.Name="音量" VerticalAlignment="Center" />
+
+            <Button x:Name="SettingsButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
+                    Click="SettingsButton_Click" AutomationProperties.Name="设置" ToolTipService.ToolTip="设置">
+                <FontIcon Glyph="&#xE713;" FontSize="{StaticResource FontSizeBody}" />
+            </Button>
         </StackPanel>
     </Grid>
 </UserControl>

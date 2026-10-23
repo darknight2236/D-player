@@ -1,8 +1,10 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using DPlayer.Models;
 using DPlayer.ViewModels;
 using DPlayer.WinUI.Theme;
+using DPlayer.WinUI.Views.Dialogs;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -459,6 +461,20 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     {
         if (_syncingVolume) return;
         Player.Volume = (float)e.NewValue;
+    }
+
+    private async void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SettingsDialog(Player) { XamlRoot = XamlRoot };
+        if (dialog.XamlRoot is null) return;
+        try
+        {
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[WinUI 壳] 打开设置失败：{ex}");
+        }
     }
 
     // —— x:Bind 只读投影 ——

@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.Linq;
+using DPlayer.Configuration;
+using DPlayer.Services;
 using DPlayer.ViewModels;
 using DPlayer.WinUI.Services;
 using DPlayer.WinUI.Theme;
@@ -13,6 +16,7 @@ using Microsoft.UI.Xaml.Input;
 // 删掉本行 → CS0246 找不到 MicaBackdrop；删掉 SystemBackdrops 那行 → 构建照样 0/0。
 // WinUI 不在任何门禁里，这种 using 一旦被当成"死引用"清掉，只有单壳构建能发现（见 README 的门禁规则）。
 using Microsoft.UI.Xaml.Media;
+using Windows.Graphics;
 using Windows.System;
 
 namespace DPlayer.WinUI;
@@ -34,6 +38,22 @@ public sealed partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
 
+    /// <summary>相位 22 Task 5：窗口几何的落盘通道（settings.json 与音量共用一份）。</summary>
+    private readonly ISettingsPersistence _settings;
+
+    // 启动几何兜底：保存值小于下限（含从未保存过的 800×450 默认值）时用这两档，不走系统默认小窗。
+    private const int DefaultWindowWidth = 1200;
+    private const int DefaultWindowHeight = 800;
+    private const int MinWindowWidth = 800;
+    private const int MinWindowHeight = 500;
+
+    /// <summary>
+    /// cancel-and-close 守卫：首次 Closing 拦下、做完异步收尾后置 true 并自行 Close()。
+    /// 与旧版 <c>_isClosing</c> 的区别是两次进入的语义拆开了 —— 收尾期间用户再点关闭仍要
+    /// 继续取消（<see cref="_isClosing"/>），只有收尾完成后的自家 Close() 才放行。
+    /// </summary>
+    private bool _cleanupCompleted;
+
     /// <summary>
     /// 右栏实例：自动收起的阈值判断要读它的 <see cref="InfoPanel.IsCollapsed"/> 并调
     /// <see cref="InfoPanel.SetCollapsed"/> —— 这正是 brief 的 Produces 契约要的那道缝。
@@ -52,7 +72,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private bool _infoPanelManualOverride;
 
-    /// <summary>cancel-and-close 守卫：首次 Closing 拦下、做完异步收尾再放行。</summary>
+    /// <summary>收尾进行中：用户再次点关闭时继续取消，直到 <see cref="_cleanupCompleted"/> 放行自家 Close()。</summary>
     private bool _isClosing;
 
     /// <summary>
@@ -62,9 +82,10 @@ public sealed partial class MainWindow : Window
     private readonly double _autoCollapseThreshold = TokenResource.Double("InfoPanelAutoCollapseWidth");
     private readonly double _autoCollapseHysteresis = TokenResource.Double("AutoCollapseHysteresis");
 
-    public MainWindow(MainViewModel vm)
+    public MainWindow(MainViewModel vm, ISettingsPersistence settings)
     {
         _vm = vm;
+        _settings = settings;
         InitializeComponent();
 
         Title = "D-player";
@@ -108,6 +129,10 @@ public sealed partial class MainWindow : Window
         AppTitleBar.DoubleTapped += AppTitleBar_DoubleTapped;
 
         AppWindow.Closing += AppWindow_Closing;
+
+        // 几何恢复放在构造函数里（App 在构造之后才 Activate）：先摆好位置再显示，
+        // 避免"先居中闪现再跳到记忆位置"。任何失败都不得阻断启动。
+        RestoreWindowGeometry();
     }
 
     // —— 右栏自适应：阈值 + 迟滞 + 手动优先 ——
@@ -228,16 +253,104 @@ public sealed partial class MainWindow : Window
     /// 复刻 WPF 壳 Views/MainWindow.xaml.cs 的 cancel-and-close：首次 Closing 取消关闭，
     /// 跑完 <see cref="MainViewModel.CleanupAsync"/>（写最终断点位置 + 释放 WASAPI 设备）后再真关。
     /// 少了这一步，最终位置只能靠 30 秒节流或"先暂停"才落盘，验收项⑤ 不成立。
+    ///
+    /// Phase 22 Task 5 拆成两个标志：收尾完成前每次用户关闭都继续取消（<c>_isClosing</c> 保持 true），
+    /// 收尾完成后由自家 <c>Close()</c> 进入且 <c>_cleanupCompleted</c> 放行 —— 旧写法第二次进入就放行，
+    /// 收尾期间的连点会绕过清理。
     /// </summary>
     private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (_isClosing) return;    // 第二次进入：异步工作已完成 → 放行
+        if (_cleanupCompleted) return;                 // our own Close() after cleanup -> allow
         args.Cancel = true;
+        if (_isClosing) return;                        // second user request while cleanup runs -> keep waiting
         _isClosing = true;
+
+        try { await SaveWindowGeometryAsync(); }
+        catch (Exception ex) { Debug.WriteLine($"[WinUI 壳] 保存窗口几何失败：{ex}"); }
 
         try { await _vm.CleanupAsync(); }
         catch { /* 关闭流程不打扰用户 */ }
 
+        _cleanupCompleted = true;
         Close();
+    }
+
+    // —— 窗口几何：启动恢复 + 关闭落盘 ——
+
+    /// <summary>
+    /// 从 settings.json 恢复窗口位置与尺寸（物理像素）。保存的宽/高低于下限时回落到 1200×800；
+    /// 保存的中心点落在所有显示器的工作区之外时，在主显示器工作区居中。整段包在 try/catch 里：
+    /// 几何问题永远不能挡住启动。
+    /// </summary>
+    private void RestoreWindowGeometry()
+    {
+        try
+        {
+            AppSettings saved;
+            try { saved = _settings.LoadAsync().GetAwaiter().GetResult(); }
+            catch { return; }
+
+            var width = saved.WindowWidth >= MinWindowWidth ? (int)Math.Round(saved.WindowWidth) : DefaultWindowWidth;
+            var height = saved.WindowHeight >= MinWindowHeight ? (int)Math.Round(saved.WindowHeight) : DefaultWindowHeight;
+
+            var left = (int)Math.Round(saved.WindowLeft);
+            var top = (int)Math.Round(saved.WindowTop);
+            if (saved.WindowWidth < MinWindowWidth || saved.WindowHeight < MinWindowHeight
+                || !IsWindowCenterVisible(left, top, width, height))
+            {
+                (left, top) = CenterOnPrimary(width, height);
+            }
+
+            AppWindow.MoveAndResize(new RectInt32(left, top, width, height));
+        }
+        catch (Exception ex)
+        {
+            // Geometry failures must never prevent startup; Task 6 routes this to AppLog.
+            Debug.WriteLine($"[WinUI 壳] 恢复窗口几何失败：{ex}");
+        }
+    }
+
+    /// <summary>窗口中心是否落在任一显示器的工作区内（显示器拔插后旧坐标可能完全在屏外）。</summary>
+    /// <remarks>
+    /// 不用 brief 里的 <c>DisplayArea.FindAll().Any(...)</c>：本机 WinAppSDK 运行时枚举
+    /// <c>IReadOnlyList&lt;DisplayArea&gt;</c> 时在 CsWinRT 的 <c>Make_IEnumerableObjRef</c> 里抛
+    /// <c>InvalidCastException: ClassFactory 无法供应请求的类</c>（2026-10-23 实测，debug 日志见
+    /// task-5-report.md），导致恢复整段被 catch。GetFromPoint 是同一语义的单点查询，不经过枚举。
+    /// </remarks>
+    private static bool IsWindowCenterVisible(int left, int top, int width, int height)
+    {
+        var cx = left + width / 2;
+        var cy = top + height / 2;
+        var area = DisplayArea.GetFromPoint(new PointInt32(cx, cy), DisplayAreaFallback.None);
+        if (area is null) return false;
+        var work = area.WorkArea;
+        return cx >= work.X && cx < work.X + work.Width
+            && cy >= work.Y && cy < work.Y + work.Height;
+    }
+
+    /// <summary>主显示器工作区居中坐标（工作区已排除任务栏）。</summary>
+    private static (int Left, int Top) CenterOnPrimary(int width, int height)
+    {
+        var work = DisplayArea.Primary.WorkArea;
+        return (work.X + (work.Width - width) / 2, work.Y + (work.Height - height) / 2);
+    }
+
+    /// <summary>
+    /// 关闭时落盘窗口几何。只在 OverlappedPresenter 处于 Restored 时写 —— 最大化/最小化/全屏下
+    /// AppWindow.Position/Size 是"当前呈现"而不是用户记忆的普通几何，写进去会把下次启动摆成整屏。
+    /// </summary>
+    private async Task SaveWindowGeometryAsync()
+    {
+        if (AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Restored }) return;
+
+        var position = AppWindow.Position;
+        var size = AppWindow.Size;
+        await _settings.UpdateAsync(s => s with
+        {
+            WindowLeft = position.X,
+            WindowTop = position.Y,
+            WindowWidth = size.Width,
+            WindowHeight = size.Height
+        });
     }
 }

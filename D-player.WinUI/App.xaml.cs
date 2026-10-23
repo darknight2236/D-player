@@ -54,7 +54,7 @@ public partial class App : Application
 
         var services = new ServiceCollection();
         // WinUI 壳自己的数据目录：与 WPF 壳的 D-player 分开，两个壳互不覆盖落盘。
-        services.AddDPlayerCore(configuration, new DPlayerDataPaths { FolderName = "D-player-winui" });
+        services.AddDPlayerCore(configuration, new DPlayerDataPaths { FolderName = WinUiAppPaths.DataFolderName });
         // Core 的 PlaylistViewModel 工厂从容器解析 IFileDialogService，注册在各壳自己做（R-7）。
         // 工厂捕获 () => _hwnd：服务在 GetRequiredService<MainViewModel>() 期间构造，
         // 那时 _hwnd 还是 Zero；服务只在用户首次触发 picker 时才懒读这个字段。
@@ -63,7 +63,8 @@ public partial class App : Application
 
         // 需在 UI 线程构造状态与恢复；窗口显示后立刻执行
         var vm = _services.GetRequiredService<MainViewModel>();
-        var window = new MainWindow(vm);
+        var settings = _services.GetRequiredService<ISettingsPersistence>();
+        var window = new MainWindow(vm, settings);
         _window = window;
         _hwnd = WindowNative.GetWindowHandle(window);
         window.Activate();

@@ -13,14 +13,66 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+
+        <!--
+          Task 3（Phase 22）：导入/导出工具栏（row 0，40px）。左组＝添加文件 / 导入文件夹 / 导入播放列表，
+          中列是 16px 忙碌环（导入进行中才转），右组＝导出 M3U8 / 清空。
+          五个钮的启用规则由代码后置的 UpdateToolbarState() 统一定：无歌单时左组全禁；
+          队列空时「导出」「清空」禁用。图标钮几何走 ToolbarButtonSize（28），
+          样式 IconButtonStyle 只给六态与视觉效果，不带固定尺寸。
+        -->
+        <Grid Grid.Row="0" Height="{StaticResource TrackToolbarHeight}"
+              Padding="{StaticResource TrackListHeaderPadding}"
+              ColumnSpacing="{StaticResource SpacingSm}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpacingXs}">
+                <Button x:Name="AddFilesButton" Width="{StaticResource ToolbarButtonSize}" Height="{StaticResource ToolbarButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="AddFilesButton_Click"
+                        AutomationProperties.Name="添加文件" ToolTipService.ToolTip="添加文件（多选）">
+                    <FontIcon Glyph="&#xE710;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+                <Button x:Name="ImportFolderButton" Width="{StaticResource ToolbarButtonSize}" Height="{StaticResource ToolbarButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="ImportFolderButton_Click"
+                        AutomationProperties.Name="导入文件夹" ToolTipService.ToolTip="导入文件夹（递归扫描，追加到当前歌单）">
+                    <FontIcon Glyph="&#xE8B7;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+                <Button x:Name="ImportListButton" Width="{StaticResource ToolbarButtonSize}" Height="{StaticResource ToolbarButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="ImportListButton_Click"
+                        AutomationProperties.Name="导入播放列表" ToolTipService.ToolTip="导入播放列表（M3U / M3U8 / PLS，追加）">
+                    <FontIcon Glyph="&#xE8E5;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+            </StackPanel>
+
+            <ProgressRing x:Name="ImportProgress" Grid.Column="1" Width="16" Height="16"
+                          IsActive="False" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource SpacingXs}">
+                <Button x:Name="ExportButton" Width="{StaticResource ToolbarButtonSize}" Height="{StaticResource ToolbarButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="ExportButton_Click"
+                        AutomationProperties.Name="导出播放列表" ToolTipService.ToolTip="导出为 M3U8">
+                    <FontIcon Glyph="&#xE74E;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+                <Button x:Name="ClearButton" Width="{StaticResource ToolbarButtonSize}" Height="{StaticResource ToolbarButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="ClearButton_Click"
+                        AutomationProperties.Name="清空当前歌单" ToolTipService.ToolTip="清空当前歌单">
+                    <FontIcon Glyph="&#xE74D;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+            </StackPanel>
+        </Grid>
 
         <!--
           静态表头（不可点击——表头不可点是有意的，排序属功能阶段，spec §5）。
           列宽与行模板同步：# 40 / 标题 * / 艺术家 220 / 时长 72（与表头同步）。
         -->
-        <Grid x:Name="Header" Grid.Row="0" Height="{StaticResource RowHeight}"
+        <Grid x:Name="Header" Grid.Row="1" Height="{StaticResource RowHeight}"
               Padding="{StaticResource TrackListHeaderPadding}"
               ColumnSpacing="{StaticResource SpacingMd}"
               Background="{ThemeResource LayerFillColorDefaultBrush}">
@@ -56,7 +108,7 @@
           HorizontalContentAlignment=Stretch 已在基样式的 ContentPresenter 上 TemplateBinding
           （Task 3 修复），行内容可以撑满整行。
         -->
-        <ListView x:Name="TrackItems" Grid.Row="1"
+        <ListView x:Name="TrackItems" Grid.Row="2"
                   DoubleTapped="TrackList_DoubleTapped"
                   ContainerContentChanging="List_ContainerContentChanging"
                   ItemContainerStyle="{StaticResource RailListViewItemStyle}">
@@ -100,7 +152,7 @@
 
         <!-- 空状态：产品话术（spec §5），不承诺本阶段没有的能力 -->
         <!-- ⑨ 首次可见时淡入 150ms + 上移 8px -->
-        <StackPanel x:Name="EmptyHint" Grid.Row="1"
+        <StackPanel x:Name="EmptyHint" Grid.Row="2"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Spacing="{StaticResource SpacingSm}" IsHitTestVisible="False"
                     Opacity="0">
@@ -109,7 +161,7 @@
             </StackPanel.RenderTransform>
             <TextBlock Text="还没有曲目" HorizontalAlignment="Center"
                        Style="{StaticResource SubtitleTextBlockStyle}" />
-            <TextBlock Text="导入入口将在下一阶段加入" HorizontalAlignment="Center" MaxWidth="360"
+            <TextBlock Text="点击上方「添加文件」或「导入文件夹」开始" HorizontalAlignment="Center" MaxWidth="360"
                        TextWrapping="Wrap"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>

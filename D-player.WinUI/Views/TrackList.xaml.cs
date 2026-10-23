@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using DPlayer.Models;
 using DPlayer.ViewModels;
+using DPlayer.WinUI.Services;
 using DPlayer.WinUI.Theme;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -26,6 +27,12 @@ public sealed partial class TrackList : UserControl
 
     /// <summary>⑨ 空态是否已经动画过（首次可见时才播放淡入+上移）。</summary>
     private bool _emptyAnimated;
+
+    /// <summary>
+    /// 导入进行中（Phase 22 Task 3）。三个导入入口共用：期间转 16px 忙碌环、禁掉工具栏五颗钮，
+    /// 并拦住重入（RunImportAsync 的第一道 if）。
+    /// </summary>
+    private bool _isImporting;
 
     /// <summary>列表要跟着看的两个量：查看项（ViewedPlaylist）与它自己的 Queue。</summary>
     public PlaylistsViewModel Playlists { get; }
@@ -58,9 +65,14 @@ public sealed partial class TrackList : UserControl
         if (!ReferenceEquals(TrackItems.ItemsSource, queue)) TrackItems.ItemsSource = queue;
 
         UpdateEmptyHint();
+        UpdateToolbarState();
     }
 
-    private void OnViewedQueueChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateEmptyHint();
+    private void OnViewedQueueChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateEmptyHint();
+        UpdateToolbarState();
+    }
 
     private void UpdateEmptyHint()
     {
@@ -108,6 +120,111 @@ public sealed partial class TrackList : UserControl
         sb.Children.Add(translateAnim);
 
         sb.Begin();
+    }
+
+    // —— Phase 22 Task 3：导入/导出工具栏 ——
+
+    /// <summary>
+    /// 工具栏五颗钮的启用规则（唯一真源）：
+    ///   · 左组（添加文件 / 导入文件夹 / 导入播放列表）—— 需要有查看中的歌单且不在导入中；
+    ///   · 右组（导出 / 清空）—— 还要求队列非空。
+    /// 三个调用点：ResyncView（换歌单/初始化）、OnViewedQueueChanged（队列增删）、
+    /// RunImportAsync 的进出两处（忙碌态）。只靠 PropertyChanged 不够 —— 队列变化不会让
+    /// PlaylistsViewModel 发 PropertyChanged，所以 OnViewedQueueChanged 必须自己调一次。
+    /// </summary>
+    private void UpdateToolbarState()
+    {
+        var pl = Playlists.ViewedPlaylist;
+        var hasView = pl is not null;
+        var hasTracks = pl is { Queue.Count: > 0 };
+
+        AddFilesButton.IsEnabled = ImportFolderButton.IsEnabled = ImportListButton.IsEnabled
+            = hasView && !_isImporting;
+        ExportButton.IsEnabled = ClearButton.IsEnabled = hasTracks && !_isImporting;
+    }
+
+    /// <summary>
+    /// 三个导入入口的共同外壳：重入拦截、忙碌环、整组禁用、异常转错误对话框，finally 里复位。
+    /// 注意禁用发生在 await 之前 —— 对话框弹出的整个期间工具栏都是禁的，用户不能叠加第二次导入。
+    /// </summary>
+    private async Task RunImportAsync(Func<Task> action)
+    {
+        if (_isImporting) return;
+        _isImporting = true;
+        ImportProgress.IsActive = true;
+        UpdateToolbarState();
+        try
+        {
+            await action();
+        }
+        catch (Exception ex)
+        {
+            await WinUiDialogService.ShowErrorAsync(this, "导入失败", ex.Message);
+        }
+        finally
+        {
+            _isImporting = false;
+            ImportProgress.IsActive = false;
+            UpdateToolbarState();
+        }
+    }
+
+    /// <summary>添加文件（多选）→ 追加到当前歌单。取消 = 队列不变。</summary>
+    private async void AddFilesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Playlists.ViewedPlaylist is not { } pl) return;
+        await RunImportAsync(() => pl.AddToQueueCommand.ExecuteAsync(null));
+    }
+
+    /// <summary>导入文件夹（递归扫描）→ 追加到当前歌单。取消 = 无操作。</summary>
+    private async void ImportFolderButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Playlists.ViewedPlaylist is not { } pl) return;
+        await RunImportAsync(() => pl.ImportFolderToCurrentCommand.ExecuteAsync(null));
+    }
+
+    /// <summary>
+    /// 导入播放列表文件 → 追加。VM 返回 null 表示用户取消（不弹任何框）；
+    /// 返回报告则用 Core 的 PlaylistImportReportFormatter 拼文案（与 WPF 壳同一套规则）。
+    /// </summary>
+    private async void ImportListButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Playlists.ViewedPlaylist is not { } pl) return;
+        await RunImportAsync(async () =>
+        {
+            var report = await pl.ImportPlaylistFileAsync();
+            if (report is not null)
+                await WinUiDialogService.ShowInfoAsync(this, PlaylistImportReportFormatter.DialogTitle,
+                    PlaylistImportReportFormatter.Format(new[] { report }));
+        });
+    }
+
+    /// <summary>
+    /// 导出为 M3U8。不走 RunImportAsync（导出不该转"导入中"的忙碌环），
+    /// 自己兜异常：VM 用返回字符串表达可展示的错误，异常则取 Message。
+    /// </summary>
+    private async void ExportButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Playlists.ViewedPlaylist is not { } pl || pl.Queue.Count == 0) return;
+        try
+        {
+            var error = await pl.ExportPlaylistFileAsync();
+            if (error is not null)
+                await WinUiDialogService.ShowErrorAsync(this, "导出失败", error);
+        }
+        catch (Exception ex)
+        {
+            await WinUiDialogService.ShowErrorAsync(this, "导出失败", ex.Message);
+        }
+    }
+
+    /// <summary>清空当前歌单：先确认（默认焦点在「取消」），确认后走 VM 的 ClearQueueCommand。</summary>
+    private async void ClearButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Playlists.ViewedPlaylist is not { } pl || pl.Queue.Count == 0) return;
+        if (!await WinUiDialogService.ShowConfirmAsync(this, "清空歌单",
+                $"确定清空歌单「{pl.Name}」吗？此操作不可撤销。", "清空")) return;
+        pl.ClearQueueCommand.Execute(null);
     }
 
     private async void TrackList_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

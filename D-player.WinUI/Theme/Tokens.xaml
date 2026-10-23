@@ -27,6 +27,12 @@
     <x:Double x:Key="PlayerBarHeight">64</x:Double>
     <x:Double x:Key="TitleBarHeight">32</x:Double>
     <x:Double x:Key="RowHeight">36</x:Double>
+    <!--
+      Phase 22 Task 3：TrackList 顶部导入/导出工具栏。TrackToolbarHeight 40 = 28px 钮 + 上下各 6，
+      行高固定，不随窗口拉伸；ToolbarButtonSize 28 —— 工具栏五颗图标钮的边长（底栏 64px 的钮另算）。
+    -->
+    <x:Double x:Key="TrackToolbarHeight">40</x:Double>
+    <x:Double x:Key="ToolbarButtonSize">28</x:Double>
     <!-- 自动收起阈值（spec §10：起始值，集中在此便于调） -->
     <x:Double x:Key="InfoPanelAutoCollapseWidth">960</x:Double>
     <!-- 迟滞带（spec §8「阈值变化需带 8px 迟滞」）：越过 threshold 才收、要越回 threshold+8 才放，

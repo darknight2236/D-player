@@ -41,7 +41,8 @@ public sealed partial class MainWindow : Window
     /// <summary>相位 22 Task 5：窗口几何的落盘通道（settings.json 与音量共用一份）。</summary>
     private readonly ISettingsPersistence _settings;
 
-    // 启动几何兜底：保存值小于下限（含从未保存过的 800×450 默认值）时用这两档，不走系统默认小窗。
+    // 启动几何兜底：保存的宽或高任一小于下限（含从未保存过的 800×450 默认值）时，两维一起用
+    // 这两档，不走系统默认小窗。
     private const int DefaultWindowWidth = 1200;
     private const int DefaultWindowHeight = 800;
     private const int MinWindowWidth = 800;
@@ -278,7 +279,8 @@ public sealed partial class MainWindow : Window
     // —— 窗口几何：启动恢复 + 关闭落盘 ——
 
     /// <summary>
-    /// 从 settings.json 恢复窗口位置与尺寸（物理像素）。保存的宽/高低于下限时回落到 1200×800；
+    /// 从 settings.json 恢复窗口位置与尺寸（物理像素）。宽或高任一低于下限（800×500）时，
+    /// 两者一起回落到 1200×800 —— 不做逐维兜底，否则首启的 800×450 默认值会拼出 800×800；
     /// 保存的中心点落在所有显示器的工作区之外时，在主显示器工作区居中。整段包在 try/catch 里：
     /// 几何问题永远不能挡住启动。
     /// </summary>
@@ -290,13 +292,15 @@ public sealed partial class MainWindow : Window
             try { saved = _settings.LoadAsync().GetAwaiter().GetResult(); }
             catch { return; }
 
-            var width = saved.WindowWidth >= MinWindowWidth ? (int)Math.Round(saved.WindowWidth) : DefaultWindowWidth;
-            var height = saved.WindowHeight >= MinWindowHeight ? (int)Math.Round(saved.WindowHeight) : DefaultWindowHeight;
+            // 单一判定（spec §4.5）：任一维低于下限就整对用默认值。逐维兜底会把首启的
+            // AppSettings 默认 800×450 拼成 800×800。
+            var useDefaults = saved.WindowWidth < MinWindowWidth || saved.WindowHeight < MinWindowHeight;
+            var width = useDefaults ? DefaultWindowWidth : (int)Math.Round(saved.WindowWidth);
+            var height = useDefaults ? DefaultWindowHeight : (int)Math.Round(saved.WindowHeight);
 
             var left = (int)Math.Round(saved.WindowLeft);
             var top = (int)Math.Round(saved.WindowTop);
-            if (saved.WindowWidth < MinWindowWidth || saved.WindowHeight < MinWindowHeight
-                || !IsWindowCenterVisible(left, top, width, height))
+            if (useDefaults || !IsWindowCenterVisible(left, top, width, height))
             {
                 (left, top) = CenterOnPrimary(width, height);
             }

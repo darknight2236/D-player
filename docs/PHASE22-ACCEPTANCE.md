@@ -1,6 +1,6 @@
 # Phase 22 WinUI 功能补齐验收清单
 
-**状态**：**已完成（用户手测项除外）**。A1–A7、B1–B6、C1–C3、D2、E1–E3 已填写；C4、D1、D3 为 NOT VERIFIED（用户手测，步骤见下）。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”为子项 NOT VERIFIED。
+**状态**：**已完成（用户手测项除外）**。A1–A7、B1–B6、C1–C3、D2、E1–E3 已填写；C4、D1、D3 为 NOT VERIFIED（用户手测，步骤见下）。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”为子项 NOT VERIFIED。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch），`-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0）。
 
 执行者：acceptance agent（自动化部分）+ 用户（手测部分）。
 规则：不修改任何产品文件；只追加本验收记录。证据截图/UIA dump 位于 `%TEMP%\p22-acc\`。

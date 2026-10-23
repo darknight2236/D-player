@@ -152,9 +152,12 @@
 
         <!-- 空状态：产品话术（spec §5），不承诺本阶段没有的能力 -->
         <!-- ⑨ 首次可见时淡入 150ms + 上移 8px -->
+        <!-- 初始 Visibility 必须是 Collapsed：UpdateEmptyHint() 以"上一次是否 Visible"作为首播守卫，
+             默认 Visible 会让启动即空歌单的场景跳过淡入、Opacity 停在 0（空态不可见）。 -->
         <StackPanel x:Name="EmptyHint" Grid.Row="2"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Spacing="{StaticResource SpacingSm}" IsHitTestVisible="False"
+                    Visibility="Collapsed"
                     Opacity="0">
             <StackPanel.RenderTransform>
                 <TranslateTransform x:Name="EmptyHintTranslate" Y="8" />

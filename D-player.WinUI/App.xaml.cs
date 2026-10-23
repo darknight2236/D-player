@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -31,6 +30,18 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+
+        // 本地日志出口：尽早就位，之后所有失败路径（含未处理异常）都能落盘。
+        // 三个钩子都**不**设 Handled / SetObserved —— 记录过的崩溃仍要可见。
+        AppLog.Initialize(WinUiAppPaths.LogDirectory);
+        AppLog.Write("WinUI shell starting");
+
+        UnhandledException += (_, e) => AppLog.Write("UnhandledException", e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            AppLog.Write("AppDomain.UnhandledException", e.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+            AppLog.Write("UnobservedTaskException", e.Exception);
+
         // spec §4.4「保留 D-player 深色身份」：`Application.RequestedTheme = Dark`。
         // 必须在 App 构造函数里、窗口内容建立之前设置（不设 = 跟随系统主题，两壳就可能各随一侧）。
         // 取证状态分两半：已取证的只是"起窗后各表面都是深色"（未遮挡截图
@@ -61,6 +72,11 @@ public partial class App : Application
         services.AddSingleton<IFileDialogService>(_ => new WinUiFileDialogService(() => _hwnd));
         _services = services.BuildServiceProvider();
 
+        // 播放链路错误在 Core 里被 VM 静默吞掉（PlayerViewModel.HandlePlaybackError）；
+        // 壳侧再订阅一次，只负责把消息写进本地日志，不改变既有行为。
+        _services.GetRequiredService<IPlaybackService>().PlaybackError += error =>
+            AppLog.Write($"PlaybackError: {error}");
+
         // 需在 UI 线程构造状态与恢复；窗口显示后立刻执行
         var vm = _services.GetRequiredService<MainViewModel>();
         var settings = _services.GetRequiredService<ISettingsPersistence>();
@@ -74,7 +90,7 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// 水化容器 + 断点续播就位。切片期没有对话框宿主，恢复被跳过时只写调试输出
+    /// 水化容器 + 断点续播就位。切片期没有对话框宿主，恢复被跳过时只写本地日志
     /// （WPF 壳在这里弹 ConfirmDialog；属第二阶段对齐项）。
     /// </summary>
     private static async Task StartAsync(MainViewModel vm)
@@ -83,12 +99,12 @@ public partial class App : Application
         {
             var restoreWarning = await vm.InitializeAsync();
             if (restoreWarning is not null)
-                Debug.WriteLine($"[WinUI 壳] 断点续播被跳过：{restoreWarning}");
+                AppLog.Write($"断点续播被跳过：{restoreWarning}");
         }
         catch (Exception ex)
         {
             // 与 WPF 壳同样只作护栏：服务层自身已回退，这里不让启动因为水化失败而崩。
-            Debug.WriteLine($"[WinUI 壳] InitializeAsync 抛出：{ex}");
+            AppLog.Write("InitializeAsync 抛出", ex);
         }
     }
 }

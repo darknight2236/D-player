@@ -267,7 +267,7 @@ public sealed partial class MainWindow : Window
         _isClosing = true;
 
         try { await SaveWindowGeometryAsync(); }
-        catch (Exception ex) { Debug.WriteLine($"[WinUI 壳] 保存窗口几何失败：{ex}"); }
+        catch (Exception ex) { AppLog.Write("保存窗口几何失败", ex); }
 
         try { await _vm.CleanupAsync(); }
         catch { /* 关闭流程不打扰用户 */ }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using DPlayer.Services;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -8,8 +7,7 @@ namespace DPlayer.WinUI.Services;
 
 /// <summary>
 /// 真正的 WinUI picker 实现。HWND 由 App 在窗口创建后写入，服务通过 Func&lt;IntPtr&gt; 懒读。
-/// 所有失败（未初始化 HWND / COM 异常 / 空虚拟路径）都回落成"取消"语义并写调试输出；
-/// Task 6 会把 Debug.WriteLine 换成 AppLog.Write。
+/// 所有失败（未初始化 HWND / COM 异常 / 空虚拟路径）都回落成"取消"语义并写本地日志。
 /// </summary>
 public sealed class WinUiFileDialogService : IFileDialogService
 {
@@ -22,7 +20,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         var hwnd = _hwndProvider();
         if (hwnd == IntPtr.Zero)
         {
-            Debug.WriteLine("[WinUI 壳] FileOpenPicker 跳过：窗口 HWND 尚未就绪");
+            AppLog.Write("picker 跳过：窗口 HWND 尚未就绪");
             return Array.Empty<string>();
         }
 
@@ -45,7 +43,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[WinUI 壳] FileOpenPicker 失败：{ex}");
+            AppLog.Write("FileOpenPicker 失败", ex);
             return Array.Empty<string>();
         }
     }
@@ -55,7 +53,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         var hwnd = _hwndProvider();
         if (hwnd == IntPtr.Zero)
         {
-            Debug.WriteLine("[WinUI 壳] FolderPicker 跳过：窗口 HWND 尚未就绪");
+            AppLog.Write("picker 跳过：窗口 HWND 尚未就绪");
             return null;
         }
 
@@ -69,7 +67,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[WinUI 壳] FolderPicker 失败：{ex}");
+            AppLog.Write("FolderPicker 失败", ex);
             return null;
         }
     }
@@ -79,14 +77,14 @@ public sealed class WinUiFileDialogService : IFileDialogService
         var hwnd = _hwndProvider();
         if (hwnd == IntPtr.Zero)
         {
-            Debug.WriteLine("[WinUI 壳] FileSavePicker 跳过：窗口 HWND 尚未就绪");
+            AppLog.Write("picker 跳过：窗口 HWND 尚未就绪");
             return null;
         }
 
         var choice = ParseSaveChoice(filter);
         if (choice is null)
         {
-            Debug.WriteLine($"[WinUI 壳] FileSavePicker 跳过：无法从过滤器解析扩展名 '{filter}'");
+            AppLog.Write($"FileSavePicker 跳过：无法从过滤器解析扩展名 '{filter}'");
             return null;
         }
 
@@ -107,7 +105,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[WinUI 壳] FileSavePicker 失败：{ex}");
+            AppLog.Write("FileSavePicker 失败", ex);
             return null;
         }
     }

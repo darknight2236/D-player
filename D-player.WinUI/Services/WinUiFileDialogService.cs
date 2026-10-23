@@ -20,7 +20,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         var hwnd = _hwndProvider();
         if (hwnd == IntPtr.Zero)
         {
-            AppLog.Write("picker 跳过：窗口 HWND 尚未就绪");
+            AppLog.Write("FileOpenPicker 跳过：窗口 HWND 尚未就绪");
             return Array.Empty<string>();
         }
 
@@ -53,7 +53,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         var hwnd = _hwndProvider();
         if (hwnd == IntPtr.Zero)
         {
-            AppLog.Write("picker 跳过：窗口 HWND 尚未就绪");
+            AppLog.Write("FolderPicker 跳过：窗口 HWND 尚未就绪");
             return null;
         }
 
@@ -77,7 +77,7 @@ public sealed class WinUiFileDialogService : IFileDialogService
         var hwnd = _hwndProvider();
         if (hwnd == IntPtr.Zero)
         {
-            AppLog.Write("picker 跳过：窗口 HWND 尚未就绪");
+            AppLog.Write("FileSavePicker 跳过：窗口 HWND 尚未就绪");
             return null;
         }
 

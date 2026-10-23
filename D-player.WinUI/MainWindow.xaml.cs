@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Linq;
 using DPlayer.Configuration;
 using DPlayer.Services;
@@ -309,8 +308,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            // Geometry failures must never prevent startup; Task 6 routes this to AppLog.
-            Debug.WriteLine($"[WinUI 壳] 恢复窗口几何失败：{ex}");
+            AppLog.Write("恢复窗口几何失败", ex);
         }
     }
 

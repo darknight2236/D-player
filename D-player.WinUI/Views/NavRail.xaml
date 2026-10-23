@@ -21,6 +21,9 @@
             <!-- 徽标＝名称首字；空名回落成「?」（Substring 越界会在渲染期抛，见 PlaylistInitialConverter） -->
             <views:PlaylistInitialConverter x:Key="PlaylistInitial" />
 
+            <!-- 条目「正在播放」▶ 标记的 bool -> Visibility（Phase 22 Task 2，RailItemTemplate） -->
+            <views:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+
             <!--
               左栏行容器：在 Theme/Styles.xaml 的 RailListViewItemStyle 之上只补一条 Padding。
               拆分前这是逐条 `new ListViewItem { Padding = 12,0,12,0 }` 设的（为了让 3px 强调条仍贴在行最左、
@@ -39,6 +42,11 @@
               RelativeSource FindAncestor，ElementName 又出不了 DataTemplate 的 namescope，
               实测依据见 task-2-report.md §0.1），再用 Storyboard.SetTarget 逐个挂 —— SetTarget
               走的是运行时元素引用，不需要 namescope。徽标不淡出：折叠态只留图标（spec §5）。
+
+              Phase 22 Task 2 的「正在播放」▶：8px FontIcon 叠在根 Grid 的**第一个单元格**里，
+              Margin="-8,0,0,0" 把它推进 ListViewItem 的 12px 左内边距（12-8=4 起，4..12），
+              不占列宽、不动 24px 徽标的位置（折叠态 48px 居中与否由 12+24/2 决定，加标记列会把它挤偏）。
+              IsHitTestVisible=False：标记只是状态灯，点击/双击仍落到行本身。
             -->
             <DataTemplate x:Key="RailItemTemplate" x:DataType="vm:PlaylistViewModel">
                 <Grid ColumnSpacing="{StaticResource SpacingSm}">
@@ -46,6 +54,10 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE768;" FontSize="8" Width="8" Margin="-8,0,0,0"
+                              HorizontalAlignment="Left" VerticalAlignment="Center"
+                              Foreground="{ThemeResource AccentFillColorDefaultBrush}" IsHitTestVisible="False"
+                              Visibility="{x:Bind IsActivePlaylist, Converter={StaticResource BoolToVisibility}, Mode=OneWay}" />
                     <Border Width="{StaticResource RailBadgeSize}" Height="{StaticResource RailBadgeSize}"
                             CornerRadius="{StaticResource RadiusControl}"
                             Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}">
@@ -68,23 +80,50 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- 顶部：折叠钮（24x24，折叠态 48px 时正好居中）+「歌单」小标题（Caption 12，spec §5） -->
+        <!--
+          顶部：折叠钮（24x24，折叠态 48px 时正好居中）+「歌单」小标题（Caption 12，spec §5）。
+          Phase 22 Task 2 在右侧加了三个歌单动作钮（新建 / 导入 / 删除当前）。
+          折叠时这组钮**立即** Collapsed（不走 100ms 淡出，见 NavRail.xaml.cs 的 SetCollapsed）：
+          展开态 12 + 24 + 4 + 标题 + 4 + 3*24 + 2*4 + 12 = 136 + 标题；折叠态只剩 12 + 24 + 12 = 48，
+          正好等于 NavRailCollapsedWidth。给它们挂 Tag="Fade" 会让按钮还占着宽度却已半透明，几何算不平。
+        -->
         <Grid Grid.Row="0" Padding="{StaticResource RailHeaderPadding}"
-              ColumnSpacing="{StaticResource SpacingSm}">
+              ColumnSpacing="{StaticResource SpacingXs}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
+
             <Button x:Name="FoldButton" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
-                    Style="{StaticResource IconButtonStyle}"
-                    Click="FoldButton_Click"
+                    Style="{StaticResource IconButtonStyle}" Click="FoldButton_Click"
                     AutomationProperties.Name="折叠或展开歌单栏" ToolTipService.ToolTip="折叠或展开歌单栏">
                 <FontIcon x:Name="FoldButtonGlyph" Glyph="&#xE76B;" FontSize="{StaticResource FontSizeCaption}" />
             </Button>
+
             <TextBlock x:Name="HeaderLabel" Grid.Column="1" Text="歌单" Tag="Fade"
                        FontSize="{StaticResource FontSizeCaption}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+            <StackPanel x:Name="RailActions" Grid.Column="2" Orientation="Horizontal"
+                        Spacing="{StaticResource SpacingXs}" VerticalAlignment="Center">
+                <Button x:Name="AddPlaylistButton" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="AddPlaylistButton_Click"
+                        AutomationProperties.Name="新建歌单" ToolTipService.ToolTip="新建歌单">
+                    <FontIcon Glyph="&#xE710;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+                <Button x:Name="ImportPlaylistButton" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="ImportPlaylistButton_Click"
+                        AutomationProperties.Name="导入播放列表" ToolTipService.ToolTip="导入播放列表（M3U / M3U8 / PLS）">
+                    <FontIcon Glyph="&#xE8E5;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+                <Button x:Name="DeletePlaylistButton" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
+                        Style="{StaticResource IconButtonStyle}" Click="DeletePlaylistButton_Click"
+                        AutomationProperties.Name="删除当前歌单" ToolTipService.ToolTip="删除当前歌单">
+                    <FontIcon Glyph="&#xE74D;" FontSize="{StaticResource FontSizeCaption}" />
+                </Button>
+            </StackPanel>
         </Grid>
 
         <!--
@@ -97,6 +136,7 @@
                   ItemsSource="{x:Bind Playlists.Playlists, Mode=OneWay}"
                   SelectedItem="{x:Bind Playlists.ViewedPlaylist, Mode=OneWay}"
                   SelectionChanged="PlaylistList_SelectionChanged"
+                  DoubleTapped="PlaylistList_DoubleTapped"
                   ItemTemplate="{StaticResource RailItemTemplate}"
                   ItemContainerStyle="{StaticResource RailItemStyle}"
                   SelectionMode="Single"

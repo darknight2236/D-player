@@ -1,9 +1,12 @@
+using System.Linq;
 using DPlayer.ViewModels;
+using DPlayer.WinUI.Services;
 using DPlayer.WinUI.Theme;
 using DPlayer.WinUI.Views;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 // MicaBackdrop 就住在这个命名空间（不是 Microsoft.UI.Composition.SystemBackdrops —— 那里面的是
 // MicaController / SystemBackdropConfiguration 那套手动路线，本壳不用）。2026-10-07 实测：
@@ -162,12 +165,18 @@ public sealed partial class MainWindow : Window
     /// 但**只在焦点不在消费空格的控件上时**才触发——Button/Slider/ListViewItem 自己需要 Space
     /// （按钮点击、滑块微调、列表行选中），抢了就是 regression。用 VisualTree.FindAncestor 向上解析
     /// 判断焦点元素是否在消费空格的控件内部（唯一实现住在 Theme/VisualTree.cs，不在这里留副本）。
+    ///
+    /// Phase 22 Task 2 追加两条同义守卫：对话框开着（<see cref="WinUiDialogService.IsOpen"/>，
+    /// 或任何挂在同一 XamlRoot 上的 ContentDialog 弹层）时一律不抢；焦点在文本输入控件里时
+    /// （重命名/新建歌单的 TextBox）空格属于输入内容，不能变成播放/暂停。
     /// </summary>
     private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key != VirtualKey.Space) return;
         var focused = FocusManager.GetFocusedElement(RootGrid.XamlRoot) as DependencyObject;
         if (focused is null) return;
+        if (WinUiDialogService.IsOpen || IsContentDialogOpen()) return;
+        if (IsTextInputFocused(focused)) return;
         // 焦点在 Button（含其子元素）/ Slider / ListViewItem 上时不抢：那是它们的键
         if (VisualTree.FindAncestor<Button>(focused) is not null) return;
         if (focused is Slider) return;
@@ -176,6 +185,27 @@ public sealed partial class MainWindow : Window
         _bar.TogglePlayPause();
         e.Handled = true;
     }
+
+    /// <summary>
+    /// 焦点（含其祖先）是否落在文本输入控件里。TextBox 的焦点元素常是模板内的
+    /// ScrollViewer/ContentPresenter 而不是 TextBox 本身，所以先判本体、再向上找祖先。
+    /// ComboBox 一并算进去：可编辑下拉里的空格同样属于输入。
+    /// </summary>
+    private static bool IsTextInputFocused(DependencyObject focused)
+        => focused is TextBox or PasswordBox or RichEditBox or ComboBox
+           || VisualTree.FindAncestor<TextBox>(focused) is not null
+           || VisualTree.FindAncestor<PasswordBox>(focused) is not null
+           || VisualTree.FindAncestor<RichEditBox>(focused) is not null
+           || VisualTree.FindAncestor<ComboBox>(focused) is not null;
+
+    /// <summary>
+    /// 同一 XamlRoot 上是否有 ContentDialog 弹层。这条是 <see cref="WinUiDialogService.IsOpen"/>
+    /// 的兜底：任何绕过宿主直接 ShowAsync 的对话框（或宿主标志被异常路径跳过）也不能让空格漏过去。
+    /// </summary>
+    private bool IsContentDialogOpen()
+        => RootGrid.XamlRoot is { } root
+           && VisualTreeHelper.GetOpenPopupsForXamlRoot(root)
+               .Any(p => p.Child is not null && VisualTree.FindDescendant<ContentDialog>(p.Child) is not null);
 
     // —— A4：标题栏双击最大化/还原 ——
 

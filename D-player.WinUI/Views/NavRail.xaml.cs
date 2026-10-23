@@ -1,8 +1,10 @@
 using DPlayer.ViewModels;
+using DPlayer.WinUI.Services;
 using DPlayer.WinUI.Theme;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 
 namespace DPlayer.WinUI.Views;
@@ -90,6 +92,59 @@ public sealed partial class NavRail : UserControl
             Playlists.ViewedPlaylist = pl;
     }
 
+    // —— 歌单动作（Phase 22 Task 2）：新建 / 导入 / 删除 / 双击重命名 ——
+    // 所有对话框都走 WinUiDialogService（壳内唯一 ContentDialog 宿主），MainWindow 的空格守卫
+    // 只看它的 IsOpen；不要在这里 new ContentDialog 绕过去。
+
+    private async void AddPlaylistButton_Click(object sender, RoutedEventArgs e)
+    {
+        var name = await WinUiDialogService.ShowPromptAsync(this, "新建歌单", "名称", "新歌单");
+        if (name is null) return;
+        // 取消（null）与"确定但清空"区分开：后者交给 Core 回落成「新歌单」。
+        Playlists.AddPlaylistCommand.Execute(name);
+    }
+
+    private async void ImportPlaylistButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // null = 用户在 picker 里取消（或 HWND 未就绪），静默返回。
+            var report = await Playlists.ImportPlaylistFileAsync();
+            if (report is null) return;
+            await WinUiDialogService.ShowInfoAsync(this, PlaylistImportReportFormatter.DialogTitle,
+                PlaylistImportReportFormatter.Format(new[] { report }));
+        }
+        catch (Exception ex)
+        {
+            await WinUiDialogService.ShowErrorAsync(this, "导入失败", ex.Message);
+        }
+    }
+
+    private async void DeletePlaylistButton_Click(object sender, RoutedEventArgs e)
+    {
+        var target = Playlists.ViewedPlaylist;
+        if (target is null) return;
+        if (!await WinUiDialogService.ShowConfirmAsync(this, "删除歌单",
+                $"确定删除歌单「{target.Name}」吗？此操作不可撤销。", "删除")) return;
+        Playlists.RemovePlaylistCommand.Execute(target);
+    }
+
+    /// <summary>
+    /// 双击行 -> 重命名。目标行必须从 <c>e.OriginalSource</c> 向上找 ListViewItem 再读 Content，
+    /// **不能**用 SelectedItem：双击空白区（或双击时选中态还没落定）会把别的歌单改名
+    /// （Phase 20 的空白区教训）。
+    /// </summary>
+    private async void PlaylistList_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is not FrameworkElement source) return;
+        if (VisualTree.FindAncestor<ListViewItem>(source)?.Content is not PlaylistViewModel target) return;
+        e.Handled = true;
+
+        var name = await WinUiDialogService.ShowPromptAsync(this, "重命名歌单", "新名称", target.Name);
+        if (name is null) return;
+        Playlists.RenamePlaylistCommand.Execute((target, name));
+    }
+
     // —— 折叠 ——
 
     /// <summary>
@@ -103,6 +158,20 @@ public sealed partial class NavRail : UserControl
 
         IsCollapsed = collapsed;
         FoldButtonGlyph.Glyph = collapsed ? ExpandGlyph : CollapseGlyph;
+
+        // 三个动作钮**立即**隐藏/显示，不参与 100ms 淡出（也不给它们 Tag="Fade"）：
+        // 折叠态 48px 的算术是 12 + 24 + 12，按钮哪怕半透明也还占 80px 宽度，几何会算不平。
+        // 展开时先让它们可见，宽度动画再把栏撑开，避免标题带在动画中段被按钮挤掉。
+        if (collapsed)
+        {
+            RailActions.Visibility = Visibility.Collapsed;
+            RailActions.IsHitTestVisible = false;
+        }
+        else
+        {
+            RailActions.Visibility = Visibility.Visible;
+            RailActions.IsHitTestVisible = true;
+        }
 
         // 先收集再动画：条目里的名称标签在 DataTemplate 里、每行一份，只能按 Tag="Fade" 从可视化树收。
         var labels = CollectFadeTargets();
@@ -174,6 +243,9 @@ public sealed partial class NavRail : UserControl
     private void ApplyFoldEndState(bool collapsed, IReadOnlyList<FrameworkElement> labels)
     {
         Rail.Width = collapsed ? _collapsedWidth : _expandedWidth;
+        // 动画路径在 SetCollapsed 开头已设过，这里补的是"不播动画"与动画被顶掉/完成后的终态。
+        RailActions.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+        RailActions.IsHitTestVisible = !collapsed;
         foreach (var label in labels) label.Opacity = collapsed ? 0 : 1;
     }
 

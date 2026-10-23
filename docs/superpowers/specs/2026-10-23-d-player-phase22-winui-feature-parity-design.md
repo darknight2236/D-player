@@ -181,9 +181,9 @@ internal static class WinUiDialogService
 - 三个动作按钮各 24×24，`IconButtonStyle`，ToolTip + `AutomationProperties.Name`。
 - 折叠态（48px）：隐藏文字与三个动作按钮，只留折叠钮与徽标；折叠逻辑复用现有 `Tag="Fade"` 收集机制，动作按钮放进同一个可淡出容器。
 
-**条目模板**：`[▶ 活跃标记 12] [徽标 24] [名称 *]`。
+**条目模板**：`[▶ 8px，叠在左内边距里] [徽标 24] [名称 *]`。
 - ▶ 只在 `IsActivePlaylist == true` 时可见；用新增的 `Views/Converters.cs` 里的 `BoolToVisibilityConverter` 绑定，OneWay。
-- 折叠态下 12 + 24 + padding 仍落在 48px 内；标记不淡出，保证折叠时也能看到哪个歌单在播。
+- 标记**不占列宽**：`HorizontalAlignment="Left"` + `Margin="-8,0,0,0"`（相对内容起点），落在 12px 左内边距内（x=4..12）。折叠态 48px 时徽标仍从 x=12 开始、中心落在 24px；加一列 12px 会把徽标挤离中心（12 + 12 + 24 + 12 = 60 > 48），所以不用列。
 
 **交互**：
 - `+` → PromptDialog「新建歌单」，默认值 `新歌单`；确认后 `AddPlaylistCommand.Execute(text)`。

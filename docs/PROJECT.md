@@ -52,7 +52,7 @@
 |----|------|
 | 运行时 | .NET 10（共享层与 WPF 壳 `net10.0-windows`；WinUI 壳 `net10.0-windows10.0.19041.0`） |
 | 共享层 | `D-player.Core` 类库（Phase 20，`net10.0-windows` 且**不开** `UseWPF`）：Models / Services / ViewModels / Configuration / Extensions；被两个 UI 壳引用，不得出现任何 WPF 类型 |
-| UI 框架 | WPF（`UseWPF=true`，主壳，完整功能）· WinUI 3 / Windows App SDK **2.5.1**（Phase 20 第二壳，unpackaged + self-contained，`<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`，第一条纵向切片） |
+| UI 框架 | WPF（`UseWPF=true`，主壳，完整功能）· WinUI 3 / Windows App SDK **2.5.1**（Phase 20 建壳，Phase 22 功能补齐；unpackaged + self-contained，`<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`） |
 | MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
 | DI 容器 | `Microsoft.Extensions.DependencyInjection` 10.x |
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
@@ -744,7 +744,7 @@ WinUI 3 / Windows App SDK **2.5.1**（钉具体版本以保证可复现构建）
     "WindowLeft": 100,
     "WindowTop": 100,
     "WindowWidth": 800,
-    "WindowHeight": 650
+    "WindowHeight": 450
   }
 }
 ```

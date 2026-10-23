@@ -1,6 +1,6 @@
 # Phase 22 WinUI 功能补齐验收清单
 
-**状态**：**待执行（Task 8）**。本清单覆盖 Phase 22 已交付的功能层（异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、播放控制、基础设置、窗口几何、本地日志）；结果列留空，由 Task 8 逐项填写。
+**状态**：**部分执行（Task 8）**。本清单覆盖 Phase 22 已交付的功能层（异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、播放控制、基础设置、窗口几何、本地日志）。A 段已填写；B、D、E 段与 C 段在本轮后续提交中补齐。
 
 执行者：acceptance agent（自动化部分）+ 用户（手测部分）。
 规则：不修改任何产品文件；只追加本验收记录。证据截图/UIA dump 位于 `%TEMP%\p22-acc\`。
@@ -25,13 +25,13 @@
 
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
-| A1 添加文件（多选）→ 曲目/时长/序号正确显示。 |  |  |  |
-| A2 导入文件夹（递归）→ 只收 5 种音频后缀，追加到当前歌单。 |  |  |  |
-| A3 导入 M3U/M3U8/PLS 到当前歌单 → 追加 + 报告含导入/跳过计数。 |  |  |  |
-| A4 左栏导入播放列表 → 新建歌单并切换查看。 |  |  |  |
-| A5 导出当前歌单 M3U8 → 文件存在，`#EXTINF` 与绝对路径正确。 |  |  |  |
-| A6 新建/重命名/删除歌单；删最后一个自动重建默认歌单；删当前播放歌单后播放器停止。 |  |  |  |
-| A7 ▶ 活跃标记随播放歌单切换；折叠态仍可见。 |  |  |  |
+| A1 添加文件（多选）→ 曲目/时长/序号正确显示。 | PASS | 真实 picker 多选 3 个 WAV → 列表出现 3 行 `toneA30s / toneB30s / toneC30s`，时长均 `00:30`，艺术家列空（无标签）。`#` 列对无 `TrackNumber` 的文件按设计显示 `-`（`TrackList.xaml` 注释「TrackNumber null 时显示 "-"」）；带标签的 12 曲歌单上 `#` 列显示 `1..12` 连续数字，两列行为都被实测到。 | `%TEMP%\p22-acc\t08-a1-added.txt`、`t09-a1-after-open.txt`、`t41-multiselect4.png`、`s01.txt` |
+| A2 导入文件夹（递归）→ 只收 5 种音频后缀，追加到当前歌单。 | PASS | 已有 3 行时选 `%USERPROFILE%\Music\p22-acc-tmp\acc-audio`（含 `toneA30s.wav`、`toneB30s.wav`、`cover.jpg`、`notes.txt`、`nested\toneD30s.wav`）→ 追加 3 行（共 6 行），`toneA30s/toneB30s/toneD30s` 全部入列，`cover.jpg` 与 `notes.txt` 未被收集，`nested` 子目录被递归。 | `%TEMP%\p22-acc\t11-folder-selected.txt`、`t12-a2-after-folder.txt`、`s27-a2.png` |
+| A3 导入 M3U/M3U8/PLS 到当前歌单 → 追加 + 报告含导入/跳过计数。 | PASS | 报告原文 `已导入「append-one.m3u8」→ 歌单「acc-list」1 首入列，跳过 1 条（文件缺失 0 / 格式不支持 1）`；新建路径报告为 `已导入「acc-list.m3u8」→ 新歌单「acc-list」2 首入列，跳过 2 条（文件缺失 1 / 格式不支持 1）`。 | `%TEMP%\p22-acc\s33-a3.txt`、`s29-a3.txt`、`s34-a3.png` |
+| A4 左栏导入播放列表 → 新建歌单并切换查看。 | PASS | 左栏 `导入播放列表` 选 `acc-list.m3u8` → 新行 `acc-list` 出现在歌单末尾并被选中，列表切到该歌单（2 行）；截图与导入后的树一致。 | `%TEMP%\p22-acc\s30-a4.png`、`s31-a4-after.txt` |
+| A5 导出当前歌单 M3U8 → 文件存在，`#EXTINF` 与绝对路径正确。 | PASS | `export\acc-list-export.m3u8`：3 行 `#EXTINF`、3 行非注释、`#EXTM3U` 头、CRLF；3 条路径全部为反斜杠绝对路径且磁盘上存在（2 条 `%TEMP%\p22-acc\audio\*`、1 条 `%USERPROFILE%\Music\p22-acc-tmp\acc-audio\*`）。 | `%TEMP%\p22-acc\export\acc-list-export.m3u8`、`s38-a5.txt` |
+| A6 新建/重命名/删除歌单；删最后一个自动重建默认歌单；删当前播放歌单后播放器停止。 | PASS（最后歌单重建为 NOT VERIFIED，用户手测） | 新建 `A6acc` → 立即选中并显示空态；双击行打开 `重命名歌单` 对话框，确认后左栏标签即时变为 `A6tmpRenamed`（`OneWay` 绑定修复）；删除确认框原文 `确定删除歌单「A6acc」吗？此操作不可撤销。`（按钮 `删除` / 默认 `取消`）；确认删除后该行消失（`A6acc` 计数 0），播放器回落 `未在播放`×2、进度 `00:00 / 00:00` 且进度条 `enabled=False`，播放确实停止。「删最后一个歌单 → 自动重建默认歌单」会销毁用户歌单，标记 NOT VERIFIED 交用户。 | `%TEMP%\p22-acc\a6-02-created.txt`、`t04-a6-rename-dlg.txt`、`t05-a6-renamed.txt`、`a6-07-deletedlg.txt`、`a6-08-after-delete.txt`、`a6-09-after-delete.png` |
+| A7 ▶ 活跃标记随播放歌单切换；折叠态仍可见。 | PASS | 播放 `A7a` 中的 `toneA30s` 后左侧 8px 三角 ▶ 出现在 `A7a` 行（展开态裁切图、48px 折叠态裁切图各一张，均见蓝色 ▶ 位于 24px 徽标左侧内边距）；切换到其它歌单后标记移走（`A6tmpRenamed` 行带 ▶、`A7a` 行无）。说明：▶ 是 8px `FontIcon`，无 UIA 名称，故以裁切截图为准。 | `%TEMP%\p22-acc\a7-crop-expanded-play.png`、`a7-crop-collapsed-play.png`、`t28-crop-rail-expanded.png`、`t32-crop-rail-48.png`、`t30-crop-viewother.png` |
 
 ## B 播放控制
 

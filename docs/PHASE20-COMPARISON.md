@@ -1,6 +1,6 @@
 # Phase 20 对比材料：WPF 壳 vs WinUI 壳
 
-> 文档日期：2026-10-06 · 最后更新：2026-10-07（最终修复波 + 同日**两轮**用户真机验收：第一轮走查逐项结果见 §2.2；同晚走查报出的那条进度条单击定位缺陷被量出根因、修掉并用仪器复量，「进度显示」格 ⚠️ → 🟡；**同日第二轮复验把走查剩下的四项待复验逐条关掉——单击的听觉那一半、浅色系统下 WinUI 是否仍深色、列表下方空白区双击、正在播放时关窗的退出码与残留进程——「进度显示」「启动与窗口」「退出与收尾」三格 🟡 → ✅，本表已无待用户复验项**；仍没人够得着的两处见 §2.2 末段） · 代码基线：`27f5e39`（单击定位修复，纯壳侧）+ `dc67f13`（A1-A5 壳侧修复）+ 本波文档提交 · 对应分支：`master`
+> 文档日期：2026-10-06 · 最后更新：2026-10-23（Phase 22 能力状态；§2 保留 Phase 20 验收快照） · 上一轮 2026-10-07（最终修复波 + 同日**两轮**用户真机验收：第一轮走查逐项结果见 §2.2；同晚走查报出的那条进度条单击定位缺陷被量出根因、修掉并用仪器复量，「进度显示」格 ⚠️ → 🟡；**同日第二轮复验把走查剩下的四项待复验逐条关掉——单击的听觉那一半、浅色系统下 WinUI 是否仍深色、列表下方空白区双击、正在播放时关窗的退出码与残留进程——「进度显示」「启动与窗口」「退出与收尾」三格 🟡 → ✅，本表已无待用户复验项**；仍没人够得着的两处见 §2.2 末段） · 代码基线：`27f5e39`（单击定位修复，纯壳侧）+ `dc67f13`（A1-A5 壳侧修复）+ 本波文档提交 · 对应分支：`master`
 > 关联设计稿：[`specs/2026-10-06-d-player-phase20-winui-shell-design.md`](./superpowers/specs/2026-10-06-d-player-phase20-winui-shell-design.md)
 > 关联实现计划：[`plans/2026-10-06-d-player-phase20-winui-shell-implementation.md`](./superpowers/plans/2026-10-06-d-player-phase20-winui-shell-implementation.md)
 
@@ -27,15 +27,17 @@ Phase 20 交付了一条 WinUI 3 的第二 UI 壳（第一条纵向切片），�
 | `D-player.Core` | WPF-free 的共享类库（Models / Services / ViewModels / Configuration / Extensions），`net10.0-windows`，不开 `UseWPF`；两个壳都引用它 | 在 `D-player.slnf` 内 |
 | `D-player`（WPF 壳） | 既有应用。**行为与外观按设计零变化**；只多了"数据目录由壳注入"与 `SortedView` 的删除（排序在界面上怎么变，见 §2 的"排序"行；`SortedView` 为什么删、删后靠什么排序，见 [`PROJECT.md`](./PROJECT.md) §4.3 关键决策 27 与 §5.4b 的 `SortBy`。§3 只列 WinUI 侧缺的能力，与这条无关） | 在 `D-player.slnf` 内 |
 | `Tests` | 180 条单测，引用目标从 WPF 壳改为 Core。**这 180 条覆盖 Core + WPF + Tests，WinUI 壳一条都不覆盖** | 在 `D-player.slnf` 内 |
-| `D-player.WinUI` | WinUI 3 壳（unpackaged + self-contained，x64），第一条纵向切片：歌单导航 + 曲目列表 + 播放器栏 + 真机可播 + 断点续播 | **不进门禁**。它有一条**需要手跑**的"壳侧构建检查"（`dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q`），**触发条件 = `D-player.Core` 的公开面一变就跑**（增量后实测约 9 秒）。见 [`README.md`](../README.md)「构建与运行」与 PROJECT §4.3 第 28 条 |
-| `D-player.slnf` | **门禁**筛选器（Core + WPF + Tests）：门禁一构建 + 门禁二测试，每次改动必跑。把 Windows App SDK 的重型工具链挡在每次构建/测试之外 | — |
-| `tools/verify-gates.ps1` | 把上面两条门禁（`-Fast`）与"门禁 + 壳侧检查"（`-Full`）一次跑完，逐步 fail-fast | 手跑 |
+| `D-player.WinUI` | WinUI 3 壳（unpackaged + self-contained，x64）：Phase 21 三栏视觉 + Phase 22 功能补齐（导入/导出、歌单管理、播放控制、基础设置、窗口几何、本地日志） | **不进 `.slnf`**；它的构建是 `powershell -File tools/verify-gates.ps1 -Full` 的门禁 3（`dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q`，0 警告），每个 Phase 22 任务与 Core 公开面变化时必跑。见 [`README.md`](../README.md)「构建与运行」与 PROJECT §4.3 第 28 条 |
+| `D-player.slnf` | **门禁 1/2** 筛选器（Core + WPF + Tests）：构建 + 测试，每次改动必跑（`-Fast`）。把 Windows App SDK 的重型工具链挡在每次构建/测试之外 | — |
+| `tools/verify-gates.ps1` | `-Fast` = 门禁 1 + 2；`-Full` = 再加门禁 3（WinUI 单工程构建）。逐步 fail-fast | 手跑 |
 
 一句话：**共享层已经拿到并且对 WPF 零行为影响；新壳拿到了"能跑起来、能出声"的最小证据，但远未达到功能等价。**
 
 ---
 
 ## 2. 功能等价核对表
+
+> **Phase 22（2026-10-23）已补齐 WinUI 的功能面**：异步文件对话框 + 真实 picker、播放列表导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何、本地日志。**本节是 Phase 20 的验收快照，下面的"WinUI 仍缺…"读数是当时的，保留不动**；当前能力状态以 §3 为准（频谱/EQ/拖拽/排序/文件夹绑定管理仍缺）。
 
 图例（**每格只取一个值**，取值规则：看这一行**最需要你出力**的那部分——所以 🟡 与 ❓ 都算"要你参与"，区别只在取证强度）：
 ✅ 已具备且取证已闭合（不需要你再确认）｜🟡 已具备、有代码级/截图级取证，只差你顺眼复核｜❓ **没有任何取证能替你判定**，必须你在真机上用曲库/耳朵确认｜❌ 本阶段刻意不做｜⚠️ 已具备但有**已知缺陷**（缺陷是哪一条、影响到什么程度写在备注里；⚠️ 本身不承诺"不影响使用"——这条规矩的来由是它曾经有两例：WPF 的退出码不挡功能，WinUI 的进度条单击定位挡。后者 2026-10-07 被量出根因并修掉，那一格先 ⚠️ → 🟡（修 + 仪器复量）、同日第二轮复验听的那半也跟上了 → ✅（§2.2），**所以本表当前只剩 WPF 退出码一处 ⚠️**）。**2026-10-07 用户真机实测（两轮）之后的取值变更**：由用户实测闭合的行改标 ✅（取证来源"用户实测"写在该行备注里，人肉测量不当仪器取证，反之也不）；用户实测出的缺陷标 ⚠️；**用户没报告的条目一律不升**，留在 ❓ / 🟡 / NOT VERIFIED——第一轮之后确实留着这么几条，同日的第二轮逐条报告了它们，于是本表已经没有待用户复验的行（逐项见 §2.2）。**同日晚上的第二次变更（修 + 仪器复量）**：「进度显示」那一格的 ⚠️ 不是因为"用户改口了"而消失，是因为那条缺陷被量出机制、改掉、再用仪器复量过；它"听觉上是否跟手"那半边当时留给用户复验，第二轮由用户实测补上，那一格才走到 ✅。另记一条取值守则：**升 ✅ 只看这一行的走查项有没有被实测覆盖**——行里那些没被走查清单点名的子项（例如「进度显示」里随修一起量到、没顺手改的键盘步进）照旧写在备注里，不因行标 ✅ 就消失；两处谁都不够得着的（WinUI 不进门禁 → 无自动回归；本机读不到应用程序日志 / WER）同理，也不因行标 ✅ 就消失。
@@ -125,25 +127,30 @@ Phase 20 交付了一条 WinUI 3 的第二 UI 壳（第一条纵向切片），�
 
 ---
 
-## 3. 本阶段 WinUI 侧刻意没有的能力
+## 3. Phase 22 之后的 WinUI 能力差距
 
-这不是遗漏，是设计稿的 Non-Goals（Phase 20 只做第一条纵向切片 + 决策门）。**评估"视觉观感/操作手感"时请把这一节当作已知前提**，但评估"维护与演进成本/生态"时可以把它当作工作量证据。
+> **Phase 22 已闭合下列行；频谱/EQ/拖拽/排序/文件夹绑定管理仍留给后续阶段。** 本节按 2026-10-23 Phase 22 交付后的状态记录；§2 是 Phase 20 的验收快照，保留当时的读数与结论，不回填本节。
 
-| 能力 | WPF 现状 | WinUI 现状 | 接过去需要动什么 |
+Phase 20 的这段差距表原本是设计稿的 Non-Goals（只做第一条纵向切片 + 决策门）。Phase 22 把日常可用闭环补齐后，**评估"操作手感"时只剩下表标 🟡/❌ 的项**；它们仍是工作量证据，不是"已经会做但懒得做"。
+
+| 能力 | WPF | WinUI（Phase 22 后） | 备注 |
 |---|---|---|---|
-| **曲目信息面板**（内嵌封面 / 专辑 / 采样率） | ✅ `Views/Controls/TrackInfoView.xaml:30-47`：封面（`AlbumArtBytes` → `BytesToBitmapImage` 转换器，ViewBox 缩放 + 圆角裁切）+ 标题 / 艺术家 / 专辑三行 + **采样率读数**（`PlayerViewModel.SampleRateText`） | ❌ **整个面板没有对应物**：无封面、无专辑行、无采样率；壳侧关于当前曲的全部信息就是底部栏那一行 `标题 — 艺术家`（`MainWindow.xaml` 的 `NowPlayingText`） | 数据全在 Core（`Track.AlbumArtBytes` / `Track.Album` / `PlayerViewModel.SampleRateText`），**缺的只是壳侧 UI**；但 WPF 的 `BytesToBitmapImageConverter` 属 WPF 壳（`System.Windows.Media.Imaging`），WinUI 要自己写一份到 `SoftwareBitmapSource` 的转换。**注意从属关系：频谱就嵌在这个面板的下半部**（同文件 `:70` 的 `SpectrumView`），所以下一行其实是本行的子部件——过去只列"缺频谱"，把整块面板、封面与采样率读数都漏在了表外 |
-| 频谱可视化（上面板的下半部） | ✅ 32 柱 FFT（Phase 13） | ❌ | `SpectrumView` 是 WPF `Control` + `CompositionTarget.Rendering`，需按 WinUI 重写一套绘制控件；数据源 `PlayerViewModel.SpectrumData` 已在 Core，无需改共享层 |
-| 拖拽（外部入队 + 队列内重排） | ✅（Phase 5） | ❌ | WinUI 的 DragDrop API 与 WPF 不同（无 `AdornerLayer`），插入线要换别的高亮机制；VM 侧命令 `DropExternalFiles` / `MoveTracks` 已在 Core，可直接复用 |
-| 文件/文件夹对话框 | ✅ `Win32FileDialogService` | ❌ **切片期是空实现**（三个方法各返回"用户取消"） | 已知真障碍：`IFileDialogService` 是**同步**接口，WinUI picker 只有异步 API，用同步接口驱动异步 picker 会在 UI 线程死锁。要么把 Core 接口改异步（跨壳改动，需单独决策），要么壳侧走异步 + 完成后回填 |
-| 均衡器（10 段 EQ + 预设 + 对话框） | ✅（Phase 14） | ❌ | 数据与实时下发都在 Core（`IPlaybackService.EqualizerConfig`），缺的只是 WinUI 侧的对话框与竖直滑块模板 |
-| 设置对话框 | ✅（Phase 11/13） | ❌（`NavigationView` 的 `IsSettingsVisible=False`） | 同上：读写字段都在 Core 的 `AppSettings`/`ISettingsPersistence`，缺 UI |
-| 播放列表文件导入/导出 | ✅ M3U/M3U8/PLS 导入 + M3U8 导出（Phase 18） | ❌ | 服务与两个 VM 方法都在 Core；文案格式化器也在 Core（`PlaylistImportReportFormatter`，Phase 20 从 View 层搬过去），缺对话框入口与报告展示 |
-| 音量与静音 | ✅ 滑块 + 一键静音 | ❌ | `PlayerViewModel.Volume` 已在 Core，纯 UI 活 |
-| 上一首/下一首、随机、循环三态 | ✅ | ❌ | 命令已在 Core（`NextTrack` / `PrevTrack` 在 `PlaylistViewModel`，`ToggleShuffle` / `CycleRepeat` 在 `PlaylistsViewModel`；WPF 侧的绑定路径就是这两个命令），纯 UI 活 |
-| 歌单增删/重命名/拖拽重排、文件夹绑定歌单、列表区 ▶ 标记 | ✅ | ❌ 只读导航 | 容器级方法都在 Core，缺 UI 与侧栏交互 |
-| 窗口几何持久化 + 可见性自愈 | ✅ | ❌ | 纯壳侧工作 |
+| 文件/文件夹对话框 | ✅ | ✅ | `IFileDialogService` 已异步；WinUI 用 FileOpenPicker/FolderPicker/FileSavePicker，WPF 保留同步对话框 |
+| 播放列表文件导入/导出 | ✅ | ✅ | 追加到当前歌单 / 新建歌单 / 导出 M3U8 |
+| 音量与静音 | ✅ | ✅ | 64px 底栏内，音量滑块在窄窗收起 |
+| 上一首/下一首、随机、循环三态 | ✅ | ✅ | 底栏单行 |
+| 设置对话框 | ✅ | ✅（基础版） | 默认音量 + 音频输出只读 + 日志入口；频谱/EQ 参数留 Phase 23 |
+| 歌单增删/重命名 | ✅ | ✅ | 左栏工具栏 + 双击重命名；拖拽重排仍缺 |
+| 窗口几何持久化 + 可见性自愈 | ✅ | ✅ | 物理像素；最大化不覆盖普通几何；屏外自愈用 `DisplayArea.GetFromPoint`（偏离原设计的 `FindAll`，见 `COUPLING.md` Phase 22 块） |
+| 曲目信息面板 | ✅ | 🟡 | 封面/标题/艺术家/专辑/时长已有；采样率与频谱仍缺 |
+| 频谱 / EQ / 拖拽 / 排序 / 文件夹绑定管理 | ✅ | ❌ | Phase 23 / 24 |
 
-**判据提示**：上面这些"缺 UI 不缺逻辑"的行，是 Phase 20 抽出 `D-player.Core` 的直接收益——共享层已经可复用，缺的部分全在壳的表现层。反过来，**对话框（同步 vs 异步）**与**拖拽（Adorner 机制）**是两处真需要动跨壳契约或换实现方式的地方，估工作量时别按"顺手接一下"算。
+**仍未闭合项的接法（Phase 23/24）**：
+- **频谱**：`SpectrumView` 是 WPF `Control` + `CompositionTarget.Rendering`，需按 WinUI 重写绘制控件；数据源 `PlayerViewModel.SpectrumData` 已在 Core。
+- **EQ**：数据与实时下发在 Core（`IPlaybackService.EqualizerConfig`），缺 WinUI 对话框与竖直滑块模板。
+- **拖拽**：WinUI 的 DragDrop API 与 WPF 不同（无 `AdornerLayer`），插入线要换高亮机制；VM 侧命令 `DropExternalFiles` / `MoveTracks` 已在 Core。
+- **排序 / 文件夹绑定管理 / TrackList ▶**：表头点击排序、文件夹绑定歌单的创建/刷新、TrackList 当前曲标记仍是壳侧 UI 缺口；`SortBy` 与扫描/缓存逻辑已在 Core。
+- **InfoPanel 采样率**：`PlayerViewModel.SampleRateText` 已在 Core，InfoPanel 尚无该行。
 
 ---
 
@@ -151,7 +158,7 @@ Phase 20 交付了一条 WinUI 3 的第二 UI 壳（第一条纵向切片），�
 
 打分口径：**1 = 明显不如另一侧 / 5 = 明显优于另一侧**，同分写 3/3 也行。备注栏里预先放的是**已核实的事实**，不是结论；你可以直接划掉改写。
 
-> **只给指针，不替你打分**：下面这张表的备注栏写于 2026-10-07 两轮用户真机走查、以及同晚那次单击定位修复**之前**，所以它里面"未验证项"那几处口径已经过期。每一项的当前状态——第一轮 ②③④⑤ 与多歌单恢复态、第二轮补的那四条复验、单击落点与拖动的仪器读数——一律看 **§2.2** 与 §2 各行，本表不在此重述；「维护与演进成本」那行说的模板部件挂接现在也是**两个**部件名（`HorizontalThumb` + `HorizontalTemplate`，见 §5 关切 5）。**结论已于 2026-10-07 拍板为续投 WinUI（见 §5）；分数栏按这次决定保持空白——评分推迟到第二阶段补完之后再走一次本表，不是漏填。**
+> **只给指针，不替你打分**：下面这张表的备注栏写于 2026-10-07 两轮用户真机走查、以及同晚那次单击定位修复**之前**，所以它里面"未验证项"那几处口径已经过期。每一项的当前状态——第一轮 ②③④⑤ 与多歌单恢复态、第二轮补的那四条复验、单击落点与拖动的仪器读数——一律看 **§2.2** 与 §2 各行，本表不在此重述；「维护与演进成本」那行说的模板部件挂接现在也是**两个**部件名（`HorizontalThumb` + `HorizontalTemplate`，见 §5 关切 5）。**结论已于 2026-10-07 拍板为续投 WinUI（见 §5）；分数栏按这次决定保持空白——评分推迟到第二阶段补完之后再走一次本表，不是漏填。** **门禁口径同样以当前文档为准**：本节备注里的"两条门禁 + 手跑壳侧检查"是 Phase 20/21 当时的写法；Phase 22 起 WinUI 单工程构建是 `-Full` 的门禁 3。
 
 | 维度 | WPF 分 | WinUI 分 | 备注（已知事实，供打分参考） |
 |---|---|---|---|

@@ -1,6 +1,6 @@
 # Phase 22 WinUI 功能补齐验收清单
 
-**状态**：**23 项全部 PASS（D1 的 1 MiB 轮转子项待用户复验）**。A1–A7、B1–B6、C1–C4、D1–D3、E1–E3 均已 PASS；C4/D3 由用户 2026-10-24 手测确认。D1 的 1 MiB 轮转子项尚未压测，步骤见文末。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”已由用户 2026-10-24 手测确认。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch）；修复后 `-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0，证据 `%TEMP%\p22-acc\gates-postfix.log`）。空态在会话内新建空歌单时已实测可见（`ct-fix-01-created.txt`）；“冷启动即空歌单”的复验仍交用户，原因见「已知问题 / 交给用户」第 5 项。
+**状态**：**23 项全部 PASS**。A1–A7、B1–B6、C1–C4、D1–D3、E1–E3 均已 PASS；C4/D3 与 D1 的 1 MiB 轮转由用户 2026-10-24 手测确认。可选的冷启动空态复验见第 5 项。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”已由用户 2026-10-24 手测确认。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch）；修复后 `-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0，证据 `%TEMP%\p22-acc\gates-postfix.log`）。空态在会话内新建空歌单时已实测可见（`ct-fix-01-created.txt`）；“冷启动即空歌单”的复验仍交用户，原因见「已知问题 / 交给用户」第 5 项。
 
 执行者：acceptance agent（自动化部分）+ 用户（手测部分）。
 规则：不修改任何产品文件；只追加本验收记录。证据截图/UIA dump 位于 `%TEMP%\p22-acc\`。
@@ -57,7 +57,7 @@
 
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
-| D1 启动后日志文件存在且含启动记录；损坏音频触发 `PlaybackError`；断点文件缺失/失效走 `断点续播被跳过`；日志 IO 失败不影响应用。 | PASS（1 MiB 轮转未压测） | 用户 2026-10-24 读取 `%LOCALAPPDATA%\D-player-winui\logs\app.log` 报告：① `2026-10-24 10:09:43.656 [T2] WinUI shell starting`；② `2026-10-24 10:13:59.543 [T2] PlaybackError: Media Foundation error 0xC00D3E84`；③ `2026-10-24 10:09:44.911 [T2] 断点续播被跳过：上次播放的曲目已不在任何歌单中，未恢复播放位置：C:\Users\darknight2236\Music\p22-acc-tmp\toneA30s.wav`。日志 IO 失败不影响应用由代码路径确认；1 MiB 轮转未专门压测。 | `%LOCALAPPDATA%\D-player-winui\logs\app.log`（用户读取，代理未读取） |
+| D1 启动后日志文件存在且含启动记录；损坏音频触发 `PlaybackError`；断点文件缺失/失效走 `断点续播被跳过`；日志 IO 失败不影响应用。 | PASS | 用户 2026-10-24 读取 `%LOCALAPPDATA%\D-player-winui\logs\app.log` 报告：① `2026-10-24 10:09:43.656 [T2] WinUI shell starting`；② `2026-10-24 10:13:59.543 [T2] PlaybackError: Media Foundation error 0xC00D3E84`；③ `2026-10-24 10:09:44.911 [T2] 断点续播被跳过：上次播放的曲目已不在任何歌单中，未恢复播放位置：C:\Users\darknight2236\Music\p22-acc-tmp\toneA30s.wav`。日志 IO 失败不影响应用由代码路径确认；④ 1 MiB 轮转：用户 2026-10-24 将 `app.log` 填充到 1,058,923 字节后启动，`app.log.1` = 1,058,923 字节，新 `app.log` = 54 字节且含 `2026-10-24 13:16:10.867 [T2] WinUI shell starting`。 | `%LOCALAPPDATA%\D-player-winui\logs\app.log`（用户读取，代理未读取） |
 | D2 `powershell -File tools/verify-gates.ps1 -Full` → 三道门禁全绿。 | PASS | `mode: Full (3 gates…)`；gate 1/3 `-> ok (exit 0, 0 warning lines)`，gate 2/3 `总计 180 / 失败 0`，gate 3/3 `-> ok (exit 0, 0 warning lines)`，结尾 `all requested steps passed.`（进程退出码 0）。修复后（`adc0fbf`）复跑同样全绿；中途一次门禁 3 失败是测试进程锁住 `D-player.Core.dll`（MSB3027），关闭进程后复跑通过，不是代码缺陷。 | `%TEMP%\p22-acc\gates.log`、`gates-postfix.log` |
 | D3 WPF 壳的导入/导出/文件夹对话框行为不变（用户手测）。 | PASS | 用户 2026-10-24 手测：WPF 壳的添加文件 / 导入文件夹 / 导出 M3U8 对话框行为正常，标题/过滤器/取消与 Phase 21 一致。 | 用户手测 2026-10-24 |
 
@@ -81,13 +81,15 @@
 2. **删除当前查看歌单后的 NavRail/列表选中不一致（既有缺陷）**：删除正在查看的歌单并重启后，左栏高亮与中间列表显示的可能是两个不同歌单；点击一次左栏即恢复同步。Phase 22 未改 NavRail 的选中恢复逻辑，记录待后续 NavRail 梳理。
 3. **两个 `Debug.WriteLine` 未接入 `AppLog`**：`SettingsDialog`（打开日志文件夹失败）与 `PlayerBar`（设置对话框 `ShowAsync` 异常）仍用 `Debug.WriteLine`，WinExe 下不可见。Task 6 只迁移了 brief 指定的调用点，未顺手扩大范围。
 4. **文件夹选择器“输入路径”等效取消**：在 Windows `FolderPicker` 的路径框里键入路径并确认，可能返回 `StorageFolder.Path == ""`；`WinUiFileDialogService.OpenFolderAsync` 按既有契约把空路径映射为 null（取消）。选择列表中的真实文件夹项工作正常，A2 请按“选中文件夹项”的方式操作。
-5. **只能由用户确认的项**：1 MiB 轮转（步骤见文末）、首启空态提示的冷启动复验。C4 与 D3 已由用户 2026-10-24 手测通过；日志内容 / `PlaybackError` / 断点跳过见 D1。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，这些项交用户在走查时确认。空态冷启动的代理尝试受两点限制：应用启动恢复的是“当前播放歌单”而非“最后查看的空歌单”，且文件 picker 在本会话无法前台驱动，未能构造出“冷启动即空歌单”的条件；会话内新建空歌单已实测空态可见。
+5. **可选的补充复验**：首启空态提示的冷启动（清单 23 项已全部 PASS；1 MiB 轮转已由用户 2026-10-24 确认）。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，此项交用户按需确认。空态冷启动的代理尝试受两点限制：应用启动恢复的是“当前播放歌单”而非“最后查看的空歌单”，且文件 picker 在本会话无法前台驱动，未能构造出“冷启动即空歌单”的条件；会话内新建空歌单已实测空态可见。
 6. **冒烟副作用（透明披露）**：Task 3/4/5 的真机冒烟可能改变了持久化的“查看歌单”指针、某歌单的当前曲索引与窗口几何（Task 5 结束时记录为 1200×800 @ (360,124)）；所有用户歌单的**内容**未被编辑。
 7. **本轮走查副作用**：创建并删除了 AccProbe、list3、验收临时、acc-list、A6tmpRenamed、A7a、Btmp、C3resume、SpaceProbe 等一次性歌单；用户歌单 新歌单/幻灯/1 的内容未被编辑。走查结束时窗口 1200×800@(200,80)、音量 1.0、随机/循环关，查看歌单切回 幻灯。断点续播可能指向已删除的临时 WAV（`%TEMP%\p22-acc\audio\*`），下次启动会走“断点续播被跳过”。
 
 ---
 
-## D1 子项：1 MiB 轮转测试
+## D1 子项：1 MiB 轮转测试（已完成，保留为复现步骤）
+
+2026-10-24 已按此步骤实测通过：`app.log.1` = 1,058,923 字节，新 `app.log` = 54 字节且含启动行。以下保留为复现步骤。
 
 前置：关闭 WinUI 壳，确保日志文件没有被占用。路径：`%LOCALAPPDATA%\D-player-winui\logs\`。
 

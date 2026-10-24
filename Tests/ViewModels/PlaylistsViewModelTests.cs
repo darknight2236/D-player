@@ -385,6 +385,121 @@ public class PlaylistsViewModelTests
         Assert.True(container.Playlists[1].IsActivePlaylist);
     }
 
+    // —— CurrentPlaylist（传输按钮的目标，不跟随查看项） ——
+
+    [Fact]
+    public void CurrentPlaylist_FollowsCurrentPlaylistId_NotViewedPlaylist()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        container.ViewedPlaylist = container.Playlists[1];
+
+        Assert.Equal("id1", container.CurrentPlaylist?.Id);
+
+        container.CurrentPlaylistId = "id2";
+
+        Assert.Equal("id2", container.CurrentPlaylist?.Id);
+    }
+
+    /// <summary>WPF 的 Prev/Next Command 绑定在 CurrentPlaylist 上，指针变化必须发通知才会重新求值。</summary>
+    [Fact]
+    public void CurrentPlaylist_RaisesPropertyChanged_WhenCurrentPlaylistIdChanges()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var changed = new List<string?>();
+        container.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        container.CurrentPlaylistId = "id2";
+
+        Assert.Contains(nameof(PlaylistsViewModel.CurrentPlaylist), changed);
+    }
+
+    // —— TrackEnded 归属守卫（Phase 22 冒烟发现的抢播竞态） ——
+
+    /// <summary>
+    /// RepeatOne 是最容易被非活跃歌单抢播的路径：它不需要计算下一首，直接重播自己的 CurrentIndex。
+    /// 自然播完时只有当前播放歌单可以重播。
+    /// </summary>
+    [Fact]
+    public async Task TrackEnded_RepeatOne_WhenPlaylistIsInactive_DoesNotReplay()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        container.RepeatMode = RepeatMode.One;
+        var active = container.Playlists[0];
+        var inactive = container.Playlists[1];
+        active.Queue.Add(new Track("a.mp3", "A", null, null, null, null, null, null, TimeSpan.Zero, null));
+        inactive.Queue.Add(new Track("b.mp3", "B", null, null, null, null, null, null, TimeSpan.Zero, null));
+        active.CurrentIndex = 0;
+        inactive.CurrentIndex = 0;
+        _metadataReader.ReadAsync(Arg.Any<string>())
+            .Returns(ci => new Track(ci.ArgAt<string>(0), "T", null, null, null, null, null, null, TimeSpan.Zero, null));
+
+        _player.TrackEnded += Raise.Event<Action>();
+
+        await _player.Received(1).LoadAsync(Arg.Is<Track>(t => t.FilePath == "a.mp3"));
+        await _player.DidNotReceive().LoadAsync(Arg.Is<Track>(t => t.FilePath == "b.mp3"));
+        _player.Received(1).Play();
+        Assert.Equal(0, inactive.CurrentIndex);
+    }
+
+    /// <summary>
+    /// 播放控制条绑定 ViewedPlaylist，用户可能在查看 B 时按上一首/下一首/首播。
+    /// 真正开始播放的歌单必须同时成为 CurrentPlaylistId —— 否则 ▶ 标记停留在 A，
+    /// 下一次 TrackEnded 会推进 A 而不是实际出声的 B。
+    /// </summary>
+    [Fact]
+    public async Task PlayTrackAt_FromViewedNonPlayingPlaylist_ClaimsCurrentPlaylistId()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                new Playlist("id2", "B", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var target = container.Playlists[1];
+        container.ViewedPlaylist = target;
+        target.Queue.Add(new Track("b.mp3", "B", null, null, null, null, null, null, TimeSpan.Zero, null));
+        _metadataReader.ReadAsync("b.mp3")
+            .Returns(Task.FromResult(new Track("b.mp3", "B", null, null, null, null, null, null, TimeSpan.Zero, null)));
+
+        await target.PlayTrackAtCommand.ExecuteAsync(0);
+
+        Assert.Equal("id2", container.CurrentPlaylistId);
+        Assert.False(container.Playlists[0].IsActivePlaylist);
+        Assert.True(target.IsActivePlaylist);
+        _player.Received(1).Play();
+    }
+
     // —— MovePlaylist ——
 
     [Fact]

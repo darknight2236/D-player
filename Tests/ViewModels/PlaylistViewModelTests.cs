@@ -193,6 +193,38 @@ public class PlaylistViewModelTests
         Assert.True(vm.HasCurrentTrack);
     }
 
+    // —— TrackEnded 归属守卫（Phase 22 冒烟发现的抢播竞态） ——
+
+    /// <summary>
+    /// 共享播放器一次自然播完会调用**所有**歌单 VM 的 TrackEnded 订阅者。
+    /// 只有 IsActivePlaylist 的 VM 有权推进；否则非播放歌单会改自己的 CurrentIndex
+    /// 并调用全局 LoadAsync/Play 抢走播放。
+    /// </summary>
+    [Fact]
+    public async Task TrackEnded_WhenPlaylistIsInactive_DoesNotAdvanceOrPlay()
+    {
+        var active = CreateVm(id: "active");
+        var inactive = CreateVm(id: "inactive");
+        active.Queue.Add(new Track("active0.mp3", "A0", null, null, null, null, null, null, TimeSpan.Zero, null));
+        active.Queue.Add(new Track("active1.mp3", "A1", null, null, null, null, null, null, TimeSpan.Zero, null));
+        inactive.Queue.Add(new Track("inactive0.mp3", "B0", null, null, null, null, null, null, TimeSpan.Zero, null));
+        inactive.Queue.Add(new Track("inactive1.mp3", "B1", null, null, null, null, null, null, TimeSpan.Zero, null));
+        active.CurrentIndex = 0;
+        inactive.CurrentIndex = 0;
+        active.IsActivePlaylist = true;
+
+        _metadataReader.ReadAsync(Arg.Any<string>())
+            .Returns(ci => new Track(ci.ArgAt<string>(0), "T", null, null, null, null, null, null, TimeSpan.Zero, null));
+
+        _player.TrackEnded += Raise.Event<Action>();
+
+        Assert.Equal(1, active.CurrentIndex);
+        Assert.Equal(0, inactive.CurrentIndex);
+        await _player.Received(1).LoadAsync(Arg.Is<Track>(t => t.FilePath == "active1.mp3"));
+        await _player.DidNotReceive().LoadAsync(Arg.Is<Track>(t => t.FilePath == "inactive1.mp3"));
+        _player.Received(1).Play();
+    }
+
     // —— SortBy（表头点击排序：PlaylistView.xaml.cs Header_Click → vm.SortBy(column)）——
 
     /// <summary>

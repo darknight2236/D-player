@@ -208,6 +208,36 @@ public class PlaybackResumeTests : IDisposable
         await _player.DidNotReceive().LoadAsync(Arg.Any<Track>());
     }
 
+    /// <summary>
+    /// 恢复的曲目可能属于另一个歌单（旧版本从 ViewedPlaylist 发起播放时不会同步 CurrentPlaylistId）。
+    /// 恢复时必须把"当前播放歌单"指到曲目真正所属的歌单，否则用户按 ▶ 出声后、
+    /// 自然播完时 TrackEnded 守卫会推进错误的歌单。
+    /// </summary>
+    [Fact]
+    public async Task InitializeAsync_RestoredTrackInAnotherPlaylist_ClaimsCurrentPlaylistId()
+    {
+        _playlistService.LoadAsync().Returns(Task.FromResult(new QueueState
+        {
+            SchemaVersion = 3,
+            Playlists = new[]
+            {
+                new Playlist("p1", "P1", Array.Empty<string>(), 0, false, RepeatMode.Off),
+                new Playlist("p2", "P2", new[] { _tempTrack }, 0, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "p1",
+        }));
+        _settings.LoadAsync().Returns(Task.FromResult(LastPlayed(_tempTrack, 0)));
+        var vm = CreateMainVm();
+
+        var warning = await vm.InitializeAsync();
+
+        Assert.Null(warning);
+        Assert.Equal("p2", vm.Playlists.CurrentPlaylistId);
+        Assert.False(vm.Playlists.Playlists[0].IsActivePlaylist);
+        Assert.True(vm.Playlists.Playlists[1].IsActivePlaylist);
+        await _player.Received(1).LoadAsync(Arg.Is<Track>(t => t.FilePath == _tempTrack));
+    }
+
     [Fact]
     public async Task InitializeAsync_NoLastPlayed_DoesNotRestoreNorWarn()
     {

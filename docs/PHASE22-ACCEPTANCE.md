@@ -75,9 +75,9 @@
 
 ## 已知问题 / 交给用户
 
-以下问题在 Phase 22 的 Task 2–6 真机冒烟中被发现或确认，已记录、未在本阶段修复。Task 8 走查时不要把它们误判为新增回归。
+以下问题在 Phase 22 的 Task 2–6 真机冒烟中被发现或确认。除第 1 项已在交付后修复外，其余未在本阶段修复；Task 8 走查时不要把它们误判为新增回归。
 
-1. **Core `TrackEnded` 竞态（既有缺陷，Phase 22 范围外）**：每个 `PlaylistViewModel` 都在构造时订阅共享播放器的 `TrackEnded`，曲目自然播完后所有歌单 VM 都会尝试推进，可能让非查看中的歌单（冒烟中见到的 `1`）抢走播放。修复属于 Core，需要单独拍板；本阶段只记录。走查建议用足够长的测试音频，避免短音频自然结束干扰其他项。
+1. **Core `TrackEnded` 竞态 —— 已于 2026-10-24 修复（Phase 22 交付后）**：每个 `PlaylistViewModel` 都在构造时订阅共享播放器的 `TrackEnded`，曲目自然播完后所有歌单 VM 都会尝试推进，可能让非查看中的歌单（冒烟中见到的 `1`）抢走播放。修复：`HandleTrackEnded` 入口以 `IsActivePlaylist` 守卫；`PlayTrackAtAsync` 开始播放前把 `Container.CurrentPlaylistId` 指向自己（播放控制条绑定 `ViewedPlaylist`，否则查看 B 时点播放控制会让守卫推进 A）。新增 4 条 Core 单测（含启动断点续播把 `CurrentPlaylistId` 同步到曲目所属歌单），全量 186 通过 / 0 失败。验收时 B3/C3 用长音频规避该竞态的步骤保留为历史记录。同日追加（用户冒烟发现）：新建歌单导入曲目后，查看该歌单时上一首/下一首因 `CurrentIndex=-1` 变灰；按用户拍板，传输按钮改绑 `Playlists.CurrentPlaylist`（不跟随查看项，落实双指针模型），另加 2 条 `CurrentPlaylist` 单测。**用户 2026-10-24 真机复验竞态修复**：双击歌单 1 起播 → 左栏切回默认歌单查看 → 把歌单 1 当前曲拖到接近结尾自然播完，播放切到歌单 1 的第二首，默认歌单未抢播。
 2. **删除当前查看歌单后的 NavRail/列表选中不一致（既有缺陷）**：删除正在查看的歌单并重启后，左栏高亮与中间列表显示的可能是两个不同歌单；点击一次左栏即恢复同步。Phase 22 未改 NavRail 的选中恢复逻辑，记录待后续 NavRail 梳理。
 3. **两个 `Debug.WriteLine` 未接入 `AppLog`**：`SettingsDialog`（打开日志文件夹失败）与 `PlayerBar`（设置对话框 `ShowAsync` 异常）仍用 `Debug.WriteLine`，WinExe 下不可见。Task 6 只迁移了 brief 指定的调用点，未顺手扩大范围。
 4. **文件夹选择器“输入路径”等效取消**：在 Windows `FolderPicker` 的路径框里键入路径并确认，可能返回 `StorageFolder.Path == ""`；`WinUiFileDialogService.OpenFolderAsync` 按既有契约把空路径映射为 null（取消）。选择列表中的真实文件夹项工作正常，A2 请按“选中文件夹项”的方式操作。

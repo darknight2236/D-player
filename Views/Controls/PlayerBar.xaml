@@ -80,7 +80,7 @@
         <Grid Grid.Row="1">
             <!-- 居中：上一首、播放/暂停 (圆形紫色)、下一首 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Command="{Binding DataContext.Playlists.ViewedPlaylist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                <Button Command="{Binding DataContext.Playlists.CurrentPlaylist.PrevTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" ToolTip="上一首">
                     <Path Style="{StaticResource IconPath}" Width="20" Height="20" Data="{StaticResource Icon.Prev}" Stroke="{StaticResource ForegroundPrimary}"/>
                 </Button>
@@ -121,7 +121,7 @@
                     <Path Style="{StaticResource IconPath}" Width="20" Height="20" Data="{Binding PlayState, Converter={StaticResource PlayStateToIcon}}" Stroke="White"/>
                 </Button>
 
-                <Button Command="{Binding DataContext.Playlists.ViewedPlaylist.NextTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                <Button Command="{Binding DataContext.Playlists.CurrentPlaylist.NextTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         Width="48" Height="48" Margin="8,0,0,0" ToolTip="下一首">
                     <Path Style="{StaticResource IconPath}" Width="20" Height="20" Data="{StaticResource Icon.Next}" Stroke="{StaticResource ForegroundPrimary}"/>
                 </Button>

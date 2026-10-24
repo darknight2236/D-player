@@ -37,6 +37,14 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     [ObservableProperty]
     private string _currentPlaylistId = string.Empty;
 
+    /// <summary>
+    /// 当前正在播放的歌单 VM；由 <see cref="CurrentPlaylistId"/> 解析，找不到为 null。
+    /// 传输按钮（上一首/下一首）绑定这里，**不绑** ViewedPlaylist ——
+    /// 切换查看不打断播放，只有双击才跨歌单切换音频（Spotify 双指针模型）。
+    /// </summary>
+    public PlaylistViewModel? CurrentPlaylist =>
+        Playlists.FirstOrDefault(p => p.Id == CurrentPlaylistId);
+
     // —— 全局播放模式（所有歌单共享） ——
 
     [ObservableProperty]
@@ -121,10 +129,10 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 按文件路径在已水化的歌单里找曲目（"正在播放"歌单优先），供启动断点续播就位。
-    /// 找不到返回 null。
+    /// 按文件路径在已水化的歌单里找曲目（"正在播放"歌单优先），并返回它所属的歌单。
+    /// 供启动断点续播就位；找不到返回 null。
     /// </summary>
-    public Track? FindTrackByPath(string filePath)
+    public (PlaylistViewModel Playlist, Track Track)? FindPlaylistTrackByPath(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath)) return null;
 
@@ -132,8 +140,15 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             t => string.Equals(t.FilePath, path, StringComparison.OrdinalIgnoreCase));
 
         var current = Playlists.FirstOrDefault(p => p.Id == CurrentPlaylistId);
-        return FindIn(current, filePath)
-            ?? Playlists.Select(p => FindIn(p, filePath)).FirstOrDefault(t => t is not null);
+        if (current is not null && FindIn(current, filePath) is { } currentTrack)
+            return (current, currentTrack);
+
+        foreach (var vm in Playlists)
+        {
+            if (FindIn(vm, filePath) is { } track)
+                return (vm, track);
+        }
+        return null;
     }
 
     /// <summary>
@@ -287,6 +302,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     partial void OnCurrentPlaylistIdChanged(string value)
     {
         RecomputeIsActiveFlags();
+        OnPropertyChanged(nameof(CurrentPlaylist));
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -325,7 +341,12 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         => StateChanged?.Invoke(this, EventArgs.Empty);
 
     private void OnPlaylistsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        => StateChanged?.Invoke(this, EventArgs.Empty);
+    {
+        // 集合换出/换入可能让 CurrentPlaylistId 解析到另一个 VM（或 null），
+        // WPF 的传输按钮绑定依赖这条通知重新求值。
+        OnPropertyChanged(nameof(CurrentPlaylist));
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     // —— Phase 10: 文件夹绑定歌单命令 ——
 

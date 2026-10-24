@@ -356,15 +356,16 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     /// </summary>
     private void SyncTransportVisuals()
     {
-        var viewed = Playlists.ViewedPlaylist;
+        // 传输按钮作用于"正在播放"的歌单，不跟随查看项；查看项只决定中间列表显示什么。
+        var current = Playlists.CurrentPlaylist;
         var signature =
             $"{Playlists.ShuffleEnabled}|{Playlists.RepeatMode}|{Player.IsMuted}|" +
             $"{Player.Volume.ToString("F3", CultureInfo.InvariantCulture)}|" +
-            $"{viewed?.Id ?? "-"}|{viewed?.HasCurrentTrack ?? false}";
+            $"{current?.Id ?? "-"}|{current?.HasCurrentTrack ?? false}";
         if (signature == _lastTransportSignature) return;
         _lastTransportSignature = signature;
 
-        var hasTrack = viewed?.HasCurrentTrack == true;
+        var hasTrack = current?.HasCurrentTrack == true;
         PrevButton.IsEnabled = hasTrack;
         NextButton.IsEnabled = hasTrack;
 
@@ -443,10 +444,10 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     // —— Phase 22：运输控件与音量 ——
 
     private void PrevButton_Click(object sender, RoutedEventArgs e)
-        => Playlists.ViewedPlaylist?.PrevTrackCommand.Execute(null);
+        => Playlists.CurrentPlaylist?.PrevTrackCommand.Execute(null);
 
     private void NextButton_Click(object sender, RoutedEventArgs e)
-        => Playlists.ViewedPlaylist?.NextTrackCommand.Execute(null);
+        => Playlists.CurrentPlaylist?.NextTrackCommand.Execute(null);
 
     private void ShuffleButton_Click(object sender, RoutedEventArgs e)
         => Playlists.ToggleShuffleCommand.Execute(null);

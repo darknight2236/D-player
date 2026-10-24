@@ -80,9 +80,16 @@ public sealed class MainViewModel : IAsyncDisposable
         if (!File.Exists(path))
             return $"上次播放的文件已不存在，未恢复播放位置：\n{path}";
 
-        var track = Playlists.FindTrackByPath(path);
-        if (track is null)
+        var found = Playlists.FindPlaylistTrackByPath(path);
+        if (found is null)
             return $"上次播放的曲目已不在任何歌单中，未恢复播放位置：\n{path}";
+
+        var (owner, track) = found.Value;
+        // 归属同步：恢复的曲目属于哪个歌单，哪个歌单就是当前播放歌单。
+        // 旧版本从 ViewedPlaylist 发起播放时不会同步指针，升级后首次启动可能不一致；
+        // 不同步会让用户按 ▶ 出声后，TrackEnded 守卫推进错误的歌单。
+        if (Playlists.CurrentPlaylistId != owner.Id)
+            Playlists.CurrentPlaylistId = owner.Id;
 
         await _player.LoadAsync(track).ConfigureAwait(true);
 

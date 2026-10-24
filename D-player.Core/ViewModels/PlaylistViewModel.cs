@@ -282,6 +282,14 @@ public partial class PlaylistViewModel : ObservableObject
         // 抢占 token：之后任何 await 若发现 token 已变，说明被新调用顶替，立即放弃
         int myToken = ++_playToken;
 
+        // 归属同步：真正开始播放的歌单就是"当前播放歌单"。
+        // 上一首/下一首绑定 Playlists.CurrentPlaylist，不会从别的歌单直达这里；
+        // 但双击/首播等入口仍可能直达（无已加载曲目时 PlayerBar 走
+        // ViewedPlaylist.PlayCurrentCommand），此时指针必须跟着出声歌单走，
+        // 否则下一次 TrackEnded 会推进旧歌单。
+        if (Container is { } container && container.CurrentPlaylistId != Id)
+            container.CurrentPlaylistId = Id;
+
         CurrentIndex = index;
         _shuffleHistory.Add(index); // 不管是否 Shuffle 都登记，便于切换时无缝
 
@@ -629,6 +637,12 @@ public partial class PlaylistViewModel : ObservableObject
     /// </summary>
     private async void HandleTrackEnded()
     {
+        // IPlaybackService 是全局单例，所有歌单 VM 都订阅了 TrackEnded。
+        // 只有实际在出声的歌单（CurrentPlaylistId 对应者）有权推进；否则曲目自然播完时，
+        // 其余歌单会各自改自己的 CurrentIndex 并调用全局 LoadAsync/Play 抢走播放
+        // （Phase 22 冒烟：非查看中的歌单 "1" 抢播）。
+        if (!IsActivePlaylist) return;
+
         // 单曲循环：仅在自动播完时重播当前
         if (RepeatMode == RepeatMode.One && CurrentIndex >= 0)
         {

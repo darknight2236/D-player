@@ -1,6 +1,6 @@
 # Phase 22 WinUI 功能补齐验收清单
 
-**状态**：**已完成（C4、D3 待用户手测）**。A1–A7、B1–B6、C1–C3、D1、D2、E1–E3 已 PASS（D1 的 1 MiB 轮转子项未压测）；C4、D3 为 NOT VERIFIED（用户手测，步骤见下）。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”已由用户 2026-10-24 手测确认。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch）；修复后 `-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0，证据 `%TEMP%\p22-acc\gates-postfix.log`）。空态在会话内新建空歌单时已实测可见（`ct-fix-01-created.txt`）；“冷启动即空歌单”的复验仍交用户，原因见「已知问题 / 交给用户」第 5 项。
+**状态**：**23 项全部 PASS（D1 的 1 MiB 轮转子项待用户复验）**。A1–A7、B1–B6、C1–C4、D1–D3、E1–E3 均已 PASS；C4/D3 由用户 2026-10-24 手测确认。D1 的 1 MiB 轮转子项尚未压测，步骤见文末。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”已由用户 2026-10-24 手测确认。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch）；修复后 `-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0，证据 `%TEMP%\p22-acc\gates-postfix.log`）。空态在会话内新建空歌单时已实测可见（`ct-fix-01-created.txt`）；“冷启动即空歌单”的复验仍交用户，原因见「已知问题 / 交给用户」第 5 项。
 
 执行者：acceptance agent（自动化部分）+ 用户（手测部分）。
 规则：不修改任何产品文件；只追加本验收记录。证据截图/UIA dump 位于 `%TEMP%\p22-acc\`。
@@ -51,7 +51,7 @@
 | C1 移动/缩放窗口 → 关闭 → 重开：位置与尺寸恢复。 | PASS | `SetWindowPos` 把外框移到 `(300,200) 1000x640`（关闭前读数 `outer 300,200 1000x640 client 984x632 zoomed=False`），用标题栏 `Close` 按钮关闭（点击 `1269,216`），3 秒后进程表为空；重新启动同一 exe 后 UIA 读数 `outer 300,200 1000x640 client 984x632 zoomed=False uia=300,200,1000x640`，位置与尺寸逐像素一致。走查后已还原为 `(200,80) 1200x800` 并再次关闭/重开验证（读数 `outer 200,80 1200x800`）。 | `%TEMP%\p22-acc\c1-01-moved.txt`、`c1-02-geom-before-close.txt`、`c1-03-closeclick.txt`、`c1-04-relaunch-geom.txt`、`c1-05-restore-move.txt`、`c1-06-restore-geom.txt` |
 | C2 最大化关闭 → 重开：回到上次的普通几何。 | PASS | 先处于普通几何 `(200,80) 1200x800`，点标题栏 `Maximize` 按钮（按钮随即改名 `Restore`）→ `outer -8,-8 1936x1064 client 1920x1048 zoomed=True`；在最大化态点 `Close`（`1897,16`）关闭，重开后读数为 `outer 200,80 1200x800 client 1184x792 zoomed=False`，即回到最大化前的普通几何而非最大化尺寸，证明最大化态未落盘。 | `%TEMP%\p22-acc\c2-01-maxclick.txt`、`c2-02-geom-maximized.txt`、`c2-03-close.txt`、`c2-04-relaunch-geom.txt` |
 | C3 断点续播回归：播放中关窗 → 重开按 ▶ 从断点继续。 | PASS | 临时歌单 `C3resume` 加入 `%TEMP%\p22-acc\audio\toneA30s.wav`（30s），双击播放后暂停并把进度条设为 `0.25` → 时间文本 `00:07 / 00:30`（`RangeValue=0.25`，静止 2 秒读数不变，确认已暂停）；点 `Close` 关闭，重开后时间栏即显示 `00:07 / 00:30`（断点已回灌，非 `00:00`），点 `▶` 后 3 秒读数为 `00:11 / 00:30`（`RangeValue=0.4049992`），播放从断点继续。全程在 30s 片段结束前停止，规避既有 `TrackEnded` 竞态。 | `%TEMP%\p22-acc\c3-24-pause.txt`、`c3-27-seek25.txt`、`c3-29-pos-check.txt`、`c3-31-relaunched.txt`、`c3-32-playclick.txt`、`c3-33-playing-after.txt`、`c3-34-pos-after.txt` |
-| C4 屏外自愈（用户手测）：窗口中心不在任何显示器内 → 主屏居中。 | NOT VERIFIED | 代理无法在不改产品代码的前提下把窗口中心移到所有显示器工作区之外再触发恢复（`SetWindowPos` 到屏外后 UIA 读不到窗口，且落盘值会被下一轮普通关闭覆盖，污染用户几何）。交用户手测，步骤见“交给用户”第 2 项。 | 无（未执行） |
+| C4 屏外自愈（用户手测）：窗口中心不在任何显示器内 → 主屏居中。 | PASS | 用户 2026-10-24 手测：窗口移到副屏 → 正常关闭 → 断开副屏（仅电脑屏幕）→ 重开，窗口在主屏工作区居中且完整可见。 | 用户手测 2026-10-24 |
 
 ## D 日志与门禁
 
@@ -59,7 +59,7 @@
 |---|---|---|---|
 | D1 启动后日志文件存在且含启动记录；损坏音频触发 `PlaybackError`；断点文件缺失/失效走 `断点续播被跳过`；日志 IO 失败不影响应用。 | PASS（1 MiB 轮转未压测） | 用户 2026-10-24 读取 `%LOCALAPPDATA%\D-player-winui\logs\app.log` 报告：① `2026-10-24 10:09:43.656 [T2] WinUI shell starting`；② `2026-10-24 10:13:59.543 [T2] PlaybackError: Media Foundation error 0xC00D3E84`；③ `2026-10-24 10:09:44.911 [T2] 断点续播被跳过：上次播放的曲目已不在任何歌单中，未恢复播放位置：C:\Users\darknight2236\Music\p22-acc-tmp\toneA30s.wav`。日志 IO 失败不影响应用由代码路径确认；1 MiB 轮转未专门压测。 | `%LOCALAPPDATA%\D-player-winui\logs\app.log`（用户读取，代理未读取） |
 | D2 `powershell -File tools/verify-gates.ps1 -Full` → 三道门禁全绿。 | PASS | `mode: Full (3 gates…)`；gate 1/3 `-> ok (exit 0, 0 warning lines)`，gate 2/3 `总计 180 / 失败 0`，gate 3/3 `-> ok (exit 0, 0 warning lines)`，结尾 `all requested steps passed.`（进程退出码 0）。修复后（`adc0fbf`）复跑同样全绿；中途一次门禁 3 失败是测试进程锁住 `D-player.Core.dll`（MSB3027），关闭进程后复跑通过，不是代码缺陷。 | `%TEMP%\p22-acc\gates.log`、`gates-postfix.log` |
-| D3 WPF 壳的导入/导出/文件夹对话框行为不变（用户手测）。 | NOT VERIFIED（用户手测） | 代理在 WinUI 壳内走查，未启动 WPF 壳做对照。交用户：`dotnet run --project D-player/D-player.csproj -c Debug`，分别试添加文件、导入文件夹、导出 M3U8；对话框的标题/过滤器/取消行为应与 Phase 21 一致（代码仅把同步体包进 `Task.FromResult`）。 | 无（未执行） |
+| D3 WPF 壳的导入/导出/文件夹对话框行为不变（用户手测）。 | PASS | 用户 2026-10-24 手测：WPF 壳的添加文件 / 导入文件夹 / 导出 M3U8 对话框行为正常，标题/过滤器/取消与 Phase 21 一致。 | 用户手测 2026-10-24 |
 
 > D1 口径补充：断点文件缺失/失效走的是 `断点续播被跳过：<原因>` 记录，不是 `PlaybackError`；`PlaybackError` 由播放失败（如损坏音频）触发。两者都写同一个 `app.log`。
 
@@ -81,6 +81,38 @@
 2. **删除当前查看歌单后的 NavRail/列表选中不一致（既有缺陷）**：删除正在查看的歌单并重启后，左栏高亮与中间列表显示的可能是两个不同歌单；点击一次左栏即恢复同步。Phase 22 未改 NavRail 的选中恢复逻辑，记录待后续 NavRail 梳理。
 3. **两个 `Debug.WriteLine` 未接入 `AppLog`**：`SettingsDialog`（打开日志文件夹失败）与 `PlayerBar`（设置对话框 `ShowAsync` 异常）仍用 `Debug.WriteLine`，WinExe 下不可见。Task 6 只迁移了 brief 指定的调用点，未顺手扩大范围。
 4. **文件夹选择器“输入路径”等效取消**：在 Windows `FolderPicker` 的路径框里键入路径并确认，可能返回 `StorageFolder.Path == ""`；`WinUiFileDialogService.OpenFolderAsync` 按既有契约把空路径映射为 null（取消）。选择列表中的真实文件夹项工作正常，A2 请按“选中文件夹项”的方式操作。
-5. **只能由用户确认的项**：屏外自愈（C4）、WPF 壳对话框行为（D3）、首启空态提示的冷启动复验。日志内容 / `PlaybackError` / 断点跳过已由用户 2026-10-24 实测通过（见 D1）；1 MiB 轮转仍未专门压测。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，这些项交用户在走查时确认。空态冷启动的代理尝试受两点限制：应用启动恢复的是“当前播放歌单”而非“最后查看的空歌单”，且文件 picker 在本会话无法前台驱动，未能构造出“冷启动即空歌单”的条件；会话内新建空歌单已实测空态可见。
+5. **只能由用户确认的项**：1 MiB 轮转（步骤见文末）、首启空态提示的冷启动复验。C4 与 D3 已由用户 2026-10-24 手测通过；日志内容 / `PlaybackError` / 断点跳过见 D1。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，这些项交用户在走查时确认。空态冷启动的代理尝试受两点限制：应用启动恢复的是“当前播放歌单”而非“最后查看的空歌单”，且文件 picker 在本会话无法前台驱动，未能构造出“冷启动即空歌单”的条件；会话内新建空歌单已实测空态可见。
 6. **冒烟副作用（透明披露）**：Task 3/4/5 的真机冒烟可能改变了持久化的“查看歌单”指针、某歌单的当前曲索引与窗口几何（Task 5 结束时记录为 1200×800 @ (360,124)）；所有用户歌单的**内容**未被编辑。
 7. **本轮走查副作用**：创建并删除了 AccProbe、list3、验收临时、acc-list、A6tmpRenamed、A7a、Btmp、C3resume、SpaceProbe 等一次性歌单；用户歌单 新歌单/幻灯/1 的内容未被编辑。走查结束时窗口 1200×800@(200,80)、音量 1.0、随机/循环关，查看歌单切回 幻灯。断点续播可能指向已删除的临时 WAV（`%TEMP%\p22-acc\audio\*`），下次启动会走“断点续播被跳过”。
+
+---
+
+## D1 子项：1 MiB 轮转测试
+
+前置：关闭 WinUI 壳，确保日志文件没有被占用。路径：`%LOCALAPPDATA%\D-player-winui\logs\`。
+
+1. 打开 PowerShell，把 `app.log` 填充到 1 MiB 以上：
+
+   ```powershell
+   $dir = Join-Path $env:LOCALAPPDATA 'D-player-winui\logs'
+   $log = Join-Path $dir 'app.log'
+   New-Item -ItemType Directory -Force $dir | Out-Null
+   Add-Content -LiteralPath $log -Value ('x' * 1049600) -Encoding UTF8
+   (Get-Item $log).Length
+   ```
+
+   读数应大于 `1048576`。
+
+2. 启动 D-player.WinUI，等 2–3 秒，点标题栏 ✕ 正常关闭。
+3. 查看目录与日志尾部：
+
+   ```powershell
+   Get-ChildItem $dir | Select-Object Name,Length,LastWriteTime
+   Get-Content -LiteralPath $log -Tail 3
+   ```
+
+   预期：`app.log.1` 存在且约 1 MiB+（就是刚才填充的旧内容）；`app.log` 很小，只有新启动的几行，尾部含 `WinUI shell starting`。
+
+4. 清理（可选）：`Remove-Item -LiteralPath (Join-Path $dir 'app.log.1')`；保留也不影响下次轮转。
+
+说明：轮转在每次写日志前检查，达到 1 MiB（含）就把旧文件改名为 `app.log.1`（覆盖旧 `.1`），新启动必然触发一次写入，所以这一步能确定性触发。

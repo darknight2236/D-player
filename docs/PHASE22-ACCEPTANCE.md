@@ -17,7 +17,7 @@
 - 窗口几何：物理像素保存与恢复、最大化不覆盖普通几何、非法尺寸回落 1200×800、中心点不在任何显示器工作区时主屏居中。
 - 本地日志：`%LOCALAPPDATA%\D-player-winui\logs\app.log`，1 MiB 轮转到 `app.log.1`；启动、断点恢复跳过、picker 跳过、`PlaybackError`、未处理异常与几何失败写入。
 
-**仍未实现（不在本清单内，Phase 23/24）**：频谱可视化与频谱设置、10 段 EQ、拖拽（外部入队 / 队列内重排 / 歌单重排）、表头排序、文件夹绑定歌单的创建/刷新/管理、TrackList 的 ▶ 当前曲标记、InfoPanel 的采样率读数。
+**仍未实现（不在本清单内，Phase 23/24）**：频谱可视化与频谱设置、10 段 EQ、拖拽（外部入队 / 队列内重排 / 歌单重排）、表头排序、文件夹绑定歌单的创建/刷新/管理。TrackList 的 ▶ 当前曲标记与 InfoPanel 采样率已在 2026-10-24 的交付后快赢切片补齐（见文末）。
 
 ---
 
@@ -73,17 +73,32 @@
 
 ---
 
+## 交付后快赢切片（2026-10-24）
+
+| 项 | 结果 | 证据 / 方式 |
+|---|---|---|
+| TrackList ▶ 当前曲标记 + 标题强调色 | PASS | 真机：正在播放的当前曲行首显示 Accent ▶、标题转 Accent 色；切到非播放歌单查看时标记隐藏、标题恢复主色。判定与 WPF 一致：`ViewedPlaylist.IsActivePlaylist && index == CurrentIndex`；`ContainerContentChanging` + `CurrentIndex`/`IsActivePlaylist` 变化重画。 |
+| InfoPanel 采样率 | PASS | 真机 InfoPanel 在时长下显示 `48,000 Hz`；无曲目/无采样率时该行折叠。 |
+| 两处 `Debug.WriteLine` 迁入 `AppLog` | PASS（静态）/ 运行时异常路径 NOT VERIFIED | 两处调用点已改 `AppLog.Write(..., ex)`，WinUI 构建 0 警告、壳内已无 `Debug.WriteLine`。未人为制造“日志目录不可写 / 设置对话框异常”，故实际写入未复验。 |
+| NavRail 删除查看项后的选中不一致 | NOT REPRODUCED | 两次真机复现：① 只删除正在查看的临时歌单（播放歌单保持为另一歌单）；② 删除正在查看且正在播放的临时歌单。每次重启后左栏选中项与中间列表内容一致（以默认歌单的两首曲目区分）。未改 NavRail 代码，问题保留观察。 |
+| TrackList 表头/行对齐（用户 2026-10-24 报告） | PASS | 根因：表头有 12px 左右内边距，行容器 `RailListViewItemStyle.Padding=0`，行内容比表头宽 24px → 标题列左移 12px、艺术家/时长列右移 12px。修复：行样式补 `TrackListHorizontalPadding`（与表头同 token）。真机 UIA 复量：`#` 右缘 837=837、标题 849=849、艺术家 1224=1224、时长右缘 1528=1528。 |
+
+证据：`%TEMP%\p22-acc\nr-base.png`（标记/采样率正向）、`nr-negative.png`（非播放歌单无标记）、`nr-after-add.txt`、`nr-playing-a.txt`、`nr-restart-c.txt`（重启后左栏选中 + 中间列表曲目）、`nr-sel.ps1`（选中态读取脚本）。
+
+---
+
 ## 已知问题 / 交给用户
 
-以下问题在 Phase 22 的 Task 2–6 真机冒烟中被发现或确认。除第 1 项已在交付后修复外，其余未在本阶段修复；Task 8 走查时不要把它们误判为新增回归。
+以下问题在 Phase 22 的 Task 2–6 真机冒烟中被发现或确认。第 1、3 项已在交付后修复；第 2 项两次复现未重现（保留观察）；其余未在本阶段修复。Task 8 走查时不要把它们误判为新增回归。
 
-1. **Core `TrackEnded` 竞态 —— 已于 2026-10-24 修复（Phase 22 交付后）**：每个 `PlaylistViewModel` 都在构造时订阅共享播放器的 `TrackEnded`，曲目自然播完后所有歌单 VM 都会尝试推进，可能让非查看中的歌单（冒烟中见到的 `1`）抢走播放。修复：`HandleTrackEnded` 入口以 `IsActivePlaylist` 守卫；`PlayTrackAtAsync` 开始播放前把 `Container.CurrentPlaylistId` 指向自己（播放控制条绑定 `ViewedPlaylist`，否则查看 B 时点播放控制会让守卫推进 A）。新增 4 条 Core 单测（含启动断点续播把 `CurrentPlaylistId` 同步到曲目所属歌单），全量 186 通过 / 0 失败。验收时 B3/C3 用长音频规避该竞态的步骤保留为历史记录。同日追加（用户冒烟发现）：新建歌单导入曲目后，查看该歌单时上一首/下一首因 `CurrentIndex=-1` 变灰；按用户拍板，传输按钮改绑 `Playlists.CurrentPlaylist`（不跟随查看项，落实双指针模型），另加 2 条 `CurrentPlaylist` 单测。**用户 2026-10-24 真机复验竞态修复**：双击歌单 1 起播 → 左栏切回默认歌单查看 → 把歌单 1 当前曲拖到接近结尾自然播完，播放切到歌单 1 的第二首，默认歌单未抢播。
-2. **删除当前查看歌单后的 NavRail/列表选中不一致（既有缺陷）**：删除正在查看的歌单并重启后，左栏高亮与中间列表显示的可能是两个不同歌单；点击一次左栏即恢复同步。Phase 22 未改 NavRail 的选中恢复逻辑，记录待后续 NavRail 梳理。
-3. **两个 `Debug.WriteLine` 未接入 `AppLog`**：`SettingsDialog`（打开日志文件夹失败）与 `PlayerBar`（设置对话框 `ShowAsync` 异常）仍用 `Debug.WriteLine`，WinExe 下不可见。Task 6 只迁移了 brief 指定的调用点，未顺手扩大范围。
+1. **Core `TrackEnded` 竞态 —— 已于 2026-10-24 修复（Phase 22 交付后）**：每个 `PlaylistViewModel` 都在构造时订阅共享播放器的 `TrackEnded`，曲目自然播完后所有歌单 VM 都会尝试推进，可能让非查看中的歌单（冒烟中见到的 `1`）抢走播放。修复：`HandleTrackEnded` 入口以 `IsActivePlaylist` 守卫；`PlayTrackAtAsync` 开始播放前把 `Container.CurrentPlaylistId` 指向自己（双击/首播等直达入口仍可能从非当前歌单进入）。新增 4 条 TrackEnded/归属单测（含启动断点续播把 `CurrentPlaylistId` 同步到曲目所属歌单），另加 2 条 `CurrentPlaylist` 单测，全量 186 通过 / 0 失败。验收时 B3/C3 用长音频规避该竞态的步骤保留为历史记录。同日追加（用户冒烟发现）：新建歌单导入曲目后，查看该歌单时上一首/下一首因 `CurrentIndex=-1` 变灰；按用户拍板，传输按钮改绑 `Playlists.CurrentPlaylist`（不跟随查看项，落实双指针模型）。**用户 2026-10-24 真机复验竞态修复**：双击歌单 1 起播 → 左栏切回默认歌单查看 → 把歌单 1 当前曲拖到接近结尾自然播完，播放切到歌单 1 的第二首，默认歌单未抢播。
+2. **删除当前查看歌单后的 NavRail/列表选中不一致（既有缺陷，2026-10-24 NOT REPRODUCED）**：原记录为“删除正在查看的歌单并重启后，左栏高亮与中间列表显示可能是两个不同歌单；点击一次左栏即恢复同步”。2026-10-24 两次真机复现（只删查看项 / 删除查看+播放项）后，重启时左栏选中与中间列表内容均一致；未改 NavRail 代码，保留观察，若后续再现需记录三指针（`ViewedPlaylist` / `SelectedItem` / `CurrentPlaylistId`）快照。
+3. **两个 `Debug.WriteLine` 未接入 `AppLog` —— 已于 2026-10-24 修复**：`SettingsDialog`（打开日志文件夹失败）与 `PlayerBar`（设置对话框 `ShowAsync` 异常）已改 `AppLog.Write(..., ex)`；壳内不再有 `Debug.WriteLine`。
 4. **文件夹选择器“输入路径”等效取消**：在 Windows `FolderPicker` 的路径框里键入路径并确认，可能返回 `StorageFolder.Path == ""`；`WinUiFileDialogService.OpenFolderAsync` 按既有契约把空路径映射为 null（取消）。选择列表中的真实文件夹项工作正常，A2 请按“选中文件夹项”的方式操作。
 5. **可选的补充复验**：首启空态提示的冷启动（清单 23 项已全部 PASS；1 MiB 轮转已由用户 2026-10-24 确认）。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，此项交用户按需确认。空态冷启动的代理尝试受两点限制：应用启动恢复的是“当前播放歌单”而非“最后查看的空歌单”，且文件 picker 在本会话无法前台驱动，未能构造出“冷启动即空歌单”的条件；会话内新建空歌单已实测空态可见。
 6. **冒烟副作用（透明披露）**：Task 3/4/5 的真机冒烟可能改变了持久化的“查看歌单”指针、某歌单的当前曲索引与窗口几何（Task 5 结束时记录为 1200×800 @ (360,124)）；所有用户歌单的**内容**未被编辑。
 7. **本轮走查副作用**：创建并删除了 AccProbe、list3、验收临时、acc-list、A6tmpRenamed、A7a、Btmp、C3resume、SpaceProbe 等一次性歌单；用户歌单 新歌单/幻灯/1 的内容未被编辑。走查结束时窗口 1200×800@(200,80)、音量 1.0、随机/循环关，查看歌单切回 幻灯。断点续播可能指向已删除的临时 WAV（`%TEMP%\p22-acc\audio\*`），下次启动会走“断点续播被跳过”。
+8. **2026-10-24 快赢切片冒烟副作用**：创建并删除了 NRProbeA / NRProbeB / NRProbeC 三个临时歌单；NRProbeA 曾加入 `%TEMP%\p22-acc\audio\tlong-A.wav` 并播放后随歌单删除。默认歌单被双击播放过一次（当前播放歌单变为默认歌单，LastPlayedPath 指向其中第一首）；用户歌单内容未被编辑，窗口几何/音量未改，应用已关闭。
 
 ---
 

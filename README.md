@@ -8,7 +8,7 @@
 
 ## 特性
 
-> 下列是 **WPF 壳**的完整能力。WinUI 3 壳 Phase 22 已具备导入/导出、歌单管理（新建/重命名/删除 + ▶ 标记）、完整播放控制（上一首/下一首/随机/循环/音量/静音）、基础设置、窗口几何与日志；仍缺**频谱 / EQ / 拖拽 / 表头排序 / 文件夹绑定歌单的管理与刷新 / TrackList 的 ▶ 当前曲标记 / InfoPanel 的采样率**，逐项列在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 3 节（第 2 节保留 Phase 20 的历史快照）。
+> 下列是 **WPF 壳**的完整能力。WinUI 3 壳 Phase 22 已具备导入/导出、歌单管理（新建/重命名/删除 + ▶ 标记）、完整播放控制（上一首/下一首/随机/循环/音量/静音）、基础设置、窗口几何与日志；仍缺**频谱 / EQ / 拖拽 / 表头排序 / 文件夹绑定歌单的管理与刷新**；TrackList 的 ▶ 当前曲标记与 InfoPanel 采样率已在 2026-10-24 补齐，逐项列在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 3 节（第 2 节保留 Phase 20 的历史快照）。
 
 - **播放**：播放 / 暂停 / 上一首 / 下一首 / 随机 / 循环；拖拽 + 单击跳转进度条（≈30 Hz 节流刷新）；音量滑块 + 一键静音。
 - **格式**：MP3 / WMA / FLAC / AAC / WAV（Windows Media Foundation 原生解码）。
@@ -38,7 +38,7 @@ WPF 壳：
 └─────────────────────────────────────────────────────────┘
 ```
 
-WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——左 NavRail（200px，可折叠至 48px）/ 中 TrackList（弹性宽度，36px 行高）/ 右 InfoPanel（260px，可折叠，`<960px` 窗口宽度自动收起）+ 底部 PlayerBar（64px）；设计令牌化（间距 4/8/12/16/24、圆角 4/8/12、字号 12/13.5/15/20、动效 100/150/200ms）；六态齐备（default/hover/pressed/selected/focus/disabled）；键盘与无障碍（Tab 顺序、方向键细步进、空格播放/暂停、UIA 名称）；9 项动效（列表悬停/选中、选择条、按钮缩放、折叠、焦点环、封面交叉淡入、播放/暂停图标、拇指缩放、空态）；**深色由壳强制**（`Application.RequestedTheme = Dark`）+ Mica 材质。Phase 22 补齐了导入/导出工具栏、歌单工具栏与 ▶ 标记、上一首/下一首/随机/循环/音量/静音/设置、窗口几何与本地日志；频谱、EQ、拖拽、排序、文件夹绑定管理仍无（留给后续功能阶段）。
+WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——左 NavRail（200px，可折叠至 48px）/ 中 TrackList（弹性宽度，36px 行高）/ 右 InfoPanel（260px，可折叠，`<960px` 窗口宽度自动收起）+ 底部 PlayerBar（64px）；设计令牌化（间距 4/8/12/16/24、圆角 4/8/12、字号 12/13.5/15/20、动效 100/150/200ms）；六态齐备（default/hover/pressed/selected/focus/disabled）；键盘与无障碍（Tab 顺序、方向键细步进、空格播放/暂停、UIA 名称）；9 项动效（列表悬停/选中、选择条、按钮缩放、折叠、焦点环、封面交叉淡入、播放/暂停图标、拇指缩放、空态）；**深色由壳强制**（`Application.RequestedTheme = Dark`）+ Mica 材质。Phase 22 补齐了导入/导出工具栏、歌单工具栏与 ▶ 标记、上一首/下一首/随机/循环/音量/静音/设置、窗口几何与本地日志；2026-10-24 的快赢切片又补了 TrackList 当前曲 ▶/标题强调色、InfoPanel 采样率与两处日志出口；频谱、EQ、拖拽、排序、文件夹绑定管理仍无（留给后续功能阶段）。
 
 ---
 
@@ -52,7 +52,7 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 | MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
 | DI 容器 | `Microsoft.Extensions.DependencyInjection` 10.x |
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
-| 音频引擎 | [NAudio 3.1.0](https://github.com/naudio/NAudio)（引用收窄为 `NAudio.Core` + `NAudio.Wasapi` 两个子包；`MediaFoundationReader` 解码 + `WasapiPlayer` WASAPI Shared 输出） |
+| 音频引擎 | [NAudio 3.3.0](https://github.com/naudio/NAudio)（引用收窄为 `NAudio.Core` + `NAudio.Wasapi` 两个子包；3.3.0 起 `NAudio.Core` 额外带入传递依赖 `System.Numerics.Tensors` 9.0.0，输出目录为三个 DLL；`MediaFoundationReader` 解码 + `WasapiPlayer` WASAPI Shared 输出） |
 | 元数据/标签 | [z440.atl.core 7.18](https://github.com/Zeugma440/atldotnet) |
 | 测试 | xUnit v3（Microsoft.Testing.Platform）+ NSubstitute + Coverlet |
 
@@ -237,4 +237,4 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
 - 按艺术家/专辑组织的音乐库视图尚未实现。
-- **WinUI 3 壳已具备日常可用闭环（Phase 22），但不是与 WPF 完全等价**：Phase 22 交付了异步文件对话框 + 真实 picker、导入/导出（添加文件 / 递归导入文件夹 / M3U(M3U8)/PLS 追加 / M3U8 导出）、歌单新建/重命名/删除与 ▶ 活跃标记、上一首/下一首/随机/循环三态/音量/静音（64px 底栏）、基础设置（音量 + 只读音频输出 + 日志入口）、窗口几何持久化与屏外自愈、本地日志（`%LOCALAPPDATA%\D-player-winui\logs\app.log`，1 MiB 轮转）；验收已完成（验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。仍缺：频谱、EQ、拖拽（外部入队 / 队列内重排 / 歌单重排）、表头排序、文件夹绑定歌单的管理与刷新、TrackList 的 ▶ 当前曲标记、InfoPanel 的采样率读数（封面/标题/艺术家/专辑/时长已有）。WinUI 仍不在 `D-player.slnf` 里：门禁 1/2 覆盖不到它，只有 `-Full` 的门禁 3 会编译它；壳的行为没有单测，靠真机手测。已知问题见验收文档的「已知问题 / 交给用户」一节（含删除查看中歌单后的选中不一致、文件夹 picker 输入路径等效取消等；Core 的 `TrackEnded` 抢播已于 2026-10-24 修复，PlaylistVM 守卫 + 归属同步）。
+- **WinUI 3 壳已具备日常可用闭环（Phase 22），但不是与 WPF 完全等价**：Phase 22 交付了异步文件对话框 + 真实 picker、导入/导出（添加文件 / 递归导入文件夹 / M3U(M3U8)/PLS 追加 / M3U8 导出）、歌单新建/重命名/删除与 ▶ 活跃标记、上一首/下一首/随机/循环三态/音量/静音（64px 底栏）、基础设置（音量 + 只读音频输出 + 日志入口）、窗口几何持久化与屏外自愈、本地日志（`%LOCALAPPDATA%\D-player-winui\logs\app.log`，1 MiB 轮转）；验收已完成（验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。交付后快赢切片（2026-10-24）：TrackList ▶ 当前曲标记 + 标题强调色、InfoPanel 采样率、`SettingsDialog`/`PlayerBar` 的 `Debug.WriteLine` 迁入 `AppLog`。仍缺：频谱、EQ、拖拽（外部入队 / 队列内重排 / 歌单重排）、表头排序、文件夹绑定歌单的管理与刷新。WinUI 仍不在 `D-player.slnf` 里：门禁 1/2 覆盖不到它，只有 `-Full` 的门禁 3 会编译它；壳的行为没有单测，靠真机手测。已知问题见验收文档的「已知问题 / 交给用户」一节（含文件夹 picker 输入路径等效取消；NavRail 删除查看项后的选中问题在 2026-10-24 两次复现尝试中未重现，保留观察；Core 的 `TrackEnded` 抢播已于 2026-10-24 修复）。

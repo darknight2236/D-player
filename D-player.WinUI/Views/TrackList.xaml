@@ -87,11 +87,12 @@
               ColumnSpacing="{StaticResource SpacingMd}"
               Background="{ThemeResource LayerFillColorDefaultBrush}">
             <Grid.ColumnDefinitions>
-                <!-- 与表头同步：# 40 / 标题 * / 艺术家 220 / 时长 72 -->
+                <!-- 与行模板同步：# 40 / 标题 * / 艺术家 220 / 时长 72 / 操作 28 -->
                 <ColumnDefinition Width="40" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="220" />
                 <ColumnDefinition Width="72" />
+                <ColumnDefinition Width="28" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="#" FontSize="{StaticResource FontSizeCaption}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -125,13 +126,14 @@
                   ItemContainerStyle="{StaticResource TrackListItemStyle}">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:Track">
-                    <!-- 列宽与表头同步：# 40 / 标题 * / 艺术家 220 / 时长 72 -->
+                    <!-- 列宽与表头同步：# 40 / 标题 * / 艺术家 220 / 时长 72 / 操作 28 -->
                     <Grid ColumnSpacing="{StaticResource SpacingMd}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="40" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="220" />
                             <ColumnDefinition Width="72" />
+                            <ColumnDefinition Width="28" />
                         </Grid.ColumnDefinitions>
                         <!-- 序号列：12px 标记位 + 28px 序号（表头仍是 40px 右对齐，右边缘不变） -->
                         <Grid Grid.Column="0">
@@ -167,6 +169,15 @@
                                    FontFamily="Consolas"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        <!-- 行尾移除：与 WPF PlaylistView 的 × 同语义（确认后 RemoveTrackCommand） -->
+                        <Button Grid.Column="4" Width="24" Height="24"
+                                Style="{StaticResource IconButtonStyle}"
+                                Click="RemoveTrackButton_Click"
+                                AutomationProperties.Name="移除曲目"
+                                ToolTipService.ToolTip="从歌单中移除">
+                            <FontIcon Glyph="&#xE711;" FontSize="{StaticResource FontSizeCaption}"
+                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </Button>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

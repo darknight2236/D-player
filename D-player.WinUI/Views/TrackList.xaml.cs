@@ -280,6 +280,24 @@ public sealed partial class TrackList : UserControl
         }
     }
 
+    /// <summary>
+    /// 行尾 × → 确认后移除该行。与 WPF PlaylistView.RemoveButton_Click 同语义；
+    /// 按 Track 引用定位索引（Track 是 record，不能用 Queue.IndexOf 处理重复路径）。
+    /// </summary>
+    private async void RemoveTrackButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: Track track }) return;
+        if (Playlists.ViewedPlaylist is not { } pl) return;
+
+        var index = IndexOfByReference(pl.Queue, track);
+        if (index < 0) return;
+
+        if (!await WinUiDialogService.ShowConfirmAsync(this, "移除曲目",
+                $"确定从歌单中移除「{track.Title}」吗？", "移除")) return;
+
+        pl.RemoveTrackCommand.Execute(index);
+    }
+
     /// <summary>清空当前歌单：先确认（默认焦点在「取消」），确认后走 VM 的 ClearQueueCommand。</summary>
     private async void ClearButton_Click(object sender, RoutedEventArgs e)
     {
@@ -301,6 +319,8 @@ public sealed partial class TrackList : UserControl
         // （CS1061），所以容器只能自己沿可视化树向上找（VisualTreeHelper.GetParent 收 DependencyObject，
         // 见 Theme/VisualTree.cs）。
         if (e.OriginalSource is not FrameworkElement source) return;
+        // 行尾移除按钮上的双击不应触发播放（按钮自身已处理 Click）。
+        if (VisualTree.FindAncestor<Button>(source) is not null) return;
         if (VisualTree.FindAncestor<ListViewItem>(source) is not { } container) return;
         if (container.Content is not Track track) return;
 

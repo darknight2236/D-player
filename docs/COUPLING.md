@@ -333,6 +333,7 @@ private void RemoveTrack(int index)
 | TrackList 当前曲标记只在播放歌单上显示 | `TrackList.UpdateRowMarker`：`ViewedPlaylist.IsActivePlaylist && index == CurrentIndex`；`ContainerContentChanging` + `CurrentIndex`/`IsActivePlaylist` 变化时重画 | 切到别的歌单查看时，该歌单的 `CurrentIndex` 只是本地光标，不代表出声；不做 `IsActivePlaylist` 守卫会让 ▶ 与音频脱钩（与 WPF `PlaylistView.RefreshCurrentIndicator` 同纪律） |
 | WinUI 运行期日志只走 `AppLog` | `SettingsDialog` / `PlayerBar` 的异常分支；壳内不得再出现 `Debug.WriteLine` | WinExe 没有控制台/调试器时 `Debug.WriteLine` 不可见，等于丢失排障信息；`AppLog` 统一落 `%LOCALAPPDATA%\D-player-winui\logs\app.log` |
 | TrackList 表头与行的左右内边距必须同值 | `TrackList.xaml` 的表头/工具栏 `TrackListHorizontalPadding` + `TrackListItemStyle` 的 `Padding` | 表头有 12px 内边距而行容器 `Padding=0` 时，行内容比表头宽 24px：标题列左移 12px、艺术家/时长列右移 12px（2026-10-24 用户报告，真机 UIA 量过四列边界） |
+| TrackList 行尾移除必须确认后走 `RemoveTrackCommand` | `TrackList.RemoveTrackButton_Click`：按 Track 引用定位索引 → `ShowConfirmAsync("移除曲目", …)` → 确认后执行；`TrackList_DoubleTapped` 先排除 Button 来源 | 与 WPF `PlaylistView.RemoveButton_Click` 同语义。Track 是 record，`Queue.IndexOf` 会把重复路径的占位曲认成同一个，必须按引用身份定位；未确认就删会让单击误删。确认框默认焦点在「取消」 |
 
 | **Bug 修复新增（TrackEnded 抢播，2026-10-24）** | | |
 | `PlaylistViewModel.HandleTrackEnded` 必须以 `IsActivePlaylist` 守卫 | `D-player.Core/ViewModels/PlaylistViewModel.cs` 的 `HandleTrackEnded` 入口 | `IPlaybackService` 是全局单例，所有歌单 VM 都订阅 `TrackEnded`。没有守卫时，曲目自然播完会让每个歌单都改自己的 `CurrentIndex` 并调用全局 `LoadAsync/Play`，最后完成者抢走播放（Phase 22 冒烟实见非查看歌单 "1" 抢播）。回归：`TrackEnded_WhenPlaylistIsInactive_DoesNotAdvanceOrPlay` / `TrackEnded_RepeatOne_WhenPlaylistIsInactive_DoesNotReplay` |

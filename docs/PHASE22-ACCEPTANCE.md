@@ -81,7 +81,8 @@
 | InfoPanel 采样率 | PASS | 真机 InfoPanel 在时长下显示 `48,000 Hz`；无曲目/无采样率时该行折叠。 |
 | 两处 `Debug.WriteLine` 迁入 `AppLog` | PASS（静态）/ 运行时异常路径 NOT VERIFIED | 两处调用点已改 `AppLog.Write(..., ex)`，WinUI 构建 0 警告、壳内已无 `Debug.WriteLine`。未人为制造“日志目录不可写 / 设置对话框异常”，故实际写入未复验。 |
 | NavRail 删除查看项后的选中不一致 | NOT REPRODUCED | 两次真机复现：① 只删除正在查看的临时歌单（播放歌单保持为另一歌单）；② 删除正在查看且正在播放的临时歌单。每次重启后左栏选中项与中间列表内容一致（以默认歌单的两首曲目区分）。未改 NavRail 代码，问题保留观察。 |
-| TrackList 表头/行对齐（用户 2026-10-24 报告） | PASS | 根因：表头有 12px 左右内边距，行容器 `RailListViewItemStyle.Padding=0`，行内容比表头宽 24px → 标题列左移 12px、艺术家/时长列右移 12px。修复：行样式补 `TrackListHorizontalPadding`（与表头同 token）。真机 UIA 复量：`#` 右缘 837=837、标题 849=849、艺术家 1224=1224、时长右缘 1528=1528。 |
+| TrackList 表头/行对齐（用户 2026-10-24 报告） | PASS | 根因：表头有 12px 左右内边距，行容器 `RailListViewItemStyle.Padding=0`，行内容比表头宽 24px → 标题列左移 12px、艺术家/时长列右移 12px。修复：行样式补 `TrackListHorizontalPadding`（与表头同 token）。加入行尾操作列后 UIA 复量：`#` 右缘 832=832、标题 844=844、艺术家 1179=1179、时长右缘 1483=1483。 |
+| TrackList 行尾移除按钮（用户 2026-10-24 报告缺失） | PASS（UI/确认框）/ 实际删除路径由 Core 单测覆盖 | 行尾 24px ×（Segoe E711），点击弹「移除曲目」确认框（含曲名），确认后 `RemoveTrackCommand`；`TrackList_DoubleTapped` 排除 Button 来源。真机验证：按钮出现在每行末尾、确认框文案正确、取消后曲目仍在；临时曲目添加受 picker 自动化限制，未端到端复验“确认后移除”，该路径由 `PlaylistViewModelTests` 的 4 条 `RemoveTrack` 单测覆盖。 |
 
 证据：`%TEMP%\p22-acc\nr-base.png`（标记/采样率正向）、`nr-negative.png`（非播放歌单无标记）、`nr-after-add.txt`、`nr-playing-a.txt`、`nr-restart-c.txt`（重启后左栏选中 + 中间列表曲目）、`nr-sel.ps1`（选中态读取脚本）。
 
@@ -98,7 +99,7 @@
 5. **可选的补充复验**：首启空态提示的冷启动（清单 23 项已全部 PASS；1 MiB 轮转已由用户 2026-10-24 确认）。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，此项交用户按需确认。空态冷启动的代理尝试受两点限制：应用启动恢复的是“当前播放歌单”而非“最后查看的空歌单”，且文件 picker 在本会话无法前台驱动，未能构造出“冷启动即空歌单”的条件；会话内新建空歌单已实测空态可见。
 6. **冒烟副作用（透明披露）**：Task 3/4/5 的真机冒烟可能改变了持久化的“查看歌单”指针、某歌单的当前曲索引与窗口几何（Task 5 结束时记录为 1200×800 @ (360,124)）；所有用户歌单的**内容**未被编辑。
 7. **本轮走查副作用**：创建并删除了 AccProbe、list3、验收临时、acc-list、A6tmpRenamed、A7a、Btmp、C3resume、SpaceProbe 等一次性歌单；用户歌单 新歌单/幻灯/1 的内容未被编辑。走查结束时窗口 1200×800@(200,80)、音量 1.0、随机/循环关，查看歌单切回 幻灯。断点续播可能指向已删除的临时 WAV（`%TEMP%\p22-acc\audio\*`），下次启动会走“断点续播被跳过”。
-8. **2026-10-24 快赢切片冒烟副作用**：创建并删除了 NRProbeA / NRProbeB / NRProbeC 三个临时歌单；NRProbeA 曾加入 `%TEMP%\p22-acc\audio\tlong-A.wav` 并播放后随歌单删除。默认歌单被双击播放过一次（当前播放歌单变为默认歌单，LastPlayedPath 指向其中第一首）；用户歌单内容未被编辑，窗口几何/音量未改，应用已关闭。
+8. **2026-10-24 快赢切片冒烟副作用**：创建并删除了 NRProbeA / NRProbeB / NRProbeC / NRDel 等临时歌单；NRProbeA 曾加入 `%TEMP%\p22-acc\audio\tlong-A.wav` 并播放后随歌单删除。行尾删除按钮验证时对默认歌单的一行点了 × 并取消，未实际删除用户曲目。默认歌单被双击播放过一次（当前播放歌单变为默认歌单，LastPlayedPath 指向其中第一首）；用户歌单内容未被编辑，窗口几何/音量未改，应用已关闭。
 
 ---
 

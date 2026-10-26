@@ -8,6 +8,16 @@
     <UserControl.Resources>
         <local:NullableIntToDashConverter x:Key="NullableIntToDash" />
         <local:TimeSpanToMmSsConverter x:Key="TimeSpanToMmSs" />
+
+        <!--
+          ListViewItem 容器：在公共 RailListViewItemStyle（Padding=0）上补 TrackList 的左右 12px。
+          必须与表头 TrackListHorizontalPadding 同值，否则行内容会比表头宽 24px：
+          标题列宽多 12px、艺术家/时长列整体右移 12px（2026-10-24 真机发现）。
+        -->
+        <Style x:Key="TrackListItemStyle" TargetType="ListViewItem"
+               BasedOn="{StaticResource RailListViewItemStyle}">
+            <Setter Property="Padding" Value="{StaticResource TrackListHorizontalPadding}" />
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -25,7 +35,7 @@
           样式 IconButtonStyle 只给六态与视觉效果，不带固定尺寸。
         -->
         <Grid Grid.Row="0" Height="{StaticResource TrackToolbarHeight}"
-              Padding="{StaticResource TrackListHeaderPadding}"
+              Padding="{StaticResource TrackListHorizontalPadding}"
               ColumnSpacing="{StaticResource SpacingSm}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -73,7 +83,7 @@
           列宽与行模板同步：# 40 / 标题 * / 艺术家 220 / 时长 72（与表头同步）。
         -->
         <Grid x:Name="Header" Grid.Row="1" Height="{StaticResource RowHeight}"
-              Padding="{StaticResource TrackListHeaderPadding}"
+              Padding="{StaticResource TrackListHorizontalPadding}"
               ColumnSpacing="{StaticResource SpacingMd}"
               Background="{ThemeResource LayerFillColorDefaultBrush}">
             <Grid.ColumnDefinitions>
@@ -103,15 +113,16 @@
           在 MarkupCompilePass1 里抛 WMC9999（可空中间段 ViewedPlaylist 是普通 INPC 属性，
           不是依赖属性，编译器内部崩溃且连错误消息都本地化失败）。见 Phase 20 Task 4 报告。
 
-          ItemContainerStyle 取 RailListViewItemStyle（六态容器：Normal/PointerOver/Pressed/Selected/
-          PointerOverSelected/PressedSelected + Disabled），MinHeight=36（Tokens 的 RowHeight）。
+          ItemContainerStyle 取 TrackListItemStyle（在 RailListViewItemStyle 的六态容器上只补行内边距；
+          六态：Normal/PointerOver/Pressed/Selected/PointerOverSelected/PressedSelected + Disabled），
+          MinHeight=36（Tokens 的 RowHeight）。
           HorizontalContentAlignment=Stretch 已在基样式的 ContentPresenter 上 TemplateBinding
           （Task 3 修复），行内容可以撑满整行。
         -->
         <ListView x:Name="TrackItems" Grid.Row="2"
                   DoubleTapped="TrackList_DoubleTapped"
                   ContainerContentChanging="List_ContainerContentChanging"
-                  ItemContainerStyle="{StaticResource RailListViewItemStyle}">
+                  ItemContainerStyle="{StaticResource TrackListItemStyle}">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:Track">
                     <!-- 列宽与表头同步：# 40 / 标题 * / 艺术家 220 / 时长 72 -->
@@ -122,14 +133,25 @@
                             <ColumnDefinition Width="220" />
                             <ColumnDefinition Width="72" />
                         </Grid.ColumnDefinitions>
-                        <!-- 序号：TrackNumber null 时显示 "-" -->
-                        <TextBlock Grid.Column="0"
-                                   Text="{x:Bind TrackNumber, Converter={StaticResource NullableIntToDash}}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   TextAlignment="Right" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <!-- 标题：截断 -->
-                        <TextBlock Grid.Column="1" Text="{x:Bind Title}"
+                        <!-- 序号列：12px 标记位 + 28px 序号（表头仍是 40px 右对齐，右边缘不变） -->
+                        <Grid Grid.Column="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="28" />
+                            </Grid.ColumnDefinitions>
+                            <!-- ▶ 当前曲标记：code-behind 按 ViewedPlaylist.IsActivePlaylist && CurrentIndex 切换 -->
+                            <FontIcon Tag="TrackMarker" Glyph="&#xE768;" FontSize="9"
+                                      Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                      Visibility="Collapsed" IsHitTestVisible="False"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{x:Bind TrackNumber, Converter={StaticResource NullableIntToDash}}"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       TextAlignment="Right" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </Grid>
+                        <!-- 标题：截断；当前播放曲由 code-behind 改 Accent 色（Tag 供可视化树查找） -->
+                        <TextBlock Grid.Column="1" Text="{x:Bind Title}" Tag="TrackTitle"
                                    FontSize="{StaticResource FontSizeBody}"
                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                         <!-- 艺术家：截断，次要色；null 时显示空（Artist 是 string?，x:Bind 对引用类型 null 不崩溃） -->

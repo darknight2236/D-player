@@ -1,8 +1,8 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using DPlayer.Models;
 using DPlayer.ViewModels;
+using DPlayer.WinUI.Services;
 using DPlayer.WinUI.Theme;
 using DPlayer.WinUI.Views.Dialogs;
 using Microsoft.UI.Xaml;
@@ -474,7 +474,7 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[WinUI 壳] 打开设置失败：{ex}");
+            AppLog.Write("[WinUI 壳] 打开设置失败", ex);
         }
     }
 

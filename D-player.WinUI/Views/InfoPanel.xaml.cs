@@ -83,6 +83,7 @@ public sealed partial class InfoPanel : UserControl
         TitleText.Text = track is null ? "未在播放" : track.Title;
         SetOptionalLine(ArtistText, track?.Artist);
         SetOptionalLine(AlbumText, track?.Album);
+        SetOptionalLine(SampleRateTextBlock, Player.SampleRateText);
         RefreshDuration();
 
         // ⑥ 文本上移动画：TranslateTransform.Y 4→0 + Opacity 0→1（100ms）

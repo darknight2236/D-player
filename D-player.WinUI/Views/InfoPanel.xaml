@@ -48,6 +48,9 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
                 <TextBlock x:Name="DurationText" FontSize="{StaticResource FontSizeCaption}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <!-- 采样率：取 PlayerViewModel.SampleRateText（无曲目/无采样率时由 RefreshTexts 折叠） -->
+                <TextBlock x:Name="SampleRateTextBlock" FontSize="{StaticResource FontSizeCaption}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
         </StackPanel>
     </Grid>

@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 
 namespace DPlayer.WinUI.Views;
@@ -37,6 +38,12 @@ public sealed partial class TrackList : UserControl
     /// <summary>列表要跟着看的两个量：查看项（ViewedPlaylist）与它自己的 Queue。</summary>
     public PlaylistsViewModel Playlists { get; }
 
+    /// <summary>当前播放曲标记/标题强调色。主题资源查不到时回落到白色（与 PlayerBar.ThemeBrush 同口径）。</summary>
+    private readonly Brush _accentBrush =
+        ThemeBrush("AccentFillColorDefaultBrush", new SolidColorBrush(Microsoft.UI.Colors.White));
+    private readonly Brush _primaryBrush =
+        ThemeBrush("TextFillColorPrimaryBrush", new SolidColorBrush(Microsoft.UI.Colors.White));
+
     public TrackList(PlaylistsViewModel playlists)
     {
         Playlists = playlists;
@@ -54,9 +61,17 @@ public sealed partial class TrackList : UserControl
         var pl = Playlists.ViewedPlaylist;
         if (!ReferenceEquals(_hookedPlaylist, pl))
         {
-            if (_hookedPlaylist is not null) _hookedPlaylist.Queue.CollectionChanged -= OnViewedQueueChanged;
+            if (_hookedPlaylist is not null)
+            {
+                _hookedPlaylist.Queue.CollectionChanged -= OnViewedQueueChanged;
+                _hookedPlaylist.PropertyChanged -= OnViewedPlaylistPropertyChanged;
+            }
             _hookedPlaylist = pl;
-            if (pl is not null) pl.Queue.CollectionChanged += OnViewedQueueChanged;
+            if (pl is not null)
+            {
+                pl.Queue.CollectionChanged += OnViewedQueueChanged;
+                pl.PropertyChanged += OnViewedPlaylistPropertyChanged;
+            }
         }
 
         // 换查看项时才换列表数据源；同一集合实例重复赋值会被 ItemsControl 自己吃掉，
@@ -66,12 +81,59 @@ public sealed partial class TrackList : UserControl
 
         UpdateEmptyHint();
         UpdateToolbarState();
+        RefreshCurrentMarker();
     }
 
     private void OnViewedQueueChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         UpdateEmptyHint();
         UpdateToolbarState();
+        RefreshCurrentMarker();
+    }
+
+    private void OnViewedPlaylistPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PlaylistViewModel.CurrentIndex) or nameof(PlaylistViewModel.IsActivePlaylist))
+            RefreshCurrentMarker();
+    }
+
+    /// <summary>
+    /// 重画已实现行的 ▶ 标记与标题色。判定与 WPF PlaylistView.RefreshCurrentIndicator 一致：
+    /// 只有**正在播放**的歌单才有标记；切到别的歌单查看时，本地 CurrentIndex 只是光标，不代表出声。
+    /// 虚拟化下只遍历可视化树里已实现的行（未实现的行会在 ContainerContentChanging 时补画）。
+    /// </summary>
+    private void RefreshCurrentMarker()
+    {
+        foreach (var container in VisualTree.FindDescendants(TrackItems).OfType<ListViewItem>())
+        {
+            if (container.Content is Track track)
+                UpdateRowMarker(container, track);
+        }
+    }
+
+    private void UpdateRowMarker(ContentControl container, Track track)
+    {
+        if (FindByTag<FontIcon>(container, "TrackMarker") is not { } marker) return;
+
+        var isCurrent = false;
+        if (Playlists.ViewedPlaylist is { } pl)
+        {
+            var index = IndexOfByReference(pl.Queue, track);
+            isCurrent = pl.IsActivePlaylist && index >= 0 && index == pl.CurrentIndex;
+        }
+
+        marker.Visibility = isCurrent ? Visibility.Visible : Visibility.Collapsed;
+        if (FindByTag<TextBlock>(container, "TrackTitle") is { } title)
+            title.Foreground = isCurrent ? _accentBrush : _primaryBrush;
+    }
+
+    private static T? FindByTag<T>(DependencyObject root, string tag) where T : FrameworkElement
+        => VisualTree.FindDescendants(root).OfType<T>().FirstOrDefault(e => e.Tag as string == tag);
+
+    private static Brush ThemeBrush(string key, Brush fallback)
+    {
+        try { return Application.Current.Resources[key] as Brush ?? fallback; }
+        catch { return fallback; }
     }
 
     private void UpdateEmptyHint()
@@ -263,8 +325,22 @@ public sealed partial class TrackList : UserControl
     /// </summary>
     private void List_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (args.Item is Track t)
-            AutomationProperties.SetName(args.ItemContainer, TrackRowLabels.Build(t.Title, t.Artist, t.Duration));
+        if (args.Item is not Track t) return;
+        AutomationProperties.SetName(args.ItemContainer, TrackRowLabels.Build(t.Title, t.Artist, t.Duration));
+
+        if (args.InRecycleQueue) return;
+
+        UpdateRowMarker(args.ItemContainer, t);
+
+        // 首轮实现时模板可能尚未生成；排到布局之后再补一次（容器已被复用时 ReferenceEquals 会拦掉）。
+        if (FindByTag<FontIcon>(args.ItemContainer, "TrackMarker") is null)
+        {
+            var container = args.ItemContainer;
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (ReferenceEquals(container.Content, t)) UpdateRowMarker(container, t);
+            });
+        }
     }
 
     /// <summary>

@@ -66,8 +66,8 @@
     <Thickness x:Key="PanelPadding">16</Thickness>
     <Thickness x:Key="RailItemPadding">12,0,12,0</Thickness>
     <Thickness x:Key="RailHeaderPadding">12,8,12,0</Thickness>
-    <!-- TrackList 表头内边距：左右 12（= SpacingMd），上下 0 -->
-    <Thickness x:Key="TrackListHeaderPadding">12,0,12,0</Thickness>
+    <!-- TrackList 表头/工具栏/行的左右内边距：必须同值，列边界才对得上（12 = SpacingMd，上下 0） -->
+    <Thickness x:Key="TrackListHorizontalPadding">12,0,12,0</Thickness>
     <!-- 标题栏右端给系统 Caption Buttons（3 x 46px）让位：右栏折叠钮的右边距，本机 scale=1.0 实测 138 -->
     <Thickness x:Key="InfoPanelToggleMargin">0,0,138,0</Thickness>
     <!--

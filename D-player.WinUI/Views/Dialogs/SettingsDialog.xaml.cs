@@ -51,7 +51,7 @@ public sealed partial class SettingsDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[WinUI 壳] 打开日志文件夹失败：{ex}");
+            AppLog.Write("[WinUI 壳] 打开日志文件夹失败", ex);
         }
     }
 }

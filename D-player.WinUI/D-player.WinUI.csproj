@@ -27,8 +27,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\D-player.Core\D-player.Core.csproj" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.*" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
     </ItemGroup>
 
     <ItemGroup>

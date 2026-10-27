@@ -21,10 +21,11 @@ using Windows.System;
 namespace DPlayer.WinUI;
 
 /// <summary>
-/// 主窗口：窗口级职责——标题栏（含右栏那颗折叠钮）、Mica、关闭 flush，把四个控件装配进三栏 + 底栏，
+/// 主窗口：窗口级职责——标题栏、Mica、关闭 flush，把四个控件装配进三栏 + 底栏，
 /// 以及**三栏的自适应口径**（右栏在窗口宽度越过阈值时自动收起/恢复，带迟滞带，手动优先）。
 /// 左栏 / 中区 / 右栏 / 底栏各自的逻辑在 DPlayer.WinUI.Views 的四个控件里（Task 1 拆分）。
-/// 左栏的折叠钮在 NavRail 自己栏内（折叠态 48px 仍点得到），所以本类不需要它的引用。
+/// 两颗折叠钮都在各自栏头（收起后都保留 48px 栏头，钮仍点得到），所以本类不再持有折叠钮，
+/// 只订阅 InfoPanel.ToggledManually 维护"手动优先"。
 ///
 /// Mica 走框架的 Window.SystemBackdrop（不是手动 MicaController），前提是根 Grid 背景为 Transparent，
 /// 实测数据与判读见 MainWindow.xaml 顶部注释。只消费 Core 的公开成员；关闭路径复刻 WPF 壳的
@@ -119,7 +120,9 @@ public sealed partial class MainWindow : Window
         // 阈值 + 迟滞：挂在 RootGrid 上（它的宽度就是客户区宽度，比读 AppWindow.Size 少一层 DPI 换算）。
         // 写在代码里、不写成 XAML 的 SizeChanged="…"，是为了不碰 RootGrid 那行承重的 Background="Transparent"。
         RootGrid.SizeChanged += RootGrid_SizeChanged;
-        SyncInfoPanelToggleGlyph();
+
+        // 用户手动点右栏折叠钮时置手动优先，直到宽度口径与自动口径重新对齐（见 RootGrid_SizeChanged）。
+        _infoPanel.ToggledManually += (_, _) => _infoPanelManualOverride = true;
 
         // C3：空格键全局播放/暂停。handledEventsToo=true 确保即使焦点控件已处理也能拦截；
         // handler 内部再判断焦点是否在 Button/Slider/ListViewItem 上来决定是否消费。
@@ -160,28 +163,8 @@ public sealed partial class MainWindow : Window
 
         var shouldCollapse = width < _autoCollapseThreshold;
         if (_infoPanel.IsCollapsed != shouldCollapse)
-        {
             _infoPanel.SetCollapsed(shouldCollapse, animate);
-            // 自动收起/恢复后也要同步 chevron 指向（否则窗口打开 <960px 时 chevron 方向不对）。
-            SyncInfoPanelToggleGlyph();
-        }
     }
-
-    /// <summary>标题栏那颗右栏折叠钮：置手动覆盖（见上），然后在收起/展开之间往返。</summary>
-    private void InfoPanelToggle_Click(object sender, RoutedEventArgs e)
-    {
-        _infoPanelManualOverride = true;
-        _infoPanel.SetCollapsed(!_infoPanel.IsCollapsed, animate: true);
-        SyncInfoPanelToggleGlyph();
-    }
-
-    /// <summary>
-    /// 钮上的 chevron 指向"按下去会发生什么"：展开态 E76C（向右推走），折叠态 E76B（向左拉回）。
-    /// 码位写成 <c>((char)0x…)</c> 而不是 \u 转义/字面私有区字符：那两种写法在本轮编辑链路上都被吞过
-    /// （实测见 task-2-report.md；Views/NavRail.xaml.cs 里那两个常量是逐字节复核过的字面字符）。
-    /// </summary>
-    private void SyncInfoPanelToggleGlyph()
-        => InfoPanelToggleGlyph.Glyph = ((char)(_infoPanel.IsCollapsed ? 0xE76B : 0xE76C)).ToString();
 
     // —— C3：空格键全局播放/暂停 ——
 

@@ -15,14 +15,24 @@ namespace DPlayer.WinUI.Views;
 /// Task 5 动效：
 ///   ⑥ 切歌封面交叉淡入 150ms（CoverA/CoverB 轮换）+ 标题/艺术家上移 4px 淡入 100ms
 ///   ⑨ 占位封面 ↔ 真封面交叉淡入 150ms（与⑥共用 CoverA/CoverB 机制）
+///
+/// 折叠钮住在栏头（与左栏同形）：收起终值 48px，钮在 12 + 24 + 12 里居中，收起后仍点得到。
+/// 宿主 MainWindow 只负责自动收起/恢复；用户手动点钮时本控件发 <see cref="ToggledManually"/>，
+/// 宿主据此置"手动优先"。
 /// </summary>
 public sealed partial class InfoPanel : UserControl
 {
     private const string OpacityPropertyPath = "Opacity";
     private const string WidthPropertyPath = "Width";
 
+    // 折叠钮的 Segoe MDL2 码位：展开态 E76C（chevron 向右 = 收起），收起态 E76B（向左 = 展开）。
+    // 用 ((char)0x…).ToString() 生成而不是 \u 转义/字面私有区字符：后两种写法在本轮编辑链路上被吞过
+    // （MainWindow 旧实现同样注释），码位由编译器保证。
+    private static readonly string CollapseGlyph = ((char)0xE76C).ToString();
+    private static readonly string ExpandGlyph = ((char)0xE76B).ToString();
+
     private readonly double _expandedWidth = TokenResource.Double("InfoPanelWidth");
-    private readonly double _collapsedWidth = 0;
+    private readonly double _collapsedWidth = TokenResource.Double("InfoPanelCollapsedWidth");
 
     private readonly int _coverDecodeSize = (int)TokenResource.Double("InfoPanelCoverSize");
 
@@ -43,6 +53,12 @@ public sealed partial class InfoPanel : UserControl
     public PlayerViewModel Player { get; }
 
     public bool IsCollapsed { get; private set; }
+
+    /// <summary>
+    /// 用户点了栏头折叠钮（区别于宿主按窗口宽度触发的自动收起）。
+    /// 宿主据此置"手动优先"，否则下一次 SizeChanged 会立刻把面板改回去。
+    /// </summary>
+    public event EventHandler? ToggledManually;
 
     public InfoPanel(PlayerViewModel player)
     {
@@ -253,11 +269,18 @@ public sealed partial class InfoPanel : UserControl
 
     // —— 折叠 ——
 
+    private void FoldButton_Click(object sender, RoutedEventArgs e)
+    {
+        ToggledManually?.Invoke(this, EventArgs.Empty);
+        SetCollapsed(!IsCollapsed, animate: true);
+    }
+
     public void SetCollapsed(bool collapsed, bool animate)
     {
         if (collapsed == IsCollapsed && _foldStoryboard is null) return;
 
         IsCollapsed = collapsed;
+        FoldButtonGlyph.Glyph = collapsed ? ExpandGlyph : CollapseGlyph;
 
         var currentWidth = Panel.ActualWidth;
         var currentOpacity = ContentHost.Opacity;

@@ -24,6 +24,11 @@
     <x:Double x:Key="NavRailWidth">200</x:Double>
     <x:Double x:Key="NavRailCollapsedWidth">48</x:Double>
     <x:Double x:Key="InfoPanelWidth">260</x:Double>
+    <!--
+      右栏收起终值与左栏同宽：折叠钮住在栏头，收成 48px 后 12 + 24 + 12 正好把它居中
+      （收成 0 的话钮自己也点不到，那是把钮挂到标题栏的老原因）。中列表仍回收 212px。
+    -->
+    <x:Double x:Key="InfoPanelCollapsedWidth">48</x:Double>
     <x:Double x:Key="PlayerBarHeight">64</x:Double>
     <x:Double x:Key="TitleBarHeight">32</x:Double>
     <x:Double x:Key="RowHeight">36</x:Double>
@@ -46,8 +51,8 @@
           RailListViewItemStyle 那条 12px 的左右 Padding 决定徽标左缘在 12，12 + 24/2 = 24 = 48/2。
         · InfoPanelCoverSize 228 —— 右栏封面正方形。= InfoPanelWidth 260 - 两侧 PanelPadding 16（spec §5 正方形）。
           同一个值也当 CoverArtLoader 的解码边长（按目标尺寸解码，spec §8「封面大图导致切歌卡顿」的缓解项）。
-        · FoldButtonSize 24 —— 两个折叠钮的直径（左栏表头钮 / 标题栏右栏钮）。左栏那个同样取 24，
-          与 RailBadgeSize 同值，才能在 48px 折叠态里和徽标一样居中。
+        · FoldButtonSize 24 —— 两个栏头折叠钮的直径。左栏那个与 RailBadgeSize 同值，
+          才能在 48px 折叠态里和徽标一样居中；右栏收起后同为 48px，靠 12px 内边距居中。
     -->
     <x:Double x:Key="RailBadgeSize">24</x:Double>
     <x:Double x:Key="InfoPanelCoverSize">228</x:Double>
@@ -66,10 +71,10 @@
     <Thickness x:Key="PanelPadding">16</Thickness>
     <Thickness x:Key="RailItemPadding">12,0,12,0</Thickness>
     <Thickness x:Key="RailHeaderPadding">12,8,12,0</Thickness>
+    <!-- 右栏栏头与左栏同高同内边距：两颗折叠钮在同一水平线（8px 顶距 + 24px 钮） -->
+    <Thickness x:Key="InfoPanelHeaderPadding">12,8,12,0</Thickness>
     <!-- TrackList 表头/工具栏/行的左右内边距：必须同值，列边界才对得上（12 = SpacingMd，上下 0） -->
     <Thickness x:Key="TrackListHorizontalPadding">12,0,12,0</Thickness>
-    <!-- 标题栏右端给系统 Caption Buttons（3 x 46px）让位：右栏折叠钮的右边距，本机 scale=1.0 实测 138 -->
-    <Thickness x:Key="InfoPanelToggleMargin">0,0,138,0</Thickness>
     <!--
       TrackList 列宽（表头与行模板共用，改一处两处同步）：# 40 / 标题 * / 艺术家 220 / 时长 72。
       直接写在 TrackList.xaml 的 ColumnDefinition 里（GridLength 不能存进 StaticResource 做类型转换）。

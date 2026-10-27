@@ -7,51 +7,72 @@
       右信息栏（spec §5：默认 260px，<960px 自动收起；Task 2 起内容与折叠都落地）。
       根不写背景刷：Mica 材质只在没有不透明背景刷的表面后面可见（实测见 MainWindow.xaml 顶部注释）。
 
-      折叠的两个量在 InfoPanel.xaml.cs：`IsCollapsed` 让 Panel 的 Width 在 260 与 0 之间走 Storyboard，
+      折叠的两个量在 InfoPanel.xaml.cs：`IsCollapsed` 让 Panel 的 Width 在 260 与 48 之间走 Storyboard，
       `ContentHost` 的文字/封面先淡出 100ms 再收宽度（§6 第 4 项）。
-      Width=0 时 WinUI **不裁剪**子元素（FrameworkElement 没有 WPF 的 IsClippedToBounds），
+      收起终值 48 与左栏同宽：折叠钮住在栏头，12 + 24 + 12 正好把它居中；两颗钮因此都在各自栏内。
+      Width=48 时仍比内容窄，WinUI **不裁剪**子元素（FrameworkElement 没有 WPF 的 IsClippedToBounds），
       260px 的内容会照画到中列上方 = A3 的"折叠后仍有残留"失败态；所以根上加了 Clip（代码里跟随尺寸更新）。
 
-      折叠钮**不在这里**：面板收成 0 宽之后它自己那颗钮也点不到了，改由宿主 MainWindow 挂在标题栏右端，
-      理由与实测见 task-2-report.md §2。
+      内容包一层 ScrollViewer：栏头占 32px 后，窗口压到最小高度（500）时文本可能超出，
+      让它可滚而不是被底部裁掉。
     -->
     <Grid x:Name="Panel" Width="{StaticResource InfoPanelWidth}" IsTabStop="False">
-        <StackPanel x:Name="ContentHost" Spacing="{StaticResource SpacingMd}" Padding="{StaticResource PanelPadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-            <!-- 封面：正方形（228 = InfoPanelWidth 260 - 两侧 PanelPadding 16），圆角 8；无封面＝音符占位 -->
-            <Grid Width="{StaticResource InfoPanelCoverSize}" Height="{StaticResource InfoPanelCoverSize}">
-                <Border x:Name="CoverPlaceholder" CornerRadius="{StaticResource RadiusItem}"
-                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                    <FontIcon Glyph="&#xE8D6;" FontSize="{StaticResource CoverGlyphSize}" Opacity="0.4"
-                              HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Border>
-                <!-- ⑥⑨ 两张封面叠放，交叉淡入 150ms（避免闪白） -->
-                <Image x:Name="CoverA" Stretch="UniformToFill" Opacity="1" />
-                <Image x:Name="CoverB" Stretch="UniformToFill" Opacity="0" />
-            </Grid>
+        <!-- 栏头：与左栏同高同内边距（InfoPanelHeaderPadding），钮靠窗口外缘右对齐 -->
+        <Grid Grid.Row="0" Padding="{StaticResource InfoPanelHeaderPadding}">
+            <Button x:Name="FoldButton" Width="{StaticResource FoldButtonSize}" Height="{StaticResource FoldButtonSize}"
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource IconButtonStyle}"
+                    Click="FoldButton_Click"
+                    AutomationProperties.Name="折叠或展开信息栏" ToolTipService.ToolTip="折叠或展开信息栏">
+                <FontIcon x:Name="FoldButtonGlyph" Glyph="&#xE76C;" FontSize="{StaticResource FontSizeCaption}" />
+            </Button>
+        </Grid>
 
-            <!-- ⑥ 文本上移动画容器：TranslateTransform.Y 4→0 + Opacity 0→1（100ms） -->
-            <StackPanel x:Name="TextBlockHost">
-                <TextBlock x:Name="TitleText" FontSize="{StaticResource FontSizeSubtitle}" FontWeight="SemiBold"
-                           TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis">
-                    <TextBlock.RenderTransform>
-                        <TranslateTransform x:Name="TitleTranslate" Y="0" />
-                    </TextBlock.RenderTransform>
-                </TextBlock>
-                <TextBlock x:Name="ArtistText" FontSize="{StaticResource FontSizeBody}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis">
-                    <TextBlock.RenderTransform>
-                        <TranslateTransform x:Name="ArtistTranslate" Y="0" />
-                    </TextBlock.RenderTransform>
-                </TextBlock>
-                <TextBlock x:Name="AlbumText" FontSize="{StaticResource FontSizeBody}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-                <TextBlock x:Name="DurationText" FontSize="{StaticResource FontSizeCaption}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <!-- 采样率：取 PlayerViewModel.SampleRateText（无曲目/无采样率时由 RefreshTexts 折叠） -->
-                <TextBlock x:Name="SampleRateTextBlock" FontSize="{StaticResource FontSizeCaption}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollMode="Auto" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="ContentHost" Spacing="{StaticResource SpacingMd}" Padding="{StaticResource PanelPadding}">
+
+                <!-- 封面：正方形（228 = InfoPanelWidth 260 - 两侧 PanelPadding 16），圆角 8；无封面＝音符占位 -->
+                <Grid Width="{StaticResource InfoPanelCoverSize}" Height="{StaticResource InfoPanelCoverSize}">
+                    <Border x:Name="CoverPlaceholder" CornerRadius="{StaticResource RadiusItem}"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <FontIcon Glyph="&#xE8D6;" FontSize="{StaticResource CoverGlyphSize}" Opacity="0.4"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <!-- ⑥⑨ 两张封面叠放，交叉淡入 150ms（避免闪白） -->
+                    <Image x:Name="CoverA" Stretch="UniformToFill" Opacity="1" />
+                    <Image x:Name="CoverB" Stretch="UniformToFill" Opacity="0" />
+                </Grid>
+
+                <!-- ⑥ 文本上移动画容器：TranslateTransform.Y 4→0 + Opacity 0→1（100ms） -->
+                <StackPanel x:Name="TextBlockHost">
+                    <TextBlock x:Name="TitleText" FontSize="{StaticResource FontSizeSubtitle}" FontWeight="SemiBold"
+                               TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis">
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform x:Name="TitleTranslate" Y="0" />
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                    <TextBlock x:Name="ArtistText" FontSize="{StaticResource FontSizeBody}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform x:Name="ArtistTranslate" Y="0" />
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                    <TextBlock x:Name="AlbumText" FontSize="{StaticResource FontSizeBody}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="DurationText" FontSize="{StaticResource FontSizeCaption}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <!-- 采样率：取 PlayerViewModel.SampleRateText（无曲目/无采样率时由 RefreshTexts 折叠） -->
+                    <TextBlock x:Name="SampleRateTextBlock" FontSize="{StaticResource FontSizeCaption}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -91,6 +92,9 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         Player = player;
         Playlists = playlists;
         InitializeComponent();
+        // 内置 Thumb tooltip 直接显示滑块的原始 Value（0..1 小数）；换成时间 / 百分比。
+        PositionSlider.ThumbToolTipValueConverter = new PositionThumbToolTipConverter(player);
+        VolumeSlider.ThumbToolTipValueConverter = new VolumeThumbToolTipConverter();
         Loaded += (_, _) => HookSliderParts();
         player.PropertyChanged += Player_PropertyChanged;
         Playlists.PropertyChanged += (_, _) => RefreshView();
@@ -334,7 +338,7 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
     private static readonly string[] ViewProjections =
     [
-        nameof(NowPlayingText), nameof(TimeText),
+        nameof(TimeText),
         nameof(HasPlayableSource), nameof(HasDuration),
     ];
 
@@ -480,8 +484,6 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
     // —— x:Bind 只读投影 ——
 
-    public string NowPlayingText => Player.CurrentTrack is { } t
-        ? $"{t.Title} — {t.Artist}" : "未在播放";
     public string TimeText => $"{FormatClock(Player.Position)} / {FormatClock(Player.Duration)}";
 
     public bool HasPlayableSource => Player.CurrentTrack is not null
@@ -490,4 +492,39 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     public bool HasDuration => Player.Duration > TimeSpan.Zero;
 
     private static string FormatClock(TimeSpan t) => t.ToString(@"mm\:ss");
+}
+
+/// <summary>
+/// 进度条拇指提示：内置提示显示原始 0..1 小数，这里换成时间（短曲 mm:ss，超过 1 小时用 h:mm:ss）。
+/// </summary>
+internal sealed class PositionThumbToolTipConverter : IValueConverter
+{
+    private readonly PlayerViewModel _player;
+
+    public PositionThumbToolTipConverter(PlayerViewModel player) => _player = player;
+
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        var fraction = value is double d ? Math.Clamp(d, 0, 1) : 0;
+        return FormatClock(_player.Duration * fraction);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => throw new NotSupportedException();
+
+    private static string FormatClock(TimeSpan t)
+        => t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"mm\:ss");
+}
+
+/// <summary>音量拇指提示：0..1 小数换成整数百分比（如 75%）。</summary>
+internal sealed class VolumeThumbToolTipConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        var fraction = value is double d ? Math.Clamp(d, 0, 1) : 0;
+        return $"{Math.Round(fraction * 100):0}%";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => throw new NotSupportedException();
 }

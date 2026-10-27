@@ -31,8 +31,8 @@ namespace DPlayer.WinUI;
 /// 实测数据与判读见 MainWindow.xaml 顶部注释。只消费 Core 的公开成员；关闭路径复刻 WPF 壳的
 /// cancel-and-close（见 AppWindow_Closing）。
 ///
-/// 本类不再实现 INotifyPropertyChanged：底部栏的三个呈现投影（PlayPauseGlyph / NowPlayingText /
-/// TimeText）连同 x:Bind 一起搬进了 Views/PlayerBar.xaml.cs，那边自己发通知。
+/// 本类不再实现 INotifyPropertyChanged：底部栏的呈现投影（TimeText / HasPlayableSource /
+/// HasDuration 等）连同 x:Bind 一起搬进了 Views/PlayerBar.xaml.cs，那边自己发通知。
 /// </summary>
 public sealed partial class MainWindow : Window
 {

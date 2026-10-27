@@ -4,10 +4,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      播放器栏（底栏）。Phase 22：单行 64px 运输控件 —— 当前曲目 / 上一首 / 播放暂停 / 下一首 /
-      随机 / 循环 / 进度+时间 / 静音+音量。高度由 Tokens 的 PlayerBarHeight 钉死（spec §5：64px），
+      播放器栏（底栏）。Phase 22：单行 64px 运输控件 —— 上一首 / 播放暂停 / 下一首 / 随机 / 循环 /
+      进度+时间 / 静音+音量。高度由 Tokens 的 PlayerBarHeight 钉死（spec §5：64px），
       Padding 12,6 留出 52px 内容区：19px 文本行与 32px 滑块并排后仍在 64px 内，不撑高。
-      响应式（窗口宽度）：<1100 收起音量滑块，<860 再收起当前曲目文本；中途档位不会重叠。
+      2026-10-27：去掉左侧“歌名 — 艺术家”文本（用户要求），运输组从左缘起排，进度条回收原 180px。
+      响应式（窗口宽度）：<1100 收起音量滑块。
     -->
     <Grid Height="{StaticResource PlayerBarHeight}" Padding="12,6"
           ColumnSpacing="{StaticResource SpacingSm}"
@@ -19,21 +20,12 @@
                         <AdaptiveTrigger MinWindowWidth="1100" />
                     </VisualState.StateTriggers>
                 </VisualState>
-                <VisualState x:Name="Medium">
-                    <VisualState.StateTriggers>
-                        <AdaptiveTrigger MinWindowWidth="860" />
-                    </VisualState.StateTriggers>
-                    <VisualState.Setters>
-                        <Setter Target="VolumeSlider.Visibility" Value="Collapsed" />
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="Narrow">
+                <VisualState x:Name="Compact">
                     <VisualState.StateTriggers>
                         <AdaptiveTrigger MinWindowWidth="0" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="VolumeSlider.Visibility" Value="Collapsed" />
-                        <Setter Target="NowPlayingLabel.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -41,16 +33,11 @@
 
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="NowPlayingLabel" Grid.Column="0" Width="180"
-                   Text="{x:Bind NowPlayingText, Mode=OneWay}"
-                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-
-        <StackPanel Grid.Column="1" Orientation="Horizontal"
+        <StackPanel Grid.Column="0" Orientation="Horizontal"
                     Spacing="{StaticResource SpacingXs}" VerticalAlignment="Center">
             <Button x:Name="PrevButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
                     Click="PrevButton_Click" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
@@ -93,7 +80,7 @@
             </Button>
         </StackPanel>
 
-        <Grid Grid.Column="2" ColumnSpacing="{StaticResource SpacingSm}" VerticalAlignment="Center">
+        <Grid Grid.Column="1" ColumnSpacing="{StaticResource SpacingSm}" VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -128,7 +115,7 @@
             <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" VerticalAlignment="Center" />
         </Grid>
 
-        <StackPanel Grid.Column="3" Orientation="Horizontal"
+        <StackPanel Grid.Column="2" Orientation="Horizontal"
                     Spacing="{StaticResource SpacingXs}" VerticalAlignment="Center">
             <Button x:Name="MuteButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
                     Click="MuteButton_Click" AutomationProperties.Name="静音" ToolTipService.ToolTip="静音">

@@ -80,7 +80,8 @@ public partial class App : Application
         // 需在 UI 线程构造状态与恢复；窗口显示后立刻执行
         var vm = _services.GetRequiredService<MainViewModel>();
         var settings = _services.GetRequiredService<ISettingsPersistence>();
-        var window = new MainWindow(vm, settings);
+        var playback = _services.GetRequiredService<IPlaybackService>();
+        var window = new MainWindow(vm, settings, playback);
         _window = window;
         _hwnd = WindowNative.GetWindowHandle(window);
         window.Activate();

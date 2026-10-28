@@ -1,0 +1,24 @@
+<ContentDialog
+    x:Class="DPlayer.WinUI.Views.Dialogs.EqualizerDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="均衡器">
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">700</x:Double>
+    </ContentDialog.Resources>
+    <StackPanel Spacing="{StaticResource SpacingMd}" MinWidth="560">
+        <TextBlock x:Name="SaveError" Visibility="Collapsed" TextWrapping="Wrap"
+                   Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                   AutomationProperties.LiveSetting="Assertive" />
+        <CheckBox x:Name="EnableCheckBox" Content="启用均衡器"
+                  Checked="Enable_Changed" Unchecked="Enable_Changed" />
+        <ComboBox x:Name="PresetCombo" SelectionChanged="PresetCombo_SelectionChanged"
+                  AutomationProperties.Name="均衡器预设" />
+        <Grid x:Name="BandsPanel" Height="220" />
+        <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpacingSm}" HorizontalAlignment="Right">
+            <Button Content="恢复 Flat" Click="RestoreFlat_Click" />
+            <Button Content="取消" Click="Cancel_Click" />
+            <Button x:Name="SaveButton" Content="保存" Click="Save_Click" />
+        </StackPanel>
+    </StackPanel>
+</ContentDialog>

@@ -40,6 +40,7 @@ public sealed partial class MainWindow : Window
 
     /// <summary>相位 22 Task 5：窗口几何的落盘通道（settings.json 与音量共用一份）。</summary>
     private readonly ISettingsPersistence _settings;
+    private readonly IPlaybackService _playbackService;
 
     // 启动几何兜底：保存的宽或高任一小于下限（含从未保存过的 800×450 默认值）时，两维一起用
     // 这两档，不走系统默认小窗。
@@ -83,10 +84,11 @@ public sealed partial class MainWindow : Window
     private readonly double _autoCollapseThreshold = TokenResource.Double("InfoPanelAutoCollapseWidth");
     private readonly double _autoCollapseHysteresis = TokenResource.Double("AutoCollapseHysteresis");
 
-    public MainWindow(MainViewModel vm, ISettingsPersistence settings)
+    public MainWindow(MainViewModel vm, ISettingsPersistence settings, IPlaybackService playbackService)
     {
         _vm = vm;
         _settings = settings;
+        _playbackService = playbackService;
         InitializeComponent();
 
         Title = "D-player";
@@ -105,7 +107,7 @@ public sealed partial class MainWindow : Window
         var rail = new NavRail(_vm.Playlists);
         var tracks = new TrackList(_vm.Playlists);
         _infoPanel = new InfoPanel(_vm.Player);
-        _bar = new PlayerBar(_vm.Player, _vm.Playlists);
+        _bar = new PlayerBar(_vm.Player, _vm.Playlists, _playbackService, _settings);
 
         Grid.SetColumn(rail, 0);
         Grid.SetColumn(tracks, 1);
@@ -246,6 +248,7 @@ public sealed partial class MainWindow : Window
         if (_cleanupCompleted) return;                 // our own Close() after cleanup -> allow
         args.Cancel = true;
         if (_isClosing) return;                        // second user request while cleanup runs -> keep waiting
+        if (!_bar.TryPrepareForWindowClose()) return;  // EQ 保存中不清理服务；完成后可再次关闭
         _isClosing = true;
 
         try { await SaveWindowGeometryAsync(); }

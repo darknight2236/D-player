@@ -153,6 +153,14 @@
                     ValueChanged="VolumeSlider_ValueChanged"
                     AutomationProperties.Name="音量" VerticalAlignment="Center" />
 
+            <Button x:Name="EqButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
+                    Click="EqButton_Click" AutomationProperties.Name="均衡器" ToolTipService.ToolTip="均衡器">
+                <Path x:Name="EqIcon" Width="20" Height="20" Stretch="Uniform"
+                      Data="M4,21 V14 M4,10 V3 M12,21 V12 M12,8 V3 M20,21 V16 M20,12 V3 M1,14 H7 M9,8 H15 M17,16 H23"
+                      Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            </Button>
+
             <Button x:Name="SettingsButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
                     Click="SettingsButton_Click" AutomationProperties.Name="设置" ToolTipService.ToolTip="设置">
                 <FontIcon Glyph="&#xE713;" FontSize="{StaticResource FontSizeBody}" />

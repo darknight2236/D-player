@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using DPlayer.Models;
+using DPlayer.Services;
 using DPlayer.ViewModels;
 using DPlayer.WinUI.Services;
 using DPlayer.WinUI.Theme;
@@ -95,17 +96,24 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
     public PlaylistsViewModel Playlists { get; }
 
+    private readonly IPlaybackService _playbackService;
+    private readonly ISettingsPersistence _settings;
+    private EqualizerDialog? _equalizerDialog;
+
     /// <summary>
     /// Playlists 走构造参数，**不**走 <c>required</c> + 对象初始化器：初始化器在 ctor 体返回**之后**才执行，
     /// 而本 ctor 体里的订阅（下方最后一行）与 <c>InitializeComponent()</c> 里的 x:Bind 都要求它此刻已就位 ——
     /// 初始化器时代这里先抛 NullReferenceException，整窗起不来（Phase 21 收尾的起窗崩溃根因）。
     /// </summary>
-    public PlayerBar(PlayerViewModel player, PlaylistsViewModel playlists)
+    public PlayerBar(PlayerViewModel player, PlaylistsViewModel playlists,
+        IPlaybackService playbackService, ISettingsPersistence settings)
     {
         // 顺序有承重：x:Bind（Player.PositionNormalized 等）在 InitializeComponent() 里就求值一遍，
         // 两个绑定源必须先赋值再 InitializeComponent() —— 与 NavRail.xaml.cs:49 同纪律。
         Player = player;
         Playlists = playlists;
+        _playbackService = playbackService;
+        _settings = settings;
         InitializeComponent();
         // 内置 Thumb tooltip 直接显示滑块的原始 Value（0..1 小数）；换成时间 / 百分比。
         PositionSlider.ThumbToolTipValueConverter = new PositionThumbToolTipConverter(player);
@@ -383,9 +391,12 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     {
         // 传输按钮作用于"正在播放"的歌单，不跟随查看项；查看项只决定中间列表显示什么。
         var current = Playlists.CurrentPlaylist;
+        var eqEnabled = _equalizerDialog is null
+            ? Player.EqualizerEnabled : _playbackService.EqualizerConfig.Enabled;
         var signature =
             $"{Playlists.ShuffleEnabled}|{Playlists.RepeatMode}|{Player.IsMuted}|" +
             $"{Player.Volume.ToString("F3", CultureInfo.InvariantCulture)}|" +
+            $"{eqEnabled}|" +
             $"{current?.Id ?? "-"}|{current?.HasCurrentTrack ?? false}";
         if (signature == _lastTransportSignature) return;
         _lastTransportSignature = signature;
@@ -416,6 +427,8 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         MuteIcon.Glyph = ((char)(Player.IsMuted ? 0xE74F : 0xE767)).ToString();
         ToolTipService.SetToolTip(MuteButton, muteText);
         AutomationProperties.SetName(MuteButton, muteText);
+
+        EqIcon.Stroke = eqEnabled ? _accentBrush : _secondaryBrush;
 
         _syncingVolume = true;
         VolumeSlider.Value = Player.Volume;
@@ -553,6 +566,35 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         if (_hwnd == IntPtr.Zero)
             _hwnd = Win32Interop.GetWindowFromWindowId(XamlRoot.ContentIslandEnvironment.AppWindowId);
         return _hwnd;
+    }
+
+    private async void EqButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_equalizerDialog is not null || XamlRoot is null) return;
+        try
+        {
+            _equalizerDialog = new EqualizerDialog(_playbackService, _settings, Player) { XamlRoot = XamlRoot };
+            _equalizerDialog.PreviewChanged += Equalizer_PreviewChanged;
+            await _equalizerDialog.ShowAsync();
+        }
+        catch (Exception ex) { AppLog.Write("[WinUI 壳] 打开均衡器失败", ex); }
+        finally
+        {
+            if (_equalizerDialog is not null)
+                _equalizerDialog.PreviewChanged -= Equalizer_PreviewChanged;
+            _equalizerDialog = null;
+            SyncTransportVisuals();
+        }
+    }
+
+    private void Equalizer_PreviewChanged(object? sender, EventArgs e) => SyncTransportVisuals();
+
+    public bool TryPrepareForWindowClose()
+    {
+        if (_equalizerDialog?.TryCancel() == false) return false;
+        // 关闭清理的 await 期间不再允许打开 EQ 发起保存。
+        EqButton.IsEnabled = false;
+        return true;
     }
 
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)

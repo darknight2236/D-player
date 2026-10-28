@@ -2,7 +2,7 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（.NET 10 + NAudio，WPF / WinUI 两套壳；共享层 `D-player.Core` 是 WPF-free 的）。
 >
-> 文档日期：2026/10/23（代码基线 `e98b369`，Phase 22 功能层已交付，验收已完成——验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 `docs/PHASE22-ACCEPTANCE.md`） · 对应分支：`master` · 当前阶段：**Phase 22 验收已完成**（WinUI 功能补齐：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何持久化、本地日志；WinUI 构建是 `verify-gates.ps1 -Full` 的第三道门禁。频谱/EQ/拖拽/排序/文件夹绑定管理留 Phase 23/24；验收清单见 `docs/PHASE22-ACCEPTANCE.md`） · Phase 21 验收闭合（23 项全部通过，2026-10-08，见 `docs/PHASE21-ACCEPTANCE.md`；起窗崩溃 0xC0000005 已在 `bba9ad4` 修复并验证） · Phase 20 切片已交付（抽出 WPF-free 的 `D-player.Core`、WinUI 3 第二壳第一条纵向切片、门禁改走 `D-player.slnf`）；WPF 壳的行为与外观零变化；两壳去留的决策门已拍板：续投 WinUI（2026-10-07） · 上一阶段：Phase 21 完成 · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026/10/27（代码基线 `35616dc`，Phase 22 功能层已交付，验收已完成——验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 `docs/PHASE22-ACCEPTANCE.md`） · 对应分支：`master` · 当前阶段：**Phase 22 验收已完成**（WinUI 功能补齐：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何持久化、本地日志；WinUI 构建是 `verify-gates.ps1 -Full` 的第三道门禁。频谱/EQ/拖拽/排序/文件夹绑定管理留 Phase 23/24；验收清单见 `docs/PHASE22-ACCEPTANCE.md`） · Phase 21 验收闭合（23 项全部通过，2026-10-08，见 `docs/PHASE21-ACCEPTANCE.md`；起窗崩溃 0xC0000005 已在 `bba9ad4` 修复并验证） · Phase 20 切片已交付（抽出 WPF-free 的 `D-player.Core`、WinUI 3 第二壳第一条纵向切片、门禁改走 `D-player.slnf`）；WPF 壳的行为与外观零变化；两壳去留的决策门已拍板：续投 WinUI（2026-10-07） · 上一阶段：Phase 21 完成 · **项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 
@@ -1121,6 +1121,8 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 
 - 耦合分析：[`docs/COUPLING.md`](./COUPLING.md) — 风险登记册 + 启动检查清单（Phase 15 完成）
 - Phase 20 两壳对比材料与决策门记录位：[`docs/PHASE20-COMPARISON.md`](./PHASE20-COMPARISON.md) — 功能等价核对表 + 六维评分表（**决策门已于 2026-10-07 拍板：续投 WinUI，六维评分延后至第二阶段之后**——结论写在 §5，§4 分数格留空是决定、不是遗漏；§2.1 那份走查清单已由用户 2026-10-07 在真机走完，逐项结果与那处"进度条单击定位"缺陷记在 §2.2——该缺陷当晚已量出根因并修掉，「进度显示」格 ⚠️ → 🟡（修 + 仪器复量）→ ✅（同日第二轮复验）；两轮之后**这份清单已无待复验项**）
+- Phase 21 验收：[`docs/PHASE21-ACCEPTANCE.md`](./PHASE21-ACCEPTANCE.md) — WinUI 视觉与交互打磨，23 项全部通过（2026-10-08）；起窗崩溃 `0xC0000005` 已在 `bba9ad4` 修复并验证
+- Phase 22 验收：[`docs/PHASE22-ACCEPTANCE.md`](./PHASE22-ACCEPTANCE.md) — WinUI 功能补齐，23 项全部 PASS；文末附交付后修正记录（TrackEnded 竞态、快赢切片、折叠钮统一回各自栏头、底栏精简、滑块提示格式化、窄窗悬停音量弹层）
 - 设计稿：
   - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
   - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
@@ -1140,6 +1142,8 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
   - [`docs/superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md`](./superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md) — Phase 18 播放列表文件导入导出设计
   - [`docs/superpowers/specs/2026-10-06-d-player-phase19-dependency-migration-design.md`](./superpowers/specs/2026-10-06-d-player-phase19-dependency-migration-design.md) — Phase 19 依赖迁移设计
   - [`docs/superpowers/specs/2026-10-06-d-player-phase20-winui-shell-design.md`](./superpowers/specs/2026-10-06-d-player-phase20-winui-shell-design.md) — Phase 20 WinUI 3 第二壳 + 决策门设计
+  - [`docs/superpowers/specs/2026-10-07-d-player-phase21-winui-polish-design.md`](./superpowers/specs/2026-10-07-d-player-phase21-winui-polish-design.md) — Phase 21 WinUI 视觉与交互打磨设计
+  - [`docs/superpowers/specs/2026-10-23-d-player-phase22-winui-feature-parity-design.md`](./superpowers/specs/2026-10-23-d-player-phase22-winui-feature-parity-design.md) — Phase 22 WinUI 功能补齐设计
 - 实现计划:
   - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
   - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
@@ -1158,6 +1162,8 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
   - [`docs/superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md`](./superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md) — Phase 18
   - [`docs/superpowers/plans/2026-10-06-d-player-phase19-dependency-migration-implementation.md`](./superpowers/plans/2026-10-06-d-player-phase19-dependency-migration-implementation.md) — Phase 19
   - [`docs/superpowers/plans/2026-10-06-d-player-phase20-winui-shell-implementation.md`](./superpowers/plans/2026-10-06-d-player-phase20-winui-shell-implementation.md) — Phase 20（实施中被代码推翻的草稿在文内原地标注，未删除）
+  - [`docs/superpowers/plans/2026-10-07-d-player-phase21-winui-polish-implementation.md`](./superpowers/plans/2026-10-07-d-player-phase21-winui-polish-implementation.md) — Phase 21
+  - [`docs/superpowers/plans/2026-10-23-d-player-phase22-winui-feature-parity-implementation.md`](./superpowers/plans/2026-10-23-d-player-phase22-winui-feature-parity-implementation.md) — Phase 22
 - 主要里程碑提交：
   - **Phase 1**
     - `02c7012` feat: implement NAudioPlaybackService with throttled position updates
@@ -1420,3 +1426,23 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
     - `69fedad` feat(winui): scaffold an unpackaged WinUI 3 shell and prove the toolchain（WindowsAppSDK 2.5.1 钉版本 + `net10.0-windows10.0.19041.0` + x64）
     - `4d715bc` feat(winui): build the first vertical slice of the new UI
     - `71613f2` fix(winui): share the double-click entry, follow ViewedPlaylist, show Mica
+  - **Phase 21**（WinUI 视觉与交互打磨）
+    - `bba9ad4` fix(winui): pass Playlists into PlayerBar's constructor instead of an initializer（起窗崩溃修复）
+    - `9657f95` fix(winui): apply the 64px bar height, wire PageUp/PageDown, stop re-animating the play icon
+    - `e6da798` docs(phase21): close out the acceptance — 23/23 passed
+  - **Phase 22**（WinUI 功能补齐）
+    - `570c00d` feat(core): make file dialogs async across both shells
+    - `77b33c0` feat(winui): add playlist management and dialog host
+    - `679fe39` feat(winui): add import and export toolbar
+    - `0f78de1` feat(winui): complete the 64px transport bar
+    - `f6f5ddb` feat(winui): add settings and persist window geometry
+    - `ac75b2d` feat(winui): add a file log outlet
+    - `adc0fbf` fix(winui): show the empty-state hint on first launch
+    - `306339a` docs(phase22): mark the acceptance as complete
+  - **Phase 22 交付后修正与打磨**（2026-10-24 ~ 2026-10-27）
+    - `d70d285` fix(playback): only the playing playlist advances（TrackEnded 守卫 + 归属同步）
+    - `44b310c` feat(winui): add track marker, sample rate, and log routes
+    - `8ff1f1c` feat(winui): add a per-row remove button to the track list
+    - `21b86bd` feat(winui): put both fold buttons inside their pane headers
+    - `c19ab88` feat(winui): trim the player bar and format slider tooltips
+    - `35616dc` feat(winui): add a hover volume flyout for narrow windows

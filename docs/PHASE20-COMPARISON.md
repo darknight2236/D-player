@@ -131,7 +131,7 @@ Phase 20 交付了一条 WinUI 3 的第二 UI 壳（第一条纵向切片），�
 
 ## 3. Phase 22 之后的 WinUI 能力差距
 
-> **Phase 22 已闭合下列行；频谱/EQ/拖拽/排序/文件夹绑定管理仍留给后续阶段。** 本节按 2026-10-23 Phase 22 交付后的状态记录；§2 是 Phase 20 的验收快照，保留当时的读数与结论，不回填本节。
+> **Phase 22 已闭合下列行；频谱/EQ/拖拽/排序/文件夹绑定管理仍留给后续阶段。** 本节按 2026-10-23 Phase 22 交付后的状态记录，并补记 2026-10-24 快赢切片（TrackList ▶ 当前曲标记、行尾移除按钮、InfoPanel 采样率）与 2026-10-27 的修正（折叠钮统一回各自栏头、底栏精简、滑块提示格式化、窄窗悬停音量弹层）；§2 是 Phase 20 的验收快照，保留当时的读数与结论，不回填本节。
 
 Phase 20 的这段差距表原本是设计稿的 Non-Goals（只做第一条纵向切片 + 决策门）。Phase 22 把日常可用闭环补齐后，**评估"操作手感"时只剩下表标 🟡/❌ 的项**；它们仍是工作量证据，不是"已经会做但懒得做"。
 
@@ -139,20 +139,20 @@ Phase 20 的这段差距表原本是设计稿的 Non-Goals（只做第一条纵�
 |---|---|---|---|
 | 文件/文件夹对话框 | ✅ | ✅ | `IFileDialogService` 已异步；WinUI 用 FileOpenPicker/FolderPicker/FileSavePicker，WPF 保留同步对话框 |
 | 播放列表文件导入/导出 | ✅ | ✅ | 追加到当前歌单 / 新建歌单 / 导出 M3U8 |
-| 音量与静音 | ✅ | ✅ | 64px 底栏内，音量滑块在窄窗收起 |
+| 音量与静音 | ✅ | ✅ | 64px 底栏内，音量滑块在窄窗收起；窄窗悬停静音钮弹纵向音量条（2026-10-27） |
 | 上一首/下一首、随机、循环三态 | ✅ | ✅ | 底栏单行 |
 | 设置对话框 | ✅ | ✅（基础版） | 默认音量 + 音频输出只读 + 日志入口；频谱/EQ 参数留 Phase 23 |
 | 歌单增删/重命名 | ✅ | ✅ | 左栏工具栏 + 双击重命名；拖拽重排仍缺 |
 | 窗口几何持久化 + 可见性自愈 | ✅ | ✅ | 物理像素；最大化不覆盖普通几何；屏外自愈用 `DisplayArea.GetFromPoint`（偏离原设计的 `FindAll`，见 `COUPLING.md` Phase 22 块） |
-| 曲目信息面板 | ✅ | 🟡 | 封面/标题/艺术家/专辑/时长已有；采样率与频谱仍缺 |
+| 曲目信息面板 | ✅ | 🟡 | 封面/标题/艺术家/专辑/时长/采样率已有（采样率 2026-10-24 补）；频谱仍缺 |
 | 频谱 / EQ / 拖拽 / 排序 / 文件夹绑定管理 | ✅ | ❌ | Phase 23 / 24 |
 
 **仍未闭合项的接法（Phase 23/24）**：
 - **频谱**：`SpectrumView` 是 WPF `Control` + `CompositionTarget.Rendering`，需按 WinUI 重写绘制控件；数据源 `PlayerViewModel.SpectrumData` 已在 Core。
 - **EQ**：数据与实时下发在 Core（`IPlaybackService.EqualizerConfig`），缺 WinUI 对话框与竖直滑块模板。
 - **拖拽**：WinUI 的 DragDrop API 与 WPF 不同（无 `AdornerLayer`），插入线要换高亮机制；VM 侧命令 `DropExternalFiles` / `MoveTracks` 已在 Core。
-- **排序 / 文件夹绑定管理 / TrackList ▶**：表头点击排序、文件夹绑定歌单的创建/刷新、TrackList 当前曲标记仍是壳侧 UI 缺口；`SortBy` 与扫描/缓存逻辑已在 Core。
-- **InfoPanel 采样率**：`PlayerViewModel.SampleRateText` 已在 Core，InfoPanel 尚无该行。
+- **排序 / 文件夹绑定管理**：表头点击排序、文件夹绑定歌单的创建/刷新仍是壳侧 UI 缺口；`SortBy` 与扫描/缓存逻辑已在 Core。TrackList 当前曲 ▶ 标记已于 2026-10-24 补齐，不再列入缺口。
+- **InfoPanel 采样率**：已于 2026-10-24 补上（`PlayerViewModel.SampleRateText`）。
 
 ---
 

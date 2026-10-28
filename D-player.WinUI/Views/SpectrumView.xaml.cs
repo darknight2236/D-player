@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using DPlayer.Models;
 using DPlayer.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -36,7 +37,10 @@ public sealed partial class SpectrumView : UserControl
         {
             RecalculateBarLayout();
             ApplyTheme();
-            UpdateTargets(_player.SpectrumData);
+            if (_player.PlayState == PlayState.Playing)
+                UpdateTargets(_player.SpectrumData);
+            else
+                Array.Fill(_targetHeights, MinBarHeight);
             UpdateVisibility();
             _player.PropertyChanged += Player_PropertyChanged;
             CompositionTarget.Rendering += OnRendering;
@@ -57,6 +61,13 @@ public sealed partial class SpectrumView : UserControl
             ApplyTheme();
         else if (e.PropertyName == nameof(PlayerViewModel.SpectrumEnabled))
             UpdateVisibility();
+        else if (e.PropertyName == nameof(PlayerViewModel.PlayState))
+        {
+            if (_player.PlayState == PlayState.Playing)
+                UpdateTargets(_player.SpectrumData);
+            else
+                Array.Fill(_targetHeights, MinBarHeight);
+        }
     }
 
     private void UpdateVisibility()

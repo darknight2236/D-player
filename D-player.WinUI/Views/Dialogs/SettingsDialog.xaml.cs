@@ -25,6 +25,14 @@ public sealed partial class SettingsDialog : ContentDialog
         VolumeSlider.Value = _player.Volume;
         UpdatePercent();
         LogPathText.Text = WinUiAppPaths.LogDirectory;
+        SpectrumEnabledCheckBox.IsChecked = _player.SpectrumEnabled;
+        SensitivitySlider.Maximum = 2;
+        SensitivitySlider.Value = _player.SpectrumSensitivity;
+        SensitivitySlider.Minimum = 0.5;
+        ThemeComboBox.ItemsSource = _player.SpectrumColorThemes;
+        ThemeComboBox.SelectedIndex = _player.SpectrumColorTheme;
+        SmoothingSlider.Value = _player.SpectrumSmoothing;
+        UpdateSpectrumValueLabels();
         _ready = true;
     }
 
@@ -33,6 +41,38 @@ public sealed partial class SettingsDialog : ContentDialog
         UpdatePercent();
         if (!_ready) return;
         _player.Volume = (float)e.NewValue;   // 既有 setter 负责同步播放服务与落盘
+    }
+
+    private void SpectrumEnabled_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        _player.SpectrumEnabled = SpectrumEnabledCheckBox.IsChecked == true;
+    }
+
+    private void SensitivitySlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        UpdateSpectrumValueLabels();
+        if (!_ready) return;
+        _player.SpectrumSensitivity = SensitivitySlider.Value;
+    }
+
+    private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        _player.SpectrumColorTheme = ThemeComboBox.SelectedIndex;
+    }
+
+    private void SmoothingSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        UpdateSpectrumValueLabels();
+        if (!_ready) return;
+        _player.SpectrumSmoothing = SmoothingSlider.Value;
+    }
+
+    private void UpdateSpectrumValueLabels()
+    {
+        SensitivityValue.Text = $"{SensitivitySlider.Value:0.00}";
+        SmoothingValue.Text = $"{SmoothingSlider.Value:0.00}";
     }
 
     private void UpdatePercent()

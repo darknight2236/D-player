@@ -65,6 +65,12 @@ public sealed partial class InfoPanel : UserControl
         Player = player;
         InitializeComponent();
 
+        ContentHost.Children.Add(new SpectrumView(player)
+        {
+            Height = 120,
+            Margin = new Thickness(0, 8, 0, 0),
+        });
+
         Panel.SizeChanged += (_, _) => Panel.Clip = new RectangleGeometry
         {
             Rect = new Rect(0, 0, Panel.ActualWidth, Panel.ActualHeight),

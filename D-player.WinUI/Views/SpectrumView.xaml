@@ -1,0 +1,6 @@
+<UserControl
+    x:Class="DPlayer.WinUI.Views.SpectrumView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Canvas x:Name="SpectrumCanvas" />
+</UserControl>

@@ -22,6 +22,43 @@
         </StackPanel>
 
         <StackPanel Spacing="{StaticResource SpacingSm}">
+            <CheckBox x:Name="SpectrumEnabledCheckBox" Content="启用频谱"
+                      Checked="SpectrumEnabled_Changed" Unchecked="SpectrumEnabled_Changed" />
+        </StackPanel>
+
+        <StackPanel Spacing="{StaticResource SpacingSm}">
+            <TextBlock Text="频谱灵敏度" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <Grid ColumnSpacing="{StaticResource SpacingSm}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="SensitivitySlider" StepFrequency="0.05"
+                        ValueChanged="SensitivitySlider_ValueChanged" AutomationProperties.Name="频谱灵敏度" />
+                <TextBlock x:Name="SensitivityValue" Grid.Column="1" VerticalAlignment="Center" />
+            </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="{StaticResource SpacingSm}">
+            <TextBlock Text="频谱主题" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <ComboBox x:Name="ThemeComboBox" SelectionChanged="ThemeComboBox_SelectionChanged"
+                      AutomationProperties.Name="频谱主题" />
+        </StackPanel>
+
+        <StackPanel Spacing="{StaticResource SpacingSm}">
+            <TextBlock Text="频谱平滑度" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <Grid ColumnSpacing="{StaticResource SpacingSm}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="SmoothingSlider" Minimum="0" Maximum="0.95" StepFrequency="0.05"
+                        ValueChanged="SmoothingSlider_ValueChanged" AutomationProperties.Name="频谱平滑度" />
+                <TextBlock x:Name="SmoothingValue" Grid.Column="1" VerticalAlignment="Center" />
+            </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="{StaticResource SpacingSm}">
             <TextBlock Text="音频输出" Style="{StaticResource BodyStrongTextBlockStyle}" />
             <TextBlock Text="系统默认 — WASAPI 共享" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             <TextBlock Text="输出设备选择将在后续版本开放"

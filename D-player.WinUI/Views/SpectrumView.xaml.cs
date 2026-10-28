@@ -56,7 +56,10 @@ public sealed partial class SpectrumView : UserControl
     private void Player_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PlayerViewModel.SpectrumData))
-            UpdateTargets(_player.SpectrumData);
+        {
+            if (_player.PlayState == PlayState.Playing)
+                UpdateTargets(_player.SpectrumData);
+        }
         else if (e.PropertyName == nameof(PlayerViewModel.SpectrumColorTheme))
             ApplyTheme();
         else if (e.PropertyName == nameof(PlayerViewModel.SpectrumEnabled))
@@ -187,7 +190,7 @@ public sealed partial class SpectrumView : UserControl
         else if (h < 300) { r = x; g = 0; b = c; }
         else { r = c; g = 0; b = x; }
 
-        return ColorHelper.FromArgb(0xFF, 
+        return ColorHelper.FromArgb(0xFF,
             (byte)((r + m) * 255),
             (byte)((g + m) * 255),
             (byte)((b + m) * 255));

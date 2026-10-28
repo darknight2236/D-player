@@ -1,10 +1,12 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using DPlayer.Models;
 using DPlayer.ViewModels;
 using DPlayer.WinUI.Services;
 using DPlayer.WinUI.Theme;
 using DPlayer.WinUI.Views.Dialogs;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -13,6 +15,7 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using Windows.Foundation;
 using Windows.System;
 
 namespace DPlayer.WinUI.Views;
@@ -60,6 +63,18 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     /// <summary>SyncTransportVisuals 写 VolumeSlider.Value 时的重入 guard（ValueChanged 不再回写 Player.Volume）。</summary>
     private bool _syncingVolume;
 
+    /// <summary>悬停音量弹层的驱动定时器：按真实鼠标位置开/关，不依赖 PointerExited。</summary>
+    private readonly DispatcherTimer _volumeHoverTimer;
+
+    private bool _volumePopupHover;
+    private IntPtr _hwnd;
+
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out NativePoint lpPoint);
+    [DllImport("user32.dll")] private static extern bool ClientToScreen(IntPtr hWnd, ref NativePoint lpPoint);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint { public int X; public int Y; }
+
     /// <summary>最近一次已应用的运输控件状态签名；位置心跳（~30 Hz）上早退，不刷画笔/滑块。</summary>
     private string _lastTransportSignature = string.Empty;
 
@@ -95,6 +110,12 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         // 内置 Thumb tooltip 直接显示滑块的原始 Value（0..1 小数）；换成时间 / 百分比。
         PositionSlider.ThumbToolTipValueConverter = new PositionThumbToolTipConverter(player);
         VolumeSlider.ThumbToolTipValueConverter = new VolumeThumbToolTipConverter();
+        VolumePopupSlider.ThumbToolTipValueConverter = new VolumeThumbToolTipConverter();
+
+        _volumeHoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _volumeHoverTimer.Tick += (_, _) => UpdateVolumeFlyout();
+        VolumeFlyout.Closed += (_, _) => _volumePopupHover = false;
+
         Loaded += (_, _) => HookSliderParts();
         player.PropertyChanged += Player_PropertyChanged;
         Playlists.PropertyChanged += (_, _) => RefreshView();
@@ -398,6 +419,7 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
 
         _syncingVolume = true;
         VolumeSlider.Value = Player.Volume;
+        VolumePopupSlider.Value = Player.Volume;
         _syncingVolume = false;
     }
 
@@ -466,6 +488,71 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
     {
         if (_syncingVolume) return;
         Player.Volume = (float)e.NewValue;
+    }
+
+    private void VolumePopupSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_syncingVolume) return;
+        Player.Volume = (float)e.NewValue;
+    }
+
+    // —— 窄窗的悬停音量弹层 ——
+
+    private void MuteButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+        => _volumeHoverTimer.Start();
+
+    private void VolumeFlyoutPanel_PointerEntered(object sender, PointerRoutedEventArgs e)
+        => _volumePopupHover = true;
+
+    private void VolumeFlyoutPanel_PointerExited(object sender, PointerRoutedEventArgs e)
+        => _volumePopupHover = false;
+
+    /// <summary>
+    /// 弹层状态机：横向音量条收起且指针在静音钮上 → 打开；指针既不在钮也不在弹层 → 关闭。
+    /// 不用 PointerExited 判断"离开"：ShowAt 之后 WinUI 会立刻给锚点补一发 PointerExited
+    /// （实测 hover-debug.log），按它关会把弹层在 250ms 内收掉。改为每 tick 读 GetCursorPos，
+    /// 按真实坐标判断是否仍在钮上；弹层内部仍用 PointerEntered/Exited 维护 _volumePopupHover。
+    /// </summary>
+    private void UpdateVolumeFlyout()
+    {
+        if (VolumeSlider.Visibility != Visibility.Collapsed)
+        {
+            if (VolumeFlyout.IsOpen) VolumeFlyout.Hide();
+            _volumeHoverTimer.Stop();
+            return;
+        }
+
+        var overButton = IsPointerOver(MuteButton);
+        if (overButton && !VolumeFlyout.IsOpen)
+        {
+            VolumeFlyout.ShowAt(MuteButton);
+            return;
+        }
+
+        if (overButton || _volumePopupHover) return;
+
+        if (VolumeFlyout.IsOpen) VolumeFlyout.Hide();
+        _volumeHoverTimer.Stop();
+    }
+
+    private bool IsPointerOver(FrameworkElement element)
+    {
+        if (!GetCursorPos(out var cursor)) return false;
+        var scale = element.XamlRoot.RasterizationScale;
+        var origin = element.TransformToVisual(null).TransformPoint(new Point(0, 0));
+        var topLeft = new NativePoint { X = (int)(origin.X * scale), Y = (int)(origin.Y * scale) };
+        ClientToScreen(GetWindowHandle(), ref topLeft);
+        var width = element.ActualWidth * scale;
+        var height = element.ActualHeight * scale;
+        return cursor.X >= topLeft.X && cursor.X < topLeft.X + width
+            && cursor.Y >= topLeft.Y && cursor.Y < topLeft.Y + height;
+    }
+
+    private IntPtr GetWindowHandle()
+    {
+        if (_hwnd == IntPtr.Zero)
+            _hwnd = Win32Interop.GetWindowFromWindowId(XamlRoot.ContentIslandEnvironment.AppWindowId);
+        return _hwnd;
     }
 
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)

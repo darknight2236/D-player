@@ -8,7 +8,8 @@
       进度+时间 / 静音+音量。高度由 Tokens 的 PlayerBarHeight 钉死（spec §5：64px），
       Padding 12,6 留出 52px 内容区：19px 文本行与 32px 滑块并排后仍在 64px 内，不撑高。
       2026-10-27：去掉左侧“歌名 — 艺术家”文本（用户要求），运输组从左缘起排，进度条回收原 180px。
-      响应式（窗口宽度）：<1100 收起音量滑块。
+      响应式（窗口宽度）：<1100 收起音量滑块；横向音量条收起时，悬停静音钮弹出纵向音量条
+      （Flyout + 纵向 Slider），否则窄窗没有任何调音量入口。
     -->
     <Grid Height="{StaticResource PlayerBarHeight}" Padding="12,6"
           ColumnSpacing="{StaticResource SpacingSm}"
@@ -117,8 +118,33 @@
 
         <StackPanel Grid.Column="2" Orientation="Horizontal"
                     Spacing="{StaticResource SpacingXs}" VerticalAlignment="Center">
+            <!-- 窄窗（横向音量条收起）时悬停本钮弹出纵向音量条；点击仍是静音/取消静音 -->
             <Button x:Name="MuteButton" Width="32" Height="32" Style="{StaticResource IconButtonStyle}"
-                    Click="MuteButton_Click" AutomationProperties.Name="静音" ToolTipService.ToolTip="静音">
+                    Click="MuteButton_Click" AutomationProperties.Name="静音" ToolTipService.ToolTip="静音"
+                    PointerEntered="MuteButton_PointerEntered">
+                <Button.Flyout>
+                    <Flyout x:Name="VolumeFlyout" Placement="Top">
+                        <!-- 默认 FlyoutPresenter 的 MinWidth/Padding 会把弹层撑到 96x190，这里交给内容决定 -->
+                        <Flyout.FlyoutPresenterStyle>
+                            <Style TargetType="FlyoutPresenter">
+                                <Setter Property="MinWidth" Value="0" />
+                                <Setter Property="MinHeight" Value="0" />
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </Flyout.FlyoutPresenterStyle>
+                        <StackPanel x:Name="VolumeFlyoutPanel" Padding="0,8"
+                                    PointerEntered="VolumeFlyoutPanel_PointerEntered"
+                                    PointerExited="VolumeFlyoutPanel_PointerExited">
+                            <!-- 宽度保持模板的 32：收到 24 会把右侧 Thumb 挤出边界；弹层靠左右 0 内边距保持细 -->
+                            <Slider x:Name="VolumePopupSlider" Orientation="Vertical" Height="140" Width="32"
+                                    HorizontalAlignment="Center"
+                                    Minimum="0" Maximum="1" StepFrequency="0.01"
+                                    SmallChange="0.05" LargeChange="0.1"
+                                    ValueChanged="VolumePopupSlider_ValueChanged"
+                                    AutomationProperties.Name="音量（弹出）" />
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
                 <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" FontSize="{StaticResource FontSizeBody}" />
             </Button>
 

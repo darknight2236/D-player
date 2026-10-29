@@ -124,7 +124,7 @@
 
 副作用：验证时把音量拖到 25%，关闭前已还原为 0.55；窗口几何恢复 1231×602@572,294，应用已关闭。排障过程中曾两次出现“弹层刚开就被关”，根因是 `ShowAt` 后 WinUI 给锚点补 `PointerExited`，已改为按真实鼠标位置驱动（见 COUPLING）。
 
-交付后补记（2026-10-29）：本节的“宽窗悬停不弹”只覆盖悬停；用户实测宽窗**点击**静音钮也会弹出纵向音量条——`Button.Flyout` 在点击/键盘激活时无条件打开，绕过了窄窗判定。已摘除 `MuteButton.Flyout`，弹层只由窄窗悬停 `ShowAt` 打开，详见 [PHASE23-ACCEPTANCE](./PHASE23-ACCEPTANCE.md) 同日缺陷记录。同日第二轮：摘除后窄窗弹层打开时点击静音钮，点击被 light-dismiss 覆盖层吞掉、弹层关了又重开；已设 `OverlayInputPassThroughElement = MuteButton`，点击可切换静音且弹层保持。
+交付后补记（2026-10-29）：本节的“宽窗悬停不弹”只覆盖悬停；用户实测宽窗**点击**静音钮也会弹出纵向音量条——`Button.Flyout` 在点击/键盘激活时无条件打开，绕过了窄窗判定。已摘除 `MuteButton.Flyout`，弹层只由窄窗悬停 `ShowAt` 打开，详见 [PHASE23-ACCEPTANCE](./PHASE23-ACCEPTANCE.md) 同日缺陷记录。同日第二轮：摘除后窄窗弹层打开时点击静音钮，点击被 light-dismiss 覆盖层吞掉、弹层关了又重开；已设 `OverlayInputPassThroughElement = MuteButton`，点击可切换静音且弹层保持。同日设置对话框修正（拖动提示、99%→100% 回跳、低窗滚动）见 [PHASE23-ACCEPTANCE](./PHASE23-ACCEPTANCE.md) 同日记录。
 
 ---
 

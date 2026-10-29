@@ -739,6 +739,7 @@ WinUI 3 / Windows App SDK **2.5.1**（钉具体版本以保证可复现构建）
 - 关闭：`AppWindow.Closing` → cancel-and-close → `await SaveWindowGeometryAsync()`（仅 `OverlappedPresenterState.Restored`）→ `await MainViewModel.CleanupAsync()` → `Close()`；`_cleanupCompleted` 之前重复关闭继续取消，之后自家 `Close()` 放行（WPF 同形缺陷未修，两壳在此不对称）。
 - `Services/WinUiFileDialogService.cs`（Phase 22）：`FileOpenPicker` / `FolderPicker` / `FileSavePicker` + `InitializeWithWindow.Initialize(picker, hwnd)`；HWND 未就绪、COM 异常、空虚拟路径、无法解析的保存过滤器都按取消语义返回空集合或 null；picker 跳过/失败写 `AppLog`。
 - Phase 22 壳侧服务：`WinUiDialogService`（通用 `ContentDialog` 宿主，`IsOpen` 供空格守卫；Phase 23 EQ 由 PlayerBar 独立管理）、`WinUiAppPaths`（`D-player-winui` 数据目录 + `logs` 子目录）、`AppLog`（`app.log` 追加、1 MiB 轮转到 `app.log.1`、IO 失败静默）。这些服务只属 WinUI 壳，Core 不引用。
+- WinUI 设置对话框：`SettingsDialog` 以 360px 内容宽度承载音量/频谱/输出/日志；三个滑块尾部已有数值，故设 `IsThumbToolTipEnabled=False`，音量数值列固定 48px 防止 `"99%"→"100%"` 变宽挤压滑块；`OnLoaded` 把 ContentDialog 模板的 `ContentScrollViewer` 改为垂直 `Auto`，低窗高时可滚动（2026-10-29）。
 - 已知未验证 / 未做：Phase 22 的验收项与已知问题见 [`PHASE22-ACCEPTANCE.md`](./PHASE22-ACCEPTANCE.md)（验收已完成，验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转））；Phase 23 频谱/EQ 实现完成、验收待补（[当前验收](./PHASE23-ACCEPTANCE.md)）；仍缺拖拽 / 表头排序 / 文件夹绑定歌单管理（对比材料 §3；TrackList ▶ 与 InfoPanel 采样率已于 2026-10-24 补齐）。Phase 21 的视觉验收结论见 [PHASE21-ACCEPTANCE.md](./PHASE21-ACCEPTANCE.md)；对比材料 §2.2 是 Phase 20 历史验收。**WinUI 仍不进 `D-player.slnf`**：门禁 3（`-Full`）只保证它编译，XAML 运行时模板挂接、左栏逻辑、关闭落盘没有自动回归；本机读不到 Windows 应用程序日志 / WER，"没有崩溃记录"仍无第三方取证（应用侧已有 `AppLog`）。构建/运行命令见 §8.2。
 
 ---

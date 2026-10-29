@@ -118,6 +118,9 @@ public sealed partial class PlayerBar : UserControl, INotifyPropertyChanged
         // Button 自带的 Flyout 在点击/键盘激活时会无条件打开，绕过"横向音量条收起"的判定，
         // 宽窗点静音也会弹层；摘掉后弹层只由 UpdateVolumeFlyout 在窄窗悬停时手动 ShowAt。
         MuteButton.Flyout = null;
+        // 弹层打开时 light-dismiss 覆盖层会吞掉锚点上的点击（点静音不生效，弹层关了又被定时器拉起）；
+        // 让指针输入穿透到静音钮，弹层保持打开时点击仍能切换静音。
+        VolumeFlyout.OverlayInputPassThroughElement = MuteButton;
         // 内置 Thumb tooltip 直接显示滑块的原始 Value（0..1 小数）；换成时间 / 百分比。
         PositionSlider.ThumbToolTipValueConverter = new PositionThumbToolTipConverter(player);
         VolumeSlider.ThumbToolTipValueConverter = new VolumeThumbToolTipConverter();

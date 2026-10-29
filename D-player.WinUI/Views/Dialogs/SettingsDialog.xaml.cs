@@ -22,6 +22,13 @@ public sealed partial class SettingsDialog : ContentDialog
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        // ContentDialog 模板的 ContentScrollViewer 默认禁用垂直滚动，窗口变矮时底部会被裁掉。
+        if (GetTemplateChild("ContentScrollViewer") is ScrollViewer scrollViewer)
+        {
+            scrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            scrollViewer.VerticalScrollMode = ScrollMode.Auto;
+        }
+
         VolumeSlider.Value = _player.Volume;
         UpdatePercent();
         LogPathText.Text = WinUiAppPaths.LogDirectory;

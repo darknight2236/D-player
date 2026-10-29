@@ -12,12 +12,13 @@
             <Grid ColumnSpacing="{StaticResource SpacingSm}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="48" />
                 </Grid.ColumnDefinitions>
                 <Slider x:Name="VolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
-                        SmallChange="0.05" LargeChange="0.1"
+                        SmallChange="0.05" LargeChange="0.1" IsThumbToolTipEnabled="False"
                         ValueChanged="VolumeSlider_ValueChanged" AutomationProperties.Name="音量" />
-                <TextBlock x:Name="VolumePercent" Grid.Column="1" VerticalAlignment="Center" />
+                <TextBlock x:Name="VolumePercent" Grid.Column="1" VerticalAlignment="Center"
+                           TextAlignment="Right" />
             </Grid>
         </StackPanel>
 
@@ -33,7 +34,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Slider x:Name="SensitivitySlider" StepFrequency="0.05"
+                <Slider x:Name="SensitivitySlider" StepFrequency="0.05" IsThumbToolTipEnabled="False"
                         ValueChanged="SensitivitySlider_ValueChanged" AutomationProperties.Name="频谱灵敏度" />
                 <TextBlock x:Name="SensitivityValue" Grid.Column="1" VerticalAlignment="Center" />
             </Grid>
@@ -53,6 +54,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Slider x:Name="SmoothingSlider" Minimum="0" Maximum="0.95" StepFrequency="0.05"
+                        IsThumbToolTipEnabled="False"
                         ValueChanged="SmoothingSlider_ValueChanged" AutomationProperties.Name="频谱平滑度" />
                 <TextBlock x:Name="SmoothingValue" Grid.Column="1" VerticalAlignment="Center" />
             </Grid>

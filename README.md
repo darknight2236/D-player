@@ -54,7 +54,7 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
 | 音频引擎 | [NAudio 3.3.0](https://github.com/naudio/NAudio)（引用收窄为 `NAudio.Core` + `NAudio.Wasapi` 两个子包；3.3.0 起 `NAudio.Core` 额外带入传递依赖 `System.Numerics.Tensors` 9.0.0，输出目录为三个 DLL；`MediaFoundationReader` 解码 + `WasapiPlayer` WASAPI Shared 输出） |
 | 元数据/标签 | [z440.atl.core 7.18](https://github.com/Zeugma440/atldotnet) |
-| 测试 | xUnit v3（Microsoft.Testing.Platform）+ NSubstitute + Coverlet |
+| 测试 | xUnit v3（Microsoft.Testing.Platform）+ NSubstitute；5 条真实 WASAPI 集成测试用 `Category=AudioDevice` 单独跑 |
 
 ---
 
@@ -77,7 +77,8 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q               # 门禁 2：190 通过 0 失败（切勿加 --nologo，见下）
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：176 通过 0 失败（默认排除真实音频集成）
+dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实 WASAPI 集成测试（需音频设备）
 dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 ```
 
@@ -93,8 +94,9 @@ dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q   # 门
 - **三条一起跑的脚本（推荐，会逐步 fail-fast）**：
 
 ```bash
-powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2
+powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（176，默认排除音频）
 powershell -File tools/verify-gates.ps1 -Full   # = 门禁 1 + 门禁 2 + 门禁 3
+powershell -File tools/verify-gates.ps1 -Full -Audio   # 再加 5 条真实音频集成测试
 ```
 
 - **可选**：`dotnet build D-player.sln`（整解，四个工程）只在要确认 IDE「Build Solution」没被打挂时跑。
@@ -126,12 +128,12 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 ```bash
 # xunit v3 的测试工程是可执行程序，runner 是 Microsoft.Testing.Platform（MTP）
 dotnet run --project Tests/D-player.Tests.csproj -c Debug   # 直接跑可执行程序
-dotnet test D-player.slnf -c Debug                          # 同一个 runner 的另一条命令（门禁 2）
+dotnet test D-player.slnf -c Debug                          # 同一 runner 的裸命令（跑全量 181）；门禁 2 用上面的 filter 排除音频
 ```
 
 两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
-当前共 **190** 个单元测试（Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。**这 190 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
+当前共 **181** 个测试（176 默认 + 5 真实音频集成；Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。**这 181 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
 
 ---
 
@@ -165,7 +167,7 @@ D-player/                          # 仓库根 = WPF 壳工程
 │   └── Services/                 # 真实文件 picker、ContentDialog 宿主、D-player-winui 数据/日志路径、AppLog
 │
 ├── Tests/               # xUnit v3 测试项目（可执行程序，跑 MTP；只引用 Core）
-├── tools/               # 校验脚本：verify-gates.ps1（-Fast = 门禁 1/2，-Full = 再加门禁 3）+ coupling-audit/（Phase 15 耦合审计 M1–M6）
+├── tools/               # 校验脚本：verify-gates.ps1（-Fast = 门禁 1/2，-Full = 再加门禁 3，-Audio = 再加 5 条真实音频集成）+ coupling-audit/（Phase 15 耦合审计 M1–M6）
 └── docs/                # 项目文档、耦合登记册、Phase 20 对比材料、Phase 22 验收清单、各阶段设计稿与实现计划
 ```
 

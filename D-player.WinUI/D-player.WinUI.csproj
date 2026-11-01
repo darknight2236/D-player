@@ -21,8 +21,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- 本机实测: 原先的 Version="*" 解析到 2.5.1, 故钉死具体版本以保证可复现构建 -->
-        <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+        <!-- 本机实测: 原先的 Version="*" 解析到 2.5.1, 故钉死具体版本以保证可复现构建；2026-11-01 升到 2.6.4（当前 stable） -->
+        <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.4" />
     </ItemGroup>
 
     <ItemGroup>

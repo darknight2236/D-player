@@ -1,7 +1,7 @@
 # D-player
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（.NET 10 + NAudio）。
-> 共享层 `D-player.Core`（WPF-free）之上跑两套 UI 壳：**WPF 壳**（完整功能，日常使用的那一个）与 **WinUI 3 壳**（Phase 21 视觉打磨 + Phase 22 功能补齐：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何与本地日志；Phase 23 已实现 32 柱频谱与四项设置、10 段 EQ（含 Pre、预设、预览/取消/保存），**验收通过（2026-11-02 用户确认 B、C 组全部通过）**，见 [`docs/PHASE23-ACCEPTANCE.md`](docs/PHASE23-ACCEPTANCE.md)；仍缺拖拽 / 排序 / 文件夹绑定管理（TrackList ▶ 与 InfoPanel 采样率已于 2026-10-24 补齐）。**Phase 22 历史验收已完成**（验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）；Phase 20 的去留结论与 Phase 21/22 的历史证据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)）。
+> 共享层 `D-player.Core`（WPF-free）之上跑两套 UI 壳：**WPF 壳**（完整功能，日常使用的那一个）与 **WinUI 3 壳**（Phase 21 视觉打磨 + Phase 22 功能补齐：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何与本地日志；Phase 23 已实现 32 柱频谱与四项设置、10 段 EQ（含 Pre、预设、预览/取消/保存），**验收通过（2026-11-02 用户确认 B、C 组全部通过；同日完成 B 组仪器化复验）**，见 [`docs/PHASE23-ACCEPTANCE.md`](docs/PHASE23-ACCEPTANCE.md)；仍缺拖拽 / 排序 / 文件夹绑定管理（TrackList ▶ 与 InfoPanel 采样率已于 2026-10-24 补齐）。**Phase 22 历史验收已完成**（验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）；Phase 20 的去留结论与 Phase 21/22 的历史证据见 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)）。
 > 灵感来源于 foobar2000。原名 UmaPlayer。
 
 ---
@@ -77,7 +77,7 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q               # 门禁 2：186 通过 0 失败（切勿加 --nologo，见下）
+dotnet test    D-player.slnf -c Debug -v q               # 门禁 2：190 通过 0 失败（切勿加 --nologo，见下）
 dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 ```
 
@@ -131,7 +131,7 @@ dotnet test D-player.slnf -c Debug                          # 同一个 runner �
 
 两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
-当前共 **186** 个单元测试（Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。**这 186 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
+当前共 **190** 个单元测试（Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。**这 190 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
 
 ---
 

@@ -92,6 +92,47 @@ public class EqualizerSampleProviderTests
     }
 
     [Fact]
+    public void PreampGain_SixDb_ScalesRmsByAboutTwo()
+    {
+        const int sr = 44100, n = 16384, skip = 4096;
+        var data = Sine(1000, n, sr);
+
+        var flatBuf = new float[n];
+        new EqualizerSampleProvider(new FakeSampleProvider((float[])data.Clone()),
+            new EqualizerConfig { Enabled = true }).Read(flatBuf);
+
+        var boostedBuf = new float[n];
+        new EqualizerSampleProvider(new FakeSampleProvider((float[])data.Clone()),
+            EqualizerConfig.Create(true, 6, null, "Flat")).Read(boostedBuf);
+
+        double Rms(float[] b) { double s = 0; for (int i = skip; i < n; i++) s += b[i] * b[i]; return Math.Sqrt(s / (n - skip)); }
+        double ratio = Rms(boostedBuf) / Rms(flatBuf);
+        Assert.InRange(ratio, 1.9, 2.1); // 10^(6/20) = 1.995
+    }
+
+    [Fact]
+    public void Update_BandBoost_IncreasesAmplitude_AfterRuntimeChange()
+    {
+        const int sr = 44100, n = 16384, skip = 4096;
+        var eq = new EqualizerSampleProvider(new FakeSampleProvider(Sine(1000, 2 * n, sr)),
+            new EqualizerConfig { Enabled = true });
+
+        var flatBuf = new float[n];
+        eq.Read(flatBuf);
+
+        var gains = new double[EqualizerPresets.BandCount];
+        gains[5] = 12; // 1kHz 段 +12dB
+        eq.Update(EqualizerConfig.Create(true, 0, gains, "Custom"));
+
+        var boostedBuf = new float[n];
+        eq.Read(boostedBuf);
+
+        double Rms(float[] b) { double s = 0; for (int i = skip; i < n; i++) s += b[i] * b[i]; return Math.Sqrt(s / (n - skip)); }
+        Assert.True(Rms(boostedBuf) > Rms(flatBuf) * 2.5,
+            $"运行时 +12dB 应显著提升 1kHz 幅度 (flat={Rms(flatBuf):F4}, boosted={Rms(boostedBuf):F4})");
+    }
+
+    [Fact]
     public void Update_DoesNotThrow_AndKeepsPlaying()
     {
         var src = new FakeSampleProvider(Sine(1000, 256));

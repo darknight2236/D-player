@@ -7,17 +7,13 @@ namespace DPlayer.Tests.Configuration;
 public sealed class DPlayerDataPathsTests
 {
     [Fact]
-    public void Directory_CombinesRootAndFolder()
-        => Assert.Equal(Path.Combine(@"C:\root", "D-player"),
+    public void Directory_ComposesRootAndFolder_AndDefaultFolderIsEmpty()
+    {
+        Assert.Equal(Path.Combine(@"C:\root", "D-player"),
             new DPlayerDataPaths(@"C:\root", "D-player").Directory);
-
-    [Fact]
-    public void Directory_EmptyFolder_IsRoot()
-        => Assert.Equal(@"C:\root", new DPlayerDataPaths(@"C:\root", string.Empty).Directory);
-
-    [Fact]
-    public void Default_HasNoFolderName()
-        => Assert.Equal(string.Empty, new DPlayerDataPaths { Root = @"C:\root" }.FolderName);
+        Assert.Equal(@"C:\root", new DPlayerDataPaths(@"C:\root", string.Empty).Directory);
+        Assert.Equal(string.Empty, new DPlayerDataPaths { Root = @"C:\root" }.FolderName);
+    }
 
     /// <summary>
     /// 钉住 WPF 壳 App.OnStartup 的真实构造（FolderName="D-player"，Root 取默认 LocalApplicationData）。

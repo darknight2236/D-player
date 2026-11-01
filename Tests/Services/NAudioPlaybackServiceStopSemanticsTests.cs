@@ -20,6 +20,8 @@ namespace DPlayer.Tests.Services;
 ///
 /// 这些用例需要真实音频设备（WASAPI）；用静音样本，运行时不发声。
 /// </summary>
+[Trait("Category", "AudioDevice")]
+[Collection("AudioDevice")]
 public sealed class NAudioPlaybackServiceStopSemanticsTests : IDisposable
 {
     private readonly string _tempDir;

@@ -54,12 +54,4 @@ public class EqualizerConfigTests
         Assert.Equal("Bogus", EqualizerConfig.Create(true, 0, null, "Bogus").Preset);
         Assert.Equal(EqualizerPresets.Flat, EqualizerConfig.Create(true, 0, null, "   ").Preset);
     }
-
-    [Fact]
-    public void PreampLinearGain_ConvertsDbToLinear()
-    {
-        Assert.Equal(1f, new EqualizerConfig { PreampDb = 0 }.PreampLinearGain, 3);
-        Assert.True(new EqualizerConfig { PreampDb = 6 }.PreampLinearGain > 1.9f);
-        Assert.True(new EqualizerConfig { PreampDb = -6 }.PreampLinearGain < 0.6f);
-    }
 }

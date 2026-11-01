@@ -91,15 +91,15 @@ public class PlayerViewModelSpectrumTests
     }
 
     [Fact]
-    public void SpectrumColorTheme_ValidRange_NoThrow()
+    public void SpectrumColorTheme_Changed_PersistsToSettings()
     {
-        // Arrange
         var vm = CreateVm();
 
-        // Act & Assert
-        vm.SpectrumColorTheme = 0; // Purple
-        vm.SpectrumColorTheme = 1; // Blue
-        vm.SpectrumColorTheme = 2; // Green
-        vm.SpectrumColorTheme = 3; // Rainbow
+        vm.SpectrumColorTheme = 1;
+        vm.SpectrumColorTheme = 3;
+
+        Assert.Equal(3, vm.SpectrumColorTheme);
+        _persistence.Received().UpdateAsync(Arg.Is<Func<AppSettings, AppSettings>>(fn =>
+            fn(new AppSettings()).SpectrumColorTheme == 3));
     }
 }

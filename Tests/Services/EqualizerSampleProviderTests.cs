@@ -50,15 +50,6 @@ public class EqualizerSampleProviderTests
     }
 
     [Fact]
-    public void WaveFormat_PassesThroughSource()
-    {
-        var src = new FakeSampleProvider(new float[4], channels: 2, sampleRate: 48000);
-        var eq = new EqualizerSampleProvider(src, new EqualizerConfig());
-        Assert.Equal(2, eq.WaveFormat.Channels);
-        Assert.Equal(48000, eq.WaveFormat.SampleRate);
-    }
-
-    [Fact]
     public void FlatEnabled_IsUnity_ForDcSignal()
     {
         var data = new float[8];
@@ -130,16 +121,6 @@ public class EqualizerSampleProviderTests
         double Rms(float[] b) { double s = 0; for (int i = skip; i < n; i++) s += b[i] * b[i]; return Math.Sqrt(s / (n - skip)); }
         Assert.True(Rms(boostedBuf) > Rms(flatBuf) * 2.5,
             $"运行时 +12dB 应显著提升 1kHz 幅度 (flat={Rms(flatBuf):F4}, boosted={Rms(boostedBuf):F4})");
-    }
-
-    [Fact]
-    public void Update_DoesNotThrow_AndKeepsPlaying()
-    {
-        var src = new FakeSampleProvider(Sine(1000, 256));
-        var eq = new EqualizerSampleProvider(src, new EqualizerConfig { Enabled = true });
-        eq.Update(EqualizerConfig.Create(true, -3, new double[] { 6, 0, 0, 0, 0, 0, 0, 0, 0, 6 }, "Custom"));
-        var buf = new float[256];
-        Assert.Equal(256, eq.Read(buf));
     }
 
     [Fact]

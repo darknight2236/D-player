@@ -22,6 +22,8 @@ namespace DPlayer.Tests.Services;
 /// 这些用例需要真实音频设备（WASAPI）与 naudio 解码链，属集成级测试；
 /// 修复（链生命周期闸门）之后它们必须稳定通过。
 /// </summary>
+[Trait("Category", "AudioDevice")]
+[Collection("AudioDevice")]
 public sealed class NAudioPlaybackServiceConcurrencyTests : IDisposable
 {
     private readonly string _tempDir;

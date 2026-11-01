@@ -8,16 +8,22 @@
 
     GATE 1 (every change): dotnet build D-player.slnf -c Debug --nologo -v q
       -> 0 warnings / 0 errors
-    GATE 2 (every change): dotnet test D-player.slnf -c Debug -v q
-      -> 186 passed / 0 failed
+    GATE 2 (every change): dotnet test D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"
+      -> 176 passed / 0 failed (the 5 real-WASAPI integration tests are opt-in via -Audio)
     GATE 3 (-Full only; every Phase 22 task):
       dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q
       -> 0 warnings / 0 errors
+    AUDIO (-Audio only; opt-in):
+      dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"
+      -> 5 passed / 0 failed; needs a real WASAPI render device
     OPTIONAL:
       dotnet build D-player.sln -c Debug --nologo -v q   (whole solution, only to check
       the IDE "Build Solution" path; it drags in the Windows App SDK toolchain)
 
-  -Fast runs gates 1+2.  -Full runs all three gates.
+  -Fast runs gates 1+2.  -Full runs all three gates.  -Audio appends the audio-device step
+  to either mode. The default test step excludes the AudioDevice category so the fast gate
+  stays usable on machines without an audio device; the audio tests are real integration
+  tests and are marked [Trait("Category","AudioDevice")] + [Collection("AudioDevice")].
 
   Why gate 3 is separate: the .slnf does not include the WinUI project, so a change that
   only breaks the shell is invisible to gates 1+2. A real case from 2026-10-07: a "dead
@@ -43,13 +49,15 @@
 #>
 param(
     [switch]$Fast,
-    [switch]$Full
+    [switch]$Full,
+    [switch]$Audio
 )
 
 $ErrorActionPreference = 'Stop'
 
 if ($Fast -and $Full) { throw 'Choose either -Fast or -Full, not both.' }
 $withShell = [bool]$Full
+$withAudio = [bool]$Audio
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $repoRoot
@@ -149,12 +157,18 @@ function Invoke-BuildStep {
 }
 
 Write-Host ('mode: {0}' -f $(if ($withShell) { 'Full (3 gates: solution filter build + test + WinUI shell build)' } else { 'Fast (gates 1+2)' }))
+if ($withAudio) { Write-Host 'audio: enabled (real WASAPI device tests appended)' }
 
 Invoke-BuildStep -Label 'gate 1/3: build the solution filter (Core + WPF + Tests), 0 warnings required' `
                  -Arguments @('build', 'D-player.slnf', '-c', 'Debug', '--nologo', '-v', 'q')
 
-Invoke-Step -Label 'gate 2/3: test the solution filter (no --nologo here)' `
-            -Arguments @('test', 'D-player.slnf', '-c', 'Debug', '-v', 'q')
+Invoke-Step -Label 'gate 2/3: test the solution filter, non-audio (no --nologo here)' `
+            -Arguments @('test', 'D-player.slnf', '-c', 'Debug', '-v', 'q', '--filter', 'Category!=AudioDevice')
+
+if ($withAudio) {
+    Invoke-Step -Label 'audio: real-WASAPI integration tests (Category=AudioDevice)' `
+                -Arguments @('test', 'D-player.slnf', '-c', 'Debug', '-v', 'q', '--filter', 'Category=AudioDevice')
+}
 
 if ($withShell) {
     Invoke-BuildStep -Label 'gate 3/3: build the WinUI 3 project, 0 warnings required' `

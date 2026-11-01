@@ -29,13 +29,6 @@ public class PlayerViewModelEqualizerTests
     }
 
     [Fact]
-    public void Ctor_LoadsEqualizerEnabled_FromSettings()
-    {
-        var vm = CreateVm(new AppSettings { EqualizerEnabled = true });
-        Assert.True(vm.EqualizerEnabled);
-    }
-
-    [Fact]
     public void Ctor_AppliesPersistedConfig_ToPlaybackService()
     {
         var settings = new AppSettings
@@ -45,9 +38,10 @@ public class PlayerViewModelEqualizerTests
             EqualizerBands = new double[] { 5, 4, 3, 1, -1, -1, 0, 2, 3, 4 },
             EqualizerPreset = "Rock"
         };
-        CreateVm(settings);
+        var vm = CreateVm(settings);
         _player.Received().EqualizerConfig = Arg.Is<EqualizerConfig>(c =>
             c.Enabled && c.PreampDb == -3 && c.Preset == "Rock" && c.BandGainsDb[0] == 5);
+        Assert.True(vm.EqualizerEnabled);
         // 构造期 _isInitializing=true → OnEqualizerEnabledChanged 不应写盘
         _persistence.DidNotReceive().UpdateAsync(Arg.Any<Func<AppSettings, AppSettings>>());
     }

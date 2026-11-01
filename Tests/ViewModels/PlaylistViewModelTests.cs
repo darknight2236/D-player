@@ -50,14 +50,6 @@ public class PlaylistViewModelTests
     // —— 基本属性 ——
 
     [Fact]
-    public void Constructor_SetsIdAndName()
-    {
-        var vm = CreateVm(id: "abc", name: "My Playlist");
-        Assert.Equal("abc", vm.Id);
-        Assert.Equal("My Playlist", vm.Name);
-    }
-
-    [Fact]
     public void Queue_AddTracksManually()
     {
         var vm = CreateVm();
@@ -143,22 +135,17 @@ public class PlaylistViewModelTests
     // —— ToRecord ——
 
     [Fact]
-    public void ToRecord_PreservesIdAndName()
+    public void Constructor_AndToRecord_PreserveIdNameAndQueuePaths()
     {
         var vm = CreateVm(id: "xyz", name: "My List");
-        var record = vm.ToRecord();
+        AddTracks(vm, 2);
 
+        Assert.Equal("xyz", vm.Id);
+        Assert.Equal("My List", vm.Name);
+
+        var record = vm.ToRecord();
         Assert.Equal("xyz", record.Id);
         Assert.Equal("My List", record.Name);
-    }
-
-    [Fact]
-    public void ToRecord_PreservesQueuePaths()
-    {
-        var vm = CreateVm();
-        AddTracks(vm, 2);
-        var record = vm.ToRecord();
-
         Assert.Equal(2, record.Items.Count);
         Assert.Equal("track0.mp3", record.Items[0]);
         Assert.Equal("track1.mp3", record.Items[1]);

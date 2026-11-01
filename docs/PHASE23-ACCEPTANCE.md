@@ -2,7 +2,7 @@
 
 ## 范围与基线
 
-- 日期：2026-10-28 首记；2026-10-29 补充 C1/听感实测与宽窗静音缺陷修复；2026-11-02 用户确认 B、C 组全部通过并完成 B 组仪器化复验。状态：**实现完成 / 验收通过（2026-11-02）**；平台级缩放撕裂见 2026-11-01 一节，不阻塞 Phase 23。
+- 日期：2026-10-28 首记；2026-10-29 补充 C1/听感实测与宽窗静音缺陷修复；2026-11-02 用户确认 B、C 组全部通过并完成 A、B 组仪器化复验。状态：**实现完成 / 验收通过（2026-11-02）**；平台级缩放撕裂见 2026-11-01 一节，不阻塞 Phase 23。
 - 实现基线：Task1 `af2e944`（含暂停守卫）；Task2 `898f0a7`。2026-10-29 缺陷修复只改 `PlayerBar.xaml.cs` 一处（未改 Core/WPF/包）；此前的记录与文档提交不含代码改动。
 - [实施计划 Task3](./superpowers/plans/2026-10-27-d-player-phase23-spectrum-eq-implementation.md)；[设计](./superpowers/specs/2026-10-27-d-player-phase23-spectrum-eq-design.md)。原计划不回改，勘误见 B 组。
 - 依据：[Task1 报告](../.superpowers/sdd/2026-10-27-d-player-phase23-spectrum-eq-implementation/task-1-report.md)、[Task2 报告](../.superpowers/sdd/2026-10-27-d-player-phase23-spectrum-eq-implementation/task-2-report.md)、[Task3 报告](../.superpowers/sdd/2026-10-27-d-player-phase23-spectrum-eq-implementation/task-3-report.md)。SDD 被 Git 忽略，链接仅本地可用；A/B 结果为报告转录，本次没有重跑整组或逐张复核旧截图。
@@ -12,15 +12,15 @@
 
 实现已交付：InfoPanel 底部 32 柱、四主题、启用/灵敏度/平滑度；Loaded/Unloaded 对称订阅，逐帧高度插值及 Top 更新，不逐帧建柱或画刷。Paused/Stopped 将目标设 2px，Loaded 非 Playing 不读旧数据，晚到 SpectrumData 仅在 Playing 时接受。
 
-| 项 | 结果与证据边界 |
-|---|---|
-| A1 播放/暂停回落 | Task1 最终修复复测 PASS（沿用）：`a1-review-fix-final-frames.txt` / `a1-review-fix-measurements.txt`，175ms 起至 966ms 稳定 2px，识别 32 柱；原暂停失败保留于旧报告，不再列为未修实现缺陷 |
-| A2 紫/蓝/绿/彩虹即时切换 | Task1 PASS（沿用）：`a2-purple.png` / `a2-blue.png` / `a2-green.png` / `spectrum-rainbow.png` |
-| A3 灵敏度/平滑度 | Task1 PASS（沿用）：灵敏度 2/0.5 对比、平滑度 0/0.9 连续帧与 UIA 读回 |
-| A4 启用与重启持久化 | Task1 PASS（沿用）：`a4-disabled.png` / `a4-enabled.png` / `a4-persisted-settings.txt` |
-| A5 折叠/窄窗/小窗高滚动 | Task1 修复负柱宽后 PASS（沿用）：`a5-narrow-collapsed.png` / `a5-wide-restored.png` / `a5-small-height-scrolled.png` |
+| 项 | Task1 证据 | 2026-11-02 仪器化复验 |
+|---|---|---|
+| A1 播放/暂停回落 | Task1 最终修复复测 PASS（沿用）：`a1-review-fix-final-frames.txt` / `a1-review-fix-measurements.txt`，175ms 起至 966ms 稳定 2px，识别 32 柱；原暂停失败保留于旧报告，不再列为未修实现缺陷 | PASS：播放态峰值 63px（32 柱，1k 柱 index 18）；暂停 150ms→2px、400/800/1200ms→1px（min）；`a1-*.png` |
+| A2 紫/蓝/绿/彩虹即时切换 | Task1 PASS（沿用）：`a2-purple.png` / `a2-blue.png` / `a2-green.png` / `spectrum-rainbow.png` | PASS：紫 127,82,255 / 蓝 40,153,243 / 绿 81,177,85；彩虹峰 0,255,230，柱 0/8/16/24/31 = 红(255,0,0)/黄绿(175,248,1)/青(0,255,148)/蓝(2,32,243)/品红(235,3,236)；即时切换；`a2-*.png` |
+| A3 灵敏度/平滑度 | Task1 PASS（沿用）：灵敏度 2/0.5 对比、平滑度 0/0.9 连续帧与 UIA 读回 | PASS：灵敏度 0.5→maxH 30px、2.0→103px；2Hz 调幅音下平滑度 0 的 maxH 跨度 18px（36..54）、0.9→3px（43..46）；`a3-*.png` |
+| A4 启用与重启持久化 | Task1 PASS（沿用）：`a4-disabled.png` / `a4-enabled.png` / `a4-persisted-settings.txt` | PASS：关闭→bars 0/磁盘 False；开启→bars 32/磁盘 True；重启启用→bars 32/checkbox On；重启禁用→bars 0/checkbox Off；`a4-*.png` |
+| A5 折叠/窄窗/小窗高滚动 | Task1 修复负柱宽后 PASS（沿用）：`a5-narrow-collapsed.png` / `a5-wide-restored.png` / `a5-small-height-scrolled.png` | PASS：折叠 scrollW 260→48、trackRight 1332→1544、柱体 32→0；手动展开优先（950 仍 260）；清除手动后 950→48、1200→260；460 高顶部 bars 0，滚到 100% 后 32 柱可见；`a5-*.png` |
 
-上述 A 组证据不是 Task2 合入工作树之后的全组重验；B、C 组复验（2026-11-02）未改动频谱实现，本轮未重跑 A 组逐项。
+上述 A 组证据不是 Task2 合入工作树之后的全组重验；2026-11-02 已重跑 A1–A5（WinUI Debug / Windows App SDK 2.6.4 / 96 DPI，窗口 1200×700，1kHz 稳态与 2Hz 调幅测试音，截屏 + 像素分析：基线虚线定位、32 柱底边连通段、柱高与颜色采样），结果见右列；Task1 证据保留作历史对照。证据在 `%TEMP%\p23-inst\a\`。
 
 ## B EQ
 
@@ -129,7 +129,7 @@ C3 另观察：设置音量滑块按 Space 出现原始值工具提示 `0.5500`�
 | B5 无曲目/播放中 | 空歌单 `PlayPauseButton` disabled、`PositionSlider=0`、时间 `00:00 / 00:00`；改 EQ 并保存后仍 disabled、位置 0；播放测试音时保存，位置继续推进；测试后已暂停。 |
 | A 组 | 未重跑。A 表证据本身是 Task1 的帧/UIA/截图测量，不是口头结论；本轮没有频谱代码改动。 |
 
-剩余边界：B1/B3 未直接读取 `IPlaybackService.EqualizerConfig` 字段（用对话框快照 + 磁盘 + 回环输出交叉验证）；B4 的“慢存储”是 150 MB JSON 读/解析变慢的代理，不是磁盘 I/O 延迟注入；A 组未重跑。
+剩余边界：B1/B3 未直接读取 `IPlaybackService.EqualizerConfig` 字段（用对话框快照 + 磁盘 + 回环输出交叉验证）；B4 的“慢存储”是 150 MB JSON 读/解析变慢的代理，不是磁盘 I/O 延迟注入；A 组已重跑（A1–A5，见 A 表；A3 平滑度用 2Hz 调幅测试音，A5 分别测量手动优先与自动收起）。
 证据：`%TEMP%\p23-inst\{b1-b2-b5,b4,b4-write-counts,b4-slow-save,b3-audio}.txt`、`b3-*.wav`、`spectrum-wide.png`；测试数据目录 `%LOCALAPPDATA%\D-player-winui.instrumentation-20261102`，原始数据已还原。
 
 ## 交给用户的听感项
@@ -150,5 +150,5 @@ C3 另观察：设置音量滑块按 Space 出现原始值工具提示 `0.5500`�
 - 2026-10-29 设置复验：窗口临时缩到 1000×460/1000×620，音量在 1.00/0.81/0.995 间变化后还原为初始 1.00；未改 EQ/频谱/歌单，应用正常关闭。新证据曾放在 `%TEMP%\settings-fix\`，已于同日按用户要求删除。
 - 2026-10-29 按用户要求删除 `%TEMP%\p21-acc`、`p22-acc`、`p23-acc`；上文 A/B/C 的旧 `%TEMP%` 证据引用仅供追溯，文件已不在本机。
 - 2026-11-02 用户复验：B1–B6、C4 由用户手动执行；代理未新增 UI 自动化、截图或数据目录操作，结果按用户口头确认转录。
-- 2026-11-02 仪器化复验：在 B5 空数据目录上种入 1 kHz/60 s 测试音并做 UIA/回环/写入计数；测试目录保留在 `%LOCALAPPDATA%\D-player-winui.instrumentation-20261102`，原始数据已还原为 `%LOCALAPPDATA%\D-player-winui`（UIA 复验 25 行曲目、窗口 917,247–1922,854）。
-- 2026-11-02 用户确认 B、C 组全部通过，Phase 23 验收闭合（A 组沿用 Task1 证据）；拖拽/排序/文件夹绑定管理仍为后续阶段实现缺口，不属于 Phase 23。WinUI 3 平台级缩放撕裂见 2026-11-01 一节。
+- 2026-11-02 仪器化复验：在 B5 空数据目录上种入 1 kHz/60 s 测试音并做 UIA/回环/写入计数；A 组另用 2 Hz 调幅 1 kHz 测试音做截屏/像素分析；测试目录保留在 `%LOCALAPPDATA%\D-player-winui.instrumentation-20261102`，原始数据已还原为 `%LOCALAPPDATA%\D-player-winui`（UIA 复验 25 行曲目、窗口 917,247–1922,854）。
+- 2026-11-02 用户确认 B、C 组全部通过，Phase 23 验收闭合（A/B 组均完成仪器化复验）；拖拽/排序/文件夹绑定管理仍为后续阶段实现缺口，不属于 Phase 23。WinUI 3 平台级缩放撕裂见 2026-11-01 一节。

@@ -2,7 +2,7 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（.NET 10 + NAudio，WPF / WinUI 两套壳；共享层 `D-player.Core` 是 WPF-free 的）。
 >
-> 文档日期：2026-11-02 · 代码基线：`26aa8da` · 分支：`master` · 当前阶段：**Phase 23 实现完成 / 验收通过（2026-11-02 用户确认 B、C 组全部通过；同日完成 B 组仪器化复验）**（WinUI 频谱与 EQ 已交付；平台级缩放撕裂与后续功能缺口见 [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md)）。测试 190，WinUI 构建由 `verify-gates.ps1 -Full` 门禁 3 覆盖，行为仍需真机验收。历史：[Phase 22 验收](./PHASE22-ACCEPTANCE.md)、[Phase 21 验收](./PHASE21-ACCEPTANCE.md)、[Phase 20 对比与续投决策](./PHASE20-COMPARISON.md)；历史结论不回改。Core/WPF 本阶段不变。**项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026-11-02 · 代码基线：`26aa8da` · 分支：`master` · 当前阶段：**Phase 23 实现完成 / 验收通过（2026-11-02 用户确认 B、C 组全部通过；同日完成 A/B 组仪器化复验）**（WinUI 频谱与 EQ 已交付；平台级缩放撕裂与后续功能缺口见 [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md)）。测试 190，WinUI 构建由 `verify-gates.ps1 -Full` 门禁 3 覆盖，行为仍需真机验收。历史：[Phase 22 验收](./PHASE22-ACCEPTANCE.md)、[Phase 21 验收](./PHASE21-ACCEPTANCE.md)、[Phase 20 对比与续投决策](./PHASE20-COMPARISON.md)；历史结论不回改。Core/WPF 本阶段不变。**项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 

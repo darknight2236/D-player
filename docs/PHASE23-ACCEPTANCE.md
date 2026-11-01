@@ -151,4 +151,5 @@ C3 另观察：设置音量滑块按 Space 出现原始值工具提示 `0.5500`�
 - 2026-10-29 按用户要求删除 `%TEMP%\p21-acc`、`p22-acc`、`p23-acc`；上文 A/B/C 的旧 `%TEMP%` 证据引用仅供追溯，文件已不在本机。
 - 2026-11-02 用户复验：B1–B6、C4 由用户手动执行；代理未新增 UI 自动化、截图或数据目录操作，结果按用户口头确认转录。
 - 2026-11-02 仪器化复验：在 B5 空数据目录上种入 1 kHz/60 s 测试音并做 UIA/回环/写入计数；A 组另用 2 Hz 调幅 1 kHz 测试音做截屏/像素分析；测试目录保留在 `%LOCALAPPDATA%\D-player-winui.instrumentation-20261102`，原始数据已还原为 `%LOCALAPPDATA%\D-player-winui`（UIA 复验 25 行曲目、窗口 917,247–1922,854）。
+- 2026-11-02 按用户要求删除 `%TEMP%\p23-inst\`、`%TEMP%\winui-resize*`、`%TEMP%\fswtest*`、`%TEMP%\dplayer-head.json`、`TestResults\fswtest` 与测试数据目录 `%LOCALAPPDATA%\D-player-winui.instrumentation-20261102`；上文仪器化证据路径仅供追溯，文件已不在本机。
 - 2026-11-02 用户确认 B、C 组全部通过，Phase 23 验收闭合（A/B 组均完成仪器化复验）；拖拽/排序/文件夹绑定管理仍为后续阶段实现缺口，不属于 Phase 23。WinUI 3 平台级缩放撕裂见 2026-11-01 一节。

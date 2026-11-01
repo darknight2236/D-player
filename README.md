@@ -47,7 +47,7 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 | 层 | 选型 |
 |----|------|
 | 运行时 | .NET 10（共享层与 WPF 壳 `net10.0-windows`；WinUI 壳 `net10.0-windows10.0.19041.0` + x64） |
-| UI 框架 | WPF（`UseWPF=true`，主壳）· WinUI 3 / Windows App SDK 2.5.1（第二壳，unpackaged + self-contained） |
+| UI 框架 | WPF（`UseWPF=true`，主壳）· WinUI 3 / Windows App SDK 2.6.4（第二壳，unpackaged + self-contained） |
 | 共享层 | `D-player.Core` 类库（`net10.0-windows`，不开 `UseWPF`）：Models / Services / ViewModels / Configuration / DI 注册 |
 | MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
 | DI 容器 | `Microsoft.Extensions.DependencyInjection` 10.x |
@@ -119,7 +119,7 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 
 两条命令都不需要额外传 `-p:Platform=x64`（`<Platforms>` 只声明支持面、不设默认值，所以 csproj 里同时钉了 `<Platform>x64</Platform>`）。它的数据目录与 WPF 壳分开（`%LocalAppData%\D-player-winui\`）；Phase 22 起有导入/导出入口，首启不再只能看空状态。多歌单/测试数据的构造步骤仍保留在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md) 第 2.1 节（该节同时是 2026-10-07 那次验收走查的执行记录）。
 
-**要一次 restore 全部四个工程（含 WinUI）时才用 `dotnet restore D-player.sln`**：它会首次从 nuget.org 拉 `Microsoft.WindowsAppSDK`（2.5.1，带 9 个子包），实测约 8.1 分钟，且自包含输出目录很大。**日常请走上面的 `.slnf` 门禁 1/2**（构建约 2 秒级）；`tools/verify-gates.ps1 -Full` 会连门禁 3 一起跑（增量，秒级）。
+**要一次 restore 全部四个工程（含 WinUI）时才用 `dotnet restore D-player.sln`**：它会首次从 nuget.org 拉 `Microsoft.WindowsAppSDK`（当前 2.6.4，带 9 个子包；8.1 分钟是 2.5.1 时的实测），且自包含输出目录很大。**日常请走上面的 `.slnf` 门禁 1/2**（构建约 2 秒级）；`tools/verify-gates.ps1 -Full` 会连门禁 3 一起跑（增量，秒级）。
 
 ## 测试
 
@@ -240,3 +240,4 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
 - 按艺术家/专辑组织的音乐库视图尚未实现。
 - **WinUI 3 壳已具备日常可用闭环（Phase 22），但不是与 WPF 完全等价**：Phase 22 交付了异步文件对话框 + 真实 picker、导入/导出（添加文件 / 递归导入文件夹 / M3U(M3U8)/PLS 追加 / M3U8 导出）、歌单新建/重命名/删除与 ▶ 活跃标记、上一首/下一首/随机/循环三态/音量/静音（64px 底栏）、基础设置（音量 + 只读音频输出 + 日志入口）、窗口几何持久化与屏外自愈、本地日志（`%LOCALAPPDATA%\D-player-winui\logs\app.log`，1 MiB 轮转）；验收已完成（验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。交付后快赢切片（2026-10-24）：TrackList ▶ 当前曲标记 + 标题强调色、行尾移除按钮、InfoPanel 采样率、`SettingsDialog`/`PlayerBar` 的 `Debug.WriteLine` 迁入 `AppLog`。2026-10-27 追加：折叠钮统一回各自栏头（右栏收起改 48px）、底栏去掉“歌名 — 艺术家”、滑块拖动提示显示时间/百分比、窄窗悬停静音钮弹纵向音量条。Phase 23 频谱/EQ 已实现但未全验收（鼠标拖动、听感、无曲目与完整 C 回归等见 [`docs/PHASE23-ACCEPTANCE.md`](docs/PHASE23-ACCEPTANCE.md)）。仍缺：拖拽（外部入队 / 队列内重排 / 歌单重排）、表头排序、文件夹绑定歌单的管理与刷新。WinUI 仍不在 `D-player.slnf` 里：门禁 1/2 覆盖不到它，只有 `-Full` 的门禁 3 会编译它；壳的行为没有单测，靠真机手测。已知问题见验收文档的「已知问题 / 交给用户」一节（含文件夹 picker 输入路径等效取消；NavRail 删除查看项后的选中问题在 2026-10-24 两次复现尝试中未重现，保留观察；Core 的 `TrackEnded` 抢播已于 2026-10-24 修复）。
+- WinUI 3 壳拖拽缩放窗口时会出现瞬时黑色缝隙与底栏位移：这是 WinUI 3 内容岛与窗口帧不同步的平台问题（[microsoft-ui-xaml#5148](https://github.com/microsoft/microsoft-ui-xaml/issues/5148)，截至 WinAppSDK 2.6.4 仍在），不是布局或 Mica 配置错误；底栏布局固定贴底，缩放结束后位置正确。记录见 [`docs/PHASE23-ACCEPTANCE.md`](docs/PHASE23-ACCEPTANCE.md) 的 2026-11-01 一节。

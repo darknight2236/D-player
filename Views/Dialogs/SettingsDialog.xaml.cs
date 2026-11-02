@@ -16,6 +16,7 @@ public partial class SettingsDialog : Window
     private readonly PlayerViewModel? _playerViewModel;
     private readonly IFileDialogService _fileDialog;
     private readonly ObservableCollection<string> _libraryFoldersDraft = new();
+    private bool _libraryFoldersLoaded;
 
     public SettingsDialog(
         ISettingsPersistence persistence,
@@ -28,6 +29,8 @@ public partial class SettingsDialog : Window
         _playerViewModel = playerViewModel;
         _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
         InitializeComponent();
+        // 草稿集合在构造期就绑定：设置加载失败时列表仍可用（只是为空）。
+        LibraryFoldersList.ItemsSource = _libraryFoldersDraft;
         Loaded += OnLoaded;
     }
 
@@ -69,7 +72,7 @@ public partial class SettingsDialog : Window
             _libraryFoldersDraft.Clear();
             foreach (var root in settings.LibraryFolders)
                 _libraryFoldersDraft.Add(root);
-            LibraryFoldersList.ItemsSource = _libraryFoldersDraft;
+            _libraryFoldersLoaded = true;
         }
         catch
         {
@@ -113,7 +116,10 @@ public partial class SettingsDialog : Window
                 SpectrumSmoothing = spectrumSmoothing,
 
                 // Phase 24: 保存音乐库根目录
-                LibraryFolders = _libraryFoldersDraft.ToArray(),
+                // 加载失败时草稿是空的，不能用它覆盖已配置的根目录。
+                LibraryFolders = _libraryFoldersLoaded
+                    ? _libraryFoldersDraft.ToArray()
+                    : s.LibraryFolders,
             });
 
             // 同步更新 PlayerViewModel 属性，使 UI 立即反映新设置

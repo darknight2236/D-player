@@ -233,7 +233,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │       ├── PlaylistImportReportFormatterTests.cs # 导入报告文案分支 (5) (Phase 18；Phase 20 随格式化器从 Tests/Views 搬来)
 │       ├── PlaylistsViewModelTests.cs     # 多歌单 + 容器级导入新建歌单 + 共用双击入口的越界/出声事实 + TrackEnded/归属同步 + CurrentPlaylist；Phase 24 增隐藏库队列（创建/快照/Hydrate/双指针/删除末歌单不顶指针/按路径查找）(38) (Phase 8/12/18/20/24；2026-10-24 +4)
 │       ├── LibraryGroupingTests.cs        # 分组：未知标签、(Album, Artist) 拆分、排序、多根去重 (5) (Phase 24)
-│       └── LibraryViewModelTests.cs       # 库 VM：缓存命中不读标签、多根聚合、后台扫描/状态行、封面惰性、刷新 generation、播放入口 (11) (Phase 24)
+│       └── LibraryViewModelTests.cs       # 库 VM：缓存命中不读标签/初始化不扫盘、后台扫描增删/不可用根跳过/空根清空/保存失败保留/多根去重、缓存快照、封面惰性、艺术家↔专辑导航 (11) (Phase 24)
 │
 ├── tools/
 │   ├── verify-gates.ps1         # 一键跑校验：`-Fast` = 门禁 1/2（`.slnf` 构建 + 测试，默认排除音频）；`-Full` = 再加门禁 3（WinUI 单工程构建，0 警告）；`-Audio` = 追加 5 条真实 WASAPI 集成测试。逐步 fail-fast：任一步非零退出、**或两个构建步骤在 MSBuild 安静日志里报出任一行警告**即中止（门禁口径是 0 警告 0 错误，而 `dotnet build` 只报警告时退出码仍是 0）；`dotnet test` 那一步不带 `--nologo`
@@ -559,7 +559,7 @@ public Task CleanupAsync();
 
 `CleanupAsync()` 顺序固定：`Library.Cleanup()`（第一步，取消后台扫描与封面队列）→ 解绑 `StateChanged` → 取消 debounce → flush in-flight save → 同步 `BuildSnapshot` + `SaveAsync` → 遍历所有可见歌单 `PlaylistVM.Cleanup()` → `Playlists.LibraryPlayback?.Cleanup()`（隐藏库队列单独一行，与可见歌单同样解绑 `TrackEnded` 订阅）→ `await Player.CleanupAsync()` → `_player.Dispose()`。**必须先解绑后 Dispose**，避免事件 handler 在底层资源销毁后被回调。
 
-**架构不变量（COUPLING.md §5）：** `PlayerViewModel` 与 `PlaylistViewModel` **互不持引用**，仅共享 `IPlaybackService` Singleton；本 Facade **不转发子 VM 的成员**，公开面只允许三类：(1) 子 VM 本体 `Player` / `Playlists` / `Library`；(2) 本类自己的生命周期 `InitializeAsync` / `CleanupAsync`；(3) 本类自己持有的壳级状态及其入口 `IsLibraryViewActive` / `ShowLibrary` / `ShowPlaylist`（导航状态存在 `MainViewModel`，不写进任何子 VM、也不从子 VM 读取）。在此之外再加成员——尤其是把子 VM 的属性/命令转出来——就倒退为"转发 Facade"反模式。
+**架构不变量（COUPLING.md §5）：** `PlayerViewModel` 与 `PlaylistViewModel` **互不持引用**，仅共享 `IPlaybackService` Singleton；本 Facade **不转发子 VM 的成员**，公开面只允许三类：(1) 子 VM 本体 `Player` / `Playlists` / `Library`；(2) 本类自己的生命周期 `InitializeAsync` / `CleanupAsync` / `DisposeAsync`；(3) 本类自己持有的壳级状态及其入口 `IsLibraryViewActive` / `ShowLibrary` / `ShowPlaylist`（导航状态存在 `MainViewModel`，不写进任何子 VM、也不从子 VM 读取）。在此之外再加成员——尤其是把子 VM 的属性/命令转出来——就倒退为"转发 Facade"反模式。
 
 ### 5.4a `ViewModels/PlayerViewModel`（Transport 子 VM，~320 行）
 

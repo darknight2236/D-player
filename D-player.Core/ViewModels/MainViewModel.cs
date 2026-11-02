@@ -1,4 +1,5 @@
 using System.IO;
+using CommunityToolkit.Mvvm.ComponentModel;
 using DPlayer.Configuration;
 using DPlayer.Models;
 using DPlayer.Services;
@@ -6,17 +7,18 @@ using DPlayer.Services;
 namespace DPlayer.ViewModels;
 
 /// <summary>
-/// Phase 6 Facade: Player + Playlists 容器 + 窗口生命周期清理。
+/// Phase 6/24 Facade: Player + Playlists 容器 + Library 视图模型 + 窗口生命周期清理。
 /// 集中持有 debounce save 的 CancellationTokenSource ——
 /// 任何子 VM 状态变化(PlaylistsViewModel.StateChanged) 触发 500ms 后写盘;
 /// 在 500ms 内连发的变更只产出一次 SaveAsync。
 ///
 /// 边界约束(COUPLING.md, Phase 6 新不变量):
-///   - 不再暴露单个 PlaylistViewModel; 只暴露 Player + Playlists + CleanupAsync + InitializeAsync
+///   - 不再暴露单个 PlaylistViewModel; 只暴露 Player + Playlists + Library + CleanupAsync + InitializeAsync
 ///   - debounce 状态(_saveCts)只在本类持有, 子 VM 不感知存盘
 ///   - CleanupAsync 关闭前 flush: 取消挂起的 timer, 立即同步 SaveAsync, 再 Dispose Player
+///   - Phase 24: IsLibraryViewActive 是壳级导航状态（播放列表 ↔ 音乐库），子 VM 不自持
 /// </summary>
-public sealed class MainViewModel : IAsyncDisposable
+public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 {
     private const int DebounceMs = 500;
 
@@ -30,23 +32,42 @@ public sealed class MainViewModel : IAsyncDisposable
     public PlayerViewModel Player { get; }
     public PlaylistsViewModel Playlists { get; }
 
+    public LibraryViewModel Library { get; }
+
+    [ObservableProperty]
+    private bool _isLibraryViewActive;
+
     public MainViewModel(
         PlayerViewModel player,
         PlaylistsViewModel playlists,
+        LibraryViewModel library,
         IPlaybackService playbackService,
         IPlaylistService playlistService,
         ISettingsPersistence settings)
     {
         Player = player ?? throw new ArgumentNullException(nameof(player));
         Playlists = playlists ?? throw new ArgumentNullException(nameof(playlists));
+        Library = library ?? throw new ArgumentNullException(nameof(library));
         _player = playbackService ?? throw new ArgumentNullException(nameof(playbackService));
         _playlistService = playlistService ?? throw new ArgumentNullException(nameof(playlistService));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
+    public void ShowLibrary(LibraryPage page)
+    {
+        if (page == LibraryPage.Albums)
+            Library.ShowAlbums();
+        else
+            Library.ShowArtists();
+        IsLibraryViewActive = true;
+    }
+
+    public void ShowPlaylist() => IsLibraryViewActive = false;
+
     /// <summary>
     /// MainWindow Loaded 时调用一次。读 queue.json (含 v1→v2 迁移), Hydrate 容器, 开始监听 StateChanged,
-    /// 然后做断点续播就位（只加载不出声）。返回非 null = 恢复被跳过、需要向用户提示的原因。
+    /// 读库缓存回填库播放队列, 然后做断点续播就位（只加载不出声）, 最后启动两路后台扫描。
+    /// 返回非 null = 恢复被跳过、需要向用户提示的原因。
     /// </summary>
     public async Task<string?> InitializeAsync()
     {
@@ -56,10 +77,15 @@ public sealed class MainViewModel : IAsyncDisposable
         Playlists.StateChanged += OnPlaylistsStateChanged;
         _hydrated = true;
 
+        // 先读库缓存并回填隐藏的库播放队列，再恢复上次播放位置。
+        await Library.InitializeAsync().ConfigureAwait(true);
+        Playlists.ApplyCachedMetadataToLibraryPlayback(Library.CachedEntriesByPath);
+
         var restoreWarning = await RestoreLastPlayedAsync().ConfigureAwait(true);
 
-        // Phase 10: 后台扫描文件夹绑定歌单(不阻塞 UI)
+        // Phase 10/24: 后台扫描文件夹歌单与音乐库，不阻塞 UI。
         _ = Playlists.RescanFolderBoundPlaylistsAsync();
+        _ = Library.ScanInBackgroundAsync();
 
         return restoreWarning;
     }
@@ -142,6 +168,7 @@ public sealed class MainViewModel : IAsyncDisposable
     /// </summary>
     public async Task CleanupAsync()
     {
+        Library.Cleanup();
         Playlists.StateChanged -= OnPlaylistsStateChanged;
         _saveCts?.Cancel();
 
@@ -169,6 +196,7 @@ public sealed class MainViewModel : IAsyncDisposable
             // 的容器换出路径对称(Code review M3)。
             foreach (var vm in Playlists.Playlists)
                 vm.Cleanup();
+            Playlists.LibraryPlayback?.Cleanup();
         }
 
         await Player.CleanupAsync().ConfigureAwait(true);

@@ -26,6 +26,8 @@ public class PlaybackResumeTests : IDisposable
     private readonly IFileDialogService _fileDialog = Substitute.For<IFileDialogService>();
     private readonly ITrackMetadataReader _metadataReader = Substitute.For<ITrackMetadataReader>();
     private readonly IPlaylistFileService _playlistFiles = Substitute.For<IPlaylistFileService>();
+    private readonly ILibraryScannerService _scanner = Substitute.For<ILibraryScannerService>();
+    private readonly ILibraryCache _cache = Substitute.For<ILibraryCache>();
 
     /// <summary>每次 UpdateAsync 的 mutator 应用到全新 AppSettings 后的结果（按调用顺序）。</summary>
     private readonly List<AppSettings> _writes = new();
@@ -60,7 +62,9 @@ public class PlaybackResumeTests : IDisposable
     {
         var playlists = new PlaylistsViewModel(
             seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles));
-        return new MainViewModel(CreatePlayerVm(), playlists, _player, _playlistService, _settings);
+        var library = new LibraryViewModel(_settings, _scanner, _cache, _metadataReader, playlists);
+        return new MainViewModel(
+            CreatePlayerVm(), playlists, library, _player, _playlistService, _settings);
     }
 
     private static Track TrackWith(string path)
@@ -265,5 +269,52 @@ public class PlaybackResumeTests : IDisposable
         // 恢复后立即回写一次：启动后若立刻退出/被杀，不会把位置退回 0
         Assert.Equal(_tempTrack, LastPlayedWrite?.LastPlayedPath);
         Assert.Equal(42d, LastPlayedWrite!.LastPlayedPositionSeconds, 3);
+    }
+
+    // —— Phase 24: 库播放队列断点续播与导航 ——
+
+    [Fact]
+    public async Task InitializeAsync_RestoresLibraryPlaybackTrack_AndPosition()
+    {
+        var libraryPlayback = new Playlist(
+            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+            new[] { _tempTrack }, 0, false, RepeatMode.Off);
+        _playlistService.LoadAsync().Returns(Task.FromResult(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("p1", "P", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = libraryPlayback.Id,
+            LibraryPlayback = libraryPlayback,
+        }));
+        _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+        {
+            LastPlayedPath = _tempTrack,
+            LastPlayedPositionSeconds = 42,
+        }));
+
+        var vm = CreateMainVm();
+        var warning = await vm.InitializeAsync();
+
+        Assert.Null(warning);
+        Assert.NotNull(vm.Playlists.LibraryPlayback);
+        Assert.Equal(libraryPlayback.Id, vm.Playlists.CurrentPlaylistId);
+        await _player.Received(1).LoadAsync(
+            Arg.Is<Track>(t => t.FilePath == _tempTrack));
+        _player.Received(1).Seek(TimeSpan.FromSeconds(42));
+    }
+
+    [Fact]
+    public void ShowLibrary_AndShowPlaylist_ToggleShellState()
+    {
+        var vm = CreateMainVm();
+
+        vm.ShowLibrary(LibraryPage.Albums);
+        Assert.True(vm.IsLibraryViewActive);
+        Assert.Equal(LibraryPage.Albums, vm.Library.Page);
+
+        vm.ShowPlaylist();
+        Assert.False(vm.IsLibraryViewActive);
     }
 }

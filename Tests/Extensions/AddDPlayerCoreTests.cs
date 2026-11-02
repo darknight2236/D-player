@@ -58,6 +58,7 @@ public sealed class AddDPlayerCoreTests
             var vm = provider.GetRequiredService<MainViewModel>();
             Assert.NotNull(vm.Player);
             Assert.NotNull(vm.Playlists);
+            Assert.NotNull(vm.Library);
             Assert.NotNull(provider.GetRequiredService<LibraryViewModel>());
 
             // 第一次构造歌单：IFileDialogService 缺失时就是在这里抛

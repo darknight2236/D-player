@@ -273,36 +273,106 @@ public class PlaybackResumeTests : IDisposable
 
     // —— Phase 24: 库播放队列断点续播与导航 ——
 
+    /// <summary>
+    /// 库会话续播必须拿到**缓存回填后**的库播放队列曲目，并且当前播放上下文留在库队列上。
+    /// 为了让"回填先于恢复"这件事真的被钉住：
+    ///   - 真实存在的库根目录 + 该目录的缓存条目（标题 "Cached"），否则 CachedEntriesByPath
+    ///     为空、回填是空操作，测试无法区分顺序；
+    ///   - 同一个文件同时出现在可见歌单 p1 与库播放队列里，只有库队列的标题是 "Cached"，
+    ///     所以断言标题即可区分"回填过的库队列"与"占位/可见歌单的兜底曲目"；
+    ///   - 根目录标记为不可用，后台扫描直接跳过它，不会与断言竞争。
+    /// </summary>
     [Fact]
     public async Task InitializeAsync_RestoresLibraryPlaybackTrack_AndPosition()
     {
-        var libraryPlayback = new Playlist(
-            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
-            new[] { _tempTrack }, 0, false, RepeatMode.Off);
-        _playlistService.LoadAsync().Returns(Task.FromResult(new QueueState
+        var root = Path.Combine(Path.GetTempPath(), $"dplayer-resume-lib-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
         {
-            Playlists = new[]
+            const string cachedTitle = "Cached";
+            var libraryPlayback = new Playlist(
+                PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+                new[] { _tempTrack }, 0, false, RepeatMode.Off);
+            _playlistService.LoadAsync().Returns(Task.FromResult(new QueueState
             {
-                new Playlist("p1", "P", Array.Empty<string>(), -1, false, RepeatMode.Off),
-            },
-            CurrentPlaylistId = libraryPlayback.Id,
-            LibraryPlayback = libraryPlayback,
-        }));
-        _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+                Playlists = new[]
+                {
+                    // 同一文件也在可见歌单里：占位标题 = 文件名，与 "Cached" 可区分。
+                    new Playlist("p1", "P", new[] { _tempTrack }, 0, false, RepeatMode.Off),
+                },
+                CurrentPlaylistId = libraryPlayback.Id,
+                LibraryPlayback = libraryPlayback,
+            }));
+            _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+            {
+                LibraryFolders = new[] { root },
+                LastPlayedPath = _tempTrack,
+                LastPlayedPositionSeconds = 42,
+            }));
+            _cache.LoadAsync(root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                new[]
+                {
+                    new LibraryCacheEntry(_tempTrack, cachedTitle, "Artist", "Album",
+                        null, 2024, TimeSpan.FromMinutes(3), 44100, 1),
+                }));
+            // 根目录不可用 → 后台扫描跳过该根，不能改写缓存/分组。
+            _scanner.ScanFolderWithStatus(root)
+                .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
+
+            var vm = CreateMainVm();
+            var warning = await vm.InitializeAsync();
+
+            Assert.Null(warning);
+            Assert.NotNull(vm.Playlists.LibraryPlayback);
+            Assert.Equal(libraryPlayback.Id, vm.Playlists.CurrentPlaylistId);
+            // 关键断言：恢复的是被缓存回填过的库队列曲目（Title = "Cached"），
+            // 而不是占位曲目/可见歌单里的同名文件。删掉回填或把它挪到恢复之后，这里会变红。
+            await _player.Received(1).LoadAsync(Arg.Is<Track>(
+                t => t.FilePath == _tempTrack && t.Title == cachedTitle));
+            _player.Received(1).Seek(TimeSpan.FromSeconds(42));
+        }
+        finally
         {
-            LastPlayedPath = _tempTrack,
-            LastPlayedPositionSeconds = 42,
-        }));
+            try { Directory.Delete(root, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
+    }
 
-        var vm = CreateMainVm();
-        var warning = await vm.InitializeAsync();
+    /// <summary>
+    /// 库初始化失败（缓存读抛异常）是可选能力的失败：启动仍要完成断点续播，
+    /// 不能把 MainViewModel 留在半初始化状态。钉住 InitializeAsync 的 try/catch 包裹。
+    /// </summary>
+    [Fact]
+    public async Task InitializeAsync_LibraryInitThrows_StillRestoresResume()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dplayer-resume-lib-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith(_tempTrack)));
+            _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+            {
+                LibraryFolders = new[] { root },
+                LastPlayedPath = _tempTrack,
+                LastPlayedPositionSeconds = 42,
+            }));
+            _cache.LoadAsync(root).Returns(Task.FromException<IReadOnlyList<LibraryCacheEntry>>(
+                new InvalidOperationException("probe: library cache blew up")));
+            _scanner.ScanFolderWithStatus(root)
+                .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
-        Assert.Null(warning);
-        Assert.NotNull(vm.Playlists.LibraryPlayback);
-        Assert.Equal(libraryPlayback.Id, vm.Playlists.CurrentPlaylistId);
-        await _player.Received(1).LoadAsync(
-            Arg.Is<Track>(t => t.FilePath == _tempTrack));
-        _player.Received(1).Seek(TimeSpan.FromSeconds(42));
+            var vm = CreateMainVm();
+            var warning = await vm.InitializeAsync();
+
+            Assert.Null(warning);
+            await _player.Received(1).LoadAsync(Arg.Is<Track>(t => t.FilePath == _tempTrack));
+            _player.Received(1).Seek(TimeSpan.FromSeconds(42));
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
     }
 
     [Fact]

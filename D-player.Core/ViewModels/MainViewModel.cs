@@ -67,6 +67,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>
     /// MainWindow Loaded 时调用一次。读 queue.json (含 v1→v2 迁移), Hydrate 容器, 开始监听 StateChanged,
     /// 读库缓存回填库播放队列, 然后做断点续播就位（只加载不出声）, 最后启动两路后台扫描。
+    /// 库初始化失败只会留下空库, 不影响断点续播与后台扫描。
     /// 返回非 null = 恢复被跳过、需要向用户提示的原因。
     /// </summary>
     public async Task<string?> InitializeAsync()
@@ -78,8 +79,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _hydrated = true;
 
         // 先读库缓存并回填隐藏的库播放队列，再恢复上次播放位置。
-        await Library.InitializeAsync().ConfigureAwait(true);
-        Playlists.ApplyCachedMetadataToLibraryPlayback(Library.CachedEntriesByPath);
+        // 库是可选能力：缓存/元数据失败不能连累断点续播与后台扫描，也不能把启动变成
+        // 半初始化状态。_hydrated 保持在上方（若挪到末尾，重试会重跑 Hydrate 并重复订阅
+        // StateChanged），所以这里只吞异常、继续往下走。
+        try
+        {
+            await Library.InitializeAsync().ConfigureAwait(true);
+            Playlists.ApplyCachedMetadataToLibraryPlayback(Library.CachedEntriesByPath);
+        }
+        catch
+        {
+            // 库初始化失败：保留空库，继续断点续播与两路后台扫描。
+        }
 
         var restoreWarning = await RestoreLastPlayedAsync().ConfigureAwait(true);
 

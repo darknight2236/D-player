@@ -6,6 +6,8 @@
 规则：不修改任何产品文件；只追加本验收记录。证据截图/UIA dump 位于 `%TEMP%\p22-acc\`。
 格式：`项 | PASS/FAIL/NOT VERIFIED | 证据方式 + 实测读数 | 原始证据路径`。
 
+隐私脱敏：本文档中的用户绝对路径与用户自建歌单名已替换为 `<用户音乐目录>` / `用户已有歌单`；验收结论与计数不变。
+
 **交付基线**：Phase 22 实现与文档提交 `18f6486` → `9cc28ba`；验收记录另有两个 docs 提交。WinUI 单工程构建是 `tools/verify-gates.ps1 -Full` 的第三道门禁（`-Fast` 只跑门禁 1/2）。
 
 **本轮已交付（验收对象）**：
@@ -57,7 +59,7 @@
 
 | 项 | 结果 | 证据（方式 + 实测读数） | 原始证据路径 |
 |---|---|---|---|
-| D1 启动后日志文件存在且含启动记录；损坏音频触发 `PlaybackError`；断点文件缺失/失效走 `断点续播被跳过`；日志 IO 失败不影响应用。 | PASS | 用户 2026-10-24 读取 `%LOCALAPPDATA%\D-player-winui\logs\app.log` 报告：① `2026-10-24 10:09:43.656 [T2] WinUI shell starting`；② `2026-10-24 10:13:59.543 [T2] PlaybackError: Media Foundation error 0xC00D3E84`；③ `2026-10-24 10:09:44.911 [T2] 断点续播被跳过：上次播放的曲目已不在任何歌单中，未恢复播放位置：C:\Users\darknight2236\Music\p22-acc-tmp\toneA30s.wav`。日志 IO 失败不影响应用由代码路径确认；④ 1 MiB 轮转：用户 2026-10-24 将 `app.log` 填充到 1,058,923 字节后启动，`app.log.1` = 1,058,923 字节，新 `app.log` = 54 字节且含 `2026-10-24 13:16:10.867 [T2] WinUI shell starting`。 | `%LOCALAPPDATA%\D-player-winui\logs\app.log`（用户读取，代理未读取） |
+| D1 启动后日志文件存在且含启动记录；损坏音频触发 `PlaybackError`；断点文件缺失/失效走 `断点续播被跳过`；日志 IO 失败不影响应用。 | PASS | 用户 2026-10-24 读取 `%LOCALAPPDATA%\D-player-winui\logs\app.log` 报告：① `2026-10-24 10:09:43.656 [T2] WinUI shell starting`；② `2026-10-24 10:13:59.543 [T2] PlaybackError: Media Foundation error 0xC00D3E84`；③ `2026-10-24 10:09:44.911 [T2] 断点续播被跳过：上次播放的曲目已不在任何歌单中，未恢复播放位置：<用户音乐目录>\p22-acc-tmp\toneA30s.wav`。日志 IO 失败不影响应用由代码路径确认；④ 1 MiB 轮转：用户 2026-10-24 将 `app.log` 填充到 1,058,923 字节后启动，`app.log.1` = 1,058,923 字节，新 `app.log` = 54 字节且含 `2026-10-24 13:16:10.867 [T2] WinUI shell starting`。 | `%LOCALAPPDATA%\D-player-winui\logs\app.log`（用户读取，代理未读取） |
 | D2 `powershell -File tools/verify-gates.ps1 -Full` → 三道门禁全绿。 | PASS | `mode: Full (3 gates…)`；gate 1/3 `-> ok (exit 0, 0 warning lines)`，gate 2/3 `总计 180 / 失败 0`，gate 3/3 `-> ok (exit 0, 0 warning lines)`，结尾 `all requested steps passed.`（进程退出码 0）。修复后（`adc0fbf`）复跑同样全绿；中途一次门禁 3 失败是测试进程锁住 `D-player.Core.dll`（MSB3027），关闭进程后复跑通过，不是代码缺陷。 | `%TEMP%\p22-acc\gates.log`、`gates-postfix.log` |
 | D3 WPF 壳的导入/导出/文件夹对话框行为不变（用户手测）。 | PASS | 用户 2026-10-24 手测：WPF 壳的添加文件 / 导入文件夹 / 导出 M3U8 对话框行为正常，标题/过滤器/取消与 Phase 21 一致。 | 用户手测 2026-10-24 |
 
@@ -132,13 +134,13 @@
 
 以下问题在 Phase 22 的 Task 2–6 真机冒烟中被发现或确认。第 1、3 项已在交付后修复；第 2 项两次复现未重现（保留观察）；其余未在本阶段修复。Task 8 走查时不要把它们误判为新增回归。
 
-1. **Core `TrackEnded` 竞态 —— 已于 2026-10-24 修复（Phase 22 交付后）**：每个 `PlaylistViewModel` 都在构造时订阅共享播放器的 `TrackEnded`，曲目自然播完后所有歌单 VM 都会尝试推进，可能让非查看中的歌单（冒烟中见到的 `1`）抢走播放。修复：`HandleTrackEnded` 入口以 `IsActivePlaylist` 守卫；`PlayTrackAtAsync` 开始播放前把 `Container.CurrentPlaylistId` 指向自己（双击/首播等直达入口仍可能从非当前歌单进入）。新增 4 条 TrackEnded/归属单测（含启动断点续播把 `CurrentPlaylistId` 同步到曲目所属歌单），另加 2 条 `CurrentPlaylist` 单测，全量 186 通过 / 0 失败。验收时 B3/C3 用长音频规避该竞态的步骤保留为历史记录。同日追加（用户冒烟发现）：新建歌单导入曲目后，查看该歌单时上一首/下一首因 `CurrentIndex=-1` 变灰；按用户拍板，传输按钮改绑 `Playlists.CurrentPlaylist`（不跟随查看项，落实双指针模型）。**用户 2026-10-24 真机复验竞态修复**：双击歌单 1 起播 → 左栏切回默认歌单查看 → 把歌单 1 当前曲拖到接近结尾自然播完，播放切到歌单 1 的第二首，默认歌单未抢播。
+1. **Core `TrackEnded` 竞态 —— 已于 2026-10-24 修复（Phase 22 交付后）**：每个 `PlaylistViewModel` 都在构造时订阅共享播放器的 `TrackEnded`，曲目自然播完后所有歌单 VM 都会尝试推进，可能让非查看中的歌单（冒烟中见到的一个非当前歌单）抢走播放。修复：`HandleTrackEnded` 入口以 `IsActivePlaylist` 守卫；`PlayTrackAtAsync` 开始播放前把 `Container.CurrentPlaylistId` 指向自己（双击/首播等直达入口仍可能从非当前歌单进入）。新增 4 条 TrackEnded/归属单测（含启动断点续播把 `CurrentPlaylistId` 同步到曲目所属歌单），另加 2 条 `CurrentPlaylist` 单测，全量 186 通过 / 0 失败。验收时 B3/C3 用长音频规避该竞态的步骤保留为历史记录。同日追加（用户冒烟发现）：新建歌单导入曲目后，查看该歌单时上一首/下一首因 `CurrentIndex=-1` 变灰；按用户拍板，传输按钮改绑 `Playlists.CurrentPlaylist`（不跟随查看项，落实双指针模型）。**用户 2026-10-24 真机复验竞态修复**：双击一个用户歌单起播 → 左栏切回默认歌单查看 → 把该歌单当前曲拖到接近结尾自然播完，播放切到该歌单的第二首，默认歌单未抢播。
 2. **删除当前查看歌单后的 NavRail/列表选中不一致（既有缺陷，2026-10-24 NOT REPRODUCED）**：原记录为“删除正在查看的歌单并重启后，左栏高亮与中间列表显示可能是两个不同歌单；点击一次左栏即恢复同步”。2026-10-24 两次真机复现（只删查看项 / 删除查看+播放项）后，重启时左栏选中与中间列表内容均一致；未改 NavRail 代码，保留观察，若后续再现需记录三指针（`ViewedPlaylist` / `SelectedItem` / `CurrentPlaylistId`）快照。
 3. **两个 `Debug.WriteLine` 未接入 `AppLog` —— 已于 2026-10-24 修复**：`SettingsDialog`（打开日志文件夹失败）与 `PlayerBar`（设置对话框 `ShowAsync` 异常）已改 `AppLog.Write(..., ex)`；壳内不再有 `Debug.WriteLine`。
 4. **文件夹选择器“输入路径”等效取消**：在 Windows `FolderPicker` 的路径框里键入路径并确认，可能返回 `StorageFolder.Path == ""`；`WinUiFileDialogService.OpenFolderAsync` 按既有契约把空路径映射为 null（取消）。选择列表中的真实文件夹项工作正常，A2 请按“选中文件夹项”的方式操作。
 5. **可选的补充复验**：首启空态提示的冷启动（清单 23 项已全部 PASS；1 MiB 轮转已由用户 2026-10-24 确认）。代理按纪律不读写 `%LOCALAPPDATA%\D-player-winui\*`，此项交用户按需确认。空态冷启动的代理尝试受两点限制：应用启动恢复的是“当前播放歌单”而非“最后查看的空歌单”，且文件 picker 在本会话无法前台驱动，未能构造出“冷启动即空歌单”的条件；会话内新建空歌单已实测空态可见。
 6. **冒烟副作用（透明披露）**：Task 3/4/5 的真机冒烟可能改变了持久化的“查看歌单”指针、某歌单的当前曲索引与窗口几何（Task 5 结束时记录为 1200×800 @ (360,124)）；所有用户歌单的**内容**未被编辑。
-7. **本轮走查副作用**：创建并删除了 AccProbe、list3、验收临时、acc-list、A6tmpRenamed、A7a、Btmp、C3resume、SpaceProbe 等一次性歌单；用户歌单 新歌单/幻灯/1 的内容未被编辑。走查结束时窗口 1200×800@(200,80)、音量 1.0、随机/循环关，查看歌单切回 幻灯。断点续播可能指向已删除的临时 WAV（`%TEMP%\p22-acc\audio\*`），下次启动会走“断点续播被跳过”。
+7. **本轮走查副作用**：创建并删除了 AccProbe、list3、验收临时、acc-list、A6tmpRenamed、A7a、Btmp、C3resume、SpaceProbe 等一次性歌单；用户已有歌单的内容未被编辑。走查结束时窗口 1200×800@(200,80)、音量 1.0、随机/循环关，查看歌单切回用户已有歌单。断点续播可能指向已删除的临时 WAV（`%TEMP%\p22-acc\audio\*`），下次启动会走“断点续播被跳过”。
 8. **2026-10-24 快赢切片冒烟副作用**：创建并删除了 NRProbeA / NRProbeB / NRProbeC / NRDel 等临时歌单；NRProbeA 曾加入 `%TEMP%\p22-acc\audio\tlong-A.wav` 并播放后随歌单删除。行尾删除按钮验证时对默认歌单的一行点了 × 并取消，未实际删除用户曲目。默认歌单被双击播放过一次（当前播放歌单变为默认歌单，LastPlayedPath 指向其中第一首）；用户歌单内容未被编辑，窗口几何/音量未改，应用已关闭。
 
 ---

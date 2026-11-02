@@ -16,6 +16,8 @@ namespace DPlayer.Views.Controls;
 /// 活跃歌单显示矢量 ▶ 标记（PART_SidebarMarker Path, Visibility 切换）。
 /// Phase 9: 拖拽重排歌单顺序（复用 Phase 5 的 Adorner + 多选拖拽保护模式）。
 /// Phase 16: 全部图标矢量化。
+/// Phase 24: 固定的“音乐库 / 艺术家 / 专辑”节点；库播放时标题旁显示 ▶，
+///           点歌单（含已选中的那个）切回队列视图。
 /// </summary>
 public partial class PlaylistsSidebarView : UserControl
 {
@@ -68,6 +70,9 @@ public partial class PlaylistsSidebarView : UserControl
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PlaylistsViewModel.CurrentPlaylistId))
+            RefreshActiveMarker();
+
+        if (e.PropertyName == nameof(PlaylistsViewModel.IsLibraryPlaybackActive))
             RefreshActiveMarker();
     }
 
@@ -125,6 +130,13 @@ public partial class PlaylistsSidebarView : UserControl
             var marker = FindChildByName<Path>(container, "PART_SidebarMarker");
             if (marker is null) continue;
             marker.Visibility = vm.IsActivePlaylist ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (LibraryMarker is not null)
+        {
+            LibraryMarker.Visibility = _vm.IsLibraryPlaybackActive
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
     }
 
@@ -199,11 +211,61 @@ public partial class PlaylistsSidebarView : UserControl
         return null;
     }
 
+    // —— Phase 24: 音乐库 / 歌单视图切换 ——
+
+    private void LibraryArtists_Click(object sender, RoutedEventArgs e)
+        => ShowLibrary(LibraryPage.Artists, artistsActive: true);
+
+    private void LibraryAlbums_Click(object sender, RoutedEventArgs e)
+        => ShowLibrary(LibraryPage.Albums, artistsActive: false);
+
+    private void ShowLibrary(LibraryPage page, bool artistsActive)
+    {
+        // 库视图没有“查看中的歌单”，清掉侧栏选中，避免歌单行和库节点同时高亮。
+        PlaylistList.SelectedItem = null;
+
+        if (Window.GetWindow(this)?.DataContext is MainViewModel main)
+            main.ShowLibrary(page);
+
+        LibraryArtistsButton.Background = artistsActive
+            ? (Brush)FindResource("AccentPressed")
+            : Brushes.Transparent;
+        LibraryAlbumsButton.Background = artistsActive
+            ? Brushes.Transparent
+            : (Brush)FindResource("AccentPressed");
+    }
+
+    private void PlaylistList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PlaylistList.SelectedItem is not PlaylistViewModel) return;
+        ShowPlaylistView();
+    }
+
+    /// <summary>
+    /// 点已选中的歌单不会触发 SelectionChanged，所以鼠标按下时也要切回队列视图；
+    /// 否则从库视图无法通过“再点一次原歌单”返回。
+    /// </summary>
+    private void PlaylistList_PreviewMouseLeftButtonDown_Navigate(MouseButtonEventArgs e)
+    {
+        if (FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject) is not null)
+            ShowPlaylistView();
+    }
+
+    private void ShowPlaylistView()
+    {
+        if (Window.GetWindow(this)?.DataContext is MainViewModel main)
+            main.ShowPlaylist();
+
+        LibraryArtistsButton.Background = Brushes.Transparent;
+        LibraryAlbumsButton.Background = Brushes.Transparent;
+    }
+
     // —— Phase 9: 拖拽重排（复用 Phase 5 PlaylistView 的模式） ——
 
     private void PlaylistList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragStartPoint = e.GetPosition(PlaylistList);
+        PlaylistList_PreviewMouseLeftButtonDown_Navigate(e);
     }
 
     private void PlaylistList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)

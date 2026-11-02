@@ -1,8 +1,9 @@
 <!--
-    PlaylistsSidebarView —— 左侧歌单栏（Phase 16: 矢量图标 + 选中态背景色）。
-    布局: 2 行 Grid
-      Row 0 (Auto) : + / − 工具栏（矢量 Path）
-      Row 1 (*)    : ListBox 显示歌单，每项含 ▶ marker + 图标 + 名称
+    PlaylistsSidebarView —— 左侧栏（Phase 16: 矢量图标 + 选中态背景色；Phase 24: 音乐库节点）。
+    布局: 3 行 Grid
+      Row 0 (Auto) : 音乐库标题（含 ▶ marker）+ 艺术家/专辑节点 + 分隔线 + 歌单标题
+      Row 1 (Auto) : + / − 工具栏（矢量 Path）
+      Row 2 (*)    : ListBox 显示歌单，每项含 ▶ marker + 图标 + 名称
 -->
 <UserControl x:Class="DPlayer.Views.Controls.PlaylistsSidebarView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -13,14 +14,81 @@
              mc:Ignorable="d"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              Background="{StaticResource BackgroundSecondary}">
+    <UserControl.Resources>
+        <Style x:Key="LibraryNavButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BackgroundTertiary}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Phase 24: 固定音乐库节点（艺术家 / 专辑）+ 歌单分组标题 -->
+        <StackPanel Grid.Row="0" Margin="6,6,6,2">
+            <Grid Margin="6,0,6,2">
+                <TextBlock Text="音乐库"
+                           Foreground="{StaticResource ForegroundSecondary}"
+                           FontSize="11"/>
+                <Path x:Name="LibraryMarker"
+                      HorizontalAlignment="Right"
+                      Data="{StaticResource Icon.PlayMarker}"
+                      Fill="{StaticResource AccentPrimary}"
+                      Width="9" Height="9" Stretch="Uniform"
+                      Visibility="Collapsed"/>
+            </Grid>
+            <Button x:Name="LibraryArtistsButton"
+                    Style="{StaticResource LibraryNavButton}"
+                    Click="LibraryArtists_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Path Style="{StaticResource IconPath}"
+                          Data="{StaticResource Icon.MusicNote}"
+                          Stroke="{StaticResource ForegroundSecondary}"
+                          Width="12" Height="12"/>
+                    <TextBlock Grid.Column="1" Text="艺术家" VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+            <Button x:Name="LibraryAlbumsButton"
+                    Style="{StaticResource LibraryNavButton}"
+                    Click="LibraryAlbums_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Path Style="{StaticResource IconPath}"
+                          Data="{StaticResource Icon.Folder}"
+                          Stroke="{StaticResource ForegroundSecondary}"
+                          Width="12" Height="12"/>
+                    <TextBlock Grid.Column="1" Text="专辑" VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+            <Border Height="1"
+                    Background="{StaticResource BackgroundTertiary}"
+                    Margin="6,6,6,4"/>
+            <TextBlock Text="歌单"
+                       Foreground="{StaticResource ForegroundSecondary}"
+                       FontSize="11"
+                       Margin="6,0,0,2"/>
+        </StackPanel>
+
         <!-- 顶部 + / − 工具栏 -->
-        <StackPanel Grid.Row="0"
+        <StackPanel Grid.Row="1"
                     Orientation="Horizontal"
                     Margin="6">
             <Button x:Name="AddBtn"
@@ -57,13 +125,14 @@
 
         <!-- 歌单列表（Phase 9: 支持拖拽重排，Phase 16: 矢量图标） -->
         <ListBox x:Name="PlaylistList"
-                 Grid.Row="1"
+                 Grid.Row="2"
                  ItemsSource="{Binding Playlists}"
                  SelectedItem="{Binding ViewedPlaylist, Mode=TwoWay}"
                  BorderThickness="0"
                  Background="Transparent"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  AllowDrop="True"
+                 SelectionChanged="PlaylistList_SelectionChanged"
                  MouseDoubleClick="PlaylistList_MouseDoubleClick"
                  PreviewMouseLeftButtonDown="PlaylistList_PreviewMouseLeftButtonDown"
                  PreviewMouseMove="PlaylistList_PreviewMouseMove"

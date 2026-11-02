@@ -154,4 +154,8 @@ C3 另观察：设置音量滑块按 Space 出现原始值工具提示 `0.5500`�
 - 2026-11-02 按用户要求删除 `%TEMP%\p23-inst\`、`%TEMP%\winui-resize*`、`%TEMP%\fswtest*`、`%TEMP%\dplayer-head.json`、`TestResults\fswtest` 与测试数据目录 `%LOCALAPPDATA%\D-player-winui.instrumentation-20261102`；上文仪器化证据路径仅供追溯，文件已不在本机。
 - 2026-11-02 测试工程精简：删除/合并 9 条低风险用例（Smoke、WaveFormat、Update 只不抛、PreampLinearGain、Ctor_LoadsEqualizerEnabled、PlaylistViewModel 三条并一、DataPaths 三条并一）并移除测试工程未用的 `UseWPF`；默认 176/0/0 + 音频 5/0/0；`-Full -Audio` 3/3。
 - 2026-11-02 测试工程精简（续）：移除 `Microsoft.NET.Test.Sdk`、`xunit.runner.visualstudio`、`coverlet.collector` 与 `TestingPlatformDotnetTestSupport`；5 条真实音频测试标记 `Category=AudioDevice` + `[Collection("AudioDevice")]`，默认门禁排除，`verify-gates.ps1 -Audio` 单独串行跑。
-- 2026-11-02 用户确认 B、C 组全部通过，Phase 23 验收闭合（A/B 组均完成仪器化复验）；拖拽/排序/文件夹绑定管理仍为后续阶段实现缺口，不属于 Phase 23。WinUI 3 平台级缩放撕裂见 2026-11-01 一节。
+- 2026-11-02 用户确认 B、C 组全部通过，Phase 23 验收闭合（A/B 组均完成仪器化复验）；拖拽/排序/文件夹绑定管理是 WinUI 壳的缺口，随 2026-11-02 壳冻结保留，不再作为当前阶段排期；后续功能开发回归 Core + WPF。WinUI 3 平台级缩放撕裂见 2026-11-01 一节。
+
+## 2026-11-02 路线决策
+
+WinUI 壳开发到此搁置；Phase 23 是本轮最后一个 WinUI 功能阶段。后续阶段回归共享 Core + WPF 主壳的未完成功能；WinUI 工程保留并由 `-Full` 门禁 3 编译，防止腐烂；不排除以后用 Avalonia 做一次完全 UI/UX 重构（未排期、未选型）。

@@ -21,9 +21,44 @@
             <Setter Property="HorizontalAlignment" Value="Left"/>
         </Style>
 
+        <!-- 专辑 tile 的选中/悬停走深色模板，并让封面与文字在网格项内居中 -->
+        <Style x:Key="AlbumTileItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd"
+                                Background="Transparent"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Top"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{StaticResource BackgroundTertiary}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{StaticResource AccentPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <DataTemplate x:Key="AlbumTileTemplate">
-            <StackPanel Width="140" Margin="0,0,12,12" Loaded="AlbumTile_Loaded">
+            <StackPanel Width="140" Margin="6,0,6,12"
+                        HorizontalAlignment="Center"
+                        Loaded="AlbumTile_Loaded">
                 <Border Width="140" Height="140"
+                        HorizontalAlignment="Center"
                         Background="{StaticResource BackgroundTertiary}"
                         CornerRadius="6">
                     <Grid>
@@ -40,11 +75,15 @@
                 <TextBlock Text="{Binding Title}"
                            Foreground="{StaticResource ForegroundPrimary}"
                            TextTrimming="CharacterEllipsis"
+                           TextAlignment="Center"
+                           HorizontalAlignment="Center"
                            Margin="0,6,0,0"/>
                 <TextBlock Text="{Binding Subtitle}"
                            Foreground="{StaticResource ForegroundSecondary}"
                            FontSize="11"
-                           TextTrimming="CharacterEllipsis"/>
+                           TextTrimming="CharacterEllipsis"
+                           TextAlignment="Center"
+                           HorizontalAlignment="Center"/>
             </StackPanel>
         </DataTemplate>
 
@@ -138,6 +177,7 @@
 
             <ListBox ItemsSource="{Binding Albums}"
                      ItemTemplate="{StaticResource AlbumTileTemplate}"
+                     ItemContainerStyle="{StaticResource AlbumTileItemStyle}"
                      BorderThickness="0"
                      Background="Transparent"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -178,6 +218,7 @@
                 <ListBox Grid.Row="1"
                          ItemsSource="{Binding SelectedArtist.Albums}"
                          ItemTemplate="{StaticResource AlbumTileTemplate}"
+                         ItemContainerStyle="{StaticResource AlbumTileItemStyle}"
                          BorderThickness="0"
                          Background="Transparent"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"

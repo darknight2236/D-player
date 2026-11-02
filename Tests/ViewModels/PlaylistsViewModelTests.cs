@@ -763,7 +763,8 @@ public class PlaylistsViewModelTests
         var temp = System.IO.Path.GetTempFileName();
         try
         {
-            var container = CreateContainerVm();
+            // 必须走公共 ctor（真实 _metadataReader），否则 DidNotReceive 无法发现回归。
+            var container = CreateContainerVmWithMocks();
             var libraryPlayback = new Playlist(
                 PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
                 new[] { temp }, 0, false, RepeatMode.Off);
@@ -833,6 +834,37 @@ public class PlaylistsViewModelTests
         container.LibraryPlayback!.Queue.Add(TrackWith("lib.mp3"));
 
         var found = container.FindPlaylistTrackByPath("lib.mp3");
+
+        Assert.NotNull(found);
+        Assert.Same(container.LibraryPlayback, found.Value.Playlist);
+    }
+
+    /// <summary>设计 §5.2：当前上下文优先，库会话续播不被含同一文件的可见歌单抢走。</summary>
+    [Fact]
+    public void FindPlaylistTrackByPath_PrefersLibraryPlayback_WhenLibraryQueueIsCurrent()
+    {
+        const string shared = "shared.mp3";
+        var container = CreateContainerVm();
+        var libraryPlayback = new Playlist(
+            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+            Array.Empty<string>(), -1, false, RepeatMode.Off);
+
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = libraryPlayback.Id,
+            LibraryPlayback = libraryPlayback,
+        });
+
+        // 两个队列都含同一路径，且当前上下文是库队列
+        container.Playlists[0].Queue.Add(TrackWith(shared));
+        container.LibraryPlayback!.Queue.Add(TrackWith(shared));
+        Assert.Same(container.LibraryPlayback, container.CurrentPlaylist);
+
+        var found = container.FindPlaylistTrackByPath(shared);
 
         Assert.NotNull(found);
         Assert.Same(container.LibraryPlayback, found.Value.Playlist);

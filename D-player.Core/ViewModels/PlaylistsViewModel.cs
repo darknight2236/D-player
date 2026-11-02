@@ -160,7 +160,9 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 按文件路径在已水化的歌单里找曲目（"正在播放"歌单优先），并返回它所属的歌单。
+    /// 按文件路径在已水化的歌单里找曲目，并返回它所属的歌单。
+    /// 查找顺序（设计 §5.2）：当前播放上下文 → 可见歌单 → 库播放队列。
+    /// 当前上下文优先保证库会话续播不会被含同一文件的可见歌单抢走。
     /// 供启动断点续播就位；找不到返回 null。
     /// </summary>
     public (PlaylistViewModel Playlist, Track Track)? FindPlaylistTrackByPath(string filePath)
@@ -170,12 +172,14 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         static Track? FindIn(PlaylistViewModel? vm, string path) => vm?.Queue.FirstOrDefault(
             t => string.Equals(t.FilePath, path, StringComparison.OrdinalIgnoreCase));
 
-        var current = Playlists.FirstOrDefault(p => p.Id == CurrentPlaylistId);
+        // CurrentPlaylist 可能是隐藏的库播放队列，也可能是可见歌单。
+        var current = CurrentPlaylist;
         if (current is not null && FindIn(current, filePath) is { } currentTrack)
             return (current, currentTrack);
 
         foreach (var vm in Playlists)
         {
+            if (ReferenceEquals(vm, current)) continue;   // 已查过，避免重复
             if (FindIn(vm, filePath) is { } track)
                 return (vm, track);
         }

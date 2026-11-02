@@ -99,7 +99,8 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             Array.Empty<LibraryCacheEntry>()));
-        _scanner.ScanFolder(_root).Returns(new[] { newFile });
+        _scanner.ScanFolderWithStatus(_root)
+            .Returns(new LibraryScanResult(new[] { newFile }, IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
@@ -126,7 +127,8 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             new[] { Entry(removed, "Gone", "Artist", "Album") }));
-        _scanner.ScanFolder(_root).Returns(Array.Empty<string>());
+        _scanner.ScanFolderWithStatus(_root)
+            .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
@@ -142,6 +144,172 @@ public sealed class LibraryViewModelTests : IDisposable
 
         Assert.Empty(vm.Albums);
         Assert.Empty(vm.Artists);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_DoesNotScanTheFileSystem()
+    {
+        var cached = Path.Combine(_root, "cached.mp3");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(cached, "Cached", "Artist", "Album") }));
+
+        await vm.InitializeAsync();
+
+        Assert.Single(vm.Albums);
+        _scanner.DidNotReceive().ScanFolderWithStatus(Arg.Any<string>());
+        _scanner.DidNotReceive().ScanFolder(Arg.Any<string>());
+        await _scanner.DidNotReceive().ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>());
+    }
+
+    [Fact]
+    public async Task ScanInBackgroundAsync_UnavailableRoot_KeepsCacheAndSkipsSave()
+    {
+        var cachedPath = Path.Combine(_root, "keep.mp3");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(cachedPath, "Keep", "Artist", "Album") }));
+        _scanner.ScanFolderWithStatus(_root)
+            .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
+
+        await vm.InitializeAsync();
+        Assert.Single(vm.Albums);
+
+        await vm.ScanInBackgroundAsync();
+
+        // 不可用 ≠ 全部删除：内存里的专辑与其缓存条目都必须保留。
+        Assert.Single(vm.Albums);
+        Assert.Single(vm.Artists);
+        Assert.Equal("Keep", vm.CachedEntriesByPath[cachedPath].Title);
+        Assert.Equal(1, vm.UnavailableRootCount);
+        Assert.False(vm.IsScanning);
+        _scanner.DidNotReceive().ComputeDiff(
+            Arg.Any<IReadOnlyList<string>>(), Arg.Any<IReadOnlyList<LibraryCacheEntry>>());
+        await _cache.DidNotReceive().SaveAsync(
+            Arg.Any<string>(), Arg.Any<IReadOnlyList<LibraryCacheEntry>>());
+    }
+
+    [Fact]
+    public async Task ScanInBackgroundAsync_EmptyAvailableRoot_RemovesTracksAndSavesEmptyCache()
+    {
+        var cachedPath = Path.Combine(_root, "gone.mp3");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(cachedPath, "Gone", "Artist", "Album") }));
+        _scanner.ScanFolderWithStatus(_root)
+            .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
+        _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(
+                Array.Empty<string>(), new[] { cachedPath },
+                Array.Empty<LibraryCacheEntry>()));
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+            .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
+
+        await vm.InitializeAsync();
+        Assert.Single(vm.Albums);
+
+        await vm.ScanInBackgroundAsync();
+
+        // 可枚举但为空 → 真的是全部删除：内存与缓存都应被清空。
+        Assert.Empty(vm.Albums);
+        Assert.Empty(vm.Artists);
+        Assert.Equal(0, vm.UnavailableRootCount);
+        Assert.False(vm.IsScanning);
+        await _cache.Received(1).SaveAsync(
+            _root,
+            Arg.Is<IReadOnlyList<LibraryCacheEntry>>(list => list.Count == 0));
+    }
+
+    [Fact]
+    public async Task ScanInBackgroundAsync_SaveThrows_KeepsInMemoryAlbums()
+    {
+        var newFile = Path.Combine(_root, "new.mp3");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            Array.Empty<LibraryCacheEntry>()));
+        _scanner.ScanFolderWithStatus(_root)
+            .Returns(new LibraryScanResult(new[] { newFile }, IsUnavailable: false));
+        _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(
+                new[] { newFile }, Array.Empty<string>(), Array.Empty<LibraryCacheEntry>()));
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+            .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
+        _cache.SaveAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(Task.FromException(new IOException("disk full")));
+
+        await vm.InitializeAsync();
+        await vm.ScanInBackgroundAsync();
+
+        Assert.Single(vm.Albums);
+        Assert.Single(vm.Albums[0].Tracks);
+        Assert.False(vm.IsScanning);
+        await _cache.Received(1).SaveAsync(
+            _root, Arg.Any<IReadOnlyList<LibraryCacheEntry>>());
+    }
+
+    [Fact]
+    public async Task ScanInBackgroundAsync_SamePathInTwoRoots_CountsOnce()
+    {
+        var rootA = Path.Combine(_root, "library");
+        var rootB = Path.Combine(rootA, "nested");
+        Directory.CreateDirectory(rootB);
+        var shared = Path.Combine(rootB, "shared.mp3");
+
+        var vm = CreateVm(rootA, rootB);
+        _cache.LoadAsync(Arg.Any<string>())
+            .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                Array.Empty<LibraryCacheEntry>()));
+        _scanner.ScanFolderWithStatus(rootA)
+            .Returns(new LibraryScanResult(new[] { shared }, IsUnavailable: false));
+        _scanner.ScanFolderWithStatus(rootB)
+            .Returns(new LibraryScanResult(new[] { shared }, IsUnavailable: false));
+        _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(
+                new[] { shared }, Array.Empty<string>(), Array.Empty<LibraryCacheEntry>()));
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+            .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
+
+        await vm.InitializeAsync();
+        await vm.ScanInBackgroundAsync();
+
+        // 嵌套根目录返回同一文件：端到端只能计一次（专辑/曲目/缓存都是）。
+        Assert.Single(vm.Artists);
+        Assert.Single(vm.Albums);
+        Assert.Single(vm.Albums[0].Tracks);
+        Assert.Single(vm.CachedEntriesByPath);
+        Assert.False(vm.IsScanning);
+    }
+
+    [Fact]
+    public async Task CachedEntriesByPath_ReturnsSnapshot_NotLiveDictionary()
+    {
+        var cachedPath = Path.Combine(_root, "snap.mp3");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(cachedPath, "Snap", "Artist", "Album") }));
+        _scanner.ScanFolderWithStatus(_root)
+            .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
+        _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(
+                Array.Empty<string>(), new[] { cachedPath },
+                Array.Empty<LibraryCacheEntry>()));
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+            .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
+
+        await vm.InitializeAsync();
+        var snapshot = vm.CachedEntriesByPath;
+        Assert.Single(snapshot);
+        Assert.NotSame(snapshot, vm.CachedEntriesByPath);
+
+        await vm.ScanInBackgroundAsync();
+
+        // 先前拿到的快照不受后续扫描影响，内部字典已被清空。
+        Assert.Single(snapshot);
+        Assert.Empty(vm.CachedEntriesByPath);
     }
 
     [Fact]

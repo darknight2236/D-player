@@ -21,30 +21,40 @@ public sealed class LibraryScannerService : ILibraryScannerService
 
     /// <inheritdoc />
     public IReadOnlyList<string> ScanFolder(string folderPath)
+        => ScanFolderWithStatus(folderPath).Files;
+
+    /// <inheritdoc />
+    public LibraryScanResult ScanFolderWithStatus(string folderPath)
     {
+        // 只有“枚举成功但没有音频文件”才是空库；路径为空/不存在/无权限/IO 失败
+        // 都必须标记为不可用，调用方才不会拿空结果覆盖该根目录的缓存。
         if (string.IsNullOrWhiteSpace(folderPath))
-            return Array.Empty<string>();
+            return Unavailable();
 
         try
         {
             if (!Directory.Exists(folderPath))
-                return Array.Empty<string>();
+                return Unavailable();
 
             var extensions = new HashSet<string>(AudioConstants.AudioExtensions, StringComparer.OrdinalIgnoreCase);
 
-            return Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories)
+            var files = Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories)
                 .Where(f => extensions.Contains(Path.GetExtension(f)))
                 .ToList();
+            return new LibraryScanResult(files, IsUnavailable: false);
         }
         catch (UnauthorizedAccessException)
         {
-            return Array.Empty<string>();
+            return Unavailable();
         }
         catch (IOException)
         {
-            return Array.Empty<string>();
+            return Unavailable();
         }
     }
+
+    private static LibraryScanResult Unavailable()
+        => new(Array.Empty<string>(), IsUnavailable: true);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<Track>> ReadMetadataBatchAsync(IReadOnlyList<string> paths)

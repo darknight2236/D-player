@@ -727,6 +727,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private sealed class NullLibraryScannerService : ILibraryScannerService
     {
         public IReadOnlyList<string> ScanFolder(string folderPath) => Array.Empty<string>();
+        public LibraryScanResult ScanFolderWithStatus(string folderPath) =>
+            new(Array.Empty<string>(), IsUnavailable: false);
         public Task<IReadOnlyList<Track>> ReadMetadataBatchAsync(IReadOnlyList<string> paths) => Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>());
         public LibraryDiff ComputeDiff(IReadOnlyList<string> currentFiles, IReadOnlyList<LibraryCacheEntry> cached) =>
             new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<LibraryCacheEntry>());

@@ -26,6 +26,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     private readonly Dictionary<string, LibraryCacheEntry> _cachedEntries =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _coverGate = new(1, 1);
+    private readonly CancellationTokenSource _lifetimeCts = new();
 
     private IReadOnlyList<string> _roots = Array.Empty<string>();
     private int _scanGeneration;
@@ -84,9 +85,13 @@ public sealed partial class LibraryViewModel : ObservableObject
         _ => string.Empty,
     };
 
-    /// <summary>所有根目录缓存条目（路径 → 条目），供启动时回填库播放队列。</summary>
+    /// <summary>
+    /// 所有根目录缓存条目的快照（路径 → 条目），供启动时回填库播放队列。
+    /// 每次访问都复制一份，调用方拿不到（也无法写穿）内部字典；
+    /// 底层字典只在 UI 上下文更新，因此该属性必须在 UI 线程读取。
+    /// </summary>
     public IReadOnlyDictionary<string, LibraryCacheEntry> CachedEntriesByPath
-        => _cachedEntries;
+        => new Dictionary<string, LibraryCacheEntry>(_cachedEntries, StringComparer.OrdinalIgnoreCase);
 
     public LibraryViewModel(
         ISettingsPersistence settings,
@@ -105,10 +110,14 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        // 启动回填也是一“代”：并发的扫描/刷新要么让位，要么让这次回填被丢弃，
+        // 避免晚到的启动快照覆盖掉更新的结果。
+        var generation = Interlocked.Increment(ref _scanGeneration);
         var roots = await LoadRootsAsync().ConfigureAwait(false);
-        _roots = roots;
         var loaded = await LoadCachedTracksAsync(roots).ConfigureAwait(false);
+        if (generation != Volatile.Read(ref _scanGeneration)) return;
 
+        _roots = roots;
         _syncContext.Send(_ =>
         {
             HasLibraryRoots = roots.Count > 0;
@@ -120,21 +129,27 @@ public sealed partial class LibraryViewModel : ObservableObject
     public async Task ScanInBackgroundAsync()
     {
         var generation = Interlocked.Increment(ref _scanGeneration);
-        if (_roots.Count == 0)
+        var roots = _roots;
+        if (roots.Count == 0)
         {
-            var roots = await LoadRootsAsync().ConfigureAwait(false);
+            roots = await LoadRootsAsync().ConfigureAwait(false);
+            // 等设置期间可能已有更新的扫描/刷新接管：不覆盖 _roots，也不点亮扫描状态。
+            if (generation != Volatile.Read(ref _scanGeneration)) return;
+
             _roots = roots;
             _syncContext.Send(_ => HasLibraryRoots = roots.Count > 0, null);
         }
 
-        var scanRoots = _roots;
-        if (scanRoots.Count == 0) return;
+        if (roots.Count == 0) return;
 
         _syncContext.Send(_ => IsScanning = true, null);
         try
         {
-            await ScanRootsAsync(scanRoots, generation, CancellationToken.None)
-                .ConfigureAwait(false);
+            await ScanRootsAsync(roots, generation, _lifetimeCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cleanup 已取消生命周期令牌。
         }
         finally
         {
@@ -149,16 +164,17 @@ public sealed partial class LibraryViewModel : ObservableObject
         var generation = Interlocked.Increment(ref _scanGeneration);
         _scanCts?.Cancel();
         _scanCts?.Dispose();
-        var cts = new CancellationTokenSource();
+        // 与生命周期令牌联动：Cleanup 一次即可取消本轮刷新扫描。
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
         _scanCts = cts;
 
         try
         {
             var roots = await LoadRootsAsync().ConfigureAwait(false);
-            _roots = roots;
             var loaded = await LoadCachedTracksAsync(roots).ConfigureAwait(false);
             if (generation != Volatile.Read(ref _scanGeneration)) return;
 
+            _roots = roots;
             _syncContext.Send(_ =>
             {
                 HasLibraryRoots = roots.Count > 0;
@@ -171,7 +187,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            // 新一轮 Refresh 已接管。
+            // 新一轮 Refresh 已接管，或 Cleanup 已取消生命周期令牌。
         }
         finally
         {
@@ -186,6 +202,9 @@ public sealed partial class LibraryViewModel : ObservableObject
         _scanCts?.Cancel();
         _scanCts?.Dispose();
         _scanCts = null;
+        // 生命周期令牌永不 Dispose：Cancel 可重复调用，也不会给联动令牌引出
+        // ObjectDisposedException（这里从不 Register 回调）。
+        _lifetimeCts.Cancel();
     }
 
     public void ShowArtists()
@@ -334,20 +353,21 @@ public sealed partial class LibraryViewModel : ObservableObject
             if (generation != Volatile.Read(ref _scanGeneration)) return;
             ct.ThrowIfCancellationRequested();
 
-            // 根目录不可用时必须跳过：不能把“暂时离线”当成“所有文件已删除”，
-            // 否则会用空结果覆盖掉这个根的缓存。
-            if (!Directory.Exists(root))
-            {
-                unavailable++;
-                _syncContext.Send(_ => UnavailableRootCount = unavailable, null);
-                continue;
-            }
-
             try
             {
+                // 根目录不可枚举时必须跳过：不能把“暂时不可用”当成“所有文件已删除”，
+                // 否则会用空结果覆盖掉这个根的缓存。Directory.Exists 区分不了
+                // “存在但无法枚举”和“存在但为空”，所以状态来自扫描服务。
+                var scan = _scanner.ScanFolderWithStatus(root);
+                if (scan.IsUnavailable)
+                {
+                    unavailable++;
+                    _syncContext.Send(_ => UnavailableRootCount = unavailable, null);
+                    continue;
+                }
+
                 var cached = await _cache.LoadAsync(root).ConfigureAwait(false);
-                var currentFiles = _scanner.ScanFolder(root);
-                var diff = _scanner.ComputeDiff(currentFiles, cached);
+                var diff = _scanner.ComputeDiff(scan.Files, cached);
 
                 var newTracks = await _scanner.ReadMetadataBatchAsync(diff.AddedPaths)
                     .ConfigureAwait(false) ?? Array.Empty<Track>();

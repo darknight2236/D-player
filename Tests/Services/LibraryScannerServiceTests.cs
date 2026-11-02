@@ -98,6 +98,50 @@ public class LibraryScannerServiceTests : IDisposable
         Assert.Equal(2, result.Count);
     }
 
+    // -- ScanFolderWithStatus --
+
+    [Fact]
+    public void ScanFolderWithStatus_MissingDirectory_IsUnavailable()
+    {
+        var result = _sut.ScanFolderWithStatus(Path.Combine(_tempRoot, "no_such_dir"));
+
+        Assert.True(result.IsUnavailable);
+        Assert.Empty(result.Files);
+    }
+
+    [Fact]
+    public void ScanFolderWithStatus_WhitespacePath_IsUnavailable()
+    {
+        var result = _sut.ScanFolderWithStatus("   ");
+
+        Assert.True(result.IsUnavailable);
+        Assert.Empty(result.Files);
+    }
+
+    [Fact]
+    public void ScanFolderWithStatus_EmptyDirectory_IsAvailableWithNoFiles()
+    {
+        var emptyDir = Path.Combine(_tempRoot, "empty");
+        Directory.CreateDirectory(emptyDir);
+
+        var result = _sut.ScanFolderWithStatus(emptyDir);
+
+        Assert.False(result.IsUnavailable);
+        Assert.Empty(result.Files);
+    }
+
+    [Fact]
+    public void ScanFolderWithStatus_AudioFile_IsAvailableAndListed()
+    {
+        var mp3 = CreateFile("song.mp3");
+        CreateFile("readme.txt");
+
+        var result = _sut.ScanFolderWithStatus(_tempRoot);
+
+        Assert.False(result.IsUnavailable);
+        Assert.Equal(new[] { mp3 }, result.Files);
+    }
+
     // -- ComputeDiff --
 
     [Fact]

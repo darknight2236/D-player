@@ -227,12 +227,8 @@ public partial class PlaylistsSidebarView : UserControl
         if (Window.GetWindow(this)?.DataContext is MainViewModel main)
             main.ShowLibrary(page);
 
-        LibraryArtistsButton.Background = artistsActive
-            ? (Brush)FindResource("AccentPressed")
-            : Brushes.Transparent;
-        LibraryAlbumsButton.Background = artistsActive
-            ? Brushes.Transparent
-            : (Brush)FindResource("AccentPressed");
+        SetLibraryNodeActive(LibraryArtistsButton, artistsActive);
+        SetLibraryNodeActive(LibraryAlbumsButton, !artistsActive);
     }
 
     private void PlaylistList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -256,8 +252,19 @@ public partial class PlaylistsSidebarView : UserControl
         if (Window.GetWindow(this)?.DataContext is MainViewModel main)
             main.ShowPlaylist();
 
-        LibraryArtistsButton.Background = Brushes.Transparent;
-        LibraryAlbumsButton.Background = Brushes.Transparent;
+        SetLibraryNodeActive(LibraryArtistsButton, false);
+        SetLibraryNodeActive(LibraryAlbumsButton, false);
+    }
+
+    /// <summary>
+    /// 库节点的激活态走 Tag 而非 Background：LibraryNavButton 模板把 Tag="Active" 的触发器
+    /// 声明在悬停触发器之后，否则鼠标停在被点中的节点上时，强调底色会被 BackgroundTertiary
+    /// 盖掉（AccentPressed #5C2DCF → BackgroundTertiary #3E3E52）。
+    /// </summary>
+    private static void SetLibraryNodeActive(Button? node, bool active)
+    {
+        if (node is null) return;
+        node.Tag = active ? "Active" : null;
     }
 
     // —— Phase 9: 拖拽重排（复用 Phase 5 PlaylistView 的模式） ——

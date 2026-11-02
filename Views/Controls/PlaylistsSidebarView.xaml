@@ -15,17 +15,46 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              Background="{StaticResource BackgroundSecondary}">
     <UserControl.Resources>
-        <Style x:Key="LibraryNavButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+        <!--
+            音乐库节点按钮：显式 Style 会替换隐式 Button 样式，所以 BasedOn 共享样式拿回
+            深色外观（透明底、圆角、手型、Foreground），再重写 Template 让 Border 真正吃
+            Button.Background，并把 hover/pressed 打在 Border 上（不改 Button.Background）。
+            激活态由 code-behind 设 Tag="Active"：该触发器声明在 hover 之后，鼠标停在
+            当前节点上时不会把强调底色盖成 BackgroundTertiary（与歌单行 IsSelected 优先于
+            悬停的既有约定一致）。
+        -->
+        <Style x:Key="LibraryNavButton" TargetType="Button"
+               BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource BackgroundTertiary}"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="4">
+                            <ContentPresenter
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource BackgroundTertiary}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentPressed}"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Active">
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
     <Grid>

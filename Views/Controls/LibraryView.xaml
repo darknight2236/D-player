@@ -13,7 +13,9 @@
         <converters:BytesToBitmapImageConverter x:Key="BytesToBitmapImage"/>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
 
-        <Style x:Key="LibraryActionButton" TargetType="Button">
+        <!-- 显式 Style 会替换隐式 Button 样式，必须 BasedOn 才能保留深色模板（否则回落 Aero 灰） -->
+        <Style x:Key="LibraryActionButton" TargetType="Button"
+               BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,8,0,0"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>

@@ -15,196 +15,184 @@
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="32" UseAeroCaptionButtons="False" GlassFrameThickness="0"/>
     </shell:WindowChrome.WindowChrome>
+    <!-- 三行布局：固定标题栏 / 可滚动内容 / 固定按钮（spec §6.4） -->
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <controls:TitleBar Grid.Row="0" Title="设置" ShowMaximize="False"/>
-        <Grid Grid.Row="1" Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>  <!-- 通用标题 -->
-            <RowDefinition Height="Auto"/>  <!-- 通用内容 -->
-            <RowDefinition Height="Auto"/>  <!-- 音频输出标题 -->
-            <RowDefinition Height="Auto"/>  <!-- 音频输出内容 -->
-            <RowDefinition Height="Auto"/>  <!-- 音频输出说明 -->
-            <RowDefinition Height="Auto"/>  <!-- 音乐库标题 -->
-            <RowDefinition Height="Auto"/>  <!-- 音乐库内容 -->
-            <RowDefinition Height="Auto"/>  <!-- 音乐库说明 -->
-            <RowDefinition Height="Auto"/>  <!-- 音频可视化标题 -->
-            <RowDefinition Height="Auto"/>  <!-- 音频可视化内容 -->
-            <RowDefinition Height="*"/>     <!-- 弹性空间 -->
+            <RowDefinition Height="Auto"/>  <!-- 标题栏 -->
+            <RowDefinition Height="*"/>     <!-- 可滚动内容 -->
             <RowDefinition Height="Auto"/>  <!-- 按钮 -->
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Text="通用"
-                   Style="{StaticResource HeaderText}"
-                   Margin="0,0,0,8"/>
+        <controls:TitleBar Grid.Row="0" Title="设置" ShowMaximize="False"/>
 
-        <Border Grid.Row="1"
-                Background="{StaticResource BackgroundSecondary}"
-                CornerRadius="8" Padding="16"
-                Margin="0,0,0,16">
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="20,20,20,4">
             <StackPanel>
-                <Grid>
-                    <TextBlock Text="默认音量"
-                               Style="{StaticResource BodyText}"
-                               VerticalAlignment="Center"/>
-                    <TextBlock x:Name="VolumePercent"
-                               Text="80%"
-                               Style="{StaticResource CaptionText}"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center"/>
-                </Grid>
-                <Slider x:Name="VolumeSlider"
-                        Minimum="0" Maximum="1"
-                        IsMoveToPointEnabled="True"
-                        Margin="0,8,0,0"
-                        ValueChanged="VolumeSlider_ValueChanged"/>
+
+                <TextBlock Text="通用"
+                           Style="{StaticResource HeaderText}"
+                           Margin="0,0,0,8"/>
+
+                <Border Background="{StaticResource BackgroundSecondary}"
+                        CornerRadius="8" Padding="16"
+                        Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid>
+                            <TextBlock Text="默认音量"
+                                       Style="{StaticResource BodyText}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="VolumePercent"
+                                       Text="80%"
+                                       Style="{StaticResource CaptionText}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Slider x:Name="VolumeSlider"
+                                Minimum="0" Maximum="1"
+                                IsMoveToPointEnabled="True"
+                                Margin="0,8,0,0"
+                                ValueChanged="VolumeSlider_ValueChanged"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="音频输出"
+                           Style="{StaticResource HeaderText}"
+                           Margin="0,0,0,8"/>
+
+                <Border Background="{StaticResource BackgroundSecondary}"
+                        CornerRadius="8" Padding="16">
+                    <Grid>
+                        <TextBlock Text="输出"
+                                   Style="{StaticResource BodyText}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="系统默认 — WASAPI 共享"
+                                   Foreground="{StaticResource ForegroundDisabled}"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <TextBlock Text="音频输出设置将在后续版本中开放"
+                           Style="{StaticResource CaptionText}"
+                           FontStyle="Italic"
+                           Margin="0,4,0,16"/>
+
+                <TextBlock Text="音乐库"
+                           Style="{StaticResource HeaderText}"
+                           Margin="0,0,0,8"/>
+
+                <Border Background="{StaticResource BackgroundSecondary}"
+                        CornerRadius="8" Padding="16">
+                    <StackPanel>
+                        <ListBox x:Name="LibraryFoldersList"
+                                 Height="86"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               ToolTip="{Binding}"
+                                               Foreground="{StaticResource ForegroundPrimary}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    Margin="0,8,0,0">
+                            <Button Content="添加文件夹"
+                                    Padding="10,4"
+                                    Click="AddLibraryFolder_Click"/>
+                            <Button Content="移除"
+                                    Padding="10,4"
+                                    Margin="8,0,0,0"
+                                    Click="RemoveLibraryFolder_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="支持多个根目录；扫描结果按完整路径去重"
+                           Style="{StaticResource CaptionText}"
+                           FontStyle="Italic"
+                           Margin="0,4,0,16"/>
+
+                <!-- 音频可视化 (Phase 13 新增) -->
+                <TextBlock Text="音频可视化"
+                           Style="{StaticResource HeaderText}"
+                           Margin="0,0,0,8"/>
+
+                <Border Background="{StaticResource BackgroundSecondary}"
+                        CornerRadius="8" Padding="16">
+                    <StackPanel>
+                        <!-- 启用开关 -->
+                        <CheckBox x:Name="SpectrumEnabledCheckBox"
+                                  Content="启用频谱可视化"
+                                  Foreground="{StaticResource ForegroundPrimary}"
+                                  Margin="0,0,0,12"/>
+
+                        <!-- 灵敏度 -->
+                        <DockPanel Margin="0,0,0,8" LastChildFill="True">
+                            <TextBlock Text="灵敏度"
+                                       Style="{StaticResource BodyText}"
+                                       Width="80" VerticalAlignment="Center"
+                                       DockPanel.Dock="Left"/>
+                            <TextBlock x:Name="SensitivityValue"
+                                       Text="1.0"
+                                       Style="{StaticResource CaptionText}"
+                                       Width="30" TextAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       DockPanel.Dock="Right"/>
+                            <Slider x:Name="SensitivitySlider"
+                                    Minimum="0.5" Maximum="2.0"
+                                    TickFrequency="0.1" IsSnapToTickEnabled="True"
+                                    Value="1.0"
+                                    VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <!-- 颜色主题 -->
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="颜色主题"
+                                       Style="{StaticResource BodyText}"
+                                       Width="80" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="ColorThemeComboBox" SelectedIndex="0">
+                                <ComboBoxItem Content="紫色"/>
+                                <ComboBoxItem Content="蓝色"/>
+                                <ComboBoxItem Content="绿色"/>
+                                <ComboBoxItem Content="彩虹"/>
+                            </ComboBox>
+                        </DockPanel>
+
+                        <!-- 平滑度 -->
+                        <DockPanel Margin="0,0,0,0" LastChildFill="True">
+                            <TextBlock Text="平滑度"
+                                       Style="{StaticResource BodyText}"
+                                       Width="80" VerticalAlignment="Center"
+                                       DockPanel.Dock="Left"/>
+                            <TextBlock x:Name="SmoothingValue"
+                                       Text="0.80"
+                                       Style="{StaticResource CaptionText}"
+                                       Width="35" TextAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       DockPanel.Dock="Right"/>
+                            <Slider x:Name="SmoothingSlider"
+                                    Minimum="0" Maximum="0.95"
+                                    TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                    Value="0.8"
+                                    VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
-        </Border>
+        </ScrollViewer>
 
-        <TextBlock Grid.Row="2"
-                   Text="音频输出"
-                   Style="{StaticResource HeaderText}"
-                   Margin="0,0,0,8"/>
-
-        <Border Grid.Row="3"
-                Background="{StaticResource BackgroundSecondary}"
-                CornerRadius="8" Padding="16">
-            <Grid>
-                <TextBlock Text="输出"
-                           Style="{StaticResource BodyText}"
-                           VerticalAlignment="Center"/>
-                <TextBlock Text="系统默认 — WASAPI 共享"
-                           Foreground="{StaticResource ForegroundDisabled}"
-                           HorizontalAlignment="Right"
-                           VerticalAlignment="Center"/>
-            </Grid>
-        </Border>
-
-        <TextBlock Grid.Row="4"
-                   Text="音频输出设置将在后续版本中开放"
-                   Style="{StaticResource CaptionText}"
-                   FontStyle="Italic"
-                   Margin="0,4,0,16"/>
-
-        <TextBlock Grid.Row="5"
-                   Text="音乐库"
-                   Style="{StaticResource HeaderText}"
-                   Margin="0,0,0,8"/>
-
-        <Border Grid.Row="6"
-                Background="{StaticResource BackgroundSecondary}"
-                CornerRadius="8" Padding="16">
-            <StackPanel>
-                <ListBox x:Name="LibraryFoldersList"
-                         Height="86"
-                         BorderThickness="0"
-                         Background="Transparent"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}"
-                                       ToolTip="{Binding}"
-                                       Foreground="{StaticResource ForegroundPrimary}"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Right"
-                            Margin="0,8,0,0">
-                    <Button Content="添加文件夹"
-                            Padding="10,4"
-                            Click="AddLibraryFolder_Click"/>
-                    <Button Content="移除"
-                            Padding="10,4"
-                            Margin="8,0,0,0"
-                            Click="RemoveLibraryFolder_Click"/>
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
-        <TextBlock Grid.Row="7"
-                   Text="支持多个根目录；扫描结果按完整路径去重"
-                   Style="{StaticResource CaptionText}"
-                   FontStyle="Italic"
-                   Margin="0,4,0,16"/>
-
-        <!-- 音频可视化 (Phase 13 新增) -->
-        <TextBlock Grid.Row="8"
-                   Text="音频可视化"
-                   Style="{StaticResource HeaderText}"
-                   Margin="0,0,0,8"/>
-
-        <Border Grid.Row="9"
-                Background="{StaticResource BackgroundSecondary}"
-                CornerRadius="8" Padding="16">
-            <StackPanel>
-                <!-- 启用开关 -->
-                <CheckBox x:Name="SpectrumEnabledCheckBox"
-                          Content="启用频谱可视化"
-                          Foreground="{StaticResource ForegroundPrimary}"
-                          Margin="0,0,0,12"/>
-
-                <!-- 灵敏度 -->
-                <DockPanel Margin="0,0,0,8" LastChildFill="True">
-                    <TextBlock Text="灵敏度"
-                               Style="{StaticResource BodyText}"
-                               Width="80" VerticalAlignment="Center"
-                               DockPanel.Dock="Left"/>
-                    <TextBlock x:Name="SensitivityValue"
-                               Text="1.0"
-                               Style="{StaticResource CaptionText}"
-                               Width="30" TextAlignment="Right"
-                               VerticalAlignment="Center"
-                               DockPanel.Dock="Right"/>
-                    <Slider x:Name="SensitivitySlider"
-                            Minimum="0.5" Maximum="2.0"
-                            TickFrequency="0.1" IsSnapToTickEnabled="True"
-                            Value="1.0"
-                            VerticalAlignment="Center"/>
-                </DockPanel>
-
-                <!-- 颜色主题 -->
-                <DockPanel Margin="0,0,0,8">
-                    <TextBlock Text="颜色主题"
-                               Style="{StaticResource BodyText}"
-                               Width="80" VerticalAlignment="Center"/>
-                    <ComboBox x:Name="ColorThemeComboBox" SelectedIndex="0">
-                        <ComboBoxItem Content="紫色"/>
-                        <ComboBoxItem Content="蓝色"/>
-                        <ComboBoxItem Content="绿色"/>
-                        <ComboBoxItem Content="彩虹"/>
-                    </ComboBox>
-                </DockPanel>
-
-                <!-- 平滑度 -->
-                <DockPanel Margin="0,0,0,0" LastChildFill="True">
-                    <TextBlock Text="平滑度"
-                               Style="{StaticResource BodyText}"
-                               Width="80" VerticalAlignment="Center"
-                               DockPanel.Dock="Left"/>
-                    <TextBlock x:Name="SmoothingValue"
-                               Text="0.80"
-                               Style="{StaticResource CaptionText}"
-                               Width="35" TextAlignment="Right"
-                               VerticalAlignment="Center"
-                               DockPanel.Dock="Right"/>
-                    <Slider x:Name="SmoothingSlider"
-                            Minimum="0" Maximum="0.95"
-                            TickFrequency="0.05" IsSnapToTickEnabled="True"
-                            Value="0.8"
-                            VerticalAlignment="Center"/>
-                </DockPanel>
-            </StackPanel>
-        </Border>
-
-        <StackPanel Grid.Row="11"
+        <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
-                    HorizontalAlignment="Right">
+                    HorizontalAlignment="Right"
+                    Margin="20,12,20,20">
             <Button Content="取消"
                     Width="80" Height="28"
                     Margin="0,0,8,0"
@@ -214,6 +202,5 @@
                     IsDefault="True"
                     Click="Save_Click"/>
         </StackPanel>
-    </Grid>
     </Grid>
 </Window>

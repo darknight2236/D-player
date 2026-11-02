@@ -59,7 +59,7 @@ public sealed class JsonPlaylistServiceTests : IDisposable
           ],
           "CurrentPlaylistId": "p1"
         }
-        """);
+        """, TestContext.Current.CancellationToken);
 
         var loaded = await CreateService().LoadAsync();
 

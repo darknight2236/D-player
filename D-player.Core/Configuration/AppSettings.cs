@@ -15,6 +15,9 @@ public sealed record AppSettings
     /// <summary>输出模式 (预留)：WasapiShared / WasapiExclusive / Asio 等。</summary>
     public string OutputMode { get; init; } = "WasapiShared";
 
+    /// <summary>音乐库根目录（多根、递归扫描）；空数组 = 尚未配置。</summary>
+    public string[] LibraryFolders { get; init; } = Array.Empty<string>();
+
     /// <summary>用户首选输出设备 ID (预留)。</summary>
     public string? PreferredDeviceId { get; init; }
 

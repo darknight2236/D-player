@@ -67,10 +67,15 @@ public sealed class JsonPlaylistService : IPlaylistService
                 try { loaded = JsonSerializer.Deserialize<QueueState>(text, JsonOptions); }
                 catch { return Seed(); }
 
-                if (loaded is null || loaded.Playlists.Count == 0)
+                if (loaded is null)
                     return Seed();
 
-                var match = loaded.Playlists.Any(p => p.Id == loaded.CurrentPlaylistId);
+                // 只有库播放队列、没有可见歌单：保留它，不要回 Seed 把库队列丢掉。
+                if (loaded.Playlists.Count == 0)
+                    return loaded.LibraryPlayback is null ? Seed() : loaded;
+
+                var match = loaded.Playlists.Any(p => p.Id == loaded.CurrentPlaylistId)
+                    || loaded.LibraryPlayback?.Id == loaded.CurrentPlaylistId;
                 return match ? loaded : loaded with { CurrentPlaylistId = loaded.Playlists[0].Id };
             }
 

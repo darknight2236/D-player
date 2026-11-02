@@ -4,7 +4,7 @@ namespace DPlayer.Models;
 /// v3 队列持久化快照(Phase 10)。包含所有命名歌单 + "正在播放"指针。
 /// 历史: v1 仅承载单一队列, 由 JsonPlaylistService.LoadAsync 一次性迁移到 v2;
 /// v2→v3 新增 Playlist.SourceFolder, 无迁移(缺失字段反序列化为 null)。
-/// SchemaVersion 永远写 3; ViewedPlaylistId 不持久化。
+/// SchemaVersion 永远写 3; ViewedPlaylistId 不持久化; LibraryPlayback 是向后兼容的加法字段（旧文件缺失为 null）。
 /// </summary>
 public sealed record QueueState
 {
@@ -17,4 +17,7 @@ public sealed record QueueState
 
     /// <summary>全局循环模式（所有歌单共享）；v3 缺失时反序列化为 Off。</summary>
     public RepeatMode RepeatMode { get; init; }
+
+    /// <summary>库播放队列（Phase 24）；null = 尚未从库中播放过。</summary>
+    public Playlist? LibraryPlayback { get; init; }
 }

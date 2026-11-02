@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using DPlayer.Services;
@@ -41,6 +42,18 @@ public partial class LibraryView : UserControl
         {
             _ = _vm.EnsureCoverAsync(album);
         }
+    }
+
+    /// <summary>点击列表空白处（不是项、也不是滚动条）时清除选中高亮。</summary>
+    private void LibraryList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox list) return;
+
+        var source = e.OriginalSource as DependencyObject;
+        if (FindAncestor<ListBoxItem>(source) is not null) return;
+        if (FindAncestor<ScrollBar>(source) is not null) return;
+
+        list.SelectedItem = null;
     }
 
     private void Back_Click(object sender, RoutedEventArgs e) => _vm?.Back();

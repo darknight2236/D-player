@@ -23,7 +23,9 @@
 
         <!-- 专辑 tile 的选中/悬停走深色模板，并让封面与文字在网格项内居中 -->
         <Style x:Key="AlbumTileItemStyle" TargetType="ListBoxItem">
-            <Setter Property="Padding" Value="0"/>
+            <!-- Margin 在项外形成项间距；Padding 在高亮框内给封面留顶部/侧边空隙 -->
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Padding" Value="4"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -54,7 +56,7 @@
         </Style>
 
         <DataTemplate x:Key="AlbumTileTemplate">
-            <StackPanel Width="140" Margin="6,0,6,12"
+            <StackPanel Width="140"
                         HorizontalAlignment="Center"
                         Loaded="AlbumTile_Loaded">
                 <Border Width="140" Height="140"
@@ -155,7 +157,8 @@
                      Background="Transparent"
                      Visibility="{Binding IsArtistsPage, Converter={StaticResource BoolToVisibility}}"
                      MouseDoubleClick="ArtistsList_MouseDoubleClick"
-                     KeyDown="ArtistsList_KeyDown">
+                     KeyDown="ArtistsList_KeyDown"
+                     PreviewMouseLeftButtonDown="LibraryList_PreviewMouseLeftButtonDown">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="0,4">
@@ -183,7 +186,8 @@
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      Visibility="{Binding IsAlbumsPage, Converter={StaticResource BoolToVisibility}}"
                      MouseDoubleClick="AlbumsList_MouseDoubleClick"
-                     KeyDown="AlbumsList_KeyDown">
+                     KeyDown="AlbumsList_KeyDown"
+                     PreviewMouseLeftButtonDown="LibraryList_PreviewMouseLeftButtonDown">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel/>
@@ -223,7 +227,8 @@
                          Background="Transparent"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          MouseDoubleClick="ArtistAlbumsList_MouseDoubleClick"
-                         KeyDown="ArtistAlbumsList_KeyDown">
+                         KeyDown="ArtistAlbumsList_KeyDown"
+                         PreviewMouseLeftButtonDown="LibraryList_PreviewMouseLeftButtonDown">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel/>

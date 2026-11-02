@@ -170,7 +170,13 @@ public partial class MainWindow : Window
         if (e.Key == Key.OemComma && Keyboard.Modifiers == ModifierKeys.Control)
         {
             var playbackService = App.GetService<IPlaybackService>();
-            SettingsDialog.Show(this, _persistence, playbackService, _vm.Player);
+            var fileDialog = App.GetService<IFileDialogService>();
+            if (SettingsDialog.Show(
+                    this, _persistence, playbackService, _vm.Player, fileDialog))
+            {
+                // Phase 24: 库根目录可能变了 → 重新读设置并扫描
+                _ = _vm.Library.RefreshAsync();
+            }
             e.Handled = true;
         }
     }

@@ -78,8 +78,16 @@ public partial class PlayerBar : UserControl
     {
         var persistence = App.GetService<ISettingsPersistence>();
         var playbackService = App.GetService<IPlaybackService>();
+        var fileDialog = App.GetService<IFileDialogService>();
         var playerViewModel = DataContext as PlayerViewModel;
-        SettingsDialog.Show(Window.GetWindow(this), persistence, playbackService, playerViewModel);
+        if (SettingsDialog.Show(
+                Window.GetWindow(this), persistence, playbackService,
+                playerViewModel, fileDialog))
+        {
+            // Phase 24: 库根目录可能变了 → 重新读设置并扫描
+            if (Window.GetWindow(this)?.DataContext is MainViewModel main)
+                _ = main.Library.RefreshAsync();
+        }
     }
 
     /// <summary>点击 🎚 按钮打开均衡器对话框（Phase 14）。</summary>

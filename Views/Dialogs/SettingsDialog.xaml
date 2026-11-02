@@ -5,7 +5,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:controls="clr-namespace:DPlayer.Views.Controls"
         Title="设置"
-        Width="420" Height="520"
+        Width="420" Height="660"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -28,6 +28,9 @@
             <RowDefinition Height="Auto"/>  <!-- 音频输出标题 -->
             <RowDefinition Height="Auto"/>  <!-- 音频输出内容 -->
             <RowDefinition Height="Auto"/>  <!-- 音频输出说明 -->
+            <RowDefinition Height="Auto"/>  <!-- 音乐库标题 -->
+            <RowDefinition Height="Auto"/>  <!-- 音乐库内容 -->
+            <RowDefinition Height="Auto"/>  <!-- 音乐库说明 -->
             <RowDefinition Height="Auto"/>  <!-- 音频可视化标题 -->
             <RowDefinition Height="Auto"/>  <!-- 音频可视化内容 -->
             <RowDefinition Height="*"/>     <!-- 弹性空间 -->
@@ -87,13 +90,56 @@
                    FontStyle="Italic"
                    Margin="0,4,0,16"/>
 
-        <!-- 音频可视化 (Phase 13 新增) -->
         <TextBlock Grid.Row="5"
-                   Text="音频可视化"
+                   Text="音乐库"
                    Style="{StaticResource HeaderText}"
                    Margin="0,0,0,8"/>
 
         <Border Grid.Row="6"
+                Background="{StaticResource BackgroundSecondary}"
+                CornerRadius="8" Padding="16">
+            <StackPanel>
+                <ListBox x:Name="LibraryFoldersList"
+                         Height="86"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       ToolTip="{Binding}"
+                                       Foreground="{StaticResource ForegroundPrimary}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Margin="0,8,0,0">
+                    <Button Content="添加文件夹"
+                            Padding="10,4"
+                            Click="AddLibraryFolder_Click"/>
+                    <Button Content="移除"
+                            Padding="10,4"
+                            Margin="8,0,0,0"
+                            Click="RemoveLibraryFolder_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="7"
+                   Text="支持多个根目录；扫描结果按完整路径去重"
+                   Style="{StaticResource CaptionText}"
+                   FontStyle="Italic"
+                   Margin="0,4,0,16"/>
+
+        <!-- 音频可视化 (Phase 13 新增) -->
+        <TextBlock Grid.Row="8"
+                   Text="音频可视化"
+                   Style="{StaticResource HeaderText}"
+                   Margin="0,0,0,8"/>
+
+        <Border Grid.Row="9"
                 Background="{StaticResource BackgroundSecondary}"
                 CornerRadius="8" Padding="16">
             <StackPanel>
@@ -156,7 +202,7 @@
             </StackPanel>
         </Border>
 
-        <StackPanel Grid.Row="8"
+        <StackPanel Grid.Row="11"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button Content="取消"

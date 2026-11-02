@@ -59,6 +59,9 @@ public class PlaylistsViewModelTests
     private static Track FallbackTrack(string path) =>
         new(path, System.IO.Path.GetFileName(path), null, null, null, null, null, null, TimeSpan.Zero, null);
 
+    private static Track TrackWith(string path) =>
+        new(path, System.IO.Path.GetFileName(path), null, null, null, null, null, null, TimeSpan.Zero, null);
+
     // —— Hydrate / BuildSnapshot ——
 
     [Fact]
@@ -718,5 +721,179 @@ public class PlaylistsViewModelTests
         Assert.Equal(1, report!.Imported);
         Assert.Equal("y", container.Playlists[0].Name);
         await _fileDialog.DidNotReceive().OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    // —— Phase 24: 库播放队列 ——
+
+    [Fact]
+    public async Task PlayLibraryTracksAsync_CreatesHiddenQueue_AndSetsCurrent()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1",
+        });
+        var viewed = container.ViewedPlaylist;
+        _metadataReader.ReadAsync(Arg.Any<string>())
+            .Returns(ci => Task.FromResult(TrackWith(ci.ArgAt<string>(0))));
+
+        var tracks = new[] { TrackWith("lib1.mp3"), TrackWith("lib2.mp3") };
+        await container.PlayLibraryTracksAsync(tracks, 1, "Album X");
+
+        Assert.Single(container.Playlists); // 库队列不在可见歌单集合里
+        Assert.NotNull(container.LibraryPlayback);
+        Assert.Equal(PlaylistsViewModel.LibraryPlaybackId, container.LibraryPlayback!.Id);
+        Assert.Equal("Album X", container.LibraryPlayback.Name);
+        Assert.Same(container.LibraryPlayback, container.CurrentPlaylist);
+        Assert.Equal(PlaylistsViewModel.LibraryPlaybackId, container.CurrentPlaylistId);
+        Assert.True(container.LibraryPlayback.IsActivePlaylist);
+        Assert.True(container.IsLibraryPlaybackActive);
+        Assert.Same(viewed, container.ViewedPlaylist);
+        await _player.Received(1).LoadAsync(Arg.Is<Track>(t => t.FilePath == "lib2.mp3"));
+        _player.Received(1).Play();
+    }
+
+    [Fact]
+    public void Hydrate_RestoresLibraryPlayback_WithoutReadingTags()
+    {
+        var temp = System.IO.Path.GetTempFileName();
+        try
+        {
+            var container = CreateContainerVm();
+            var libraryPlayback = new Playlist(
+                PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+                new[] { temp }, 0, false, RepeatMode.Off);
+
+            container.Hydrate(new QueueState
+            {
+                Playlists = new[]
+                {
+                    new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+                },
+                CurrentPlaylistId = libraryPlayback.Id,
+                LibraryPlayback = libraryPlayback,
+            });
+
+            Assert.NotNull(container.LibraryPlayback);
+            Assert.Equal(libraryPlayback.Id, container.CurrentPlaylistId);
+            Assert.Same(container.LibraryPlayback, container.CurrentPlaylist);
+            Assert.Equal("id1", container.ViewedPlaylist?.Id);
+            Assert.DoesNotContain(container.LibraryPlayback!, container.Playlists);
+            _metadataReader.DidNotReceive().ReadAsync(Arg.Any<string>());
+        }
+        finally
+        {
+            System.IO.File.Delete(temp);
+        }
+    }
+
+    [Fact]
+    public void BuildSnapshot_IncludesLibraryPlayback()
+    {
+        var container = CreateContainerVm();
+        var libraryPlayback = new Playlist(
+            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+            Array.Empty<string>(), -1, false, RepeatMode.Off);
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1",
+            LibraryPlayback = libraryPlayback,
+        });
+
+        var snapshot = container.BuildSnapshot();
+
+        Assert.NotNull(snapshot.LibraryPlayback);
+        Assert.Equal(PlaylistsViewModel.LibraryPlaybackId, snapshot.LibraryPlayback!.Id);
+    }
+
+    [Fact]
+    public void FindPlaylistTrackByPath_FindsLibraryPlaybackTrack()
+    {
+        var container = CreateContainerVm();
+        var libraryPlayback = new Playlist(
+            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+            Array.Empty<string>(), -1, false, RepeatMode.Off);
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1",
+            LibraryPlayback = libraryPlayback,
+        });
+        container.LibraryPlayback!.Queue.Add(TrackWith("lib.mp3"));
+
+        var found = container.FindPlaylistTrackByPath("lib.mp3");
+
+        Assert.NotNull(found);
+        Assert.Same(container.LibraryPlayback, found.Value.Playlist);
+    }
+
+    [Fact]
+    public void ApplyCachedMetadataToLibraryPlayback_ReplacesFallbackTracks()
+    {
+        var container = CreateContainerVm();
+        var libraryPlayback = new Playlist(
+            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+            Array.Empty<string>(), -1, false, RepeatMode.Off);
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1",
+            LibraryPlayback = libraryPlayback,
+        });
+        container.LibraryPlayback!.Queue.Add(TrackWith("lib.mp3"));
+        container.LibraryPlayback.CurrentIndex = 0;
+        var entries = new Dictionary<string, LibraryCacheEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["lib.mp3"] = new("lib.mp3", "Real Title", "Artist", "Album", null,
+                2020, TimeSpan.FromMinutes(3), 44100, 1),
+        };
+
+        container.ApplyCachedMetadataToLibraryPlayback(entries);
+
+        var track = Assert.Single(container.LibraryPlayback.Queue);
+        Assert.Equal("Real Title", track.Title);
+        Assert.Equal("Artist", track.Artist);
+        Assert.Equal(1, track.TrackNumber);
+        Assert.Equal(0, container.LibraryPlayback.CurrentIndex);
+    }
+
+    [Fact]
+    public void RemoveLastPlaylist_WhenLibraryPlaybackIsCurrent_KeepsLibraryPointer()
+    {
+        var container = CreateContainerVm();
+        var libraryPlayback = new Playlist(
+            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+            Array.Empty<string>(), -1, false, RepeatMode.Off);
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = libraryPlayback.Id,
+            LibraryPlayback = libraryPlayback,
+        });
+
+        container.RemovePlaylistCommand.Execute(container.Playlists[0]);
+
+        Assert.Single(container.Playlists);
+        Assert.Equal("默认歌单", container.Playlists[0].Name);
+        Assert.Equal(PlaylistsViewModel.LibraryPlaybackId, container.CurrentPlaylistId);
+        Assert.True(container.IsLibraryPlaybackActive);
+        Assert.Equal("默认歌单", container.ViewedPlaylist?.Name);
     }
 }

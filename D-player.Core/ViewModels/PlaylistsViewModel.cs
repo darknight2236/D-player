@@ -26,6 +26,11 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private readonly IPlaylistFileService _playlistFiles;
     private readonly SynchronizationContext _syncContext;
 
+    private PlaylistViewModel? _libraryPlayback;
+
+    /// <summary>库播放队列的保留 Id；不在可见歌单集合中。</summary>
+    public const string LibraryPlaybackId = "__library-playback__";
+
     public ObservableCollection<PlaylistViewModel> Playlists { get; } = new();
 
     [ObservableProperty]
@@ -37,13 +42,23 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     [ObservableProperty]
     private string _currentPlaylistId = string.Empty;
 
+    /// <summary>库播放队列；未从库中播放过时为 null。</summary>
+    public PlaylistViewModel? LibraryPlayback => _libraryPlayback;
+
+    /// <summary>库播放队列是否正在出声（侧栏 ▶ 标记用）。</summary>
+    public bool IsLibraryPlaybackActive =>
+        _libraryPlayback is not null && CurrentPlaylistId == _libraryPlayback.Id;
+
     /// <summary>
     /// 当前正在播放的歌单 VM；由 <see cref="CurrentPlaylistId"/> 解析，找不到为 null。
     /// 传输按钮（上一首/下一首）绑定这里，**不绑** ViewedPlaylist ——
     /// 切换查看不打断播放，只有双击才跨歌单切换音频（Spotify 双指针模型）。
+    /// 库播放队列当前时返回它（它不在可见歌单集合里）。
     /// </summary>
     public PlaylistViewModel? CurrentPlaylist =>
-        Playlists.FirstOrDefault(p => p.Id == CurrentPlaylistId);
+        _libraryPlayback?.Id == CurrentPlaylistId
+            ? _libraryPlayback
+            : Playlists.FirstOrDefault(p => p.Id == CurrentPlaylistId);
 
     // —— 全局播放模式（所有歌单共享） ——
 
@@ -95,6 +110,12 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
+        if (_libraryPlayback is not null)
+        {
+            UnhookPlaylistVm(_libraryPlayback);
+            _libraryPlayback = null;
+        }
+
         foreach (var vm in Playlists)
             UnhookPlaylistVm(vm);
         Playlists.Clear();
@@ -112,14 +133,24 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             Playlists.Add(vm);
         }
 
+        // 库播放队列：不在可见歌单集合里，也不读标签（启动时由库缓存回填）。
+        if (snapshot.LibraryPlayback is { } libraryPlayback)
+        {
+            var libraryVm = _factory(libraryPlayback);
+            HookPlaylistVm(libraryVm);
+            _libraryPlayback = libraryVm;
+        }
+
         // CurrentPlaylistId: 取持久化值, 但若指向已不存在的歌单则修正到第一个。
-        var matchId = Playlists.Any(p => p.Id == snapshot.CurrentPlaylistId)
-            ? snapshot.CurrentPlaylistId
-            : (Playlists.Count > 0 ? Playlists[0].Id : string.Empty);
+        var matchId =
+            _libraryPlayback?.Id == snapshot.CurrentPlaylistId ||
+            Playlists.Any(p => p.Id == snapshot.CurrentPlaylistId)
+                ? snapshot.CurrentPlaylistId
+                : (Playlists.Count > 0 ? Playlists[0].Id : string.Empty);
         CurrentPlaylistId = matchId;
 
-        // ViewedPlaylist 不持久化, 默认对齐 CurrentPlaylistId。
-        ViewedPlaylist = Playlists.FirstOrDefault(p => p.Id == matchId);
+        // ViewedPlaylist 永远只指向可见歌单；库队列当前时回落到第一个可见歌单。
+        ViewedPlaylist = Playlists.FirstOrDefault(p => p.Id == matchId) ?? Playlists.FirstOrDefault();
 
         // 全局 Shuffle/Repeat
         ShuffleEnabled = snapshot.ShuffleEnabled;
@@ -148,7 +179,62 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             if (FindIn(vm, filePath) is { } track)
                 return (vm, track);
         }
+
+        if (_libraryPlayback is not null &&
+            !ReferenceEquals(_libraryPlayback, current) &&
+            FindIn(_libraryPlayback, filePath) is { } libraryTrack)
+        {
+            return (_libraryPlayback, libraryTrack);
+        }
         return null;
+    }
+
+    /// <summary>
+    /// 从库中播放：懒创建专用队列，替换内容并启动播放。
+    /// 不修改 ViewedPlaylist —— 用户仍停留在库视图。
+    /// </summary>
+    public async Task PlayLibraryTracksAsync(
+        IReadOnlyList<Track> tracks, int startIndex, string contextName)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+        if (tracks.Count == 0) return;
+
+        if (_libraryPlayback is null)
+        {
+            var seed = new Playlist(
+                LibraryPlaybackId, "音乐库播放", Array.Empty<string>(), -1, false, RepeatMode.Off);
+            _libraryPlayback = _factory(seed);
+            HookPlaylistVm(_libraryPlayback);
+        }
+
+        _libraryPlayback.Name = string.IsNullOrWhiteSpace(contextName)
+            ? "音乐库播放"
+            : contextName;
+
+        _libraryPlayback.Queue.Clear();
+        foreach (var track in tracks)
+            _libraryPlayback.Queue.Add(track);
+
+        var index = Math.Clamp(startIndex, 0, tracks.Count - 1);
+        await _libraryPlayback.PlayTrackAtCommand.ExecuteAsync(index).ConfigureAwait(true);
+        OnPropertyChanged(nameof(IsLibraryPlaybackActive));
+    }
+
+    /// <summary>启动时用库缓存回填库播放队列，避免逐首读标签。</summary>
+    public void ApplyCachedMetadataToLibraryPlayback(
+        IReadOnlyDictionary<string, LibraryCacheEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        if (_libraryPlayback is null || entries.Count == 0) return;
+
+        for (int i = 0; i < _libraryPlayback.Queue.Count; i++)
+        {
+            var old = _libraryPlayback.Queue[i];
+            if (!entries.TryGetValue(old.FilePath, out var entry)) continue;
+            _libraryPlayback.Queue[i] = new Track(
+                entry.FilePath, entry.Title, entry.Artist, entry.Album, entry.Genre,
+                entry.Year, entry.SampleRate, null, entry.Duration, entry.TrackNumber);
+        }
     }
 
     /// <summary>
@@ -160,6 +246,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         CurrentPlaylistId = CurrentPlaylistId,
         ShuffleEnabled = ShuffleEnabled,
         RepeatMode = RepeatMode,
+        LibraryPlayback = _libraryPlayback?.ToRecord(),
     };
 
     /// <summary>
@@ -223,7 +310,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             var rebuilt = _factory(defaultSeed);
             HookPlaylistVm(rebuilt);
             Playlists.Add(rebuilt);
-            CurrentPlaylistId = rebuilt.Id;
+            if (!IsLibraryPlaybackActive)
+                CurrentPlaylistId = rebuilt.Id;
             ViewedPlaylist = rebuilt;
             return;
         }
@@ -303,6 +391,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         RecomputeIsActiveFlags();
         OnPropertyChanged(nameof(CurrentPlaylist));
+        OnPropertyChanged(nameof(IsLibraryPlaybackActive));
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -310,6 +399,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     {
         foreach (var vm in Playlists)
             vm.IsActivePlaylist = vm.Id == CurrentPlaylistId;
+        if (_libraryPlayback is not null)
+            _libraryPlayback.IsActivePlaylist = _libraryPlayback.Id == CurrentPlaylistId;
     }
 
     private void HookPlaylistVm(PlaylistViewModel vm)

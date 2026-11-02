@@ -763,8 +763,17 @@ public class PlaylistsViewModelTests
         var temp = System.IO.Path.GetTempFileName();
         try
         {
-            // 必须走公共 ctor（真实 _metadataReader），否则 DidNotReceive 无法发现回归。
-            var container = CreateContainerVmWithMocks();
+            // 工厂必须保留 seed.Items：否则两个队列都是空的，Hydrate 的元数据循环无事可做，
+            // DidNotReceive 就无法发现"库队列也去读标签"这类回归。
+            // 同时必须注入测试的 _metadataReader 替身，否则真实读调用不可观测。
+            _metadataReader.CreateFallback(Arg.Any<string>())
+                .Returns(ci => TrackWith(ci.ArgAt<string>(0)));
+            var container = new PlaylistsViewModel(
+                seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+                _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles);
+
+            // 可见歌单为空队列：它的普通元数据加载本来就读不到东西。
+            // 库队列含 1 个真实存在的临时文件：元数据循环若有会被调用，必然读到这里。
             var libraryPlayback = new Playlist(
                 PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
                 new[] { temp }, 0, false, RepeatMode.Off);
@@ -780,6 +789,9 @@ public class PlaylistsViewModelTests
             });
 
             Assert.NotNull(container.LibraryPlayback);
+            // 队列真的有 1 项 —— 证明元数据循环"有东西可迭代"，本测试才有判别力。
+            var restored = Assert.Single(container.LibraryPlayback!.Queue);
+            Assert.Equal(temp, restored.FilePath);
             Assert.Equal(libraryPlayback.Id, container.CurrentPlaylistId);
             Assert.Same(container.LibraryPlayback, container.CurrentPlaylist);
             Assert.Equal("id1", container.ViewedPlaylist?.Id);

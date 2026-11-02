@@ -61,6 +61,7 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<ITrackMetadataReader>(),
                 sp.GetRequiredService<IPlaylistFileService>()));
         services.AddSingleton<PlaylistsViewModel>();
+        services.AddSingleton<LibraryViewModel>();
         services.AddTransient<MainViewModel>();
 
         return services;

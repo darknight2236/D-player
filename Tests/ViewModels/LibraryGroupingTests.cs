@@ -14,7 +14,7 @@ public sealed class LibraryGroupingTests
             TimeSpan.FromMinutes(3), number);
 
     [Fact]
-    public void Build_GroupsByAlbumAndArtist_AndOrdersTracksByNumber()
+    public void Build_GroupsByAlbumFolder_AndOrdersTracksByNumber()
     {
         var result = LibraryGrouping.Build(new[]
         {
@@ -44,15 +44,45 @@ public sealed class LibraryGroupingTests
     }
 
     [Fact]
-    public void Build_SameAlbumTitleDifferentArtist_StaysSeparate()
+    public void Build_SameAlbumTitleInDifferentFolders_StaysSeparate()
     {
         var result = LibraryGrouping.Build(new[]
         {
-            T(@"C:\Music\a.mp3", "A", "Artist A", "Greatest Hits"),
-            T(@"C:\Music\b.mp3", "B", "Artist B", "Greatest Hits"),
+            T(@"C:\Music\ArtistA\a.mp3", "A", "Artist A", "Greatest Hits"),
+            T(@"C:\Music\ArtistB\b.mp3", "B", "Artist B", "Greatest Hits"),
         });
 
         Assert.Equal(2, result.Albums.Count);
+        Assert.All(result.Albums, album => Assert.Equal("Greatest Hits", album.Title));
+    }
+
+    /// <summary>
+    /// 合辑：同一文件夹、同一专辑名、逐曲 Artist 不同，必须合并成一张专辑；
+    /// 每个贡献艺术家仍要有自己的艺术家页，并在这张专辑下看到它。
+    /// 这正是 AlbumArtist 缺失时被 (Album, Artist) 键拆开的案例。
+    /// </summary>
+    [Fact]
+    public void Build_CompilationInOneFolder_MergesAndKeepsContributingArtists()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Artist\Compilation\01.flac", "T1", "Artist A", "Compilation", 1),
+            T(@"C:\Music\Artist\Compilation\02.flac", "T2", "Artist B", "Compilation", 2),
+            T(@"C:\Music\Artist\Compilation\03.flac", "T3", "Artist C", "Compilation", 3),
+        });
+
+        var album = Assert.Single(result.Albums);
+        Assert.Equal("Compilation", album.Title);
+        Assert.Equal("多位艺术家", album.Artist);
+        Assert.Equal(new[] { "T1", "T2", "T3" }, album.Tracks.Select(t => t.Title));
+
+        Assert.Equal(3, result.Artists.Count);
+        foreach (var artist in result.Artists)
+        {
+            Assert.Equal(1, artist.AlbumCount);
+            Assert.Equal(1, artist.TrackCount);
+            Assert.Same(album, Assert.Single(artist.Albums));
+        }
     }
 
     [Fact]

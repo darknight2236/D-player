@@ -78,7 +78,7 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：215 通过 0 失败（默认排除真实音频集成）
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：216 通过 0 失败（默认排除真实音频集成）
 dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实 WASAPI 集成测试（需音频设备）
 dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 ```
@@ -95,7 +95,7 @@ dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q   # 门
 - **三条一起跑的脚本（推荐，会逐步 fail-fast）**：
 
 ```bash
-powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（215，默认排除音频）
+powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（216，默认排除音频）
 powershell -File tools/verify-gates.ps1 -Full   # = 门禁 1 + 门禁 2 + 门禁 3
 powershell -File tools/verify-gates.ps1 -Full -Audio   # 再加 5 条真实音频集成测试
 ```
@@ -129,14 +129,14 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 ```bash
 # xunit v3 的测试工程是可执行程序，runner 是 Microsoft.Testing.Platform（MTP）
 dotnet run --project Tests/D-player.Tests.csproj -c Debug   # 直接跑可执行程序
-dotnet test D-player.slnf -c Debug                          # 同一 runner 的裸命令（跑全量 220）；门禁 2 用上面的 filter 排除音频
+dotnet test D-player.slnf -c Debug                          # 同一 runner 的裸命令（跑全量 221）；门禁 2 用上面的 filter 排除音频
 ```
 
 两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
-当前共 **220** 个测试（**215 默认 + 5 真实音频集成**；Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。Phase 24 新增库相关用例：`LibraryViewModelTests`(11) / `LibraryGroupingTests`(5) / `LibraryPathNormalizerTests`(4) / `JsonPlaylistServiceTests`(3) / `JsonSettingsPersistenceTests`(2)，并扩充了 `PlaylistsViewModelTests`(+7)、`PlaybackResumeTests`(+3)、`LibraryScannerServiceTests`(+4)，`AddDPlayerCoreTests` 在同一个用例里加了 `LibraryViewModel` 解析断言（用例数不变）。**这 220 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
+当前共 **221** 个测试（**216 默认 + 5 真实音频集成**；Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。Phase 24 新增库相关用例：`LibraryViewModelTests`(11) / `LibraryGroupingTests`(6) / `LibraryPathNormalizerTests`(4) / `JsonPlaylistServiceTests`(3) / `JsonSettingsPersistenceTests`(2)，并扩充了 `PlaylistsViewModelTests`(+7)、`PlaybackResumeTests`(+3)、`LibraryScannerServiceTests`(+4)，`AddDPlayerCoreTests` 在同一个用例里加了 `LibraryViewModel` 解析断言（用例数不变）。**这 221 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
 
-> **测试过滤实测（2026-11-02，Phase 24 收尾复跑）**：无过滤 **220**；`--filter "Category!=AudioDevice"` **215**（默认门禁，**不需要**音频设备，跑 1.7s）；`--filter "Category=AudioDevice"` **5**（真实 WASAPI，3.9s）。三者互差正好 5 条，说明当前 MTP/xunit.v3 下否定过滤器确实生效。验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试、215 条里含 5 条设备测试"），本次两次实跑均未复现；文档计数以实测为准：**总数 220 = 215 默认 + 5 音频**。需要覆盖真实输出路径时用 `powershell -File tools/verify-gates.ps1 -Full -Audio`。
+> **测试过滤实测（2026-11-02，Phase 24 收尾复跑）**：无过滤 **221**；`--filter "Category!=AudioDevice"` **216**（默认门禁，**不需要**音频设备）；`--filter "Category=AudioDevice"` **5**（真实 WASAPI）。三者互差正好 5 条，说明当前 MTP/xunit.v3 下否定过滤器确实生效。验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试、215 条里含 5 条设备测试"），本次两次实跑均未复现；文档计数以实测为准：**总数 221 = 216 默认 + 5 音频**。合辑分组修复（2026-11-02 验收后）新增 1 条分组测试，故比初始验收的 220/215 各多 1。需要覆盖真实输出路径时用 `powershell -File tools/verify-gates.ps1 -Full -Audio`。
 
 ---
 
@@ -245,7 +245,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 - 多设备 / 输出模式切换（WASAPI Exclusive / ASIO）接口已预留、尚未实现。
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件里的网络流条目（http:// 等）导入时计入"格式不支持"跳过，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略（标题与时长只信音频文件）。
-- 音乐库按 `(Album, Artist)` 分组，未引入 `AlbumArtist`；合辑/原声带可能被拆成多张专辑。
+- 音乐库按 `(Album, 所在文件夹)` 识别专辑；同一文件夹内逐曲 Artist 不同的合辑会合并成一张，贡献艺术家仍保留自己的艺术家页。多碟专辑若分在 `Disc 1`/`Disc 2` 子文件夹仍可能拆开；同文件夹内同名的不同专辑（罕见）会合并。
 - 音乐库不做搜索、不做文件系统实时监听（变化在启动/手动刷新/设置保存后生效）；库播放队列没有独立管理界面，也不出现在侧栏。
 - 音乐库的专辑封面只读该专辑第一首曲目的内嵌图；专辑网格未做 UI 虚拟化，大库首次进入专辑页可能较慢。
 - 进入库视图会清空当前查看的歌单（`ViewedPlaylist`）：库视图打开期间侧栏 `−` 按钮与 PlayerBar ▶ 回落不可用，要回到队列视图需点选一个可见歌单。

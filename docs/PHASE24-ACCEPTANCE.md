@@ -39,7 +39,7 @@ powershell -File tools/verify-gates.ps1 -Full
 | 门禁 | 命令 | 实际结果 |
 |---|---|---|
 | 门禁 1/3 | `dotnet build D-player.slnf -c Debug --nologo -v q` | 0 警告 / 0 错误 |
-| 门禁 2/3 | `dotnet test D-player.slnf -c Debug -v q --filter Category!=AudioDevice` | **总计 215 / 成功 215 / 失败 0 / 跳过 0** |
+| 门禁 2/3 | `dotnet test D-player.slnf -c Debug -v q --filter Category!=AudioDevice` | **总计 216 / 成功 216 / 失败 0 / 跳过 0**（初始验收 215；合辑修复 +1 后复跑） |
 | 门禁 3/3 | `dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q` | 0 警告 / 0 错误 |
 
 本记录只记计数与退出状态：构建/测试耗时随机器与缓存状态变化，不复述秒数。
@@ -56,12 +56,12 @@ dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"   # 总�
 
 | 命令 | 总计 | 说明 |
 |---|---|---|
-| `dotnet test D-player.slnf -c Debug -v q`（无过滤） | **220** | 212 个 `[Fact]` + 1 个 `[Theory]` 展开的 8 条 `[InlineData]` |
-| `... --filter "Category!=AudioDevice"`（门禁 2） | **215** | 默认门禁口径 |
+| `dotnet test D-player.slnf -c Debug -v q`（无过滤） | **221** | 213 个 `[Fact]` + 1 个 `[Theory]` 展开的 8 条 `[InlineData]`（初始 220；合辑修复 +1） |
+| `... --filter "Category!=AudioDevice"`（门禁 2） | **216** | 默认门禁口径（初始 215） |
 | `... --filter "Category=AudioDevice"` | **5** | 真实 WASAPI 集成（`NAudioPlaybackServiceConcurrencyTests` 3 + `NAudioPlaybackServiceStopSemanticsTests` 2，均 `[Trait("Category","AudioDevice")]` + `[Collection("AudioDevice")]`） |
 
-- 三者互差正好 5 条，说明**本次运行中否定过滤器确实排除了音频测试**：默认门禁 215 不需要音频设备，需要覆盖真实输出路径时用 `verify-gates.ps1 -Audio` 追加 5 条。
-- 验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试，215 条里含 5 条设备测试"）。本任务两次独立实跑（上面的单项命令 + `-Full` 的门禁 2）均**未复现**；记录在此以免后人把 215 误解成"含音频测试"。文档的计数以本表实测为准：**总数 220 = 215 默认 + 5 音频**。
+- 三者互差正好 5 条，说明**本次运行中否定过滤器确实排除了音频测试**：默认门禁 216 不需要音频设备，需要覆盖真实输出路径时用 `verify-gates.ps1 -Audio` 追加 5 条。
+- 验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试，215 条里含 5 条设备测试"）。本任务两次独立实跑（上面的单项命令 + `-Full` 的门禁 2）均**未复现**；记录在此以免后人把 216 误解成"含音频测试"。文档的计数以本表实测为准：**总数 221 = 216 默认 + 5 音频**（初始验收为 220/215；合辑分组修复新增 1 条测试）。
 - MTP 纪律照旧：两条 `dotnet test` 命令都**不能**加 `--nologo`（加上后一条测试都不跑，摘要却打印成功、退出码 5）。
 
 ## 验收环境与数据
@@ -92,7 +92,7 @@ dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"   # 总�
 
 | 项 | 状态 | 覆盖情况 |
 |---|---|---|
-| 艺术家详情的 `播放全部` / 艺术家范围双击曲目 | NOT SEPARATELY WALKED | 与专辑详情共用同一播放方法（`LibraryViewModel` → `PlaylistsViewModel.PlayLibraryTracksAsync`），分组与"艺术家全部曲目"由 `LibraryViewModelTests` / `LibraryGroupingTests` 覆盖 |
+| 艺术家详情的 `播放全部` / 艺术家范围双击曲目 | NOT SEPARATELY WALKED | 与专辑详情共用同一播放方法（`LibraryViewModel` → `PlaylistsViewModel.PlayLibraryTracksAsync`），分组、合辑贡献艺术家与"艺术家全部曲目"由 `LibraryViewModelTests` / `LibraryGroupingTests` 覆盖 |
 | 窄窗口布局（侧栏/库视图不重叠、可滚动） | NOT SEPARATELY WALKED | 走查窗口为标准尺寸；布局为既有 5 列 Grid + `WrapPanel`，无新隔离容器 |
 | 侧栏歌单拖拽重排回归 | NOT SEPARATELY WALKED | 库队列不在 `Playlists` 集合内，拖拽索引映射未变；拖拽会重写 `queue.json`，本次按"不改用户数据"原则未动 |
 | 不可用根目录（手动路径） | NOT SEPARATELY WALKED（GUI） | `ScanFolderWithStatus` 的不可用判定与"跳过而非当空扫描"由单测覆盖（`LibraryScannerServiceTests` / `LibraryViewModelTests`），GUI 未构造无权限/离线根 |
@@ -101,7 +101,8 @@ dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"   # 总�
 
 ## 已知限制（与设计 §9 一致）
 
-- 专辑按 `(Album, Artist)` 分组；**未引入 `AlbumArtist`**，合辑/原声带可能被拆成多张专辑。后续要修需缓存 schema 迁移，本轮刻意不做。
+- 专辑身份 = `(Album, 所在文件夹)`；同一文件夹内逐曲 Artist 不同的合辑会合并成一张，贡献艺术家仍保留自己的艺术家页（2026-11-02 合辑修复，见下节）。
+- 多碟专辑若分在 `Disc 1`/`Disc 2` 子文件夹仍可能拆开；同文件夹内同名的不同专辑（罕见）会合并。未引入 `AlbumArtist`，也不需要缓存 schema 迁移。
 - 不做搜索；库很大时只能滚动浏览。
 - 不做文件系统实时监听；库变化在启动、手动刷新、设置保存后生效。
 - 专辑封面只读该专辑第一首曲目的内嵌图；封面只在后续曲目时显示占位。
@@ -109,6 +110,14 @@ dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"   # 总�
 - 专辑封面网格未做 UI 虚拟化（`WrapPanel`），大库首次进入专辑页会逐张惰性读封面，首屏可能较慢。
 - 库视图页签不持久化：重启后回到队列视图（库播放队列仍按 `CurrentPlaylistId` 恢复）。
 - 进入库视图会清空 `ViewedPlaylist`：库视图打开期间侧栏 `−` 按钮与 PlayerBar ▶ 回落不可用，要回到队列视图需点选一个可见歌单。
+
+## 2026-11-02 合辑分组修复（验收后追加）
+
+- **现象**：用户截图中的一个合辑：16 首在同一个文件夹，逐曲 `Artist` 有 10 个不同值，`AlbumArtist` 也逐曲不同；原 `(Album, Artist)` 专辑键把它拆成多张同名专辑（文档不记录真实名称）。
+- **修复**：专辑身份改为 `(Album, 所在文件夹)`；专辑显示艺术家在曲目 Artist 不一致时为「多位艺术家」；艺术家列表按逐曲 `Track.Artist` 独立建，合辑的每位贡献者仍保留自己的艺术家页并能看到这张专辑。无需改 `Track` 或缓存 schema；重启或刷新后按新规则重新分组。
+- **测试**：新增 `LibraryGroupingTests.Build_CompilationInOneFolder_MergesAndKeepsContributingArtists`，并把同名不同文件夹的用例改为分开的回归保护；`-Full` 门禁 3/3，默认 **216** / 音频 **5** / 总计 **221** / 0 失败。
+- **已知限制**：多碟专辑若分在 `Disc 1`/`Disc 2` 子文件夹仍可能拆开；同文件夹内同名的不同专辑（罕见）会合并。
+- 本次修复未重扫或改写用户曲库；用户数据仍按上文备份/还原。
 
 ## 数据还原与副作用
 

@@ -557,9 +557,9 @@ public Task CleanupAsync();
 
 构造由 DI 注入 `(PlayerViewModel, PlaylistsViewModel, LibraryViewModel, IPlaybackService, IPlaylistService, ISettingsPersistence)`。`InitializeAsync` 顺序固定：读 queue.json → `Hydrate`（含库播放队列）→ 订阅 `StateChanged` → `Library.InitializeAsync()` + `ApplyCachedMetadataToLibraryPlayback`（失败只留空库，不影响后续）→ 断点续播就位 → 两路后台扫描（文件夹歌单 + 音乐库）。debounce save 500ms 仍集中在本类（`StateChanged` → `ScheduleSave` → `SaveAfterDelayAsync`）。
 
-`CleanupAsync()` 顺序固定：解绑 `StateChanged` → 取消 debounce → flush in-flight save → 同步 `BuildSnapshot` + `SaveAsync` → 遍历所有 `PlaylistVM.Cleanup()` → `await Player.CleanupAsync()` → `_player.Dispose()`。**必须先解绑后 Dispose**，避免事件 handler 在底层资源销毁后被回调。
+`CleanupAsync()` 顺序固定：`Library.Cleanup()`（第一步，取消后台扫描与封面队列）→ 解绑 `StateChanged` → 取消 debounce → flush in-flight save → 同步 `BuildSnapshot` + `SaveAsync` → 遍历所有可见歌单 `PlaylistVM.Cleanup()` → `Playlists.LibraryPlayback?.Cleanup()`（隐藏库队列单独一行，与可见歌单同样解绑 `TrackEnded` 订阅）→ `await Player.CleanupAsync()` → `_player.Dispose()`。**必须先解绑后 Dispose**，避免事件 handler 在底层资源销毁后被回调。
 
-**架构不变量（COUPLING.md §5）：** `PlayerViewModel` 与 `PlaylistViewModel` **互不持引用**，仅共享 `IPlaybackService` Singleton；本 Facade 不暴露 Player/Playlists/InitializeAsync/CleanupAsync 之外的任何成员（否则倒退为"转发 Facade"反模式）。
+**架构不变量（COUPLING.md §5）：** `PlayerViewModel` 与 `PlaylistViewModel` **互不持引用**，仅共享 `IPlaybackService` Singleton；本 Facade **不转发子 VM 的成员**，公开面只允许三类：(1) 子 VM 本体 `Player` / `Playlists` / `Library`；(2) 本类自己的生命周期 `InitializeAsync` / `CleanupAsync`；(3) 本类自己持有的壳级状态及其入口 `IsLibraryViewActive` / `ShowLibrary` / `ShowPlaylist`（导航状态存在 `MainViewModel`，不写进任何子 VM、也不从子 VM 读取）。在此之外再加成员——尤其是把子 VM 的属性/命令转出来——就倒退为"转发 Facade"反模式。
 
 ### 5.4a `ViewModels/PlayerViewModel`（Transport 子 VM，~320 行）
 
@@ -1195,7 +1195,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - Phase 21 验收：[`docs/PHASE21-ACCEPTANCE.md`](./PHASE21-ACCEPTANCE.md) — WinUI 视觉与交互打磨，23 项全部通过（2026-10-08）；起窗崩溃 `0xC0000005` 已在 `bba9ad4` 修复并验证
 - Phase 22 验收：[`docs/PHASE22-ACCEPTANCE.md`](./PHASE22-ACCEPTANCE.md) — WinUI 功能补齐，23 项全部 PASS；文末附交付后修正记录（TrackEnded 竞态、快赢切片、折叠钮统一回各自栏头、底栏精简、滑块提示格式化、窄窗悬停音量弹层）
 - Phase 23 验收：[`docs/PHASE23-ACCEPTANCE.md`](./PHASE23-ACCEPTANCE.md) — WinUI 频谱/EQ；2026-11-02 用户确认 B、C 组全部通过并完成 A/B 组仪器化复验
-- Phase 24 验收：[`docs/PHASE24-ACCEPTANCE.md`](./PHASE24-ACCEPTANCE.md) — Core + WPF 音乐库视图；9 项实测 PASS、5 项未单独走查（证据边界）、门禁 3/3（215 测试）；含数据还原与测试过滤实测说明
+- Phase 24 验收：[`docs/PHASE24-ACCEPTANCE.md`](./PHASE24-ACCEPTANCE.md) — Core + WPF 音乐库视图；9 项实测 PASS、6 项未单独走查（证据边界，含库上下文 Shuffle/Repeat）、门禁 3/3（215 测试）；含数据还原与测试过滤实测说明
 - 设计稿：
   - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
   - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计

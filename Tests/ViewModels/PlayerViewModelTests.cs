@@ -129,6 +129,29 @@ public class PlayerViewModelTests
     }
 
     [Fact]
+    public void ApplyDialogSettings_UpdatesFields_WithoutPerFieldPersistence()
+    {
+        _player.SpectrumConfig.Returns(new SpectrumConfig());
+        var vm = CreateVm();
+        _persistence.ClearReceivedCalls();
+
+        vm.ApplyDialogSettings(
+            volume: 0.4f,
+            spectrumEnabled: false,
+            sensitivity: 1.5,
+            colorTheme: 2,
+            smoothing: 0.3);
+
+        Assert.Equal(0.4f, vm.Volume);
+        Assert.Equal(0.4f, _player.Volume);
+        Assert.False(vm.SpectrumEnabled);
+        Assert.Equal(1.5, vm.SpectrumSensitivity);
+        Assert.Equal(2, vm.SpectrumColorTheme);
+        Assert.Equal(0.3, vm.SpectrumSmoothing);
+        _persistence.DidNotReceive().UpdateAsync(Arg.Any<Func<AppSettings, AppSettings>>());
+    }
+
+    [Fact]
     public void VolumeChange_PersistsToDisk()
     {
         var vm = CreateVm(); // 构造完成时 _isInitializing 已设为 false

@@ -338,6 +338,113 @@ public class PlaybackResumeTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task InitializeAsync_RestoredLibraryTrackWithoutAlbumArt_ReadsCoverFromFile()
+    {
+        var libraryPlayback = new Playlist(
+            PlaylistsViewModel.LibraryPlaybackId, "音乐库播放",
+            new[] { _tempTrack }, 0, false, RepeatMode.Off);
+        _playlistService.LoadAsync().Returns(Task.FromResult(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("p1", "P", new[] { _tempTrack }, 0, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = libraryPlayback.Id,
+            LibraryPlayback = libraryPlayback,
+        }));
+        _settings.LoadAsync().Returns(Task.FromResult(LastPlayed(_tempTrack, 42)));
+        var art = new byte[] { 1, 2, 3 };
+        _metadataReader.ReadAsync(_tempTrack).Returns(Task.FromResult(new Track(
+            _tempTrack, "Disk Title", "Disk Artist", "Disk Album",
+            null, null, 44100, art, TimeSpan.FromMinutes(2), 1)));
+
+        var vm = CreateMainVm();
+        var warning = await vm.InitializeAsync();
+
+        Assert.Null(warning);
+        await _metadataReader.Received(1).ReadAsync(_tempTrack);
+        await _player.Received(1).LoadAsync(Arg.Is<Track>(
+            t => t.FilePath == _tempTrack && t.AlbumArt != null && t.AlbumArt.Length == art.Length));
+    }
+
+    /// <summary>
+    /// 库初始化失败（缓存读抛异常）是可选能力的失败：启动仍要完成断点续播，
+    /// 不能把 MainViewModel 留在半初始化状态。钉住 InitializeAsync 的 try/catch 包裹。
+    /// </summary>
+    [Fact]
+    public async Task InitializeAsync_SetsIsInitialized_AfterRestore()
+    {
+        _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith(_tempTrack)));
+        var vm = CreateMainVm();
+
+        Assert.False(vm.IsInitialized);
+        await vm.InitializeAsync();
+
+        Assert.True(vm.IsInitialized);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_RestoresLibraryAlbumDetailNavigation()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dplayer-resume-nav-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith(_tempTrack)));
+            _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+            {
+                LibraryFolders = new[] { root },
+                LibraryViewActive = true,
+                LibraryViewPage = nameof(LibraryPage.AlbumDetail),
+                LibraryViewAlbumTrackPath = _tempTrack,
+            }));
+            _cache.LoadAsync(root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                new[]
+                {
+                    new LibraryCacheEntry(_tempTrack, "Title", "Artist", "Album",
+                        null, 2024, TimeSpan.FromMinutes(3), 44100, 1),
+                }));
+            _scanner.ScanFolderWithStatus(root)
+                .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
+
+            var vm = CreateMainVm();
+            var warning = await vm.InitializeAsync();
+
+            Assert.Null(warning);
+            Assert.True(vm.IsLibraryViewActive);
+            Assert.Equal(LibraryPage.AlbumDetail, vm.Library.Page);
+            Assert.Equal("Album", vm.Library.SelectedAlbum?.Title);
+            Assert.Contains(vm.Library.SelectedAlbum!.Tracks, t => t.FilePath == _tempTrack);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
+    }
+
+    [Fact]
+    public async Task CleanupAsync_PersistsLibraryNavigationState()
+    {
+        _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith(_tempTrack)));
+        var vm = CreateMainVm();
+        await vm.InitializeAsync();
+
+        var album = new LibraryAlbum(
+            "Album", "Artist", false, 2024, new[] { TrackWith(_tempTrack) });
+        vm.IsLibraryViewActive = true;
+        vm.Library.OpenAlbum(album, fromArtist: false);
+        _writes.Clear();
+
+        await vm.CleanupAsync();
+
+        var nav = _writes.LastOrDefault(w => w.LibraryViewActive);
+        Assert.NotNull(nav);
+        Assert.Equal(nameof(LibraryPage.AlbumDetail), nav.LibraryViewPage);
+        Assert.Equal(_tempTrack, nav.LibraryViewAlbumTrackPath);
+    }
+
     /// <summary>
     /// 库初始化失败（缓存读抛异常）是可选能力的失败：启动仍要完成断点续播，
     /// 不能把 MainViewModel 留在半初始化状态。钉住 InitializeAsync 的 try/catch 包裹。

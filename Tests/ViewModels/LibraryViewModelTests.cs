@@ -335,6 +335,52 @@ public sealed class LibraryViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RefreshIfRootsChangedAsync_SameRoots_DoesNotScan()
+    {
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            Array.Empty<LibraryCacheEntry>()));
+        await vm.InitializeAsync();
+        _scanner.ClearReceivedCalls();
+        _cache.ClearReceivedCalls();
+
+        await vm.RefreshIfRootsChangedAsync();
+
+        _scanner.DidNotReceive().ScanFolderWithStatus(Arg.Any<string>());
+        await _cache.DidNotReceive().LoadAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task RefreshIfRootsChangedAsync_ChangedRoots_Scans()
+    {
+        var other = Path.Combine(Path.GetTempPath(), $"dplayer-library-other-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(other);
+        try
+        {
+            var vm = CreateVm(_root);
+            _cache.LoadAsync(Arg.Any<string>()).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                Array.Empty<LibraryCacheEntry>()));
+            _scanner.ScanFolderWithStatus(Arg.Any<string>())
+                .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
+            await vm.InitializeAsync();
+            _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+            {
+                LibraryFolders = new[] { other },
+            }));
+            _scanner.ClearReceivedCalls();
+
+            await vm.RefreshIfRootsChangedAsync();
+
+            _scanner.Received(1).ScanFolderWithStatus(other);
+        }
+        finally
+        {
+            try { Directory.Delete(other, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
+    }
+
+    [Fact]
     public void Navigation_ArtistsToAlbumAndBack()
     {
         var vm = CreateVm();

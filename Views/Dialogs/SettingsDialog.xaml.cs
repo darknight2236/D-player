@@ -122,17 +122,10 @@ public partial class SettingsDialog : Window
                     : s.LibraryFolders,
             });
 
-            // 同步更新 PlayerViewModel 属性，使 UI 立即反映新设置
-            if (_playerViewModel != null)
-            {
-                _playerViewModel.Volume = volume;
-
-                // Phase 13: 同步频谱设置，避免需重启才生效
-                _playerViewModel.SpectrumEnabled = spectrumEnabled;
-                _playerViewModel.SpectrumSensitivity = spectrumSensitivity;
-                _playerViewModel.SpectrumColorTheme = spectrumColorTheme;
-                _playerViewModel.SpectrumSmoothing = spectrumSmoothing;
-            }
+            // 同步更新 PlayerViewModel 属性，使 UI 立即反映新设置；
+            // 持久化已由上面的 UpdateAsync 完成，批量同步不再逐字段写盘。
+            _playerViewModel?.ApplyDialogSettings(
+                volume, spectrumEnabled, spectrumSensitivity, spectrumColorTheme, spectrumSmoothing);
 
             DialogResult = true;
         }

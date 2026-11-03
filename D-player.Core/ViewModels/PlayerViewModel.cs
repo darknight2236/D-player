@@ -26,6 +26,9 @@ public partial class PlayerViewModel : ObservableObject
     // 标记构造期间：避免 OnVolumeChanged 在初始化时写磁盘
     private bool _isInitializing = true;
 
+    // 设置对话框已整体落盘后，批量同步属性时不再逐字段重复写盘
+    private bool _suppressPersistence;
+
     /// <summary>拖动进度条时为 true —— 抑制 PositionChanged 回写，避免滑块被服务"拽回"。</summary>
     [ObservableProperty]
     private bool _isSeeking;
@@ -286,7 +289,7 @@ public partial class PlayerViewModel : ObservableObject
     partial void OnVolumeChanged(float value)
     {
         _player.Volume = value;
-        if (_isInitializing) return; // 跳过初始化期间的写盘
+        if (_isInitializing || _suppressPersistence) return;
 
         // 静音时直接拖动滑块到非零 → 自动解除静音状态
         if (IsMuted && value > 0f)
@@ -322,7 +325,7 @@ public partial class PlayerViewModel : ObservableObject
     /// <summary>持久化频谱设置</summary>
     private void SaveSpectrumSettings()
     {
-        if (_isInitializing) return;
+        if (_isInitializing || _suppressPersistence) return;
 
         _ = _persistence.UpdateAsync(s => s with
         {
@@ -331,6 +334,33 @@ public partial class PlayerViewModel : ObservableObject
             SpectrumColorTheme = SpectrumColorTheme,
             SpectrumSmoothing = SpectrumSmoothing
         });
+    }
+
+    /// <summary>
+    /// 设置对话框整体保存后批量同步运行时值。持久化由对话框的 UpdateAsync 负责，
+    /// 这里抑制逐字段写盘，避免一次保存触发多次 settings.json 读改写。
+    /// </summary>
+    public void ApplyDialogSettings(
+        float volume,
+        bool spectrumEnabled,
+        double sensitivity,
+        int colorTheme,
+        double smoothing)
+    {
+        var previous = _suppressPersistence;
+        _suppressPersistence = true;
+        try
+        {
+            Volume = volume;
+            SpectrumEnabled = spectrumEnabled;
+            SpectrumSensitivity = sensitivity;
+            SpectrumColorTheme = colorTheme;
+            SpectrumSmoothing = smoothing;
+        }
+        finally
+        {
+            _suppressPersistence = previous;
+        }
     }
 
     /// <summary>加载频谱设置</summary>

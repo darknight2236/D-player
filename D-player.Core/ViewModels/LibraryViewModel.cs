@@ -158,8 +158,21 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
     }
 
-    /// <summary>重新读设置、重载缓存并扫描；设置保存后调用。</summary>
-    public async Task RefreshAsync()
+    /// <summary>重新读设置、重载缓存并扫描；手动刷新用。</summary>
+    public Task RefreshAsync() => RefreshCoreAsync(loadedRoots: null);
+
+    /// <summary>
+    /// 设置保存后调用：只有库根集合变化时才重扫。
+    /// 频谱/音量等设置保存不应触发整库扫描与封面重建。
+    /// </summary>
+    public async Task RefreshIfRootsChangedAsync()
+    {
+        var roots = await LoadRootsAsync().ConfigureAwait(false);
+        if (RootsEqual(roots, _roots)) return;
+        await RefreshCoreAsync(roots).ConfigureAwait(false);
+    }
+
+    private async Task RefreshCoreAsync(IReadOnlyList<string>? loadedRoots)
     {
         var generation = Interlocked.Increment(ref _scanGeneration);
         _scanCts?.Cancel();
@@ -170,7 +183,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
         try
         {
-            var roots = await LoadRootsAsync().ConfigureAwait(false);
+            var roots = loadedRoots ?? await LoadRootsAsync().ConfigureAwait(false);
             var loaded = await LoadCachedTracksAsync(roots).ConfigureAwait(false);
             if (generation != Volatile.Read(ref _scanGeneration)) return;
 
@@ -194,6 +207,13 @@ public sealed partial class LibraryViewModel : ObservableObject
             if (generation == Volatile.Read(ref _scanGeneration))
                 _syncContext.Send(_ => IsScanning = false, null);
         }
+    }
+
+    private static bool RootsEqual(IReadOnlyList<string> left, IReadOnlyList<string> right)
+    {
+        if (left.Count != right.Count) return false;
+        var rightSet = new HashSet<string>(right, StringComparer.OrdinalIgnoreCase);
+        return left.All(rightSet.Contains);
     }
 
     public void Cleanup()

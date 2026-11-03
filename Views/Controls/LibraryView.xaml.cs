@@ -254,7 +254,7 @@ public partial class LibraryView : UserControl
         var player = (window.DataContext as MainViewModel)?.Player;
 
         if (SettingsDialog.Show(window, persistence, playback, player, fileDialog))
-            _ = _vm?.RefreshAsync();
+            _ = _vm?.RefreshIfRootsChangedAsync();
     }
 
     private static T? FindItemDataContext<T>(MouseButtonEventArgs e) where T : class

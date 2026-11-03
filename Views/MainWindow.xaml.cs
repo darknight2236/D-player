@@ -174,8 +174,8 @@ public partial class MainWindow : Window
             if (SettingsDialog.Show(
                     this, _persistence, playbackService, _vm.Player, fileDialog))
             {
-                // Phase 24: 库根目录可能变了 → 重新读设置并扫描
-                _ = _vm.Library.RefreshAsync();
+                // 只有库根目录真的变了才重扫；频谱/音量保存不应触发整库刷新
+                _ = _vm.Library.RefreshIfRootsChangedAsync();
             }
             e.Handled = true;
         }

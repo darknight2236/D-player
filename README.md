@@ -78,7 +78,7 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：216 通过 0 失败（默认排除真实音频集成）
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：223 通过 0 失败（默认排除真实音频集成）
 dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实 WASAPI 集成测试（需音频设备）
 dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 ```
@@ -95,7 +95,7 @@ dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q   # 门
 - **三条一起跑的脚本（推荐，会逐步 fail-fast）**：
 
 ```bash
-powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（216，默认排除音频）
+powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（223，默认排除音频）
 powershell -File tools/verify-gates.ps1 -Full   # = 门禁 1 + 门禁 2 + 门禁 3
 powershell -File tools/verify-gates.ps1 -Full -Audio   # 再加 5 条真实音频集成测试
 ```
@@ -129,14 +129,14 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 ```bash
 # xunit v3 的测试工程是可执行程序，runner 是 Microsoft.Testing.Platform（MTP）
 dotnet run --project Tests/D-player.Tests.csproj -c Debug   # 直接跑可执行程序
-dotnet test D-player.slnf -c Debug                          # 同一 runner 的裸命令（跑全量 221）；门禁 2 用上面的 filter 排除音频
+dotnet test D-player.slnf -c Debug                          # 同一 runner 的裸命令（跑全量 228）；门禁 2 用上面的 filter 排除音频
 ```
 
 两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
-当前共 **221** 个测试（**216 默认 + 5 真实音频集成**；Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。Phase 24 新增库相关用例：`LibraryViewModelTests`(11) / `LibraryGroupingTests`(6) / `LibraryPathNormalizerTests`(4) / `JsonPlaylistServiceTests`(3) / `JsonSettingsPersistenceTests`(2)，并扩充了 `PlaylistsViewModelTests`(+7)、`PlaybackResumeTests`(+3)、`LibraryScannerServiceTests`(+4)，`AddDPlayerCoreTests` 在同一个用例里加了 `LibraryViewModel` 解析断言（用例数不变）。**这 221 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
+当前共 **228** 个测试（**223 默认 + 5 真实音频集成**；Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`——Phase 20 它已从 `Views/Controls` 搬进 `D-player.Core/ViewModels`，所以它不再是"View 层例外"；其余 View 层代码按项目惯例不做单测）。Phase 24 新增库相关用例：`LibraryViewModelTests`(13；含 2026-11-03 设置保存不重扫 +2) / `LibraryGroupingTests`(6) / `LibraryPathNormalizerTests`(4) / `JsonPlaylistServiceTests`(3) / `JsonSettingsPersistenceTests`(2)，并扩充了 `PlaylistsViewModelTests`(+7)、`PlaybackResumeTests`(+7；含 2026-11-02 断点续播封面恢复 +1、2026-11-03 库导航恢复 +2、启动显示门禁 +1)、`LibraryScannerServiceTests`(+4)；`PlayerViewModelTests` 增 1 条设置批量同步不重复写盘用例，`AddDPlayerCoreTests` 在同一个用例里加了 `LibraryViewModel` 解析断言（用例数不变）。**这 228 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 22 验收清单见 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
 
-> **测试过滤实测（2026-11-02，Phase 24 收尾复跑）**：无过滤 **221**；`--filter "Category!=AudioDevice"` **216**（默认门禁，**不需要**音频设备）；`--filter "Category=AudioDevice"` **5**（真实 WASAPI）。三者互差正好 5 条，说明当前 MTP/xunit.v3 下否定过滤器确实生效。验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试、215 条里含 5 条设备测试"），本次两次实跑均未复现；文档计数以实测为准：**总数 221 = 216 默认 + 5 音频**。合辑分组修复（2026-11-02 验收后）新增 1 条分组测试，故比初始验收的 220/215 各多 1。需要覆盖真实输出路径时用 `powershell -File tools/verify-gates.ps1 -Full -Audio`。
+> **测试过滤实测（2026-11-02，Phase 24 收尾复跑）**：无过滤 **228**；`--filter "Category!=AudioDevice"` **223**（默认门禁，**不需要**音频设备）；`--filter "Category=AudioDevice"` **5**（真实 WASAPI）。三者互差正好 5 条，说明当前 MTP/xunit.v3 下否定过滤器确实生效。验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试、215 条里含 5 条设备测试"），本次两次实跑均未复现；文档计数以实测为准：**总数 228 = 223 默认 + 5 音频**。合辑分组修复（2026-11-02 验收后）新增 1 条分组测试，断点续播封面恢复新增 1 条恢复测试，设置保存修复新增 3 条测试，库导航恢复新增 2 条测试，启动显示门禁新增 1 条测试，故比初始验收的 220/215 各多 8。需要覆盖真实输出路径时用 `powershell -File tools/verify-gates.ps1 -Full -Audio`。
 
 ---
 
@@ -231,7 +231,7 @@ MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → Volum
 | 21 | WinUI 壳视觉与交互打磨：三栏 IA（NavRail/TrackList/InfoPanel/PlayerBar）+ 设计令牌层（间距/圆角/字号/时长三档）+ 六态样式 + 键盘与无障碍 + 9 项动效；**23 项验收全部通过、验收闭合（2026-10-08），逐项结果见 `docs/PHASE21-ACCEPTANCE.md`；起窗崩溃（exit 0xC0000005）已在 `bba9ad4` 修复并验证——根因是对象初始化器在构造函数体之后执行（`Playlists` 订阅时仍为 null）** |
 | 22 | WinUI 功能补齐（日常可用闭环）：异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何持久化、本地日志；WinUI 构建纳入 `verify-gates.ps1 -Full` 的门禁 3。频谱/EQ/拖拽/排序/文件夹绑定管理留 Phase 23/24；**Phase 22 历史验收已完成**（验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 `docs/PHASE22-ACCEPTANCE.md`） |
 | 23 | WinUI 32 柱频谱与四项设置、暂停/停止回落及晚到数据守卫；10 段 EQ + Pre + 9 预设/Custom、实时预览、取消回滚、保存。**实现完成 / 验收通过（2026-11-02 用户确认 B、C 组全部通过）**；[验收记录](docs/PHASE23-ACCEPTANCE.md)。 |
-| 24 | **音乐库视图（Core + WPF 主壳；WinUI 壳冻结，只过门禁 3）**：多库根目录（`settings.json` 的 `LibraryFolders`，规范化 + 大小写不敏感去重）、递归扫描与 `library-cache.json` 增量缓存、按艺术家/专辑四级钻取（艺术家列表 / 专辑封面网格 / 艺术家详情 / 专辑详情）、按专辑惰性读取内嵌封面、独立的隐藏库播放队列（`QueueState.LibraryPlayback`，保留 Id `__library-playback__`，不进侧栏、不污染用户歌单）、播放全部/双击曲目与上一首/下一首、断点续播与重启恢复、不可用根目录跳过而不清缓存。**实现完成 / 验收完成（2026-11-02）**；[验收记录](docs/PHASE24-ACCEPTANCE.md)；[设计](docs/superpowers/specs/2026-11-02-d-player-phase24-library-view-design.md)。 |
+| 24 | **音乐库视图（Core + WPF 主壳；WinUI 壳冻结，只过门禁 3）**：多库根目录（`settings.json` 的 `LibraryFolders`，规范化 + 大小写不敏感去重）、递归扫描与 `library-cache.json` 增量缓存、按艺术家/专辑四级钻取（艺术家列表 / 专辑封面网格 / 艺术家详情 / 专辑详情）、按专辑惰性读取内嵌封面、独立的隐藏库播放队列（`QueueState.LibraryPlayback`，保留 Id `__library-playback__`，不进侧栏、不污染用户歌单）、播放全部/双击曲目与上一首/下一首、断点续播与重启恢复、库页签/专辑详情关闭时持久化并在重启后恢复、不可用根目录跳过而不清缓存。**实现完成 / 验收完成（2026-11-02）**；[验收记录](docs/PHASE24-ACCEPTANCE.md)；[设计](docs/superpowers/specs/2026-11-02-d-player-phase24-library-view-design.md)。 |
 
 每个阶段的设计稿与实现计划归档于 [`docs/superpowers/`](docs/superpowers/)（`specs/` 与 `plans/`）。Phase 20 的两壳对比材料与决策门记录位在 [`docs/PHASE20-COMPARISON.md`](docs/PHASE20-COMPARISON.md)；Phase 22 验收清单在 [`docs/PHASE22-ACCEPTANCE.md`](docs/PHASE22-ACCEPTANCE.md)；Phase 24 验收记录在 [`docs/PHASE24-ACCEPTANCE.md`](docs/PHASE24-ACCEPTANCE.md)。
 

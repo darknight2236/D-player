@@ -39,7 +39,7 @@ powershell -File tools/verify-gates.ps1 -Full
 | 门禁 | 命令 | 实际结果 |
 |---|---|---|
 | 门禁 1/3 | `dotnet build D-player.slnf -c Debug --nologo -v q` | 0 警告 / 0 错误 |
-| 门禁 2/3 | `dotnet test D-player.slnf -c Debug -v q --filter Category!=AudioDevice` | **总计 216 / 成功 216 / 失败 0 / 跳过 0**（初始验收 215；合辑修复 +1 后复跑） |
+| 门禁 2/3 | `dotnet test D-player.slnf -c Debug -v q --filter Category!=AudioDevice` | **总计 223 / 成功 223 / 失败 0 / 跳过 0**（初始验收 215；合辑修复 +1、断点续播封面恢复 +1、设置保存修复 +3、库导航恢复 +2、启动显示门禁 +1 后复跑） |
 | 门禁 3/3 | `dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q` | 0 警告 / 0 错误 |
 
 本记录只记计数与退出状态：构建/测试耗时随机器与缓存状态变化，不复述秒数。
@@ -56,12 +56,12 @@ dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"   # 总�
 
 | 命令 | 总计 | 说明 |
 |---|---|---|
-| `dotnet test D-player.slnf -c Debug -v q`（无过滤） | **221** | 213 个 `[Fact]` + 1 个 `[Theory]` 展开的 8 条 `[InlineData]`（初始 220；合辑修复 +1） |
-| `... --filter "Category!=AudioDevice"`（门禁 2） | **216** | 默认门禁口径（初始 215） |
+| `dotnet test D-player.slnf -c Debug -v q`（无过滤） | **228** | 220 个 `[Fact]` + 1 个 `[Theory]` 展开的 8 条 `[InlineData]`（初始 220；合辑修复 +1、断点续播封面恢复 +1、设置保存修复 +3、库导航恢复 +2、启动显示门禁 +1） |
+| `... --filter "Category!=AudioDevice"`（门禁 2） | **223** | 默认门禁口径（初始 215） |
 | `... --filter "Category=AudioDevice"` | **5** | 真实 WASAPI 集成（`NAudioPlaybackServiceConcurrencyTests` 3 + `NAudioPlaybackServiceStopSemanticsTests` 2，均 `[Trait("Category","AudioDevice")]` + `[Collection("AudioDevice")]`） |
 
-- 三者互差正好 5 条，说明**本次运行中否定过滤器确实排除了音频测试**：默认门禁 216 不需要音频设备，需要覆盖真实输出路径时用 `verify-gates.ps1 -Audio` 追加 5 条。
-- 验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试，215 条里含 5 条设备测试"）。本任务两次独立实跑（上面的单项命令 + `-Full` 的门禁 2）均**未复现**；记录在此以免后人把 216 误解成"含音频测试"。文档的计数以本表实测为准：**总数 221 = 216 默认 + 5 音频**（初始验收为 220/215；合辑分组修复新增 1 条测试）。
+- 三者互差正好 5 条，说明**本次运行中否定过滤器确实排除了音频测试**：默认门禁 223 不需要音频设备，需要覆盖真实输出路径时用 `verify-gates.ps1 -Audio` 追加 5 条。
+- 验收走查阶段曾记录一条相反观察（"否定过滤器未排除音频测试，215 条里含 5 条设备测试"）。本任务两次独立实跑（上面的单项命令 + `-Full` 的门禁 2）均**未复现**；记录在此以免后人把 223 误解成"含音频测试"。文档的计数以本表实测为准：**总数 228 = 223 默认 + 5 音频**（初始验收为 220/215；合辑分组修复与断点续播封面恢复各新增 1 条测试、设置保存修复新增 3 条、库导航恢复新增 2 条、启动显示门禁新增 1 条测试）。
 - MTP 纪律照旧：两条 `dotnet test` 命令都**不能**加 `--nologo`（加上后一条测试都不跑，摘要却打印成功、退出码 5）。
 
 ## 验收环境与数据
@@ -108,16 +108,40 @@ dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"   # 总�
 - 专辑封面只读该专辑第一首曲目的内嵌图；封面只在后续曲目时显示占位。
 - 库播放队列不出现在侧栏，也没有独立的队列管理界面；控制方式就是播放栏的上一首/下一首/Shuffle/Repeat。
 - 专辑封面网格未做 UI 虚拟化（`WrapPanel`），大库首次进入专辑页会逐张惰性读封面，首屏可能较慢。
-- 库视图页签不持久化：重启后回到队列视图（库播放队列仍按 `CurrentPlaylistId` 恢复）。
+- 库视图页签与专辑/艺术家详情现在会持久化（2026-11-03）：关闭时记录，重启后回到上次页签；目标不存在时回落到专辑/艺术家列表页。库播放队列仍按 `CurrentPlaylistId` 恢复。
 - 进入库视图会清空 `ViewedPlaylist`：库视图打开期间侧栏 `−` 按钮与 PlayerBar ▶ 回落不可用，要回到队列视图需点选一个可见歌单。
 
 ## 2026-11-02 合辑分组修复（验收后追加）
 
 - **现象**：用户截图中的一个合辑：16 首在同一个文件夹，逐曲 `Artist` 有 10 个不同值，`AlbumArtist` 也逐曲不同；原 `(Album, Artist)` 专辑键把它拆成多张同名专辑（文档不记录真实名称）。
 - **修复**：专辑身份改为 `(Album, 所在文件夹)`；专辑显示艺术家在曲目 Artist 不一致时为「多位艺术家」；艺术家列表按逐曲 `Track.Artist` 独立建，合辑的每位贡献者仍保留自己的艺术家页并能看到这张专辑。无需改 `Track` 或缓存 schema；重启或刷新后按新规则重新分组。
-- **测试**：新增 `LibraryGroupingTests.Build_CompilationInOneFolder_MergesAndKeepsContributingArtists`，并把同名不同文件夹的用例改为分开的回归保护；`-Full` 门禁 3/3，默认 **216** / 音频 **5** / 总计 **221** / 0 失败。
+- **测试**：新增 `LibraryGroupingTests.Build_CompilationInOneFolder_MergesAndKeepsContributingArtists`，并把同名不同文件夹的用例改为分开的回归保护；`-Full` 门禁 3/3，默认 **220** / 音频 **5** / 总计 **225** / 0 失败。
 - **已知限制**：多碟专辑若分在 `Disc 1`/`Disc 2` 子文件夹仍可能拆开；同文件夹内同名的不同专辑（罕见）会合并。
 - 本次修复未重扫或改写用户曲库；用户数据仍按上文备份/还原。
+
+## 2026-11-02 断点续播封面修复（验收后追加）
+
+- **现象**：从库专辑详情双击播放，播放中退出再启动，右侧当前曲封面不显示。
+- **根因**：库播放队列从 `library-cache.json` 回填时不含 `AlbumArt`（`LibraryCacheEntry` 刻意不存封面字节）；断点续播直接把该曲目交给 `IPlaybackService.LoadAsync`，绕过了正常播放路径的 `ITrackMetadataReader.ReadAsync`。
+- **修复**：`PlaylistViewModel.EnsureAlbumArtAsync` 在恢复装载前只对缺失封面的曲目补读一次元数据，合并封面并替换队列项；普通歌单已在 `Hydrate` 读完整元数据，不重复读盘。覆盖库队列与文件夹绑定歌单。
+- **测试**：新增 `PlaybackResumeTests.InitializeAsync_RestoredLibraryTrackWithoutAlbumArt_ReadsCoverFromFile`；`-Full` 门禁 3/3，默认 **220** / 音频 **5** / 总计 **225** / 0 失败。
+- **GUI**：以库队列为当前上下文的真实数据启动（不额外播放），右侧封面正常显示；关闭后 `settings.json` / `queue.json` / `library-cache.json` 的 SHA256 与备份一致。
+
+## 2026-11-03 设置保存卡顿修复（验收后追加）
+
+- **现象**：播放中在设置面板调整频谱灵敏度/平滑度并保存后，出现短暂卡顿。
+- **根因**：三个设置保存调用点都无条件调用 `Library.RefreshAsync()`，即使只改频谱也会触发整库重扫、分组与封面重建；同时 `SettingsDialog.Save_Click` 逐字段同步 `PlayerViewModel`，每个 setter 又触发一次 settings.json 读改写，形成保存后的 IO/UI 峰值。
+- **修复**：新增 `LibraryViewModel.RefreshIfRootsChangedAsync()`，库根集合未变时直接返回（手动刷新仍走 `RefreshAsync` 强制重扫）；新增 `PlayerViewModel.ApplyDialogSettings(...)` 批量同步并抑制逐字段持久化。
+- **测试**：新增 `PlayerViewModelTests.ApplyDialogSettings_UpdatesFields_WithoutPerFieldPersistence`、`LibraryViewModelTests.RefreshIfRootsChangedAsync_SameRoots_DoesNotScan` / `..._ChangedRoots_Scans`；`-Full` 门禁 3/3，默认 **220** / 音频 **5** / 总计 **225** / 0 失败。
+- **GUI**：连续测试音 + WASAPI 回环录制期间保存频谱设置，25s 内未见静音缺口或采样跳变（未在录音层面复现音频卡顿）；保存后 `library-cache.json` 的 `LastWriteTimeUtc` 不变，证明不再触发整库重扫；频谱值已写入 settings.json。
+- **证据边界**：音频卡顿未在回环录音中复现；本次修复移除了保存后的整库重扫与逐字段写盘两条重负载路径，实际听感需用户复测。
+
+## 2026-11-03 库导航、详情播放标记与行高（验收后追加）
+
+- **现象**：库专辑详情双击播放后退出重启，应用回到歌单视图；详情曲目行首没有当前播放 ▶；艺术家行与曲目行比歌单队列行矮。
+- **修复**：`AppSettings` 新增 `LibraryViewActive/LibraryViewPage/LibraryViewArtistName/LibraryViewAlbumTrackPath`；`MainViewModel.CleanupAsync` 关闭时记录，`RestoreLibraryView` 在库缓存水化后按专辑首曲路径/艺术家名恢复详情（找不到回落列表页）。专辑详情行模板新增 `PART_Marker`，由 `LibraryView` 按 `Player.CurrentTrack + Playlists.IsLibraryPlaybackActive` 刷新；`LibraryRowItemStyle` 增加 `MinHeight=28`，与歌单队列行（20px 删除按钮 + 8px 内边距）对齐。
+- **测试**：新增 `PlaybackResumeTests.InitializeAsync_RestoresLibraryAlbumDetailNavigation`、`CleanupAsync_PersistsLibraryNavigationState`、`InitializeAsync_SetsIsInitialized_AfterRestore`；`-Full` 门禁 3/3，默认 **223** / 音频 **5** / 总计 **228** / 0 失败。
+- **GUI**：专辑详情双击首曲后行首出现 ▶；关闭重启后直接回到同一专辑详情，▶ 仍指向恢复曲目；库行高与歌单队列行一致；启动录屏确认初始化前中间区为空，未再闪现歌单视图。关闭后 `settings.json` 可见导航字段（值为通用描述，不记录真实名称）；`settings.json` / `queue.json` / `library-cache.json` 已按备份逐字节还原。
 
 ## 数据还原与副作用
 

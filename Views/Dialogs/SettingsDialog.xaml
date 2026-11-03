@@ -196,9 +196,11 @@
             <Button Content="取消"
                     Width="80" Height="28"
                     Margin="0,0,8,0"
+                    Style="{StaticResource DialogSecondaryButton}"
                     IsCancel="True"/>
             <Button Content="保存"
                     Width="80" Height="28"
+                    Style="{StaticResource DialogPrimaryButton}"
                     IsDefault="True"
                     Click="Save_Click"/>
         </StackPanel>

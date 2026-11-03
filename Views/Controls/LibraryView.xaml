@@ -10,15 +10,42 @@
              Background="{StaticResource BackgroundPrimary}">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility"/>
         <converters:BytesToBitmapImageConverter x:Key="BytesToBitmapImage"/>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToString"/>
 
-        <!-- 显式 Style 会替换隐式 Button 样式，必须 BasedOn 才能保留深色模板（否则回落 Aero 灰） -->
+        <!-- 库内主操作按钮：实心强调底 + 深色文字，避免与标题/副标题混淆 -->
         <Style x:Key="LibraryActionButton" TargetType="Button"
                BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Margin" Value="0,8,0,0"/>
+            <Setter Property="Background" Value="{StaticResource AccentPrimary}"/>
+            <Setter Property="Foreground" Value="{StaticResource BackgroundPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{StaticResource AccentPressed}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- 专辑 tile 的选中/悬停走深色模板，并让封面与文字在网格项内居中 -->
@@ -40,6 +67,43 @@
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Top"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{StaticResource BackgroundTertiary}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{StaticResource AccentPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 行式列表沿用队列的外观：卡片底 + 行分隔 + 深色悬停/选中 -->
+        <Style x:Key="LibraryRowItemStyle" TargetType="ListBoxItem">
+            <!-- 与歌单队列行一致：队列行的删除按钮把内容高度撑到 20px，外加 8px 内边距 -->
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid>
+                            <Border x:Name="bd"
+                                    Background="{TemplateBinding Background}"
+                                    Padding="8,4">
+                                <ContentPresenter HorizontalAlignment="Stretch"/>
+                            </Border>
+                            <Border Height="1"
+                                    Background="{StaticResource BackgroundTertiary}"
+                                    VerticalAlignment="Bottom"
+                                    Margin="8,0"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background"
@@ -90,24 +154,37 @@
         </DataTemplate>
 
         <DataTemplate x:Key="TrackRowTemplate">
-            <Grid Margin="0,3">
+            <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="16"/>
                     <ColumnDefinition Width="28"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="56"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding TrackNumber}"
+                <!-- ▶ 当前播放曲标记：由 LibraryView code-behind 刷新 -->
+                <Path x:Name="PART_Marker"
+                      Grid.Column="0"
+                      Data="{StaticResource Icon.PlayMarker}"
+                      Fill="{StaticResource AccentPrimary}"
+                      Width="9" Height="9" Stretch="Uniform"
+                      Visibility="Collapsed"
+                      VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding TrackNumber}"
                            Foreground="{StaticResource ForegroundSecondary}"
                            HorizontalAlignment="Right"
-                           Margin="0,0,8,0"/>
-                <TextBlock Grid.Column="1"
+                           Margin="0,0,8,0"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2"
                            Text="{Binding Title}"
                            Foreground="{StaticResource ForegroundPrimary}"
-                           TextTrimming="CharacterEllipsis"/>
-                <TextBlock Grid.Column="2"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3"
                            Text="{Binding Duration, Converter={StaticResource TimeSpanToString}}"
                            Foreground="{StaticResource ForegroundSecondary}"
-                           HorizontalAlignment="Right"/>
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"/>
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
@@ -136,7 +213,8 @@
                            FontSize="16" FontWeight="SemiBold"
                            Margin="8,0,40,0"
                            TextTrimming="CharacterEllipsis"
-                           VerticalAlignment="Center"/>
+                           VerticalAlignment="Center"
+                           Visibility="{Binding CanGoBack, Converter={StaticResource InverseBoolToVisibility}}"/>
             </StackPanel>
             <Button HorizontalAlignment="Right"
                     Width="32" Height="32" Padding="0"
@@ -151,32 +229,39 @@
         </Grid>
 
         <Grid Grid.Row="1">
-            <ListBox x:Name="ArtistsList"
-                     ItemsSource="{Binding Artists}"
-                     BorderThickness="0"
-                     Background="Transparent"
-                     Visibility="{Binding IsArtistsPage, Converter={StaticResource BoolToVisibility}}"
-                     MouseDoubleClick="ArtistsList_MouseDoubleClick"
-                     KeyDown="ArtistsList_KeyDown"
-                     PreviewMouseLeftButtonDown="LibraryList_PreviewMouseLeftButtonDown">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Name}"
-                                       Foreground="{StaticResource ForegroundPrimary}"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding Summary}"
-                                       Foreground="{StaticResource ForegroundSecondary}"
-                                       Margin="12,0,0,0"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <Border Background="{StaticResource BackgroundSecondary}"
+                    CornerRadius="4"
+                    Visibility="{Binding IsArtistsPage, Converter={StaticResource BoolToVisibility}}">
+                <ListBox x:Name="ArtistsList"
+                         ItemsSource="{Binding Artists}"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ItemContainerStyle="{StaticResource LibraryRowItemStyle}"
+                         MouseDoubleClick="ArtistsList_MouseDoubleClick"
+                         KeyDown="ArtistsList_KeyDown"
+                         PreviewMouseLeftButtonDown="LibraryList_PreviewMouseLeftButtonDown">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="{StaticResource ForegroundPrimary}"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Summary}"
+                                           Foreground="{StaticResource ForegroundSecondary}"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
 
             <ListBox ItemsSource="{Binding Albums}"
                      ItemTemplate="{StaticResource AlbumTileTemplate}"
@@ -275,15 +360,20 @@
                                 CommandParameter="{Binding SelectedAlbum}"/>
                     </StackPanel>
                 </Grid>
-                <ListBox x:Name="AlbumTracksList"
-                         Grid.Row="1"
-                         ItemsSource="{Binding SelectedAlbum.Tracks}"
-                         ItemTemplate="{StaticResource TrackRowTemplate}"
-                         BorderThickness="0"
-                         Background="Transparent"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         MouseDoubleClick="AlbumTracksList_MouseDoubleClick"
-                         KeyDown="AlbumTracksList_KeyDown"/>
+                <Border Grid.Row="1"
+                        Background="{StaticResource BackgroundSecondary}"
+                        CornerRadius="4">
+                    <ListBox x:Name="AlbumTracksList"
+                             ItemsSource="{Binding SelectedAlbum.Tracks}"
+                             ItemTemplate="{StaticResource TrackRowTemplate}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ItemContainerStyle="{StaticResource LibraryRowItemStyle}"
+                             MouseDoubleClick="AlbumTracksList_MouseDoubleClick"
+                             KeyDown="AlbumTracksList_KeyDown"
+                             PreviewMouseLeftButtonDown="LibraryList_PreviewMouseLeftButtonDown"/>
+                </Border>
             </Grid>
 
             <Border Background="{StaticResource BackgroundPrimary}"

@@ -1,9 +1,13 @@
+using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+using MediaTrack = DPlayer.Models.Track;
 using DPlayer.Services;
 using DPlayer.ViewModels;
 using DPlayer.Views.Dialogs;
@@ -17,11 +21,17 @@ namespace DPlayer.Views.Controls;
 public partial class LibraryView : UserControl
 {
     private LibraryViewModel? _vm;
+    private MainViewModel? _shell;
+    private PlayerViewModel? _player;
+    private PlaylistsViewModel? _playlists;
+    private bool _trackGeneratorHooked;
 
     public LibraryView()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -35,12 +45,112 @@ public partial class LibraryView : UserControl
             _vm.PropertyChanged += OnVmPropertyChanged;
     }
 
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        AttachShell();
+        if (!_trackGeneratorHooked)
+        {
+            AlbumTracksList.ItemContainerGenerator.StatusChanged += OnTrackContainersStatusChanged;
+            _trackGeneratorHooked = true;
+        }
+        RefreshTrackIndicator();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        DetachShell();
+        if (_trackGeneratorHooked)
+        {
+            AlbumTracksList.ItemContainerGenerator.StatusChanged -= OnTrackContainersStatusChanged;
+            _trackGeneratorHooked = false;
+        }
+    }
+
+    private void AttachShell()
+    {
+        var shell = Window.GetWindow(this)?.DataContext as MainViewModel;
+        if (ReferenceEquals(_shell, shell)) return;
+
+        DetachShell();
+        _shell = shell;
+        if (_shell is null) return;
+
+        _player = _shell.Player;
+        _playlists = _shell.Playlists;
+        _player.PropertyChanged += OnPlayerPropertyChanged;
+        _playlists.PropertyChanged += OnPlaylistsPropertyChanged;
+        RefreshTrackIndicator();
+    }
+
+    private void DetachShell()
+    {
+        if (_player is not null)
+            _player.PropertyChanged -= OnPlayerPropertyChanged;
+        if (_playlists is not null)
+            _playlists.PropertyChanged -= OnPlaylistsPropertyChanged;
+        _player = null;
+        _playlists = null;
+        _shell = null;
+    }
+
+    private void OnPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PlayerViewModel.CurrentTrack))
+            RefreshTrackIndicator();
+    }
+
+    private void OnPlaylistsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PlaylistsViewModel.IsLibraryPlaybackActive)
+            or nameof(PlaylistsViewModel.CurrentPlaylistId))
+        {
+            RefreshTrackIndicator();
+        }
+    }
+
+    private void OnTrackContainersStatusChanged(object? sender, EventArgs e)
+    {
+        if (AlbumTracksList.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated)
+            RefreshTrackIndicator();
+    }
+
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(LibraryViewModel.SelectedAlbum) &&
             _vm?.SelectedAlbum is { } album)
         {
             _ = _vm.EnsureCoverAsync(album);
+        }
+
+        if (e.PropertyName is nameof(LibraryViewModel.SelectedAlbum)
+            or nameof(LibraryViewModel.SelectedArtist)
+            or nameof(LibraryViewModel.Page))
+        {
+            Dispatcher.BeginInvoke(new Action(RefreshTrackIndicator), DispatcherPriority.Background);
+        }
+    }
+
+    private void RefreshTrackIndicator()
+    {
+        if (_player is null || _playlists is null) return;
+
+        var currentPath = _player.CurrentTrack?.FilePath;
+        var isLibraryActive = _playlists.IsLibraryPlaybackActive;
+        AlbumTracksList.UpdateLayout();
+
+        for (var i = 0; i < AlbumTracksList.Items.Count; i++)
+        {
+            if (AlbumTracksList.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem container)
+                continue;
+
+            var marker = FindChildByName<Path>(container, "PART_Marker");
+            if (marker is null) continue;
+
+            var isCurrent = isLibraryActive
+                && currentPath is not null
+                && AlbumTracksList.Items[i] is MediaTrack track
+                && string.Equals(track.FilePath, currentPath, StringComparison.OrdinalIgnoreCase);
+            marker.Visibility = isCurrent ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
@@ -151,6 +261,20 @@ public partial class LibraryView : UserControl
     {
         var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         return item?.DataContext as T;
+    }
+
+    private static T? FindChildByName<T>(DependencyObject parent, string name)
+        where T : FrameworkElement
+    {
+        if (parent is T match && match.Name == name)
+            return match;
+
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            if (FindChildByName<T>(VisualTreeHelper.GetChild(parent, i), name) is { } found)
+                return found;
+        }
+        return null;
     }
 
     private static T? FindAncestor<T>(DependencyObject? obj) where T : DependencyObject

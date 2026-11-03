@@ -27,6 +27,20 @@ public sealed record AppSettings
     /// <summary>上次播放位置（秒），与 <see cref="LastPlayedPath"/> 配对；启动恢复时 Seek 到该位置。</summary>
     public double LastPlayedPositionSeconds { get; init; }
 
+    // ====== 音乐库导航状态（关闭时保存，启动时恢复） ======
+
+    /// <summary>上次退出时是否停留在音乐库视图。</summary>
+    public bool LibraryViewActive { get; init; }
+
+    /// <summary>音乐库页签（Artists/Albums/ArtistDetail/AlbumDetail）；不持久化具体控件。</summary>
+    public string? LibraryViewPage { get; init; }
+
+    /// <summary>艺术家详情恢复用的艺术家名。</summary>
+    public string? LibraryViewArtistName { get; init; }
+
+    /// <summary>专辑详情恢复用的曲目路径（专辑身份以所在文件夹为准，路径可唯一定位）。</summary>
+    public string? LibraryViewAlbumTrackPath { get; init; }
+
     // 窗口几何 —— 关闭时由 MainWindow.Window_Closing 写入，启动时读取
     public double WindowLeft { get; init; }
     public double WindowTop { get; init; }

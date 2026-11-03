@@ -57,16 +57,18 @@
                           VerticalAlignment="Stretch"
                           Cursor="SizeWE"
                           DragDelta="SidebarSplitter_DragDelta"/>
-            <controls:PlaylistView Grid.Column="2"
-                                    DataContext="{Binding Playlists.ViewedPlaylist}"
-                                    Visibility="{Binding DataContext.IsLibraryViewActive,
-                                                 RelativeSource={RelativeSource AncestorType=Window},
-                                                 Converter={StaticResource InverseBoolToVisibility}}"/>
-            <controls:LibraryView Grid.Column="2"
-                                  DataContext="{Binding Library}"
-                                  Visibility="{Binding DataContext.IsLibraryViewActive,
-                                               RelativeSource={RelativeSource AncestorType=Window},
-                                               Converter={StaticResource BoolToVisibility}}"/>
+            <!-- 初始化/导航恢复完成前不渲染中间内容，避免先闪歌单再切库详情 -->
+            <Grid Grid.Column="2"
+                  Visibility="{Binding IsInitialized, Converter={StaticResource BoolToVisibility}}">
+                <controls:PlaylistView DataContext="{Binding Playlists.ViewedPlaylist}"
+                                       Visibility="{Binding DataContext.IsLibraryViewActive,
+                                                    RelativeSource={RelativeSource AncestorType=Window},
+                                                    Converter={StaticResource InverseBoolToVisibility}}"/>
+                <controls:LibraryView DataContext="{Binding Library}"
+                                      Visibility="{Binding DataContext.IsLibraryViewActive,
+                                                   RelativeSource={RelativeSource AncestorType=Window},
+                                                   Converter={StaticResource BoolToVisibility}}"/>
+            </Grid>
             <GridSplitter Grid.Column="3"
                           Width="4"
                           Background="Transparent"

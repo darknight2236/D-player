@@ -37,6 +37,10 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private bool _isLibraryViewActive;
 
+    /// <summary>启动水化与导航恢复完成后才显示中间内容，避免先闪歌单视图。</summary>
+    [ObservableProperty]
+    private bool _isInitialized;
+
     public MainViewModel(
         PlayerViewModel player,
         PlaylistsViewModel playlists,
@@ -72,6 +76,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     public async Task<string?> InitializeAsync()
     {
+        try
+        {
+            return await InitializeCoreAsync().ConfigureAwait(true);
+        }
+        finally
+        {
+            IsInitialized = true;
+        }
+    }
+
+    private async Task<string?> InitializeCoreAsync()
+    {
         if (_hydrated) return null;
         var snapshot = await _playlistService.LoadAsync().ConfigureAwait(true);
         Playlists.Hydrate(snapshot);
@@ -92,7 +108,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             // 库初始化失败：保留空库，继续断点续播与两路后台扫描。
         }
 
-        var restoreWarning = await RestoreLastPlayedAsync().ConfigureAwait(true);
+        AppSettings? settings = null;
+        try { settings = await _settings.LoadAsync().ConfigureAwait(true); }
+        catch { /* 设置读不出来时跳过恢复，不打扰启动 */ }
+
+        RestoreLibraryView(settings);
+        var restoreWarning = await RestoreLastPlayedAsync(settings).ConfigureAwait(true);
 
         // Phase 10/24: 后台扫描文件夹歌单与音乐库，不阻塞 UI。
         _ = Playlists.RescanFolderBoundPlaylistsAsync();
@@ -105,11 +126,55 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// 断点续播：把上次播放的曲目与位置装进播放器（**不**自动出声，▶ 才出声）。
     /// 跳过恢复时返回给用户看的原因；正常恢复或本就无记录返回 null。
     /// </summary>
-    private async Task<string?> RestoreLastPlayedAsync()
+    private void RestoreLibraryView(AppSettings? settings)
     {
-        AppSettings settings;
-        try { settings = await _settings.LoadAsync().ConfigureAwait(true); }
-        catch { return null; } // 设置读不出来时静默跳过，不打扰启动
+        if (settings is not { LibraryViewActive: true } || !Library.HasLibraryRoots)
+            return;
+
+        var page = settings.LibraryViewPage;
+        if (page == nameof(LibraryPage.AlbumDetail) &&
+            settings.LibraryViewAlbumTrackPath is { Length: > 0 } trackPath)
+        {
+            var album = Library.Albums.FirstOrDefault(a => a.Tracks.Any(t =>
+                string.Equals(t.FilePath, trackPath, StringComparison.OrdinalIgnoreCase)));
+            if (album is not null)
+            {
+                Library.OpenAlbum(album, fromArtist: false);
+                IsLibraryViewActive = true;
+                return;
+            }
+        }
+
+        if (page == nameof(LibraryPage.ArtistDetail) &&
+            settings.LibraryViewArtistName is { Length: > 0 } artistName)
+        {
+            var artist = Library.Artists.FirstOrDefault(a =>
+                string.Equals(a.Name, artistName, StringComparison.CurrentCultureIgnoreCase));
+            if (artist is not null)
+            {
+                Library.OpenArtist(artist);
+                IsLibraryViewActive = true;
+                return;
+            }
+        }
+
+        if (page == nameof(LibraryPage.Albums) || page == nameof(LibraryPage.AlbumDetail))
+        {
+            Library.ShowAlbums();
+            IsLibraryViewActive = true;
+            return;
+        }
+
+        if (page == nameof(LibraryPage.Artists) || page == nameof(LibraryPage.ArtistDetail))
+        {
+            Library.ShowArtists();
+            IsLibraryViewActive = true;
+        }
+    }
+
+    private async Task<string?> RestoreLastPlayedAsync(AppSettings? settings)
+    {
+        if (settings is null) return null;
 
         var path = settings.LastPlayedPath;
         if (string.IsNullOrWhiteSpace(path)) return null;
@@ -180,6 +245,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     public async Task CleanupAsync()
     {
+        var libraryViewActive = IsLibraryViewActive;
+        var libraryPage = Library.Page;
+        var libraryArtistName = Library.SelectedArtist?.Name;
+        var libraryAlbumTrackPath = Library.SelectedAlbum?.Tracks.FirstOrDefault()?.FilePath;
+
         Library.Cleanup();
         Playlists.StateChanged -= OnPlaylistsStateChanged;
         _saveCts?.Cancel();
@@ -209,6 +279,25 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             foreach (var vm in Playlists.Playlists)
                 vm.Cleanup();
             Playlists.LibraryPlayback?.Cleanup();
+
+            try
+            {
+                await _settings.UpdateAsync(s => s with
+                {
+                    LibraryViewActive = libraryViewActive,
+                    LibraryViewPage = libraryViewActive ? libraryPage.ToString() : null,
+                    LibraryViewArtistName = libraryViewActive && libraryPage == LibraryPage.ArtistDetail
+                        ? libraryArtistName
+                        : null,
+                    LibraryViewAlbumTrackPath = libraryViewActive && libraryPage == LibraryPage.AlbumDetail
+                        ? libraryAlbumTrackPath
+                        : null,
+                }).ConfigureAwait(true);
+            }
+            catch
+            {
+                // 关闭流程不打扰用户；导航状态丢失不影响播放数据。
+            }
         }
 
         await Player.CleanupAsync().ConfigureAwait(true);

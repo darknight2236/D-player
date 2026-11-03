@@ -150,6 +150,26 @@ public partial class PlaylistViewModel : ObservableObject
         RepeatMode: RepeatMode.Off,
         SourceFolder: SourceFolder);
 
+    /// <summary>
+    /// 断点续播装载前补齐封面。库队列与文件夹歌单从缓存回填时不含 AlbumArt；
+    /// 只合并封面，保留缓存回填的其他元数据，并同步替换队列中的同一项。
+    /// </summary>
+    internal async Task<Track> EnsureAlbumArtAsync(Track track)
+    {
+        if (track.AlbumArt is { Length: > 0 })
+            return track;
+
+        var meta = await _metadataReader.ReadAsync(track.FilePath).ConfigureAwait(true);
+        if (meta?.AlbumArt is not { Length: > 0 })
+            return track;
+
+        var updated = track with { AlbumArt = meta.AlbumArt };
+        var index = Queue.IndexOf(track);
+        if (index >= 0)
+            Queue[index] = updated;
+        return updated;
+    }
+
     /// <summary>按指定列物理重排 Queue。再次点击同列切换升/降序。</summary>
     public void SortBy(string column)
     {

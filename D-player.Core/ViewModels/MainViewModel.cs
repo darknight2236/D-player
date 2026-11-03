@@ -128,6 +128,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (Playlists.CurrentPlaylistId != owner.Id)
             Playlists.CurrentPlaylistId = owner.Id;
 
+        track = await owner.EnsureAlbumArtAsync(track).ConfigureAwait(true);
         await _player.LoadAsync(track).ConfigureAwait(true);
 
         var position = TimeSpan.FromSeconds(settings.LastPlayedPositionSeconds);

@@ -64,7 +64,8 @@
                                        Visibility="{Binding DataContext.IsLibraryViewActive,
                                                     RelativeSource={RelativeSource AncestorType=Window},
                                                     Converter={StaticResource InverseBoolToVisibility}}"/>
-                <controls:LibraryView DataContext="{Binding Library}"
+                <controls:LibraryView x:Name="LibraryPanel"
+                                      DataContext="{Binding Library}"
                                       Visibility="{Binding DataContext.IsLibraryViewActive,
                                                    RelativeSource={RelativeSource AncestorType=Window},
                                                    Converter={StaticResource BoolToVisibility}}"/>

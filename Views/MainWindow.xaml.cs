@@ -57,6 +57,9 @@ public partial class MainWindow : Window
         try
         {
             var restoreWarning = await _vm.InitializeAsync();
+            if (_isClosing) return;
+
+            await _vm.Library.StartMonitoringAsync();
             if (restoreWarning is not null)
                 ConfirmDialog.ShowInfo(this, "恢复播放位置", restoreWarning);
         }
@@ -67,6 +70,7 @@ public partial class MainWindow : Window
     }
 
     private bool _isClosing;
+    private bool _cleanupCompleted;
 
     /// <summary>
     /// 关闭时：合并最新窗口几何到设置文件，再让 VM 清理播放器资源，最后写队列快照。
@@ -81,11 +85,12 @@ public partial class MainWindow : Window
     /// </summary>
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {
-        // 第二次进入：异步工作已完成 → 真正关闭窗口
-        if (_isClosing) return;
+        // 清理已完成：放行第二次 Closing。
+        if (_cleanupCompleted) return;
 
-        // 首次进入：拦下关闭，跑完所有异步写盘
+        // 首次进入：拦下关闭，跑完所有异步写盘。
         e.Cancel = true;
+        if (_isClosing) return;
         _isClosing = true;
 
         // 提前在 UI 线程读出 WPF DependencyProperty —— UpdateAsync 内部
@@ -96,21 +101,34 @@ public partial class MainWindow : Window
         var width = Width;
         var height = ActualHeight;
 
+        Exception? cleanupError = null;
         try
         {
             // 锁内 read-modify-write：仅改窗口几何，DefaultVolume 等其他字段保留磁盘最新值
-            await _persistence.UpdateAsync(s => s with
+            try
             {
-                WindowLeft = left, WindowTop = top,
-                WindowWidth = width, WindowHeight = height
-            });
+                await _persistence.UpdateAsync(s => s with
+                {
+                    WindowLeft = left, WindowTop = top,
+                    WindowWidth = width, WindowHeight = height
+                });
+            }
+            catch { /* 关闭流程不打扰用户 */ }
+
+            await _vm.CleanupAsync();
         }
-        catch { /* 关闭流程不打扰用户 */ }
-
-        await _vm.CleanupAsync();
-
-        // 异步链跑完，重新触发 Closing —— 此次 _isClosing == true，直接放行
-        Close();
+        catch (Exception ex)
+        {
+            cleanupError = ex;
+        }
+        finally
+        {
+            // 即使清理异常也必须放行关闭，并留下可观察记录，避免窗口永久卡死。
+            _cleanupCompleted = true;
+            if (cleanupError is not null)
+                System.Diagnostics.Trace.TraceError(cleanupError.ToString());
+            Close();
+        }
     }
 
     /// <summary>
@@ -164,9 +182,17 @@ public partial class MainWindow : Window
             TrackInfoCol.Width = new GridLength(max);
     }
 
-    /// <summary>Ctrl+, 打开设置对话框。</summary>
+    /// <summary>Ctrl+F 聚焦搜索框；Ctrl+, 打开设置对话框。</summary>
     private void MainWindow_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control &&
+            _vm.IsLibraryViewActive && IsEnabled)
+        {
+            LibraryPanel.FocusSearch();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.OemComma && Keyboard.Modifiers == ModifierKeys.Control)
         {
             var playbackService = App.GetService<IPlaybackService>();

@@ -1,18 +1,24 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using MediaTrack = DPlayer.Models.Track;
+using DPlayer.Models;
 using DPlayer.Services;
 using DPlayer.ViewModels;
 using DPlayer.Views.Dialogs;
 
 namespace DPlayer.Views.Controls;
+
+internal sealed record LibrarySearchRow(string Group, object Item);
 
 /// <summary>
 /// Phase 24 音乐库主面板: 艺术家列表 / 专辑网格 / 艺术家详情 / 专辑详情 + 空态与状态行。
@@ -20,15 +26,32 @@ namespace DPlayer.Views.Controls;
 /// </summary>
 public partial class LibraryView : UserControl
 {
+    private readonly ObservableCollection<LibrarySearchRow> _searchRows = new();
     private LibraryViewModel? _vm;
     private MainViewModel? _shell;
     private PlayerViewModel? _player;
     private PlaylistsViewModel? _playlists;
     private bool _trackGeneratorHooked;
+    private bool _isComposing;
+
+    public ICollectionView SearchRowsView { get; }
 
     public LibraryView()
     {
+        SearchRowsView = CollectionViewSource.GetDefaultView(_searchRows);
+        SearchRowsView.GroupDescriptions.Add(
+            new PropertyGroupDescription(nameof(LibrarySearchRow.Group)));
+
         InitializeComponent();
+
+        TextCompositionManager.AddPreviewTextInputStartHandler(
+            SearchBox, SearchBox_CompositionStart);
+        TextCompositionManager.AddPreviewTextInputUpdateHandler(
+            SearchBox, SearchBox_CompositionUpdate);
+        TextCompositionManager.AddPreviewTextInputHandler(
+            SearchBox, SearchBox_CompositionCommit);
+        SearchBox.LostKeyboardFocus += (_, _) => _isComposing = false;
+
         DataContextChanged += OnDataContextChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -43,6 +66,8 @@ public partial class LibraryView : UserControl
 
         if (_vm is not null)
             _vm.PropertyChanged += OnVmPropertyChanged;
+
+        RebuildSearchRows();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -51,8 +76,10 @@ public partial class LibraryView : UserControl
         if (!_trackGeneratorHooked)
         {
             AlbumTracksList.ItemContainerGenerator.StatusChanged += OnTrackContainersStatusChanged;
+            SearchResultsList.ItemContainerGenerator.StatusChanged += OnTrackContainersStatusChanged;
             _trackGeneratorHooked = true;
         }
+        RebuildSearchRows();
         RefreshTrackIndicator();
     }
 
@@ -62,6 +89,7 @@ public partial class LibraryView : UserControl
         if (_trackGeneratorHooked)
         {
             AlbumTracksList.ItemContainerGenerator.StatusChanged -= OnTrackContainersStatusChanged;
+            SearchResultsList.ItemContainerGenerator.StatusChanged -= OnTrackContainersStatusChanged;
             _trackGeneratorHooked = false;
         }
     }
@@ -110,8 +138,11 @@ public partial class LibraryView : UserControl
 
     private void OnTrackContainersStatusChanged(object? sender, EventArgs e)
     {
-        if (AlbumTracksList.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated)
+        if (AlbumTracksList.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated ||
+            SearchResultsList.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated)
+        {
             RefreshTrackIndicator();
+        }
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -122,12 +153,31 @@ public partial class LibraryView : UserControl
             _ = _vm.EnsureCoverAsync(album);
         }
 
+        if (e.PropertyName == nameof(LibraryViewModel.SearchResults))
+            RebuildSearchRows();
+
         if (e.PropertyName is nameof(LibraryViewModel.SelectedAlbum)
             or nameof(LibraryViewModel.SelectedArtist)
+            or nameof(LibraryViewModel.SearchResults)
             or nameof(LibraryViewModel.Page))
         {
             Dispatcher.BeginInvoke(new Action(RefreshTrackIndicator), DispatcherPriority.Background);
         }
+    }
+
+    private void RebuildSearchRows()
+    {
+        _searchRows.Clear();
+        if (_vm is null) return;
+
+        foreach (var artist in _vm.SearchResults.Artists)
+            _searchRows.Add(new LibrarySearchRow("艺术家", artist));
+        foreach (var album in _vm.SearchResults.Albums)
+            _searchRows.Add(new LibrarySearchRow("专辑", album));
+        foreach (var track in _vm.SearchResults.Tracks)
+            _searchRows.Add(new LibrarySearchRow("曲目", track));
+
+        Dispatcher.BeginInvoke(new Action(RefreshTrackIndicator), DispatcherPriority.Background);
     }
 
     private void RefreshTrackIndicator()
@@ -152,6 +202,23 @@ public partial class LibraryView : UserControl
                 && string.Equals(track.FilePath, currentPath, StringComparison.OrdinalIgnoreCase);
             marker.Visibility = isCurrent ? Visibility.Visible : Visibility.Collapsed;
         }
+
+        SearchResultsList.UpdateLayout();
+        foreach (var row in _searchRows)
+        {
+            if (row.Item is not MediaTrack track) continue;
+            if (SearchResultsList.ItemContainerGenerator.ContainerFromItem(row)
+                is not ListBoxItem container)
+                continue;
+
+            var marker = FindChildByName<Path>(container, "PART_Marker");
+            if (marker is null) continue;
+
+            marker.Visibility = isLibraryActive && currentPath is not null &&
+                string.Equals(track.FilePath, currentPath, StringComparison.OrdinalIgnoreCase)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+        }
     }
 
     /// <summary>点击列表空白处（不是项、也不是滚动条）时清除选中高亮。</summary>
@@ -167,6 +234,122 @@ public partial class LibraryView : UserControl
     }
 
     private void Back_Click(object sender, RoutedEventArgs e) => _vm?.Back();
+
+    public void FocusSearch()
+    {
+        SearchBox.Focus();
+        SearchBox.SelectAll();
+    }
+
+    private void ClearSearch_Click(object sender, RoutedEventArgs e)
+    {
+        _isComposing = false;
+        SearchBox.Clear();
+        _vm?.ClearSearch();
+    }
+
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_vm is null || _isComposing) return;
+        _ = SubmitSearchAsync();
+    }
+
+    private async Task SubmitSearchAsync()
+    {
+        if (_vm is null) return;
+        var text = SearchBox.Text;
+        if (string.Equals(text, _vm.SearchQuery, StringComparison.Ordinal)) return;
+        try
+        {
+            await _vm.UpdateSearchAsync(text);
+        }
+        catch
+        {
+            // 搜索失败不应打断输入；结果保持上一份。
+        }
+    }
+
+    private void SearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || _isComposing) return;
+        _vm?.ClearSearch();
+        e.Handled = true;
+    }
+
+    private void SearchBox_CompositionStart(object sender, TextCompositionEventArgs e)
+        => _isComposing = true;
+
+    private void SearchBox_CompositionUpdate(object sender, TextCompositionEventArgs e)
+        => _isComposing = true;
+
+    private void SearchBox_CompositionCommit(object sender, TextCompositionEventArgs e)
+    {
+        if (!_isComposing) return;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _isComposing = false;
+            _ = SubmitSearchAsync();
+        }), DispatcherPriority.Input);
+    }
+
+    private void SearchResults_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        if (item?.DataContext is not LibrarySearchRow row) return;
+
+        switch (row.Item)
+        {
+            case LibraryArtist artist:
+                _vm?.OpenSearchArtist(artist);
+                e.Handled = true;
+                break;
+            case LibraryAlbum album:
+                _vm?.OpenSearchAlbum(album);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private async void SearchResults_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        if (item?.DataContext is LibrarySearchRow { Item: MediaTrack track } &&
+            _vm is not null)
+        {
+            await _vm.PlaySearchTrackAsync(track);
+        }
+    }
+
+    private async void SearchResults_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        if (SearchResultsList.SelectedItem is not LibrarySearchRow row) return;
+
+        switch (row.Item)
+        {
+            case LibraryArtist artist:
+                _vm?.OpenSearchArtist(artist);
+                e.Handled = true;
+                break;
+            case LibraryAlbum album:
+                _vm?.OpenSearchAlbum(album);
+                e.Handled = true;
+                break;
+            case MediaTrack track when _vm is not null:
+                await _vm.PlaySearchTrackAsync(track);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void SearchAlbum_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: LibraryAlbum album } &&
+            _vm is not null)
+        {
+            _ = _vm.EnsureCoverAsync(album);
+        }
+    }
 
     private void Refresh_Click(object sender, RoutedEventArgs e)
     {

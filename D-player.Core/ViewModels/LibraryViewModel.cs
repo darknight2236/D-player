@@ -361,6 +361,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(ShowLibraryEmptyState));
         OnPropertyChanged(nameof(EmptyStateText));
     }
 

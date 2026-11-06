@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:DPlayer.Converters"
              xmlns:vm="clr-namespace:DPlayer.ViewModels;assembly=D-player.Core"
+             xmlns:models="clr-namespace:DPlayer.Models;assembly=D-player.Core"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -187,6 +188,92 @@
                            VerticalAlignment="Center"/>
             </Grid>
         </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:LibraryArtist}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Name}"
+                           Foreground="{StaticResource ForegroundPrimary}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding Summary}"
+                           Foreground="{StaticResource ForegroundSecondary}"
+                           Margin="12,0,0,0"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:LibraryAlbum}">
+            <Grid Loaded="SearchAlbum_Loaded">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="36" Height="36"
+                        Background="{StaticResource BackgroundTertiary}"
+                        CornerRadius="4"
+                        HorizontalAlignment="Left">
+                    <Grid>
+                        <Path Style="{StaticResource IconPath}"
+                              Data="{StaticResource Icon.MusicNote}"
+                              Stroke="{StaticResource ForegroundSecondary}"
+                              Width="16" Height="16"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                        <Image Source="{Binding CoverArt, Converter={StaticResource BytesToBitmapImage}}"
+                               Stretch="UniformToFill"/>
+                    </Grid>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="8,0,0,0"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}"
+                               Foreground="{StaticResource ForegroundPrimary}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Subtitle}"
+                               Foreground="{StaticResource ForegroundSecondary}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type models:Track}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Path x:Name="PART_Marker"
+                      Grid.Column="0"
+                      Data="{StaticResource Icon.PlayMarker}"
+                      Fill="{StaticResource ForegroundPrimary}"
+                      Width="9" Height="9" Stretch="Uniform"
+                      Visibility="Collapsed"
+                      VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Margin="0,0,8,0"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}"
+                               Foreground="{StaticResource ForegroundPrimary}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Foreground="{StaticResource ForegroundSecondary}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis">
+                        <Run Text="{Binding Artist, Mode=OneWay}"/>
+                        <Run Text=" · "/>
+                        <Run Text="{Binding Album, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
+                <TextBlock Grid.Column="2"
+                           Text="{Binding Duration, Converter={StaticResource TimeSpanToString}}"
+                           Foreground="{StaticResource ForegroundSecondary}"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="16,8,16,0">
@@ -197,35 +284,84 @@
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Margin="0,0,0,8">
-            <StackPanel Orientation="Horizontal">
-                <Button x:Name="BackButton"
-                        Width="28" Height="28" Padding="0"
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="BackButton"
+                            Width="28" Height="28" Padding="0"
+                            Background="Transparent" BorderThickness="0"
+                            ToolTip="返回"
+                            Visibility="{Binding CanGoBack, Converter={StaticResource BoolToVisibility}}"
+                            Click="Back_Click">
+                        <Path Style="{StaticResource IconPath}"
+                              Data="M10,0 L2,8 L10,16"
+                              Stroke="{StaticResource ForegroundPrimary}"
+                              Width="12" Height="12"/>
+                    </Button>
+                    <TextBlock Text="{Binding HeaderTitle}"
+                               FontSize="16" FontWeight="SemiBold"
+                               Margin="8,0,40,0"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding CanGoBack, Converter={StaticResource InverseBoolToVisibility}}"/>
+                </StackPanel>
+                <Button HorizontalAlignment="Right"
+                        Width="32" Height="32" Padding="0"
                         Background="Transparent" BorderThickness="0"
-                        ToolTip="返回"
-                        Visibility="{Binding CanGoBack, Converter={StaticResource BoolToVisibility}}"
-                        Click="Back_Click">
+                        ToolTip="刷新音乐库"
+                        Click="Refresh_Click">
                     <Path Style="{StaticResource IconPath}"
-                          Data="M10,0 L2,8 L10,16"
+                          Data="{StaticResource Icon.Refresh}"
                           Stroke="{StaticResource ForegroundPrimary}"
-                          Width="12" Height="12"/>
+                          Width="14" Height="14"/>
                 </Button>
-                <TextBlock Text="{Binding HeaderTitle}"
-                           FontSize="16" FontWeight="SemiBold"
-                           Margin="8,0,40,0"
-                           TextTrimming="CharacterEllipsis"
-                           VerticalAlignment="Center"
-                           Visibility="{Binding CanGoBack, Converter={StaticResource InverseBoolToVisibility}}"/>
-            </StackPanel>
-            <Button HorizontalAlignment="Right"
-                    Width="32" Height="32" Padding="0"
-                    Background="Transparent" BorderThickness="0"
-                    ToolTip="刷新音乐库"
-                    Click="Refresh_Click">
-                <Path Style="{StaticResource IconPath}"
-                      Data="{StaticResource Icon.Refresh}"
-                      Stroke="{StaticResource ForegroundPrimary}"
-                      Width="14" Height="14"/>
-            </Button>
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,6,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Background="{StaticResource BackgroundSecondary}"
+                        CornerRadius="4">
+                    <Grid>
+                        <TextBox x:Name="SearchBox"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="{StaticResource ForegroundPrimary}"
+                                 CaretBrush="{StaticResource ForegroundPrimary}"
+                                 Padding="8,5"
+                                 Text="{Binding SearchQuery, Mode=OneWay}"
+                                 AutomationProperties.Name="搜索艺术家、专辑或曲目"
+                                 ToolTip="搜索艺术家、专辑或曲目"
+                                 TextChanged="SearchBox_TextChanged"
+                                 PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+                        <TextBlock Text="搜索艺术家、专辑或曲目"
+                                   Foreground="{StaticResource ForegroundSecondary}"
+                                   Margin="9,0,0,0"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=SearchBox}"
+                                                     Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+                <Button Grid.Column="1" Content="清空" Margin="6,0,0,0"
+                        Click="ClearSearch_Click" AutomationProperties.Name="清空搜索"/>
+            </Grid>
         </Grid>
 
         <Grid Grid.Row="1">
@@ -376,8 +512,61 @@
                 </Border>
             </Grid>
 
+            <ListBox x:Name="SearchResultsList"
+                     ItemsSource="{Binding SearchRowsView, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                     BorderThickness="0"
+                     Background="{StaticResource BackgroundSecondary}"
+                     Visibility="{Binding IsSearchPage, Converter={StaticResource BoolToVisibility}}"
+                     ScrollViewer.CanContentScroll="True"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling"
+                     ItemContainerStyle="{StaticResource LibraryRowItemStyle}"
+                     PreviewMouseLeftButtonUp="SearchResults_MouseLeftButtonUp"
+                     MouseDoubleClick="SearchResults_MouseDoubleClick"
+                     KeyDown="SearchResults_KeyDown"
+                     PreviewMouseLeftButtonDown="LibraryList_PreviewMouseLeftButtonDown">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <TextBlock Foreground="{StaticResource ForegroundSecondary}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Margin="8,8,0,4">
+                                    <Run Text="{Binding Name, Mode=OneWay}"/>
+                                    <Run Text=" ("/>
+                                    <Run Text="{Binding ItemCount, Mode=OneWay}"/>
+                                    <Run Text=")"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ListBox.GroupStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <ContentControl Content="{Binding Item}"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Text="{Binding SearchMessage}"
+                       Foreground="{StaticResource ForegroundSecondary}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Margin="16"
+                       IsHitTestVisible="False"
+                       Visibility="{Binding IsSearchPage, Converter={StaticResource BoolToVisibility}}"/>
+
             <Border Background="{StaticResource BackgroundPrimary}"
-                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
+                    Visibility="{Binding ShowLibraryEmptyState, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel HorizontalAlignment="Center"
                             VerticalAlignment="Center">
                     <TextBlock Text="{Binding EmptyStateText}"

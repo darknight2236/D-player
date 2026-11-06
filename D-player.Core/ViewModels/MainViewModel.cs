@@ -265,6 +265,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _saveCts = null;
         _saveTask = null;
 
+        // 先排空文件夹歌单的导入/扫描，避免关闭时的晚到结果改写最终快照。
+        await Playlists.CleanupAsync().ConfigureAwait(true);
+
         if (_hydrated)
         {
             try

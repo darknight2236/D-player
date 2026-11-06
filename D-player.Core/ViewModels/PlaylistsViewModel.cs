@@ -24,7 +24,14 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private readonly ILibraryCache _cache;
     private readonly ITrackMetadataReader _metadataReader;
     private readonly IPlaylistFileService _playlistFiles;
+    private readonly ILibraryRootScanner _rootScanner;
     private readonly SynchronizationContext _syncContext;
+
+    private readonly CancellationTokenSource _folderLifetimeCts = new();
+    private readonly object _folderGate = new();
+    private readonly HashSet<Task> _folderTasks = new();
+    private Task? _cleanupTask;
+    private bool _acceptingFolderTasks = true;
 
     private PlaylistViewModel? _libraryPlayback;
 
@@ -85,7 +92,8 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         ILibraryScannerService scanner,
         ILibraryCache cache,
         ITrackMetadataReader metadataReader,
-        IPlaylistFileService playlistFiles)
+        IPlaylistFileService playlistFiles,
+        ILibraryRootScanner rootScanner)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _player = player ?? throw new ArgumentNullException(nameof(player));
@@ -94,13 +102,95 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
         _playlistFiles = playlistFiles ?? throw new ArgumentNullException(nameof(playlistFiles));
+        _rootScanner = rootScanner ?? throw new ArgumentNullException(nameof(rootScanner));
         _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
         Playlists.CollectionChanged += OnPlaylistsCollectionChanged;
     }
 
-    internal PlaylistsViewModel(Func<Playlist, PlaylistViewModel> factory)
+    internal PlaylistsViewModel(
+        Func<Playlist, PlaylistViewModel> factory, ILibraryRootScanner rootScanner)
         : this(factory, new NullPlaybackService(), new NullFileDialogService(), new NullLibraryScannerService(),
-               new NullLibraryCache(), new NullMetadataReader(), new NullPlaylistFileService()) { }
+               new NullLibraryCache(), new NullMetadataReader(), new NullPlaylistFileService(), rootScanner) { }
+
+    public Task CleanupAsync()
+    {
+        TaskCompletionSource completion;
+        lock (_folderGate)
+        {
+            if (_cleanupTask is not null) return _cleanupTask;
+            _acceptingFolderTasks = false;
+            completion = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _cleanupTask = completion.Task;
+        }
+        _ = CompleteCleanupAsync(completion);
+        return completion.Task;
+    }
+
+    private async Task CompleteCleanupAsync(TaskCompletionSource completion)
+    {
+        try
+        {
+            _folderLifetimeCts.Cancel();
+            Task[] pending;
+            lock (_folderGate)
+                pending = _folderTasks.ToArray();
+
+            foreach (var task in pending)
+            {
+                try { await task.ConfigureAwait(false); }
+                catch { /* folder work is abandoned during shutdown */ }
+            }
+
+            completion.TrySetResult();
+        }
+        catch (Exception ex)
+        {
+            completion.TrySetException(ex);
+        }
+        finally
+        {
+            _folderLifetimeCts.Dispose();
+        }
+    }
+
+    private Task TrackFolderTaskAsync(Func<CancellationToken, Task> action)
+    {
+        TaskCompletionSource completion;
+        lock (_folderGate)
+        {
+            if (!_acceptingFolderTasks)
+                return Task.CompletedTask;
+            completion = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _folderTasks.Add(completion.Task);
+        }
+        _ = RunFolderTaskAsync(action, completion);
+        return completion.Task;
+    }
+
+    private async Task RunFolderTaskAsync(
+        Func<CancellationToken, Task> action, TaskCompletionSource completion)
+    {
+        try
+        {
+            await action(_folderLifetimeCts.Token).ConfigureAwait(false);
+            completion.TrySetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            completion.TrySetCanceled();
+        }
+        catch (Exception ex)
+        {
+            completion.TrySetException(ex);
+        }
+        finally
+        {
+            lock (_folderGate)
+                _folderTasks.Remove(completion.Task);
+        }
+    }
 
     /// <summary>
     /// MainViewModel 启动时调用; 用持久化快照初始化容器。重复调用先清空。
@@ -445,18 +535,25 @@ public sealed partial class PlaylistsViewModel : ObservableObject
 
     // —— Phase 10: 文件夹绑定歌单命令 ——
 
-    /// <summary>选文件夹 → 扫描 → 创建文件夹绑定歌单 → 缓存 → StateChanged。</summary>
+    /// <summary>选文件夹 → 根扫描 → 创建文件夹绑定歌单。缓存由根扫描事务保存。</summary>
     [RelayCommand]
-    private async Task ImportFolderAsync()
+    private Task ImportFolderAsync() => TrackFolderTaskAsync(ImportFolderCoreAsync);
+
+    private async Task ImportFolderCoreAsync(CancellationToken ct)
     {
-        var folderPath = await _fileDialog.OpenFolderAsync();
+        var folderPath = await _fileDialog.OpenFolderAsync().ConfigureAwait(true);
         if (folderPath is null) return;
 
-        var folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        if (string.IsNullOrWhiteSpace(folderName)) folderName = folderPath;
+        var normalized = LibraryPathNormalizer.Normalize(folderPath);
+        if (normalized is null) return;
 
-        var paths = _scanner.ScanFolder(folderPath);
-        var tracks = await _scanner.ReadMetadataBatchAsync(paths).ConfigureAwait(true);
+        using var lease = new LibraryScanLease(ct);
+        var snapshot = await _rootScanner.ScanAsync(normalized, lease).ConfigureAwait(true);
+        if (snapshot.IsUnavailable) return;
+
+        var tracks = snapshot.Entries.Select(TrackFromEntry).ToArray();
+        var folderName = Path.GetFileName(normalized);
+        if (string.IsNullOrWhiteSpace(folderName)) folderName = normalized;
 
         var seed = new Playlist(
             Id: Guid.NewGuid().ToString(),
@@ -465,7 +562,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             CurrentIndex: -1,
             ShuffleEnabled: false,
             RepeatMode: RepeatMode.Off,
-            SourceFolder: Path.GetFullPath(folderPath));
+            SourceFolder: normalized);
 
         var vm = _factory(seed);
         vm.Queue.Clear();
@@ -475,15 +572,6 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         HookPlaylistVm(vm);
         Playlists.Add(vm);
         ViewedPlaylist = vm;
-
-        var entries = tracks.Select(t => new LibraryCacheEntry(
-            FilePath: t.FilePath, Title: t.Title, Artist: t.Artist,
-            Album: t.Album, Genre: t.Genre, Year: t.Year,
-            Duration: t.Duration, SampleRate: t.SampleRate,
-            TrackNumber: t.TrackNumber)).ToList();
-
-        try { await _cache.SaveAsync(Path.GetFullPath(folderPath), entries).ConfigureAwait(false); }
-        catch (IOException) { /* cache write failure doesn't block */ }
     }
 
     // —— Phase 18: 播放列表文件导入（容器级 = 新建歌单） ——
@@ -617,101 +705,103 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     }
 
     /// <summary>启动后台扫描所有文件夹绑定歌单。由 MainViewModel.InitializeAsync fire-and-forget。</summary>
-    internal async Task RescanFolderBoundPlaylistsAsync()
-    {
-        foreach (var vm in Playlists)
+    internal Task RescanFolderBoundPlaylistsAsync()
+        => TrackFolderTaskAsync(async ct =>
         {
-            if (vm.SourceFolder is not { } sourceFolder)
-                continue;
-            await RescanSinglePlaylistAsync(vm, sourceFolder).ConfigureAwait(false);
-        }
-    }
+            foreach (var vm in Playlists)
+            {
+                if (vm.SourceFolder is not { } sourceFolder)
+                    continue;
+                ct.ThrowIfCancellationRequested();
+                await RescanSinglePlaylistAsync(vm, sourceFolder, ct).ConfigureAwait(false);
+            }
+        });
 
     /// <summary>手动刷新单个文件夹绑定歌单。</summary>
     [RelayCommand]
-    private async Task RefreshPlaylistAsync(PlaylistViewModel? playlist)
+    private Task RefreshPlaylistAsync(PlaylistViewModel? playlist)
     {
         if (playlist?.SourceFolder is not { } sourceFolder)
-            return;
-        await RescanSinglePlaylistAsync(playlist, sourceFolder).ConfigureAwait(true);
+            return Task.CompletedTask;
+        return TrackFolderTaskAsync(
+            ct => RescanSinglePlaylistAsync(playlist, sourceFolder, ct));
     }
 
-    private async Task RescanSinglePlaylistAsync(PlaylistViewModel vm, string sourceFolder)
+    private async Task RescanSinglePlaylistAsync(
+        PlaylistViewModel vm, string sourceFolder, CancellationToken ct)
     {
         var normalized = Path.GetFullPath(sourceFolder);
         _syncContext.Send(_ => { vm.IsScanning = true; vm.HasScanError = false; }, null);
 
         try
         {
-            var cached = await _cache.LoadAsync(normalized).ConfigureAwait(false);
-            var currentFiles = _scanner.ScanFolder(normalized);
+            ct.ThrowIfCancellationRequested();
+            using var lease = new LibraryScanLease(ct);
+            var snapshot = await _rootScanner.ScanAsync(normalized, lease).ConfigureAwait(false);
 
-            if (currentFiles.Count == 0 && cached.Count == 0)
-                return;
-
-            var diff = _scanner.ComputeDiff(currentFiles, cached);
-
-            IReadOnlyList<Track> newTracks = Array.Empty<Track>();
-            if (diff.AddedPaths.Count > 0)
-                newTracks = await _scanner.ReadMetadataBatchAsync(diff.AddedPaths).ConfigureAwait(false);
-
-            var updatedEntries = new List<LibraryCacheEntry>();
-            updatedEntries.AddRange(diff.Unchanged);
-            foreach (var track in newTracks)
-                updatedEntries.Add(new LibraryCacheEntry(
-                    FilePath: track.FilePath, Title: track.Title, Artist: track.Artist,
-                    Album: track.Album, Genre: track.Genre, Year: track.Year,
-                    Duration: track.Duration, SampleRate: track.SampleRate,
-                    TrackNumber: track.TrackNumber));
-
-            // 所有 Queue 修改必须在 UI 线程执行(WPF CollectionView 要求)
-            _syncContext.Send(_ =>
+            if (snapshot.IsUnavailable)
             {
-                var removedIndices = diff.RemovedPaths
-                    .Select(p => FindTrackIndexByPath(vm.Queue, p))
-                    .Where(i => i >= 0)
-                    .OrderByDescending(i => i)
-                    .ToList();
+                _syncContext.Send(_ => vm.HasScanError = true, null);
+                return;
+            }
 
-                foreach (var idx in removedIndices)
-                {
-                    vm.Queue.RemoveAt(idx);
-                    if (idx == vm.CurrentIndex)
-                        vm.CurrentIndex = -1;
-                    else if (idx < vm.CurrentIndex)
-                        vm.CurrentIndex--;
-                }
-
-                foreach (var track in newTracks)
-                    vm.Queue.Add(track);
-            }, null);
-
-            try { await _cache.SaveAsync(normalized, updatedEntries).ConfigureAwait(false); }
-            catch (IOException) { /* cache write failure doesn't block */ }
+            ct.ThrowIfCancellationRequested();
+            _syncContext.Send(_ => ApplySnapshot(vm, snapshot, ct), null);
         }
-        catch (DirectoryNotFoundException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            _syncContext.Send(_ => vm.HasScanError = true, null);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            _syncContext.Send(_ => vm.HasScanError = true, null);
+            // 容器关闭时放弃本轮刷新，不再改动队列。
         }
         finally
         {
-            _syncContext.Send(_ => vm.IsScanning = false, null);
+            if (!ct.IsCancellationRequested)
+                _syncContext.Send(_ => vm.IsScanning = false, null);
         }
     }
 
-    private static int FindTrackIndexByPath(ObservableCollection<Track> queue, string filePath)
+    private static void ApplySnapshot(
+        PlaylistViewModel vm, LibraryRootSnapshot snapshot, CancellationToken ct)
     {
-        for (int i = 0; i < queue.Count; i++)
+        ct.ThrowIfCancellationRequested();
+        var byPath = snapshot.Entries.ToDictionary(
+            entry => Path.GetFullPath(entry.FilePath), StringComparer.OrdinalIgnoreCase);
+
+        for (var i = vm.Queue.Count - 1; i >= 0; i--)
         {
-            if (string.Equals(queue[i].FilePath, filePath, StringComparison.OrdinalIgnoreCase))
-                return i;
+            if (byPath.ContainsKey(Path.GetFullPath(vm.Queue[i].FilePath))) continue;
+
+            vm.Queue.RemoveAt(i);
+            if (i == vm.CurrentIndex)
+                vm.CurrentIndex = -1;
+            else if (i < vm.CurrentIndex)
+                vm.CurrentIndex--;
         }
-        return -1;
+
+        for (var i = 0; i < vm.Queue.Count; i++)
+        {
+            var path = Path.GetFullPath(vm.Queue[i].FilePath);
+            if (!byPath.TryGetValue(path, out var entry)) continue;
+
+            var old = vm.Queue[i];
+            var updated = TrackFromEntry(entry) with { AlbumArt = old.AlbumArt };
+            if (updated != old)
+                vm.Queue[i] = updated;
+        }
+
+        var present = new HashSet<string>(
+            vm.Queue.Select(track => Path.GetFullPath(track.FilePath)),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in snapshot.Entries)
+        {
+            var path = Path.GetFullPath(entry.FilePath);
+            if (present.Add(path))
+                vm.Queue.Add(TrackFromEntry(entry));
+        }
     }
+
+    private static Track TrackFromEntry(LibraryCacheEntry entry) => new(
+        entry.FilePath, entry.Title, entry.Artist, entry.Album, entry.Genre,
+        entry.Year, entry.SampleRate, null, entry.Duration, entry.TrackNumber);
 
     // —— Null implementations for backward-compatible constructor ——
 

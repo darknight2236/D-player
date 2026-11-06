@@ -61,7 +61,8 @@ public class PlaybackResumeTests : IDisposable
     private MainViewModel CreateMainVm()
     {
         var playlists = new PlaylistsViewModel(
-            seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles));
+            seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+            Substitute.For<ILibraryRootScanner>());
         var library = new LibraryViewModel(_settings, _scanner, _cache, _metadataReader, playlists);
         return new MainViewModel(
             CreatePlayerVm(), playlists, library, _player, _playlistService, _settings);

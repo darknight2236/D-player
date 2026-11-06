@@ -46,7 +46,8 @@ public sealed class LibraryViewModelTests : IDisposable
 
         var playlists = new PlaylistsViewModel(
             seed => new PlaylistViewModel(
-                seed, _player, _fileDialog, _metadata, _playlistFiles));
+                seed, _player, _fileDialog, _metadata, _playlistFiles),
+            Substitute.For<ILibraryRootScanner>());
 
         var previous = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());

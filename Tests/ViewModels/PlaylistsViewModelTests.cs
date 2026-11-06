@@ -21,6 +21,7 @@ public class PlaylistsViewModelTests
     private readonly ILibraryScannerService _scanner = Substitute.For<ILibraryScannerService>();
     private readonly ILibraryCache _cache = Substitute.For<ILibraryCache>();
     private readonly IPlaylistFileService _playlistFiles = Substitute.For<IPlaylistFileService>();
+    private readonly ILibraryRootScanner _rootScanner = Substitute.For<ILibraryRootScanner>();
 
     private PlaylistViewModel CreatePlaylistVm(string? id = null, string name = "Test")
     {
@@ -41,7 +42,7 @@ public class PlaylistsViewModelTests
 
     private PlaylistsViewModel CreateContainerVm()
     {
-        return new PlaylistsViewModel(seed => CreatePlaylistVm(seed.Id, seed.Name));
+        return new PlaylistsViewModel(seed => CreatePlaylistVm(seed.Id, seed.Name), _rootScanner);
     }
 
     /// <summary>Phase 18 导入用例专用：走公共 ctor，scanner / playlistFiles 可 mock。</summary>
@@ -49,7 +50,8 @@ public class PlaylistsViewModelTests
     {
         return new PlaylistsViewModel(
             seed => CreatePlaylistVm(seed.Id, seed.Name),
-            _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles);
+            _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles,
+            _rootScanner);
     }
 
     private static PlaylistImportResult ImportResult(
@@ -723,6 +725,207 @@ public class PlaylistsViewModelTests
         await _fileDialog.DidNotReceive().OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>());
     }
 
+    // —— Phase 25: 文件夹歌单成员差分 ——
+
+    [Fact]
+    public async Task RefreshPlaylist_UsesQueueMembership_NotCachedDiffMembership()
+    {
+        var rootScanner = Substitute.For<ILibraryRootScanner>();
+        var vm = new PlaylistsViewModel(
+            seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+            _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles, rootScanner);
+        var bound = new PlaylistViewModel(
+            new Playlist("bound", "Bound", Array.Empty<string>(), -1, false,
+                RepeatMode.Off, SourceFolder: @"C:\Library"),
+            _player, _fileDialog, _metadataReader, _playlistFiles);
+        var entry = new LibraryCacheEntry(@"C:\Library\new.flac", "New", "A", "B",
+            null, null, TimeSpan.FromMinutes(3), 44100, 1);
+        rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+            .Returns(Task.FromResult(new LibraryRootSnapshot(@"C:\Library", new[] { entry },
+                false, false, Array.Empty<string>(), Array.Empty<string>())));
+
+        await vm.RefreshPlaylistCommand.ExecuteAsync(bound);
+
+        Assert.Equal(entry.FilePath, Assert.Single(bound.Queue).FilePath);
+        await vm.CleanupAsync();
+        bound.Cleanup();
+    }
+
+    [Fact]
+    public async Task RefreshPlaylist_RemovesMissing_UpdatesMetadataAndPreservesIndexAndArt()
+    {
+        var rootScanner = Substitute.For<ILibraryRootScanner>();
+        var container = new PlaylistsViewModel(
+            seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+            _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles, rootScanner);
+        var bound = new PlaylistViewModel(
+            new Playlist("bound", "Bound", Array.Empty<string>(), 1, false,
+                RepeatMode.Off, SourceFolder: @"C:\Library"),
+            _player, _fileDialog, _metadataReader, _playlistFiles);
+        var art = new byte[] { 1, 2, 3 };
+        var keep = new Track(@"C:\Library\keep.flac", "Old", "A", "B", null, null, 44100,
+            art, TimeSpan.FromMinutes(2), 1);
+        var keepEntry = new LibraryCacheEntry(@"C:\Library\keep.flac", "New", "A", "B",
+            null, null, TimeSpan.FromMinutes(2), 44100, 1);
+        var addedEntry = new LibraryCacheEntry(@"C:\Library\added.flac", "Added", "A", "B",
+            null, null, TimeSpan.FromMinutes(3), 44100, 2);
+        bound.Queue.Clear();
+        bound.Queue.Add(TrackWith(@"C:\Library\gone.flac"));
+        bound.Queue.Add(keep);
+        bound.CurrentIndex = 1;
+        rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+            .Returns(Task.FromResult(new LibraryRootSnapshot(@"C:\Library",
+                new[] { addedEntry, keepEntry }, false, false,
+                Array.Empty<string>(), Array.Empty<string>())));
+
+        await container.RefreshPlaylistCommand.ExecuteAsync(bound);
+
+        Assert.Equal(2, bound.Queue.Count);
+        Assert.Equal(keep.FilePath, bound.Queue[0].FilePath);
+        Assert.Equal("New", bound.Queue[0].Title);
+        Assert.Same(art, bound.Queue[0].AlbumArt);
+        Assert.Equal(addedEntry.FilePath, bound.Queue[1].FilePath);
+        Assert.Equal(0, bound.CurrentIndex);
+        _player.DidNotReceive().Play();
+        _player.DidNotReceive().Stop();
+        _scanner.DidNotReceive().ComputeDiff(
+            Arg.Any<IReadOnlyList<string>>(), Arg.Any<IReadOnlyList<LibraryCacheEntry>>());
+        await _cache.DidNotReceive().LoadAsync(Arg.Any<string>());
+        await _cache.DidNotReceive().SaveAsync(Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<LibraryCacheEntry>>());
+        await container.CleanupAsync();
+        bound.Cleanup();
+    }
+
+    [Fact]
+    public async Task RefreshPlaylist_UnavailableRoot_KeepsQueueAndMarksError()
+    {
+        var rootScanner = Substitute.For<ILibraryRootScanner>();
+        var container = new PlaylistsViewModel(
+            seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+            _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles, rootScanner);
+        var bound = new PlaylistViewModel(
+            new Playlist("bound", "Bound", Array.Empty<string>(), 0, false,
+                RepeatMode.Off, SourceFolder: @"C:\Library"),
+            _player, _fileDialog, _metadataReader, _playlistFiles);
+        var track = TrackWith(@"C:\Library\keep.flac");
+        bound.Queue.Add(track);
+        rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+            .Returns(Task.FromResult(new LibraryRootSnapshot(@"C:\Library",
+                Array.Empty<LibraryCacheEntry>(), true, false,
+                Array.Empty<string>(), Array.Empty<string>())));
+
+        await container.RefreshPlaylistCommand.ExecuteAsync(bound);
+
+        Assert.Same(track, Assert.Single(bound.Queue));
+        Assert.True(bound.HasScanError);
+        Assert.False(bound.IsScanning);
+        await container.CleanupAsync();
+        bound.Cleanup();
+    }
+
+    [Fact]
+    public async Task CleanupAsync_ReturnsSameTask_AndSkipsLateSnapshot()
+    {
+        var rootScanner = Substitute.For<ILibraryRootScanner>();
+        var container = new PlaylistsViewModel(
+            seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+            _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles, rootScanner);
+        var bound = new PlaylistViewModel(
+            new Playlist("bound", "Bound", Array.Empty<string>(), 0, false,
+                RepeatMode.Off, SourceFolder: @"C:\Library"),
+            _player, _fileDialog, _metadataReader, _playlistFiles);
+        var track = TrackWith(@"C:\Library\keep.flac");
+        bound.Queue.Add(track);
+        var scan = new TaskCompletionSource<LibraryRootSnapshot>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+            .Returns(scan.Task);
+
+        var refresh = container.RefreshPlaylistCommand.ExecuteAsync(bound);
+        var first = container.CleanupAsync();
+        var second = container.CleanupAsync();
+
+        Assert.Same(first, second);
+        scan.TrySetResult(new LibraryRootSnapshot(@"C:\Library",
+            new[] { new LibraryCacheEntry(@"C:\Library\late.flac", "Late", "A", "B",
+                null, null, TimeSpan.FromMinutes(3), 44100, 1) },
+            false, false, Array.Empty<string>(), Array.Empty<string>()));
+        await first.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        Assert.Same(track, Assert.Single(bound.Queue));
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        bound.Cleanup();
+    }
+
+    [Fact]
+    public async Task ImportFolderAsync_UsesRootScanner_AndAllowsEmptyRoot()
+    {
+        var root = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), $"dplayer-import-{Guid.NewGuid():N}");
+        System.IO.Directory.CreateDirectory(root);
+        try
+        {
+            _fileDialog.OpenFolderAsync().Returns(Task.FromResult<string?>(root));
+            _rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+                .Returns(Task.FromResult(new LibraryRootSnapshot(root,
+                    Array.Empty<LibraryCacheEntry>(), false, false,
+                    Array.Empty<string>(), Array.Empty<string>())));
+            var container = new PlaylistsViewModel(
+                seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+                _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles,
+                _rootScanner);
+
+            await container.ImportFolderCommand.ExecuteAsync(null);
+
+            var playlist = Assert.Single(container.Playlists);
+            Assert.Empty(playlist.Queue);
+            Assert.Equal(root, playlist.SourceFolder);
+            await _rootScanner.Received(1).ScanAsync(
+                Arg.Any<string>(), Arg.Any<LibraryScanLease>());
+            await _cache.DidNotReceive().SaveAsync(Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>());
+            await container.CleanupAsync();
+        }
+        finally
+        {
+            System.IO.Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ImportFolderAsync_UnavailableRoot_DoesNotCreatePlaylist()
+    {
+        var root = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), $"dplayer-import-{Guid.NewGuid():N}");
+        System.IO.Directory.CreateDirectory(root);
+        try
+        {
+            _fileDialog.OpenFolderAsync().Returns(Task.FromResult<string?>(root));
+            _rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+                .Returns(Task.FromResult(new LibraryRootSnapshot(root,
+                    Array.Empty<LibraryCacheEntry>(), true, false,
+                    Array.Empty<string>(), Array.Empty<string>())));
+            var container = new PlaylistsViewModel(
+                seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+                _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles,
+                _rootScanner);
+
+            await container.ImportFolderCommand.ExecuteAsync(null);
+
+            Assert.Empty(container.Playlists);
+            await _cache.DidNotReceive().SaveAsync(Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>());
+            await container.CleanupAsync();
+        }
+        finally
+        {
+            System.IO.Directory.Delete(root, recursive: true);
+        }
+    }
+
     // —— Phase 24: 库播放队列 ——
 
     [Fact]
@@ -770,7 +973,8 @@ public class PlaylistsViewModelTests
                 .Returns(ci => TrackWith(ci.ArgAt<string>(0)));
             var container = new PlaylistsViewModel(
                 seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
-                _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles);
+                _player, _fileDialog, _scanner, _cache, _metadataReader, _playlistFiles,
+                _rootScanner);
 
             // 可见歌单为空队列：它的普通元数据加载本来就读不到东西。
             // 库队列含 1 个真实存在的临时文件：元数据循环若有会被调用，必然读到这里。

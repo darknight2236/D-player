@@ -60,6 +60,7 @@ public sealed class AddDPlayerCoreTests
             Assert.NotNull(vm.Playlists);
             Assert.NotNull(vm.Library);
             Assert.NotNull(provider.GetRequiredService<LibraryViewModel>());
+            Assert.NotNull(provider.GetRequiredService<PlaylistsViewModel>());
 
             var rootScanner = provider.GetRequiredService<ILibraryRootScanner>();
             Assert.IsType<LibraryRootScanner>(rootScanner);

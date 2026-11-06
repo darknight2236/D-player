@@ -66,6 +66,11 @@ public sealed class AddDPlayerCoreTests
             Assert.IsType<LibraryRootScanner>(rootScanner);
             Assert.Same(rootScanner, provider.GetRequiredService<ILibraryRootScanner>());
 
+            var watcher = provider.GetRequiredService<ILibraryWatcher>();
+            Assert.IsType<FileSystemLibraryWatcher>(watcher);
+            Assert.False(((FileSystemLibraryWatcher)watcher).IsMonitoring);
+            Assert.Same(TimeProvider.System, provider.GetRequiredService<TimeProvider>());
+
             // 第一次构造歌单：IFileDialogService 缺失时就是在这里抛
             var factory = provider.GetRequiredService<Func<Playlist, PlaylistViewModel>>();
             var playlist = factory(new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off));

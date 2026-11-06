@@ -50,6 +50,10 @@ public static class ServiceCollectionExtensions
         // Phase 25: 共享根扫描事务（同根枚举、差分与缓存保存串行化）
         services.AddSingleton<ILibraryRootScanner, LibraryRootScanner>();
 
+        // Phase 25: 惰性文件系统监听；构造/解析不启动 watcher
+        services.AddSingleton<ILibraryWatcher, FileSystemLibraryWatcher>();
+        services.AddSingleton<TimeProvider>(TimeProvider.System);
+
         // Phase 18: 播放列表文件导入导出（无状态、纯文件 IO → Singleton）
         services.AddSingleton<IPlaylistFileService, PlaylistFileService>();
 

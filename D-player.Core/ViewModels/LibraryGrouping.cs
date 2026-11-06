@@ -13,19 +13,6 @@ internal static class LibraryGrouping
     internal const string UnknownAlbum = "未知专辑";
     internal const string VariousArtists = "多位艺术家";
 
-    private readonly record struct AlbumKey(string Album, string Directory);
-
-    private sealed class AlbumKeyComparer : IEqualityComparer<AlbumKey>
-    {
-        public bool Equals(AlbumKey x, AlbumKey y) =>
-            string.Equals(x.Album, y.Album, StringComparison.CurrentCultureIgnoreCase) &&
-            string.Equals(x.Directory, y.Directory, StringComparison.OrdinalIgnoreCase);
-
-        public int GetHashCode(AlbumKey obj) => HashCode.Combine(
-            StringComparer.CurrentCultureIgnoreCase.GetHashCode(obj.Album),
-            StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Directory));
-    }
-
     private sealed class ArtistBucket
     {
         public ArtistBucket(string name, bool isUnknown)
@@ -55,16 +42,13 @@ internal static class LibraryGrouping
             unique.TryAdd(fullPath, track);
         }
 
-        var buckets = new Dictionary<AlbumKey, List<Track>>(new AlbumKeyComparer());
-        foreach (var (fullPath, track) in unique)
+        var buckets = new Dictionary<LibraryAlbumKey, List<Track>>(
+            LibraryIdentity.AlbumComparer);
+        foreach (var (_, track) in unique)
         {
-            string directory;
-            try { directory = Path.GetDirectoryName(fullPath) ?? string.Empty; }
-            catch { directory = string.Empty; }
-
             // 专辑身份 = 专辑名 + 所在文件夹：没有共同 AlbumArtist 的合辑
             // 仍会被逐曲 Artist 拆开，而文件夹是本地专辑最可靠的边界。
-            var key = new AlbumKey(Normalize(track.Album), directory);
+            var key = LibraryIdentity.AlbumOf(track);
             if (!buckets.TryGetValue(key, out var list))
                 buckets[key] = list = new List<Track>();
             list.Add(track);

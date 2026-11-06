@@ -15,10 +15,10 @@ namespace DPlayer.ViewModels;
 public sealed partial class LibraryViewModel : ObservableObject
 {
     private readonly ISettingsPersistence _settings;
-    private readonly ILibraryScannerService _scanner;
     private readonly ILibraryCache _cache;
     private readonly ITrackMetadataReader _metadataReader;
     private readonly PlaylistsViewModel _playlists;
+    private readonly ILibraryWatcher _watcher;
     private readonly SynchronizationContext _syncContext;
 
     private readonly Dictionary<string, Track> _tracksByPath =
@@ -27,11 +27,15 @@ public sealed partial class LibraryViewModel : ObservableObject
         new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _coverGate = new(1, 1);
     private readonly CancellationTokenSource _lifetimeCts = new();
+    private readonly object _stateGate = new();
+    private readonly object _cleanupGate = new();
+    private readonly HashSet<Task> _coverTasks = new();
 
     private IReadOnlyList<string> _roots = Array.Empty<string>();
-    private int _scanGeneration;
-    private CancellationTokenSource? _scanCts;
+    private long _libraryVersion;
     private bool _albumOpenedFromArtist;
+    private Task? _cleanupTask;
+    private volatile bool _cleaned;
 
     public ObservableCollection<LibraryArtist> Artists { get; } = new();
     public ObservableCollection<LibraryAlbum> Albums { get; } = new();
@@ -95,136 +99,68 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     public LibraryViewModel(
         ISettingsPersistence settings,
-        ILibraryScannerService scanner,
+        ILibraryRootScanner rootScanner,
         ILibraryCache cache,
         ITrackMetadataReader metadataReader,
-        PlaylistsViewModel playlists)
+        PlaylistsViewModel playlists,
+        ILibraryWatcher watcher,
+        TimeProvider clock)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
+        _rootScanner = rootScanner ?? throw new ArgumentNullException(nameof(rootScanner));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
         _playlists = playlists ?? throw new ArgumentNullException(nameof(playlists));
+        _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
         _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
+        _scheduler = new LibraryRefreshScheduler(
+            clock ?? throw new ArgumentNullException(nameof(clock)),
+            RunRefreshBatchAsync,
+            ReportRefreshError);
     }
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        // 启动回填也是一“代”：并发的扫描/刷新要么让位，要么让这次回填被丢弃，
-        // 避免晚到的启动快照覆盖掉更新的结果。
-        var generation = Interlocked.Increment(ref _scanGeneration);
-        var roots = await LoadRootsAsync().ConfigureAwait(false);
-        var loaded = await LoadCachedTracksAsync(roots).ConfigureAwait(false);
-        if (generation != Volatile.Read(ref _scanGeneration)) return;
-
-        _roots = roots;
-        _syncContext.Send(_ =>
+        lock (_cleanupGate)
         {
-            HasLibraryRoots = roots.Count > 0;
-            ApplyLoaded(loaded);
-        }, null);
+            if (_cleaned) return Task.CompletedTask;
+            return _initializeTask = InitializeCoreAsync();
+        }
     }
 
-    /// <summary>后台逐根扫描；由 MainViewModel fire-and-forget。</summary>
-    public async Task ScanInBackgroundAsync()
+    /// <summary>后台逐根扫描；由 MainViewModel fire-and-forget。不启动 watcher。</summary>
+    public Task ScanInBackgroundAsync()
     {
-        var generation = Interlocked.Increment(ref _scanGeneration);
-        var roots = _roots;
-        if (roots.Count == 0)
+        lock (_cleanupGate)
         {
-            roots = await LoadRootsAsync().ConfigureAwait(false);
-            // 等设置期间可能已有更新的扫描/刷新接管：不覆盖 _roots，也不点亮扫描状态。
-            if (generation != Volatile.Read(ref _scanGeneration)) return;
-
-            _roots = roots;
-            _syncContext.Send(_ => HasLibraryRoots = roots.Count > 0, null);
-        }
-
-        if (roots.Count == 0) return;
-
-        _syncContext.Send(_ => IsScanning = true, null);
-        try
-        {
-            await ScanRootsAsync(roots, generation, _lifetimeCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            // Cleanup 已取消生命周期令牌。
-        }
-        finally
-        {
-            if (generation == Volatile.Read(ref _scanGeneration))
-                _syncContext.Send(_ => IsScanning = false, null);
+            if (_cleaned) return Task.CompletedTask;
+            return _scanTask = ScanInBackgroundCoreAsync();
         }
     }
 
     /// <summary>重新读设置、重载缓存并扫描；手动刷新用。</summary>
-    public Task RefreshAsync() => RefreshCoreAsync(loadedRoots: null);
+    public Task RefreshAsync() => RefreshFromSettingsAsync(forceEvenIfUnchanged: true);
 
     /// <summary>
     /// 设置保存后调用：只有库根集合变化时才重扫。
     /// 频谱/音量等设置保存不应触发整库扫描与封面重建。
     /// </summary>
     public async Task RefreshIfRootsChangedAsync()
-    {
-        var roots = await LoadRootsAsync().ConfigureAwait(false);
-        if (RootsEqual(roots, _roots)) return;
-        await RefreshCoreAsync(roots).ConfigureAwait(false);
-    }
+        => await RefreshFromSettingsAsync(forceEvenIfUnchanged: false).ConfigureAwait(false);
 
-    private async Task RefreshCoreAsync(IReadOnlyList<string>? loadedRoots)
+    public Task CleanupAsync()
     {
-        var generation = Interlocked.Increment(ref _scanGeneration);
-        _scanCts?.Cancel();
-        _scanCts?.Dispose();
-        // 与生命周期令牌联动：Cleanup 一次即可取消本轮刷新扫描。
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
-        _scanCts = cts;
-
-        try
+        TaskCompletionSource completion;
+        lock (_cleanupGate)
         {
-            var roots = loadedRoots ?? await LoadRootsAsync().ConfigureAwait(false);
-            var loaded = await LoadCachedTracksAsync(roots).ConfigureAwait(false);
-            if (generation != Volatile.Read(ref _scanGeneration)) return;
-
-            _roots = roots;
-            _syncContext.Send(_ =>
-            {
-                HasLibraryRoots = roots.Count > 0;
-                ApplyLoaded(loaded);
-                IsScanning = roots.Count > 0;
-            }, null);
-
-            if (roots.Count == 0) return;
-            await ScanRootsAsync(roots, generation, cts.Token).ConfigureAwait(false);
+            if (_cleanupTask is not null) return _cleanupTask;
+            _cleaned = true;
+            completion = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _cleanupTask = completion.Task;
         }
-        catch (OperationCanceledException)
-        {
-            // 新一轮 Refresh 已接管，或 Cleanup 已取消生命周期令牌。
-        }
-        finally
-        {
-            if (generation == Volatile.Read(ref _scanGeneration))
-                _syncContext.Send(_ => IsScanning = false, null);
-        }
-    }
-
-    private static bool RootsEqual(IReadOnlyList<string> left, IReadOnlyList<string> right)
-    {
-        if (left.Count != right.Count) return false;
-        var rightSet = new HashSet<string>(right, StringComparer.OrdinalIgnoreCase);
-        return left.All(rightSet.Contains);
-    }
-
-    public void Cleanup()
-    {
-        Interlocked.Increment(ref _scanGeneration);
-        _scanCts?.Cancel();
-        _scanCts?.Dispose();
-        _scanCts = null;
-        // 生命周期令牌永不 Dispose：Cancel 可重复调用，也不会给联动令牌引出
-        // ObjectDisposedException（这里从不 Register 回调）。
-        _lifetimeCts.Cancel();
+        _ = CompleteCleanupAsync(completion);
+        return completion.Task;
     }
 
     public void ShowArtists()
@@ -307,8 +243,29 @@ public sealed partial class LibraryViewModel : ObservableObject
     public async Task EnsureCoverAsync(LibraryAlbum album)
     {
         if (album.CoverArt is not null || album.CoverAttempted) return;
+
+        Task task;
+        lock (_cleanupGate)
+        {
+            if (_cleaned) return;
+            task = EnsureCoverCoreAsync(album);
+            _coverTasks.Add(task);
+        }
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_cleanupGate)
+                _coverTasks.Remove(task);
+        }
+    }
+
+    private async Task EnsureCoverCoreAsync(LibraryAlbum album)
+    {
         album.CoverAttempted = true;
-        var generation = Volatile.Read(ref _scanGeneration);
+        var version = Volatile.Read(ref _libraryVersion);
 
         await _coverGate.WaitAsync().ConfigureAwait(false);
         try
@@ -316,9 +273,15 @@ public sealed partial class LibraryViewModel : ObservableObject
             if (album.Tracks.Count == 0) return;
             var track = await _metadataReader.ReadAsync(album.Tracks[0].FilePath)
                 .ConfigureAwait(false);
-            if (generation != Volatile.Read(ref _scanGeneration)) return;
+            if (_cleaned || version != Volatile.Read(ref _libraryVersion)) return;
             if (track.AlbumArt is { Length: > 0 } art)
-                _syncContext.Send(_ => album.CoverArt = art, null);
+            {
+                _syncContext.Send(_ =>
+                {
+                    if (_cleaned || !Albums.Contains(album)) return;
+                    album.CoverArt = art;
+                }, null);
+            }
         }
         catch
         {
@@ -330,197 +293,107 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
     }
 
-    private async Task<IReadOnlyList<string>> LoadRootsAsync()
+    private void PublishGrouping(LibraryGroupingResult result, bool preserveSelection)
     {
-        AppSettings settings;
-        try { settings = await _settings.LoadAsync().ConfigureAwait(false); }
-        catch { return Array.Empty<string>(); }
+        var previousAlbums = new Dictionary<LibraryAlbumKey, LibraryAlbum>(
+            LibraryIdentity.AlbumComparer);
+        foreach (var album in Albums)
+            previousAlbums[LibraryIdentity.AlbumOf(album)] = album;
 
-        return LibraryPathNormalizer.NormalizeMany(settings.LibraryFolders);
-    }
-
-    private async Task<LoadedLibrary> LoadCachedTracksAsync(
-        IReadOnlyList<string> roots)
-    {
-        var tracks = new Dictionary<string, Track>(StringComparer.OrdinalIgnoreCase);
-        var entries = new Dictionary<string, LibraryCacheEntry>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var root in roots)
+        string? selectedArtistName = null;
+        LibraryAlbumKey? selectedAlbumKey = null;
+        if (preserveSelection)
         {
-            var cached = await _cache.LoadAsync(root).ConfigureAwait(false)
-                ?? Array.Empty<LibraryCacheEntry>();
-            foreach (var entry in cached)
-            {
-                string path;
-                try { path = Path.GetFullPath(entry.FilePath); }
-                catch { continue; }
-
-                entries[path] = entry;
-                tracks[path] = TrackFromEntry(entry);
-            }
+            selectedArtistName = SelectedArtist?.Name;
+            if (SelectedAlbum is not null)
+                selectedAlbumKey = LibraryIdentity.AlbumOf(SelectedAlbum);
         }
 
-        return new LoadedLibrary(tracks, entries);
-    }
-
-    private async Task ScanRootsAsync(
-        IReadOnlyList<string> roots, int generation, CancellationToken ct)
-    {
-        var unavailable = 0;
-
-        foreach (var root in roots)
+        foreach (var album in result.Albums)
         {
-            if (generation != Volatile.Read(ref _scanGeneration)) return;
-            ct.ThrowIfCancellationRequested();
-
-            try
+            if (previousAlbums.TryGetValue(LibraryIdentity.AlbumOf(album), out var old) &&
+                SameAlbumTracks(old.Tracks, album.Tracks))
             {
-                // 根目录不可枚举时必须跳过：不能把“暂时不可用”当成“所有文件已删除”，
-                // 否则会用空结果覆盖掉这个根的缓存。Directory.Exists 区分不了
-                // “存在但无法枚举”和“存在但为空”，所以状态来自扫描服务。
-                var scan = _scanner.ScanFolderWithStatus(root);
-                if (scan.IsUnavailable)
-                {
-                    unavailable++;
-                    _syncContext.Send(_ => UnavailableRootCount = unavailable, null);
-                    continue;
-                }
-
-                var cached = await _cache.LoadAsync(root).ConfigureAwait(false);
-                var diff = _scanner.ComputeDiff(scan.Files, cached);
-
-                var newTracks = await _scanner.ReadMetadataBatchAsync(diff.AddedPaths)
-                    .ConfigureAwait(false) ?? Array.Empty<Track>();
-                if (generation != Volatile.Read(ref _scanGeneration)) return;
-
-                var added = new Dictionary<string, Track>(StringComparer.OrdinalIgnoreCase);
-                foreach (var track in newTracks)
-                {
-                    var path = Path.GetFullPath(track.FilePath);
-                    added[path] = track with { AlbumArt = null };
-                }
-                foreach (var path in diff.AddedPaths)
-                {
-                    var full = Path.GetFullPath(path);
-                    if (!added.ContainsKey(full))
-                        added[full] = _metadataReader.CreateFallback(full);
-                }
-
-                var entries = new List<LibraryCacheEntry>(diff.Unchanged);
-                foreach (var (path, track) in added)
-                {
-                    entries.RemoveAll(e => string.Equals(
-                        Path.GetFullPath(e.FilePath), path, StringComparison.OrdinalIgnoreCase));
-                    entries.Add(EntryFromTrack(track));
-                }
-
-                if (generation != Volatile.Read(ref _scanGeneration)) return;
-
-                _syncContext.Send(_ =>
-                {
-                    foreach (var removed in diff.RemovedPaths)
-                    {
-                        var full = Path.GetFullPath(removed);
-                        _tracksByPath.Remove(full);
-                        _cachedEntries.Remove(full);
-                    }
-                    foreach (var entry in diff.Unchanged)
-                    {
-                        var full = Path.GetFullPath(entry.FilePath);
-                        _cachedEntries[full] = entry;
-                        _tracksByPath[full] = TrackFromEntry(entry);
-                    }
-                    foreach (var (path, track) in added)
-                    {
-                        _tracksByPath[path] = track;
-                        _cachedEntries[path] = EntryFromTrack(track);
-                    }
-                    RebuildGroups();
-                    StatusText = BuildStatus();
-                }, null);
-
-                try
-                {
-                    await _cache.SaveAsync(root, entries).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // 缓存写失败不丢弃本轮内存结果；下次扫描再试。
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch
-            {
-                unavailable++;
-                _syncContext.Send(_ => UnavailableRootCount = unavailable, null);
+                album.CoverArt = old.CoverArt;
+                album.CoverAttempted = old.CoverAttempted && old.CoverArt is not null;
             }
         }
-
-        _syncContext.Send(_ =>
-        {
-            UnavailableRootCount = unavailable;
-            StatusText = _roots.Count == 0 ? string.Empty : BuildStatus();
-        }, null);
-    }
-
-    private void ApplyLoaded(LoadedLibrary loaded)
-    {
-        _tracksByPath.Clear();
-        foreach (var (path, track) in loaded.Tracks)
-            _tracksByPath[path] = track;
-
-        _cachedEntries.Clear();
-        foreach (var (path, entry) in loaded.Entries)
-            _cachedEntries[path] = entry;
-
-        UnavailableRootCount = 0;
-        RebuildGroups();
-        StatusText = _roots.Count == 0 ? string.Empty : BuildStatus();
-    }
-
-    private void RebuildGroups()
-    {
-        var result = LibraryGrouping.Build(_tracksByPath.Values);
-
-        var selectedArtistName = SelectedArtist?.Name;
-        var selectedAlbumTitle = SelectedAlbum?.Title;
-        var selectedAlbumArtist = SelectedAlbum?.Artist;
 
         Artists.Clear();
-        foreach (var artist in result.Artists) Artists.Add(artist);
+        foreach (var artist in result.Artists)
+            Artists.Add(artist);
         Albums.Clear();
-        foreach (var album in result.Albums) Albums.Add(album);
+        foreach (var album in result.Albums)
+            Albums.Add(album);
 
-        if (selectedArtistName is not null)
+        if (preserveSelection)
         {
-            SelectedArtist = result.Artists.FirstOrDefault(a => string.Equals(
-                a.Name, selectedArtistName, StringComparison.CurrentCultureIgnoreCase));
-            if (SelectedArtist is null && Page == LibraryPage.ArtistDetail)
-                Page = LibraryPage.Artists;
-        }
+            if (selectedArtistName is not null)
+            {
+                SelectedArtist = result.Artists.FirstOrDefault(artist => string.Equals(
+                    artist.Name, selectedArtistName,
+                    StringComparison.CurrentCultureIgnoreCase));
+                if (SelectedArtist is null && Page == LibraryPage.ArtistDetail)
+                    Page = LibraryPage.Artists;
+            }
 
-        if (selectedAlbumTitle is not null)
-        {
-            SelectedAlbum = result.Albums.FirstOrDefault(a =>
-                string.Equals(a.Title, selectedAlbumTitle, StringComparison.CurrentCultureIgnoreCase) &&
-                string.Equals(a.Artist, selectedAlbumArtist, StringComparison.CurrentCultureIgnoreCase));
-            if (SelectedAlbum is null && Page == LibraryPage.AlbumDetail)
-                Page = LibraryPage.Albums;
+            if (selectedAlbumKey is { } key)
+            {
+                SelectedAlbum = result.Albums.FirstOrDefault(album =>
+                    LibraryIdentity.AlbumComparer.Equals(
+                        LibraryIdentity.AlbumOf(album), key));
+                if (SelectedAlbum is null && Page == LibraryPage.AlbumDetail)
+                    Page = LibraryPage.Albums;
+            }
         }
 
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(EmptyStateText));
     }
 
+    private static bool SameAlbumTracks(
+        IReadOnlyList<Track> left, IReadOnlyList<Track> right)
+    {
+        if (left.Count != right.Count) return false;
+        for (var i = 0; i < left.Count; i++)
+        {
+            var current = left[i];
+            var updated = right[i];
+            if (!string.Equals(current.FilePath, updated.FilePath,
+                    StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(current.Title, updated.Title, StringComparison.Ordinal) ||
+                !string.Equals(current.Artist, updated.Artist, StringComparison.Ordinal) ||
+                !string.Equals(current.Album, updated.Album, StringComparison.Ordinal) ||
+                current.Duration != updated.Duration ||
+                current.SampleRate != updated.SampleRate ||
+                current.TrackNumber != updated.TrackNumber)
+                return false;
+        }
+        return true;
+    }
+
     private string BuildStatus()
     {
+        int watchUnavailable;
+        int cacheWriteFailed;
+        int refreshErrors;
+        lock (_stateGate)
+        {
+            watchUnavailable = _watchUnavailableRoots.Count;
+            cacheWriteFailed = _cacheWriteFailedRoots.Count;
+            refreshErrors = _refreshErrorCount;
+        }
+
         var text = $"{Artists.Count} 位艺术家 · {Albums.Count} 张专辑 · {_tracksByPath.Count} 首";
-        return UnavailableRootCount > 0
-            ? text + $" · {UnavailableRootCount} 个文件夹不可用"
-            : text;
+        if (UnavailableRootCount > 0)
+            text += $" · {UnavailableRootCount} 个文件夹不可用";
+        if (watchUnavailable > 0)
+            text += " · 部分文件夹未能自动监控，请手动刷新";
+        if (cacheWriteFailed > 0)
+            text += $" · {cacheWriteFailed} 个缓存未保存";
+        if (refreshErrors > 0)
+            text += " · 刷新失败";
+        return text;
     }
 
     partial void OnIsScanningChanged(bool value)
@@ -532,12 +405,4 @@ public sealed partial class LibraryViewModel : ObservableObject
     private static Track TrackFromEntry(LibraryCacheEntry entry) =>
         new(entry.FilePath, entry.Title, entry.Artist, entry.Album, entry.Genre,
             entry.Year, entry.SampleRate, null, entry.Duration, entry.TrackNumber);
-
-    private static LibraryCacheEntry EntryFromTrack(Track track) =>
-        new(track.FilePath, track.Title, track.Artist, track.Album, track.Genre,
-            track.Year, track.Duration, track.SampleRate, track.TrackNumber);
-
-    private sealed record LoadedLibrary(
-        Dictionary<string, Track> Tracks,
-        Dictionary<string, LibraryCacheEntry> Entries);
 }

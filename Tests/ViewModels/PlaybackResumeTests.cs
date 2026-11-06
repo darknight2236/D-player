@@ -26,8 +26,10 @@ public class PlaybackResumeTests : IDisposable
     private readonly IFileDialogService _fileDialog = Substitute.For<IFileDialogService>();
     private readonly ITrackMetadataReader _metadataReader = Substitute.For<ITrackMetadataReader>();
     private readonly IPlaylistFileService _playlistFiles = Substitute.For<IPlaylistFileService>();
-    private readonly ILibraryScannerService _scanner = Substitute.For<ILibraryScannerService>();
+    private readonly ILibraryRootScanner _rootScanner = Substitute.For<ILibraryRootScanner>();
     private readonly ILibraryCache _cache = Substitute.For<ILibraryCache>();
+    private readonly ILibraryWatcher _watcher = Substitute.For<ILibraryWatcher>();
+    private readonly DPlayer.Tests.TestSupport.ManualTimeProvider _clock = new();
 
     /// <summary>每次 UpdateAsync 的 mutator 应用到全新 AppSettings 后的结果（按调用顺序）。</summary>
     private readonly List<AppSettings> _writes = new();
@@ -47,6 +49,14 @@ public class PlaybackResumeTests : IDisposable
         _metadataReader.CreateFallback(Arg.Any<string>())
             .Returns(ci => new Track(ci.ArgAt<string>(0), Path.GetFileName(ci.ArgAt<string>(0)),
                 null, null, null, null, null, null, TimeSpan.Zero, null));
+        _rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+            .Returns(ci => Task.FromResult(new LibraryRootSnapshot(
+                ci.ArgAt<string>(0), Array.Empty<LibraryCacheEntry>(),
+                IsUnavailable: true, CacheWriteFailed: false,
+                Array.Empty<string>(), Array.Empty<string>())));
+        _watcher.ReplaceRootsAsync(Arg.Any<long>(),
+                Arg.Any<IReadOnlyList<string>>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()));
     }
 
     public void Dispose()
@@ -63,7 +73,9 @@ public class PlaybackResumeTests : IDisposable
         var playlists = new PlaylistsViewModel(
             seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
             Substitute.For<ILibraryRootScanner>());
-        var library = new LibraryViewModel(_settings, _scanner, _cache, _metadataReader, playlists);
+        var library = new LibraryViewModel(
+            _settings, _rootScanner, _cache, _metadataReader, playlists,
+            _watcher, _clock);
         return new MainViewModel(
             CreatePlayerVm(), playlists, library, _player, _playlistService, _settings);
     }
@@ -317,8 +329,6 @@ public class PlaybackResumeTests : IDisposable
                         null, 2024, TimeSpan.FromMinutes(3), 44100, 1),
                 }));
             // 根目录不可用 → 后台扫描跳过该根，不能改写缓存/分组。
-            _scanner.ScanFolderWithStatus(root, Arg.Any<CancellationToken>())
-                .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
             var vm = CreateMainVm();
             var warning = await vm.InitializeAsync();
@@ -386,6 +396,20 @@ public class PlaybackResumeTests : IDisposable
     }
 
     [Fact]
+    public async Task InitializeAsync_DoesNotStartWatcherMonitoring()
+    {
+        _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith()));
+        var vm = CreateMainVm();
+
+        await vm.InitializeAsync();
+
+        await _watcher.DidNotReceive().ReplaceRootsAsync(
+            Arg.Any<long>(), Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+        await vm.CleanupAsync();
+    }
+
+    [Fact]
     public async Task InitializeAsync_RestoresLibraryAlbumDetailNavigation()
     {
         var root = Path.Combine(Path.GetTempPath(), $"dplayer-resume-nav-{Guid.NewGuid():N}");
@@ -406,8 +430,6 @@ public class PlaybackResumeTests : IDisposable
                     new LibraryCacheEntry(_tempTrack, "Title", "Artist", "Album",
                         null, 2024, TimeSpan.FromMinutes(3), 44100, 1),
                 }));
-            _scanner.ScanFolderWithStatus(root, Arg.Any<CancellationToken>())
-                .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
             var vm = CreateMainVm();
             var warning = await vm.InitializeAsync();
@@ -466,8 +488,6 @@ public class PlaybackResumeTests : IDisposable
             }));
             _cache.LoadAsync(root).Returns(Task.FromException<IReadOnlyList<LibraryCacheEntry>>(
                 new InvalidOperationException("probe: library cache blew up")));
-            _scanner.ScanFolderWithStatus(root, Arg.Any<CancellationToken>())
-                .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
             var vm = CreateMainVm();
             var warning = await vm.InitializeAsync();

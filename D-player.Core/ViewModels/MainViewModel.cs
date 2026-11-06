@@ -27,7 +27,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly ISettingsPersistence _settings;
     private CancellationTokenSource? _saveCts;
     private Task? _saveTask;
-    private bool _hydrated;
+    private volatile bool _hydrated;
+    private readonly object _cleanupGate = new();
+    private Task? _cleanupTask;
 
     public PlayerViewModel Player { get; }
     public PlaylistsViewModel Playlists { get; }
@@ -243,14 +245,44 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// 覆盖最终写), 立即同步 flush, 解绑事件, 释放音频。MainWindow.Window_Closing
     /// 用 cancel-and-close 模式包住此调用 (memory: wpf-async-void-closing-dispatcher-race)。
     /// </summary>
-    public async Task CleanupAsync()
+    public Task CleanupAsync()
+    {
+        TaskCompletionSource completion;
+        lock (_cleanupGate)
+        {
+            if (_cleanupTask is not null) return _cleanupTask;
+            completion = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _cleanupTask = completion.Task;
+        }
+        _ = CompleteCleanupAsync(completion);
+        return completion.Task;
+    }
+
+    private async Task CompleteCleanupAsync(TaskCompletionSource completion)
+    {
+        try
+        {
+            await CleanupCoreAsync().ConfigureAwait(true);
+            completion.TrySetResult();
+        }
+        catch (Exception ex)
+        {
+            completion.TrySetException(ex);
+        }
+    }
+
+    private async Task CleanupCoreAsync()
     {
         var libraryViewActive = IsLibraryViewActive;
         var libraryPage = Library.Page;
         var libraryArtistName = Library.SelectedArtist?.Name;
         var libraryAlbumTrackPath = Library.SelectedAlbum?.Tracks.FirstOrDefault()?.FilePath;
 
-        Library.Cleanup();
+        // 先封闭库与歌单入口并等待其内部扫描/保存收尾，再写最终快照。
+        var libraryCleanup = Library.CleanupAsync();
+        var playlistsCleanup = Playlists.CleanupAsync();
+
         Playlists.StateChanged -= OnPlaylistsStateChanged;
         _saveCts?.Cancel();
 
@@ -265,8 +297,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _saveCts = null;
         _saveTask = null;
 
-        // 先排空文件夹歌单的导入/扫描，避免关闭时的晚到结果改写最终快照。
-        await Playlists.CleanupAsync().ConfigureAwait(true);
+        await Task.WhenAll(libraryCleanup, playlistsCleanup).ConfigureAwait(true);
 
         if (_hydrated)
         {

@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using NSubstitute;
+using DPlayer.Configuration;
 using DPlayer.Models;
 using DPlayer.Services;
 using DPlayer.Services.PlaylistFiles;
@@ -923,6 +925,58 @@ public class PlaylistsViewModelTests
         finally
         {
             System.IO.Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task FolderPlaylistRefresh_SeesMembershipAfterSharedRootCacheUpdate()
+    {
+        var root = Path.Combine(Path.GetTempPath(),
+            $"dplayer-shared-root-{Guid.NewGuid():N}");
+        var dataRoot = Path.Combine(Path.GetTempPath(),
+            $"dplayer-shared-data-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file1 = Path.Combine(root, "a.mp3");
+        var file2 = Path.Combine(root, "b.flac");
+        File.WriteAllBytes(file1, Array.Empty<byte>());
+        File.WriteAllBytes(file2, Array.Empty<byte>());
+        try
+        {
+            var metadata = Substitute.For<ITrackMetadataReader>();
+            metadata.ReadAsync(Arg.Any<string>()).Returns(ci => Task.FromResult(
+                new Track(ci.ArgAt<string>(0), Path.GetFileName(ci.ArgAt<string>(0)),
+                    "Artist", "Album", null, null, 44100, null,
+                    TimeSpan.FromMinutes(3), 1)));
+            var scanner = new LibraryScannerService(metadata);
+            var cache = new JsonLibraryCache(new DPlayerDataPaths(dataRoot, string.Empty));
+            var rootScanner = new LibraryRootScanner(scanner, cache, metadata);
+            using (var lease = new LibraryScanLease(CancellationToken.None))
+                await rootScanner.ScanAsync(root, lease);
+
+            var playlists = new PlaylistsViewModel(
+                seed => new PlaylistViewModel(
+                    seed, _player, _fileDialog, metadata, _playlistFiles),
+                _player, _fileDialog, scanner, cache, metadata, _playlistFiles,
+                rootScanner);
+            var bound = new PlaylistViewModel(
+                new Playlist("bound", "Bound", Array.Empty<string>(), -1, false,
+                    RepeatMode.Off, SourceFolder: root),
+                _player, _fileDialog, metadata, _playlistFiles);
+
+            await playlists.RefreshPlaylistCommand.ExecuteAsync(bound);
+
+            Assert.Equal(2, bound.Queue.Count);
+            Assert.Contains(bound.Queue, track => track.FilePath == file1);
+            Assert.Contains(bound.Queue, track => track.FilePath == file2);
+            await playlists.CleanupAsync();
+            bound.Cleanup();
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); }
+            catch { }
+            try { Directory.Delete(dataRoot, recursive: true); }
+            catch { }
         }
     }
 

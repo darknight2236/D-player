@@ -628,6 +628,68 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task WatchRemoval_UpdatesLibrary_ButLeavesPlaybackQueueIntact()
+    {
+        var path1 = Path.Combine(_root, "01.flac");
+        var path2 = Path.Combine(_root, "02.flac");
+        var entries = new[]
+        {
+            Entry(path1, "One", "Artist", "Album", 1),
+            Entry(path2, "Two", "Artist", "Album", 2),
+        };
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            entries));
+
+        long epoch = -1;
+        _watcher.ReplaceRootsAsync(Arg.Do<long>(value => epoch = value),
+                Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()));
+        var watchMode = false;
+        var watchScanned = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        _rootScanner.ScanAsync(Arg.Any<string>(), Arg.Any<LibraryScanLease>())
+            .Returns(_ =>
+            {
+                if (watchMode) watchScanned.TrySetResult();
+                return Task.FromResult(Snapshot(_root, entries));
+            });
+
+        await vm.InitializeAsync();
+        await vm.StartMonitoringAsync();
+        await vm.PlayAlbumAsync(Assert.Single(vm.Albums));
+        _player.ClearReceivedCalls();
+
+        entries = new[] { Entry(path1, "One", "Artist", "Album", 1) };
+        watchMode = true;
+        var albumUpdated = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnAlbumsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (vm.Albums.Count == 1 && vm.Albums[0].Tracks.Count == 1)
+                albumUpdated.TrySetResult();
+        }
+        vm.Albums.CollectionChanged += OnAlbumsChanged;
+        _watcher.Changed += Raise.Event<Action<LibraryWatchNotification>>(
+            new LibraryWatchNotification(epoch, _root, path2, null,
+                LibraryWatchKind.Invalidated));
+        _clock.Advance(TimeSpan.FromMilliseconds(800));
+        await watchScanned.Task.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        await albumUpdated.Task.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        vm.Albums.CollectionChanged -= OnAlbumsChanged;
+
+        Assert.Single(Assert.Single(vm.Albums).Tracks);
+        Assert.Equal(2, _lastPlaylists!.LibraryPlayback!.Queue.Count);
+        _player.DidNotReceive().Stop();
+        _player.DidNotReceive().Pause();
+        _player.DidNotReceive().Unload();
+        await _lastPlaylists.CleanupAsync();
+        _lastPlaylists.LibraryPlayback!.Cleanup();
+    }
+
+    [Fact]
     public async Task Search_Clear_RestoresAlbumDetailWithoutPersistingQuery()
     {
         var path = Path.Combine(_root, "song.flac");

@@ -465,6 +465,21 @@ public class PlaybackResumeTests : IDisposable
     }
 
     [Fact]
+    public async Task CleanupAsync_IsIdempotent_AndReturnsSameTask()
+    {
+        _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith()));
+        var vm = CreateMainVm();
+        await vm.InitializeAsync();
+
+        var first = vm.CleanupAsync();
+        var second = vm.CleanupAsync();
+
+        Assert.Same(first, second);
+        await first.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task CleanupAsync_WhileSearching_PersistsSourceNavigation()
     {
         var root = Path.Combine(Path.GetTempPath(),

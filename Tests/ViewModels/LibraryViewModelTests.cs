@@ -99,13 +99,13 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             Array.Empty<LibraryCacheEntry>()));
-        _scanner.ScanFolderWithStatus(_root)
+        _scanner.ScanFolderWithStatus(_root, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(new[] { newFile }, IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
                 new[] { newFile }, Array.Empty<string>(), Array.Empty<LibraryCacheEntry>()));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
 
         await vm.InitializeAsync();
@@ -127,14 +127,14 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             new[] { Entry(removed, "Gone", "Artist", "Album") }));
-        _scanner.ScanFolderWithStatus(_root)
+        _scanner.ScanFolderWithStatus(_root, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
                 Array.Empty<string>(), new[] { removed },
                 Array.Empty<LibraryCacheEntry>()));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
 
         await vm.InitializeAsync();
@@ -157,9 +157,9 @@ public sealed class LibraryViewModelTests : IDisposable
         await vm.InitializeAsync();
 
         Assert.Single(vm.Albums);
-        _scanner.DidNotReceive().ScanFolderWithStatus(Arg.Any<string>());
-        _scanner.DidNotReceive().ScanFolder(Arg.Any<string>());
-        await _scanner.DidNotReceive().ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>());
+        _scanner.DidNotReceive().ScanFolderWithStatus(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        _scanner.DidNotReceive().ScanFolder(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _scanner.DidNotReceive().ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             new[] { Entry(cachedPath, "Keep", "Artist", "Album") }));
-        _scanner.ScanFolderWithStatus(_root)
+        _scanner.ScanFolderWithStatus(_root, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
         await vm.InitializeAsync();
@@ -196,14 +196,14 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             new[] { Entry(cachedPath, "Gone", "Artist", "Album") }));
-        _scanner.ScanFolderWithStatus(_root)
+        _scanner.ScanFolderWithStatus(_root, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
                 Array.Empty<string>(), new[] { cachedPath },
                 Array.Empty<LibraryCacheEntry>()));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
 
         await vm.InitializeAsync();
@@ -228,13 +228,13 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             Array.Empty<LibraryCacheEntry>()));
-        _scanner.ScanFolderWithStatus(_root)
+        _scanner.ScanFolderWithStatus(_root, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(new[] { newFile }, IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
                 new[] { newFile }, Array.Empty<string>(), Array.Empty<LibraryCacheEntry>()));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
         _cache.SaveAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(Task.FromException(new IOException("disk full")));
@@ -261,15 +261,15 @@ public sealed class LibraryViewModelTests : IDisposable
         _cache.LoadAsync(Arg.Any<string>())
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
                 Array.Empty<LibraryCacheEntry>()));
-        _scanner.ScanFolderWithStatus(rootA)
+        _scanner.ScanFolderWithStatus(rootA, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(new[] { shared }, IsUnavailable: false));
-        _scanner.ScanFolderWithStatus(rootB)
+        _scanner.ScanFolderWithStatus(rootB, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(new[] { shared }, IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
                 new[] { shared }, Array.Empty<string>(), Array.Empty<LibraryCacheEntry>()));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
 
         await vm.InitializeAsync();
@@ -290,14 +290,14 @@ public sealed class LibraryViewModelTests : IDisposable
         var vm = CreateVm(_root);
         _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             new[] { Entry(cachedPath, "Snap", "Artist", "Album") }));
-        _scanner.ScanFolderWithStatus(_root)
+        _scanner.ScanFolderWithStatus(_root, Arg.Any<CancellationToken>())
             .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
         _scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
             .Returns(new LibraryDiff(
                 Array.Empty<string>(), new[] { cachedPath },
                 Array.Empty<LibraryCacheEntry>()));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>()));
 
         await vm.InitializeAsync();
@@ -346,7 +346,7 @@ public sealed class LibraryViewModelTests : IDisposable
 
         await vm.RefreshIfRootsChangedAsync();
 
-        _scanner.DidNotReceive().ScanFolderWithStatus(Arg.Any<string>());
+        _scanner.DidNotReceive().ScanFolderWithStatus(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _cache.DidNotReceive().LoadAsync(Arg.Any<string>());
     }
 
@@ -360,7 +360,7 @@ public sealed class LibraryViewModelTests : IDisposable
             var vm = CreateVm(_root);
             _cache.LoadAsync(Arg.Any<string>()).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
                 Array.Empty<LibraryCacheEntry>()));
-            _scanner.ScanFolderWithStatus(Arg.Any<string>())
+            _scanner.ScanFolderWithStatus(Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: false));
             await vm.InitializeAsync();
             _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
@@ -371,7 +371,7 @@ public sealed class LibraryViewModelTests : IDisposable
 
             await vm.RefreshIfRootsChangedAsync();
 
-            _scanner.Received(1).ScanFolderWithStatus(other);
+            _scanner.Received(1).ScanFolderWithStatus(other, Arg.Any<CancellationToken>());
         }
         finally
         {

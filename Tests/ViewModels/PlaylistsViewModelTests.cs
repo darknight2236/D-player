@@ -641,7 +641,7 @@ public class PlaylistsViewModelTests
             .Returns(Task.FromResult<IReadOnlyList<string>>(new[] { @"D:\lists\rock.m3u8" }));
         _playlistFiles.ImportAsync(@"D:\lists\rock.m3u8")
             .Returns(ImportResult("rock", new[] { @"D:\m\a.mp3", @"D:\m\b.flac" }));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { FallbackTrack(@"D:\m\a.mp3"), FallbackTrack(@"D:\m\b.flac") });
         var container = CreateContainerVmWithMocks();
         int stateChanged = 0;
@@ -684,7 +684,7 @@ public class PlaylistsViewModelTests
         _fileDialog.OpenFilesAsync(Arg.Any<string>(), Arg.Any<bool>())
             .Returns(Task.FromResult<IReadOnlyList<string>>(new[] { @"D:\lists\x.m3u" }));
         _playlistFiles.ImportAsync(@"D:\lists\x.m3u").Returns(ImportResult("x", new[] { @"D:\m\a.mp3" }));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<Track>());
         var container = CreateContainerVmWithMocks();
 
@@ -712,7 +712,7 @@ public class PlaylistsViewModelTests
     public async Task ImportPlaylistFileAsync_PresetPath_SkipsFileDialog()
     {
         _playlistFiles.ImportAsync(@"D:\drop\y.m3u8").Returns(ImportResult("y", new[] { @"D:\m\a.mp3" }));
-        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>())
+        _scanner.ReadMetadataBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { FallbackTrack(@"D:\m\a.mp3") });
         var container = CreateContainerVmWithMocks();
 

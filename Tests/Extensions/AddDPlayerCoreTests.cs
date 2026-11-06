@@ -61,6 +61,10 @@ public sealed class AddDPlayerCoreTests
             Assert.NotNull(vm.Library);
             Assert.NotNull(provider.GetRequiredService<LibraryViewModel>());
 
+            var rootScanner = provider.GetRequiredService<ILibraryRootScanner>();
+            Assert.IsType<LibraryRootScanner>(rootScanner);
+            Assert.Same(rootScanner, provider.GetRequiredService<ILibraryRootScanner>());
+
             // 第一次构造歌单：IFileDialogService 缺失时就是在这里抛
             var factory = provider.GetRequiredService<Func<Playlist, PlaylistViewModel>>();
             var playlist = factory(new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off));

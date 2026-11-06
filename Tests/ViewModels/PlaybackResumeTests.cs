@@ -316,7 +316,7 @@ public class PlaybackResumeTests : IDisposable
                         null, 2024, TimeSpan.FromMinutes(3), 44100, 1),
                 }));
             // 根目录不可用 → 后台扫描跳过该根，不能改写缓存/分组。
-            _scanner.ScanFolderWithStatus(root)
+            _scanner.ScanFolderWithStatus(root, Arg.Any<CancellationToken>())
                 .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
             var vm = CreateMainVm();
@@ -405,7 +405,7 @@ public class PlaybackResumeTests : IDisposable
                     new LibraryCacheEntry(_tempTrack, "Title", "Artist", "Album",
                         null, 2024, TimeSpan.FromMinutes(3), 44100, 1),
                 }));
-            _scanner.ScanFolderWithStatus(root)
+            _scanner.ScanFolderWithStatus(root, Arg.Any<CancellationToken>())
                 .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
             var vm = CreateMainVm();
@@ -465,7 +465,7 @@ public class PlaybackResumeTests : IDisposable
             }));
             _cache.LoadAsync(root).Returns(Task.FromException<IReadOnlyList<LibraryCacheEntry>>(
                 new InvalidOperationException("probe: library cache blew up")));
-            _scanner.ScanFolderWithStatus(root)
+            _scanner.ScanFolderWithStatus(root, Arg.Any<CancellationToken>())
                 .Returns(new LibraryScanResult(Array.Empty<string>(), IsUnavailable: true));
 
             var vm = CreateMainVm();

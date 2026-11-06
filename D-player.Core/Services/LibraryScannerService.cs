@@ -20,12 +20,15 @@ public sealed class LibraryScannerService : ILibraryScannerService
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<string> ScanFolder(string folderPath)
-        => ScanFolderWithStatus(folderPath).Files;
+    public IReadOnlyList<string> ScanFolder(string folderPath, CancellationToken ct = default)
+        => ScanFolderWithStatus(folderPath, ct).Files;
 
     /// <inheritdoc />
-    public LibraryScanResult ScanFolderWithStatus(string folderPath)
+    public LibraryScanResult ScanFolderWithStatus(
+        string folderPath, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         // 只有“枚举成功但没有音频文件”才是空库；路径为空/不存在/无权限/IO 失败
         // 都必须标记为不可用，调用方才不会拿空结果覆盖该根目录的缓存。
         if (string.IsNullOrWhiteSpace(folderPath))
@@ -38,10 +41,19 @@ public sealed class LibraryScannerService : ILibraryScannerService
 
             var extensions = new HashSet<string>(AudioConstants.AudioExtensions, StringComparer.OrdinalIgnoreCase);
 
-            var files = Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories)
-                .Where(f => extensions.Contains(Path.GetExtension(f)))
-                .ToList();
+            var files = new List<string>();
+            foreach (var file in Directory.EnumerateFiles(
+                folderPath, "*", SearchOption.AllDirectories))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (extensions.Contains(Path.GetExtension(file)))
+                    files.Add(file);
+            }
             return new LibraryScanResult(files, IsUnavailable: false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (UnauthorizedAccessException)
         {
@@ -57,7 +69,8 @@ public sealed class LibraryScannerService : ILibraryScannerService
         => new(Array.Empty<string>(), IsUnavailable: true);
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<Track>> ReadMetadataBatchAsync(IReadOnlyList<string> paths)
+    public async Task<IReadOnlyList<Track>> ReadMetadataBatchAsync(
+        IReadOnlyList<string> paths, CancellationToken ct = default)
     {
         if (paths is null || paths.Count == 0)
             return Array.Empty<Track>();
@@ -66,11 +79,17 @@ public sealed class LibraryScannerService : ILibraryScannerService
 
         foreach (var path in paths)
         {
+            ct.ThrowIfCancellationRequested();
             try
             {
                 var track = await _metadataReader.ReadAsync(path);
+                ct.ThrowIfCancellationRequested();
                 if (track is not null)
                     result.Add(track);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch
             {

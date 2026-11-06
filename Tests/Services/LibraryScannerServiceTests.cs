@@ -50,7 +50,7 @@ public class LibraryScannerServiceTests : IDisposable
         var flac = CreateFile("track.flac");
         CreateFile("readme.txt");
 
-        var result = _sut.ScanFolder(_tempRoot);
+        var result = _sut.ScanFolder(_tempRoot, TestContext.Current.CancellationToken);
 
         Assert.Contains(mp3, result);
         Assert.Contains(flac, result);
@@ -62,7 +62,7 @@ public class LibraryScannerServiceTests : IDisposable
     {
         var nested = CreateFile(Path.Combine("sub", "deep", "audio.wav"));
 
-        var result = _sut.ScanFolder(_tempRoot);
+        var result = _sut.ScanFolder(_tempRoot, TestContext.Current.CancellationToken);
 
         Assert.Single(result);
         Assert.Equal(nested, result[0]);
@@ -74,7 +74,7 @@ public class LibraryScannerServiceTests : IDisposable
         var emptyDir = Path.Combine(_tempRoot, "empty");
         Directory.CreateDirectory(emptyDir);
 
-        var result = _sut.ScanFolder(emptyDir);
+        var result = _sut.ScanFolder(emptyDir, TestContext.Current.CancellationToken);
 
         Assert.Empty(result);
     }
@@ -82,7 +82,7 @@ public class LibraryScannerServiceTests : IDisposable
     [Fact]
     public void ScanFolder_NonexistentDirectory_ReturnsEmpty()
     {
-        var result = _sut.ScanFolder(Path.Combine(_tempRoot, "no_such_dir"));
+        var result = _sut.ScanFolder(Path.Combine(_tempRoot, "no_such_dir"), TestContext.Current.CancellationToken);
 
         Assert.Empty(result);
     }
@@ -93,7 +93,7 @@ public class LibraryScannerServiceTests : IDisposable
         CreateFile("UPPER.MP3");
         CreateFile("Mixed.Flac");
 
-        var result = _sut.ScanFolder(_tempRoot);
+        var result = _sut.ScanFolder(_tempRoot, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, result.Count);
     }
@@ -103,7 +103,7 @@ public class LibraryScannerServiceTests : IDisposable
     [Fact]
     public void ScanFolderWithStatus_MissingDirectory_IsUnavailable()
     {
-        var result = _sut.ScanFolderWithStatus(Path.Combine(_tempRoot, "no_such_dir"));
+        var result = _sut.ScanFolderWithStatus(Path.Combine(_tempRoot, "no_such_dir"), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsUnavailable);
         Assert.Empty(result.Files);
@@ -112,7 +112,7 @@ public class LibraryScannerServiceTests : IDisposable
     [Fact]
     public void ScanFolderWithStatus_WhitespacePath_IsUnavailable()
     {
-        var result = _sut.ScanFolderWithStatus("   ");
+        var result = _sut.ScanFolderWithStatus("   ", TestContext.Current.CancellationToken);
 
         Assert.True(result.IsUnavailable);
         Assert.Empty(result.Files);
@@ -124,7 +124,7 @@ public class LibraryScannerServiceTests : IDisposable
         var emptyDir = Path.Combine(_tempRoot, "empty");
         Directory.CreateDirectory(emptyDir);
 
-        var result = _sut.ScanFolderWithStatus(emptyDir);
+        var result = _sut.ScanFolderWithStatus(emptyDir, TestContext.Current.CancellationToken);
 
         Assert.False(result.IsUnavailable);
         Assert.Empty(result.Files);
@@ -136,10 +136,20 @@ public class LibraryScannerServiceTests : IDisposable
         var mp3 = CreateFile("song.mp3");
         CreateFile("readme.txt");
 
-        var result = _sut.ScanFolderWithStatus(_tempRoot);
+        var result = _sut.ScanFolderWithStatus(_tempRoot, TestContext.Current.CancellationToken);
 
         Assert.False(result.IsUnavailable);
         Assert.Equal(new[] { mp3 }, result.Files);
+    }
+
+    [Fact]
+    public void ScanFolderWithStatus_CancelledToken_Throws()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(
+            () => _sut.ScanFolderWithStatus(_tempRoot, cts.Token));
     }
 
     // -- ComputeDiff --
@@ -272,7 +282,7 @@ public class LibraryScannerServiceTests : IDisposable
     [Fact]
     public async Task ReadMetadataBatchAsync_EmptyPaths_ReturnsEmpty()
     {
-        var result = await _sut.ReadMetadataBatchAsync(Array.Empty<string>());
+        var result = await _sut.ReadMetadataBatchAsync(Array.Empty<string>(), TestContext.Current.CancellationToken);
 
         Assert.Empty(result);
     }
@@ -280,7 +290,7 @@ public class LibraryScannerServiceTests : IDisposable
     [Fact]
     public async Task ReadMetadataBatchAsync_NullPaths_ReturnsEmpty()
     {
-        var result = await _sut.ReadMetadataBatchAsync(null!);
+        var result = await _sut.ReadMetadataBatchAsync(null!, TestContext.Current.CancellationToken);
 
         Assert.Empty(result);
     }
@@ -292,10 +302,21 @@ public class LibraryScannerServiceTests : IDisposable
         var track = new Track("a.mp3", "T", null, null, null, null, null, null, TimeSpan.Zero, null);
         _reader.ReadAsync(Arg.Any<string>()).Returns(track);
 
-        var result = await _sut.ReadMetadataBatchAsync(paths);
+        var result = await _sut.ReadMetadataBatchAsync(paths, TestContext.Current.CancellationToken);
 
         Assert.Equal(3, result.Count);
         await _reader.Received(3).ReadAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task ReadMetadataBatchAsync_CancelledToken_ThrowsWithoutReading()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _sut.ReadMetadataBatchAsync(new[] { "a.mp3" }, cts.Token));
+        await _reader.DidNotReceive().ReadAsync(Arg.Any<string>());
     }
 
     [Fact]
@@ -307,7 +328,7 @@ public class LibraryScannerServiceTests : IDisposable
         _reader.ReadAsync("good.mp3").Returns(goodTrack);
         _reader.ReadAsync("bad.mp3").Returns(Task.FromException<Track>(new IOException("corrupt")));
 
-        var result = await _sut.ReadMetadataBatchAsync(paths);
+        var result = await _sut.ReadMetadataBatchAsync(paths, TestContext.Current.CancellationToken);
 
         Assert.Single(result);
         Assert.Equal("Good", result[0].Title);

@@ -47,6 +47,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILibraryScannerService, LibraryScannerService>();
         services.AddSingleton<ILibraryCache, JsonLibraryCache>();
 
+        // Phase 25: 共享根扫描事务（同根枚举、差分与缓存保存串行化）
+        services.AddSingleton<ILibraryRootScanner, LibraryRootScanner>();
+
         // Phase 18: 播放列表文件导入导出（无状态、纯文件 IO → Singleton）
         services.AddSingleton<IPlaylistFileService, PlaylistFileService>();
 

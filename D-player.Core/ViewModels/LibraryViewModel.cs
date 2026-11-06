@@ -45,6 +45,8 @@ public sealed partial class LibraryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsAlbumsPage))]
     [NotifyPropertyChangedFor(nameof(IsArtistDetailPage))]
     [NotifyPropertyChangedFor(nameof(IsAlbumDetailPage))]
+    [NotifyPropertyChangedFor(nameof(IsSearchPage))]
+    [NotifyPropertyChangedFor(nameof(ShowLibraryEmptyState))]
     [NotifyPropertyChangedFor(nameof(CanGoBack))]
     [NotifyPropertyChangedFor(nameof(HeaderTitle))]
     private LibraryPage _page = LibraryPage.Artists;
@@ -73,8 +75,11 @@ public sealed partial class LibraryViewModel : ObservableObject
     public bool IsAlbumsPage => Page == LibraryPage.Albums;
     public bool IsArtistDetailPage => Page == LibraryPage.ArtistDetail;
     public bool IsAlbumDetailPage => Page == LibraryPage.AlbumDetail;
-    public bool CanGoBack => Page is LibraryPage.ArtistDetail or LibraryPage.AlbumDetail;
+    public bool IsSearchPage => Page == LibraryPage.Search;
+    public bool CanGoBack => Page is LibraryPage.ArtistDetail
+        or LibraryPage.AlbumDetail or LibraryPage.Search;
     public bool IsEmpty => Artists.Count == 0;
+    public bool ShowLibraryEmptyState => IsEmpty && !IsSearchPage;
     public string EmptyStateText =>
         !HasLibraryRoots ? "还没有音乐库文件夹"
         : IsScanning ? "正在扫描音乐库…"
@@ -86,6 +91,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         LibraryPage.Albums => "专辑",
         LibraryPage.ArtistDetail => SelectedArtist?.Name ?? "艺术家",
         LibraryPage.AlbumDetail => SelectedAlbum?.Title ?? "专辑",
+        LibraryPage.Search => "搜索",
         _ => string.Empty,
     };
 
@@ -113,10 +119,9 @@ public sealed partial class LibraryViewModel : ObservableObject
         _playlists = playlists ?? throw new ArgumentNullException(nameof(playlists));
         _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
         _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _scheduler = new LibraryRefreshScheduler(
-            clock ?? throw new ArgumentNullException(nameof(clock)),
-            RunRefreshBatchAsync,
-            ReportRefreshError);
+            _clock, RunRefreshBatchAsync, ReportRefreshError);
     }
 
     public Task InitializeAsync()
@@ -165,6 +170,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     public void ShowArtists()
     {
+        ClearSearchForNavigation();
         SelectedArtist = null;
         SelectedAlbum = null;
         Page = LibraryPage.Artists;
@@ -172,6 +178,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     public void ShowAlbums()
     {
+        ClearSearchForNavigation();
         SelectedArtist = null;
         SelectedAlbum = null;
         Page = LibraryPage.Albums;
@@ -194,6 +201,12 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     public void Back()
     {
+        if (Page == LibraryPage.Search)
+        {
+            ClearSearch();
+            return;
+        }
+
         if (Page == LibraryPage.AlbumDetail && _albumOpenedFromArtist)
         {
             SelectedAlbum = null;

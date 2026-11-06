@@ -68,7 +68,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsLibraryViewActive = true;
     }
 
-    public void ShowPlaylist() => IsLibraryViewActive = false;
+    public void ShowPlaylist()
+    {
+        Library.ClearSearch();
+        IsLibraryViewActive = false;
+    }
 
     /// <summary>
     /// MainWindow Loaded 时调用一次。读 queue.json (含 v1→v2 迁移), Hydrate 容器, 开始监听 StateChanged,
@@ -275,9 +279,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task CleanupCoreAsync()
     {
         var libraryViewActive = IsLibraryViewActive;
-        var libraryPage = Library.Page;
-        var libraryArtistName = Library.SelectedArtist?.Name;
-        var libraryAlbumTrackPath = Library.SelectedAlbum?.Tracks.FirstOrDefault()?.FilePath;
+        var navigation = Library.CaptureNavigation();
 
         // 先封闭库与歌单入口并等待其内部扫描/保存收尾，再写最终快照。
         var libraryCleanup = Library.CleanupAsync();
@@ -319,13 +321,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 await _settings.UpdateAsync(s => s with
                 {
                     LibraryViewActive = libraryViewActive,
-                    LibraryViewPage = libraryViewActive ? libraryPage.ToString() : null,
-                    LibraryViewArtistName = libraryViewActive && libraryPage == LibraryPage.ArtistDetail
-                        ? libraryArtistName
-                        : null,
-                    LibraryViewAlbumTrackPath = libraryViewActive && libraryPage == LibraryPage.AlbumDetail
-                        ? libraryAlbumTrackPath
-                        : null,
+                    LibraryViewPage = libraryViewActive ? navigation.Page.ToString() : null,
+                    LibraryViewArtistName = libraryViewActive &&
+                        navigation.Page == LibraryPage.ArtistDetail
+                            ? navigation.ArtistName
+                            : null,
+                    LibraryViewAlbumTrackPath = libraryViewActive &&
+                        navigation.Page == LibraryPage.AlbumDetail
+                            ? navigation.AlbumTrackPath
+                            : null,
                 }).ConfigureAwait(true);
             }
             catch

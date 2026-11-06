@@ -1,0 +1,362 @@
+using DPlayer.Models;
+
+namespace DPlayer.ViewModels;
+
+public sealed partial class LibraryViewModel
+{
+    private static readonly LibrarySearchResults EmptySearchResults = new(
+        Array.Empty<LibraryArtist>(),
+        Array.Empty<LibraryAlbum>(),
+        Array.Empty<Track>());
+
+    private string _searchQuery = string.Empty;
+    private LibrarySearchResults _searchResults = EmptySearchResults;
+    private string _searchMessage = string.Empty;
+    private LibraryNavigationSnapshot? _searchReturn;
+    private long _queryVersion;
+    private CancellationTokenSource? _queryCts;
+    private Task? _queryTask;
+    private volatile bool _searchDirty;
+
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        private set
+        {
+            if (_searchQuery == value) return;
+            _searchQuery = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public LibrarySearchResults SearchResults
+    {
+        get => _searchResults;
+        private set
+        {
+            _searchResults = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string SearchMessage
+    {
+        get => _searchMessage;
+        private set
+        {
+            if (_searchMessage == value) return;
+            _searchMessage = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public Task UpdateSearchAsync(string query)
+    {
+        if (_cleaned) return Task.CompletedTask;
+        query ??= string.Empty;
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            ClearSearch();
+            return Task.CompletedTask;
+        }
+
+        if (!IsSearchPage)
+        {
+            _searchReturn = CurrentNavigation();
+            Page = LibraryPage.Search;
+        }
+
+        SearchQuery = query;
+        SearchMessage = string.Empty;
+        _searchDirty = false;
+
+        var version = Interlocked.Increment(ref _queryVersion);
+        _queryCts?.Cancel();
+        var snapshot = BuildSearchSnapshot();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+        _queryCts = cts;
+        return _queryTask = RunSearchAsync(query, version, snapshot, cts, delay: true);
+    }
+
+    public void ClearSearch()
+    {
+        Interlocked.Increment(ref _queryVersion);
+        _queryCts?.Cancel();
+        _searchDirty = false;
+        SearchQuery = string.Empty;
+        SearchResults = EmptySearchResults;
+        SearchMessage = string.Empty;
+
+        if (Page == LibraryPage.Search)
+            RestoreSearchReturn();
+        _searchReturn = null;
+    }
+
+    public void OpenSearchArtist(LibraryArtist artist)
+    {
+        var current = Artists.FirstOrDefault(candidate => string.Equals(
+            candidate.Name, artist.Name, StringComparison.CurrentCultureIgnoreCase));
+        if (current is null) return;
+
+        ClearSearchForNavigation();
+        OpenArtist(current);
+    }
+
+    public void OpenSearchAlbum(LibraryAlbum album)
+    {
+        var key = LibraryIdentity.AlbumOf(album);
+        var current = Albums.FirstOrDefault(candidate =>
+            LibraryIdentity.AlbumComparer.Equals(
+                LibraryIdentity.AlbumOf(candidate), key));
+        if (current is null) return;
+
+        ClearSearchForNavigation();
+        OpenAlbum(current, fromArtist: false);
+    }
+
+    public async Task PlaySearchTrackAsync(Track track)
+    {
+        if (_cleaned) return;
+
+        var album = Albums.FirstOrDefault(candidate => candidate.Tracks.Any(item =>
+            string.Equals(item.FilePath, track.FilePath,
+                StringComparison.OrdinalIgnoreCase)));
+        var index = -1;
+        if (album is not null)
+        {
+            for (var i = 0; i < album.Tracks.Count; i++)
+            {
+                if (!string.Equals(album.Tracks[i].FilePath, track.FilePath,
+                    StringComparison.OrdinalIgnoreCase))
+                    continue;
+                index = i;
+                break;
+            }
+        }
+
+        if (album is null || index < 0)
+        {
+            SearchMessage = "该曲目已不在音乐库中";
+            return;
+        }
+
+        await _playlists.PlayLibraryTracksAsync(
+            album.Tracks, index, album.Title).ConfigureAwait(true);
+    }
+
+    public LibraryNavigationSnapshot CaptureNavigation()
+    {
+        if (Page != LibraryPage.Search)
+            return CurrentNavigation();
+
+        var fallback = new LibraryNavigationSnapshot(
+            LibraryPage.Artists, null, null, false, null);
+        return ResolveNavigation(_searchReturn ?? fallback);
+    }
+
+    private LibraryNavigationSnapshot CurrentNavigation() => new(
+        Page,
+        SelectedArtist?.Name,
+        SelectedAlbum is null ? null : LibraryIdentity.AlbumOf(SelectedAlbum),
+        _albumOpenedFromArtist,
+        SelectedAlbum?.Tracks.FirstOrDefault()?.FilePath);
+
+    private LibraryNavigationSnapshot ResolveNavigation(
+        LibraryNavigationSnapshot snapshot)
+    {
+        switch (snapshot.Page)
+        {
+            case LibraryPage.ArtistDetail:
+            {
+                var artist = Artists.FirstOrDefault(candidate => string.Equals(
+                    candidate.Name, snapshot.ArtistName,
+                    StringComparison.CurrentCultureIgnoreCase));
+                return artist is null
+                    ? new LibraryNavigationSnapshot(
+                        LibraryPage.Artists, null, null, false, null)
+                    : new LibraryNavigationSnapshot(
+                        LibraryPage.ArtistDetail, artist.Name, null, false, null);
+            }
+            case LibraryPage.AlbumDetail:
+            {
+                var album = snapshot.Album is { } key
+                    ? Albums.FirstOrDefault(candidate =>
+                        LibraryIdentity.AlbumComparer.Equals(
+                            LibraryIdentity.AlbumOf(candidate), key))
+                    : null;
+                if (album is null)
+                {
+                    return new LibraryNavigationSnapshot(
+                        LibraryPage.Albums, null, null, false, null);
+                }
+
+                var artist = snapshot.AlbumOpenedFromArtist
+                    ? Artists.FirstOrDefault(candidate => string.Equals(
+                        candidate.Name, snapshot.ArtistName,
+                        StringComparison.CurrentCultureIgnoreCase))
+                    : null;
+                return new LibraryNavigationSnapshot(
+                    LibraryPage.AlbumDetail,
+                    artist?.Name,
+                    LibraryIdentity.AlbumOf(album),
+                    snapshot.AlbumOpenedFromArtist && artist is not null,
+                    album.Tracks.FirstOrDefault()?.FilePath);
+            }
+            case LibraryPage.Albums:
+                return new LibraryNavigationSnapshot(
+                    LibraryPage.Albums, null, null, false, null);
+            default:
+                return new LibraryNavigationSnapshot(
+                    LibraryPage.Artists, null, null, false, null);
+        }
+    }
+
+    private void RestoreSearchReturn()
+    {
+        var resolved = _searchReturn is null
+            ? new LibraryNavigationSnapshot(LibraryPage.Artists, null, null, false, null)
+            : ResolveNavigation(_searchReturn);
+        _searchReturn = null;
+        SelectedArtist = null;
+        SelectedAlbum = null;
+        _albumOpenedFromArtist = false;
+
+        switch (resolved.Page)
+        {
+            case LibraryPage.ArtistDetail:
+                SelectedArtist = Artists.FirstOrDefault(candidate => string.Equals(
+                    candidate.Name, resolved.ArtistName,
+                    StringComparison.CurrentCultureIgnoreCase));
+                Page = SelectedArtist is null
+                    ? LibraryPage.Artists : LibraryPage.ArtistDetail;
+                break;
+            case LibraryPage.AlbumDetail:
+                SelectedAlbum = resolved.Album is { } key
+                    ? Albums.FirstOrDefault(candidate =>
+                        LibraryIdentity.AlbumComparer.Equals(
+                            LibraryIdentity.AlbumOf(candidate), key))
+                    : null;
+                if (SelectedAlbum is null)
+                {
+                    Page = LibraryPage.Albums;
+                    break;
+                }
+                SelectedArtist = resolved.ArtistName is { } artistName
+                    ? Artists.FirstOrDefault(candidate => string.Equals(
+                        candidate.Name, artistName,
+                        StringComparison.CurrentCultureIgnoreCase))
+                    : null;
+                _albumOpenedFromArtist =
+                    resolved.AlbumOpenedFromArtist && SelectedArtist is not null;
+                Page = LibraryPage.AlbumDetail;
+                _ = EnsureCoverAsync(SelectedAlbum);
+                break;
+            case LibraryPage.Albums:
+                Page = LibraryPage.Albums;
+                break;
+            default:
+                Page = LibraryPage.Artists;
+                break;
+        }
+    }
+
+    private void ClearSearchForNavigation()
+    {
+        Interlocked.Increment(ref _queryVersion);
+        _queryCts?.Cancel();
+        _searchDirty = false;
+        SearchQuery = string.Empty;
+        SearchResults = EmptySearchResults;
+        SearchMessage = string.Empty;
+        _searchReturn = null;
+        SelectedArtist = null;
+        SelectedAlbum = null;
+    }
+
+    private LibrarySearchSnapshot BuildSearchSnapshot() => new(
+        Volatile.Read(ref _libraryVersion),
+        Artists.ToArray(),
+        Albums.ToArray(),
+        _tracksByPath.Values.ToArray());
+
+    private async Task RunSearchAsync(
+        string query, long version, LibrarySearchSnapshot snapshot,
+        CancellationTokenSource cts, bool delay)
+    {
+        var token = cts.Token;
+        try
+        {
+            if (delay)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(200), _clock, token)
+                    .ConfigureAwait(false);
+            }
+
+            var result = await Task.Run(
+                () => LibrarySearch.Match(snapshot, query, token), token)
+                .ConfigureAwait(false);
+
+            await RunOnUiAsync(() =>
+            {
+                if (_cleaned || token.IsCancellationRequested ||
+                    version != Volatile.Read(ref _queryVersion) || !IsSearchPage)
+                    return;
+                if (snapshot.Version != Volatile.Read(ref _libraryVersion))
+                {
+                    _searchDirty = true;
+                    return;
+                }
+
+                SearchResults = result;
+                SearchMessage =
+                    result.Artists.Count + result.Albums.Count + result.Tracks.Count == 0
+                        ? "未找到匹配的艺术家、专辑或曲目"
+                        : string.Empty;
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // 用户改词/清空或库关闭后，旧查询自行结束。
+        }
+        finally
+        {
+            if (_searchDirty && version == Volatile.Read(ref _queryVersion) &&
+                !_cleaned)
+            {
+                try
+                {
+                    _syncContext.Post(_ => RecomputeSearchOnUi(version), null);
+                }
+                catch
+                {
+                    // UI 上下文已关闭。
+                }
+            }
+        }
+    }
+
+    private void RecomputeSearchAfterLibraryChange()
+    {
+        if (_cleaned || !IsSearchPage || string.IsNullOrWhiteSpace(SearchQuery))
+            return;
+
+        _searchDirty = true;
+        if (_queryTask is { IsCompleted: false }) return;
+        RecomputeSearchOnUi(Volatile.Read(ref _queryVersion));
+    }
+
+    private void RecomputeSearchOnUi(long version)
+    {
+        if (_cleaned || !_searchDirty ||
+            version != Volatile.Read(ref _queryVersion) ||
+            !IsSearchPage || string.IsNullOrWhiteSpace(SearchQuery))
+            return;
+
+        _searchDirty = false;
+        var snapshot = BuildSearchSnapshot();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+        _queryCts = cts;
+        _queryTask = RunSearchAsync(SearchQuery, version, snapshot, cts, delay: false);
+    }
+}

@@ -379,10 +379,6 @@ public class PlaybackResumeTests : IDisposable
             t => t.FilePath == _tempTrack && t.AlbumArt != null && t.AlbumArt.Length == art.Length));
     }
 
-    /// <summary>
-    /// 库初始化失败（缓存读抛异常）是可选能力的失败：启动仍要完成断点续播，
-    /// 不能把 MainViewModel 留在半初始化状态。钉住 InitializeAsync 的 try/catch 包裹。
-    /// </summary>
     [Fact]
     public async Task InitializeAsync_SetsIsInitialized_AfterRestore()
     {
@@ -466,6 +462,51 @@ public class PlaybackResumeTests : IDisposable
         Assert.NotNull(nav);
         Assert.Equal(nameof(LibraryPage.AlbumDetail), nav.LibraryViewPage);
         Assert.Equal(_tempTrack, nav.LibraryViewAlbumTrackPath);
+    }
+
+    [Fact]
+    public async Task CleanupAsync_WhileSearching_PersistsSourceNavigation()
+    {
+        var root = Path.Combine(Path.GetTempPath(),
+            $"dplayer-resume-search-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith()));
+            _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+            {
+                LibraryFolders = new[] { root },
+            }));
+            _cache.LoadAsync(root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                new[]
+                {
+                    new LibraryCacheEntry(_tempTrack, "Title", "Artist", "Album",
+                        null, 2024, TimeSpan.FromMinutes(3), 44100, 1),
+                }));
+            var vm = CreateMainVm();
+            await vm.InitializeAsync();
+            vm.IsLibraryViewActive = true;
+            vm.Library.OpenAlbum(Assert.Single(vm.Library.Albums), fromArtist: false);
+            _writes.Clear();
+
+            var search = vm.Library.UpdateSearchAsync("Title");
+            _clock.Advance(TimeSpan.FromMilliseconds(200));
+            await search.WaitAsync(TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
+            Assert.True(vm.Library.IsSearchPage);
+
+            await vm.CleanupAsync();
+
+            var nav = _writes.LastOrDefault(w => w.LibraryViewActive);
+            Assert.NotNull(nav);
+            Assert.Equal(nameof(LibraryPage.AlbumDetail), nav!.LibraryViewPage);
+            Assert.Equal(_tempTrack, nav.LibraryViewAlbumTrackPath);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
     }
 
     /// <summary>

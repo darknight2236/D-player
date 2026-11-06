@@ -9,6 +9,7 @@ public sealed partial class LibraryViewModel
 {
     private readonly ILibraryRootScanner _rootScanner;
     private readonly LibraryRefreshScheduler _scheduler;
+    private readonly TimeProvider _clock;
     private readonly Dictionary<string, IReadOnlyList<LibraryCacheEntry>> _rootEntries =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _scanUnavailableRoots =
@@ -178,6 +179,7 @@ public sealed partial class LibraryViewModel
             HasLibraryRoots = roots.Count > 0;
             UnavailableRootCount = unavailableCount;
             PublishGrouping(grouping, preserveSelection: true);
+            RecomputeSearchAfterLibraryChange();
             StatusText = BuildStatus();
         }).ConfigureAwait(false);
 
@@ -292,7 +294,10 @@ public sealed partial class LibraryViewModel
 
                 UnavailableRootCount = scanFailed.Count;
                 if (dataChanged)
+                {
                     PublishGrouping(grouping, preserveSelection: true);
+                    RecomputeSearchAfterLibraryChange();
+                }
                 StatusText = BuildStatus();
             }).ConfigureAwait(false);
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -27,6 +28,7 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
     private readonly ILibraryWatcher _watcher = Substitute.For<ILibraryWatcher>();
     private readonly ManualTimeProvider _clock = new();
     private readonly List<LibraryViewModel> _vms = new();
+    private PlaylistsViewModel? _lastPlaylists;
 
     private readonly string _root =
         Path.Combine(Path.GetTempPath(), $"dplayer-library-{Guid.NewGuid():N}");
@@ -48,6 +50,10 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
     }
 
     private LibraryViewModel CreateVm(params string[] roots)
+        => CreateVmWithContext(null, roots);
+
+    private LibraryViewModel CreateVmWithContext(
+        SynchronizationContext? syncContext, params string[] roots)
     {
         _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
         {
@@ -62,9 +68,11 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
             seed => new PlaylistViewModel(
                 seed, _player, _fileDialog, _metadata, _playlistFiles),
             Substitute.For<ILibraryRootScanner>());
+        _lastPlaylists = playlists;
 
         var previous = SynchronizationContext.Current;
-        SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+        SynchronizationContext.SetSynchronizationContext(
+            syncContext ?? new SynchronizationContext());
         try
         {
             var vm = new LibraryViewModel(
@@ -100,6 +108,32 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
     private void SetScan(string root, LibraryRootSnapshot snapshot)
         => _rootScanner.ScanAsync(root, Arg.Any<LibraryScanLease>())
             .Returns(Task.FromResult(snapshot));
+
+    private static async Task WaitForSearchAsync(
+        LibraryViewModel vm, Func<LibrarySearchResults, bool> predicate,
+        CancellationToken ct)
+    {
+        if (predicate(vm.SearchResults)) return;
+
+        var matched = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        void Handler(object? sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(LibraryViewModel.SearchResults) &&
+                predicate(vm.SearchResults))
+                matched.TrySetResult();
+        }
+
+        vm.PropertyChanged += Handler;
+        try
+        {
+            await matched.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        }
+        finally
+        {
+            vm.PropertyChanged -= Handler;
+        }
+    }
 
     [Fact]
     public async Task InitializeAsync_LoadsCachedTracks_WithoutReadingTags()
@@ -591,6 +625,243 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
         Assert.Equal(keep, Assert.Single(vm.Albums).Tracks[0].FilePath);
         Assert.Single(vm.CachedEntriesByPath);
         Assert.DoesNotContain(late, vm.CachedEntriesByPath.Keys);
+    }
+
+    [Fact]
+    public async Task Search_Clear_RestoresAlbumDetailWithoutPersistingQuery()
+    {
+        var path = Path.Combine(_root, "song.flac");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(path, "Song", "Artist", "Album") }));
+        await vm.InitializeAsync();
+        vm.OpenAlbum(Assert.Single(vm.Albums), fromArtist: false);
+
+        var search = vm.UpdateSearchAsync(" Artist ");
+        Assert.True(vm.IsSearchPage);
+        Assert.True(vm.CanGoBack);
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await search.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(vm.SearchResults.Tracks);
+        Assert.Equal(LibraryPage.AlbumDetail, vm.CaptureNavigation().Page);
+
+        vm.ClearSearch();
+
+        Assert.Equal(LibraryPage.AlbumDetail, vm.Page);
+        Assert.Equal(path, vm.SelectedAlbum!.Tracks[0].FilePath);
+        Assert.Equal(string.Empty, vm.SearchQuery);
+    }
+
+    [Fact]
+    public async Task Search_WhitespaceQuery_DoesNotEnterSearch()
+    {
+        var vm = CreateVm();
+
+        await vm.UpdateSearchAsync("   ");
+
+        Assert.False(vm.IsSearchPage);
+        Assert.Equal(string.Empty, vm.SearchQuery);
+        Assert.Empty(vm.SearchResults.Tracks);
+    }
+
+    [Fact]
+    public async Task Search_OpenArtist_ClearsQueryAndReturnsToArtistList()
+    {
+        var path = Path.Combine(_root, "song.flac");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(path, "Song", "Artist", "Album") }));
+        await vm.InitializeAsync();
+        vm.ShowAlbums();
+
+        var search = vm.UpdateSearchAsync("Artist");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await search.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        var artist = Assert.Single(vm.SearchResults.Artists);
+
+        vm.OpenSearchArtist(artist);
+
+        Assert.Equal(LibraryPage.ArtistDetail, vm.Page);
+        Assert.False(vm.IsSearchPage);
+        Assert.Equal(string.Empty, vm.SearchQuery);
+        vm.Back();
+        Assert.Equal(LibraryPage.Artists, vm.Page);
+    }
+
+    [Fact]
+    public async Task Search_OpenAlbum_ReturnsToAlbumsOnBack()
+    {
+        var path = Path.Combine(_root, "song.flac");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(path, "Song", "Artist", "Album") }));
+        await vm.InitializeAsync();
+        vm.ShowArtists();
+
+        var search = vm.UpdateSearchAsync("Album");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await search.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        var album = Assert.Single(vm.SearchResults.Albums);
+
+        vm.OpenSearchAlbum(album);
+
+        Assert.Equal(LibraryPage.AlbumDetail, vm.Page);
+        Assert.Equal(string.Empty, vm.SearchQuery);
+        vm.Back();
+        Assert.Equal(LibraryPage.Albums, vm.Page);
+    }
+
+    [Fact]
+    public async Task Search_ShowArtists_DoesNotRestoreSourcePage()
+    {
+        var path = Path.Combine(_root, "song.flac");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(path, "Song", "Artist", "Album") }));
+        await vm.InitializeAsync();
+        vm.OpenAlbum(Assert.Single(vm.Albums), fromArtist: false);
+        var search = vm.UpdateSearchAsync("Song");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await search.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        vm.ShowArtists();
+
+        Assert.Equal(LibraryPage.Artists, vm.Page);
+        Assert.Equal(string.Empty, vm.SearchQuery);
+    }
+
+    [Fact]
+    public async Task Search_PlayTrack_UsesFullAlbumContext()
+    {
+        var albumDir = Path.Combine(_root, "Album");
+        var path1 = Path.Combine(albumDir, "01.flac");
+        var path2 = Path.Combine(albumDir, "02.flac");
+        var path3 = Path.Combine(albumDir, "03.flac");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[]
+            {
+                Entry(path1, "One", "Artist", "Album", 1),
+                Entry(path2, "Two", "Artist", "Album", 2),
+                Entry(path3, "Three", "Artist", "Album", 3),
+            }));
+        await vm.InitializeAsync();
+
+        var search = vm.UpdateSearchAsync("Two");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await search.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        var track = Assert.Single(vm.SearchResults.Tracks);
+
+        await vm.PlaySearchTrackAsync(track);
+
+        Assert.Equal(LibraryPage.Search, vm.Page);
+        Assert.Equal("Two", vm.SearchQuery);
+        var playback = _lastPlaylists!.LibraryPlayback;
+        Assert.NotNull(playback);
+        Assert.Equal(3, playback!.Queue.Count);
+        Assert.Equal(1, playback.CurrentIndex);
+        Assert.Equal("Album", playback.Name);
+        await _player.Received(1).LoadAsync(
+            Arg.Is<Track>(item => item.FilePath == path2));
+        _player.Received(1).Play();
+        await _lastPlaylists!.CleanupAsync();
+        playback.Cleanup();
+    }
+
+    [Fact]
+    public async Task Search_PlayMissingTrack_KeepsQueryAndMessage()
+    {
+        var path = Path.Combine(_root, "song.flac");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(path, "Song", "Artist", "Album") }));
+        await vm.InitializeAsync();
+        var search = vm.UpdateSearchAsync("Song");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await search.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        await vm.PlaySearchTrackAsync(new Track(
+            Path.Combine(_root, "gone.flac"), "Gone", "Artist", "Album",
+            null, null, 44100, null, TimeSpan.FromMinutes(3), 1));
+
+        Assert.Equal(LibraryPage.Search, vm.Page);
+        Assert.Equal("Song", vm.SearchQuery);
+        Assert.Equal("该曲目已不在音乐库中", vm.SearchMessage);
+        Assert.Null(_lastPlaylists!.LibraryPlayback);
+        await _player.DidNotReceive().LoadAsync(Arg.Any<Track>());
+    }
+
+    [Fact]
+    public async Task Search_LateQueryResult_DoesNotOverwriteNewQuery()
+    {
+        var pathA = Path.Combine(_root, "a.flac");
+        var pathB = Path.Combine(_root, "b.flac");
+        using var context = new QueuedSynchronizationContext();
+        var vm = CreateVmWithContext(context, _root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[]
+            {
+                Entry(pathA, "Song A", "Artist A", "Album A"),
+                Entry(pathB, "Song B", "Artist B", "Album B"),
+            }));
+
+        var init = vm.InitializeAsync();
+        await context.WaitForPendingAsync(1, TestContext.Current.CancellationToken);
+        await context.RunNextAsync(TestContext.Current.CancellationToken);
+        await init.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        var first = vm.UpdateSearchAsync("Artist A");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await context.WaitForPendingAsync(1, TestContext.Current.CancellationToken);
+
+        var second = vm.UpdateSearchAsync("Artist B");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await context.WaitForPendingAsync(2, TestContext.Current.CancellationToken);
+
+        await context.RunNextAsync(TestContext.Current.CancellationToken);
+        await context.RunNextAsync(TestContext.Current.CancellationToken);
+        await first.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        await second.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("Artist B", vm.SearchQuery);
+        Assert.Equal("Artist B", Assert.Single(vm.SearchResults.Artists).Name);
+    }
+
+    [Fact]
+    public async Task Search_LibraryChange_RecomputesCurrentQuery()
+    {
+        var path1 = Path.Combine(_root, "one.flac");
+        var path2 = Path.Combine(_root, "two.flac");
+        var vm = CreateVm(_root);
+        _cache.LoadAsync(_root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+            new[] { Entry(path1, "Song A", "Artist", "Album") }));
+        SetScan(_root, Snapshot(_root,
+            Entry(path1, "Song A", "Artist", "Album"),
+            Entry(path2, "Song B", "Artist", "Album")));
+        await vm.InitializeAsync();
+        var search = vm.UpdateSearchAsync("Song");
+        _clock.Advance(TimeSpan.FromMilliseconds(200));
+        await search.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        Assert.Single(vm.SearchResults.Tracks);
+
+        await vm.ScanInBackgroundAsync();
+        await WaitForSearchAsync(vm, results => results.Tracks.Count == 2,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(LibraryPage.Search, vm.Page);
+        Assert.Equal("Song", vm.SearchQuery);
+        Assert.Equal(2, vm.SearchResults.Tracks.Count);
     }
 
     [Fact]

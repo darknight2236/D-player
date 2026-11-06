@@ -9,7 +9,15 @@ public enum LibraryPage
     Albums,
     ArtistDetail,
     AlbumDetail,
+    Search,
 }
+
+public sealed record LibraryNavigationSnapshot(
+    LibraryPage Page,
+    string? ArtistName,
+    LibraryAlbumKey? Album,
+    bool AlbumOpenedFromArtist,
+    string? AlbumTrackPath);
 
 public sealed class LibraryArtist
 {

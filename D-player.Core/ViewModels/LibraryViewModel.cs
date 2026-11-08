@@ -124,6 +124,17 @@ public sealed partial class LibraryViewModel : ObservableObject
             _clock, RunRefreshBatchAsync, ReportRefreshError);
     }
 
+    /// <summary>对话框的选择集；容器集合的只读视图，不复制、不排序。</summary>
+    public IReadOnlyList<PlaylistViewModel> Playlists => _playlists.Playlists;
+
+    public bool AddTracksToPlaylist(
+        PlaylistViewModel target, IReadOnlyList<Track> tracks)
+        => _playlists.AppendTracks(target, tracks);
+
+    public PlaylistViewModel? AddTracksToNewPlaylist(
+        string? name, IReadOnlyList<Track> tracks)
+        => _playlists.CreatePlaylistWithTracks(name, tracks);
+
     public Task InitializeAsync()
     {
         lock (_cleanupGate)

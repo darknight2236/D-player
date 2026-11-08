@@ -953,4 +953,53 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
         Assert.Equal(LibraryPage.Artists, vm.Page);
         Assert.False(vm.CanGoBack);
     }
+
+    // —— Phase 26: 库 → 歌单转发 ——
+
+    [Fact]
+    public void AddTracksToPlaylist_ForwardsTracksInOrder()
+    {
+        var library = CreateVm();
+        var playlists = _lastPlaylists!;
+        playlists.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var tracks = new[] { Fallback("a.mp3"), Fallback("b.mp3") };
+
+        var appended = library.AddTracksToPlaylist(playlists.Playlists[0], tracks);
+
+        Assert.True(appended);
+        Assert.Equal(new[] { "a.mp3", "b.mp3" },
+            playlists.Playlists[0].Queue.Select(t => t.FilePath));
+    }
+
+    [Fact]
+    public void AddTracksToNewPlaylist_CreatesUnselectedPlaylist()
+    {
+        var library = CreateVm();
+        var playlists = _lastPlaylists!;
+        playlists.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var viewed = playlists.ViewedPlaylist;
+        var current = playlists.CurrentPlaylistId;
+
+        var created = library.AddTracksToNewPlaylist(
+            "New", new[] { Fallback("a.mp3") });
+
+        Assert.NotNull(created);
+        Assert.Equal("New", created!.Name);
+        Assert.Same(viewed, playlists.ViewedPlaylist);
+        Assert.Equal(current, playlists.CurrentPlaylistId);
+    }
 }

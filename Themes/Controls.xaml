@@ -86,7 +86,7 @@
         </Setter>
     </Style>
 
-    <!-- 对话框次操作：取消/恢复 Flat。中性表面 + 描边，保留清晰的按钮轮廓 -->
+    <!-- 次级操作按钮：对话框取消/恢复 Flat、搜索栏清空等。中性表面 + 描边，保留清晰的按钮轮廓 -->
     <Style x:Key="DialogSecondaryButton" TargetType="Button"
            BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
@@ -147,7 +147,8 @@
                     <Border x:Name="bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="4">
-                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                        <!-- 不要在这里绑 Margin=Padding：TextBox 内部已按 Padding 缩进文本与光标，再绑一次会把内边距翻倍（搜索框提示文字与光标错开 8px 即此原因）。 -->
+                        <ScrollViewer x:Name="PART_ContentHost"
                                       VerticalAlignment="Center" Focusable="False"/>
                     </Border>
                     <ControlTemplate.Triggers>

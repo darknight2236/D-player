@@ -332,6 +332,7 @@
                         <TextBox x:Name="SearchBox"
                                  Background="Transparent"
                                  BorderThickness="0"
+                                 MinHeight="30"
                                  Foreground="{StaticResource ForegroundPrimary}"
                                  CaretBrush="{StaticResource ForegroundPrimary}"
                                  Padding="8,5"
@@ -342,7 +343,8 @@
                                  PreviewKeyDown="SearchBox_PreviewKeyDown"/>
                         <TextBlock Text="搜索艺术家、专辑或曲目"
                                    Foreground="{StaticResource ForegroundSecondary}"
-                                   Margin="9,0,0,0"
+                                   Margin="8,0,0,0"
+                                   TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False">
                             <TextBlock.Style>
@@ -360,6 +362,7 @@
                     </Grid>
                 </Border>
                 <Button Grid.Column="1" Content="清空" Margin="6,0,0,0"
+                        Style="{StaticResource DialogSecondaryButton}"
                         Click="ClearSearch_Click" AutomationProperties.Name="清空搜索"/>
             </Grid>
         </Grid>

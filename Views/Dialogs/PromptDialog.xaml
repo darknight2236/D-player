@@ -35,6 +35,7 @@
 
         <TextBox x:Name="InputBox"
                  Grid.Row="1"
+                 MinHeight="28"
                  Padding="6,4"
                  KeyDown="InputBox_KeyDown"/>
 

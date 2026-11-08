@@ -124,6 +124,11 @@
             <StackPanel Width="140"
                         HorizontalAlignment="Center"
                         Loaded="AlbumTile_Loaded">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="加入歌单…" Click="AddAlbumToPlaylist_Click"/>
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <Border Width="140" Height="140"
                         HorizontalAlignment="Center"
                         Background="{StaticResource BackgroundTertiary}"
@@ -156,6 +161,11 @@
 
         <DataTemplate x:Key="TrackRowTemplate">
             <Grid>
+                <Grid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="加入歌单…" Click="AddTrackToPlaylist_Click"/>
+                    </ContextMenu>
+                </Grid.ContextMenu>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="16"/>
                     <ColumnDefinition Width="28"/>
@@ -209,6 +219,11 @@
 
         <DataTemplate DataType="{x:Type vm:LibraryAlbum}">
             <Grid Loaded="SearchAlbum_Loaded">
+                <Grid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="加入歌单…" Click="AddAlbumToPlaylist_Click"/>
+                    </ContextMenu>
+                </Grid.ContextMenu>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="40"/>
                     <ColumnDefinition Width="*"/>
@@ -243,6 +258,11 @@
 
         <DataTemplate DataType="{x:Type models:Track}">
             <Grid>
+                <Grid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="加入歌单…" Click="AddTrackToPlaylist_Click"/>
+                    </ContextMenu>
+                </Grid.ContextMenu>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="16"/>
                     <ColumnDefinition Width="*"/>
@@ -467,6 +487,11 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                    <StackPanel.ContextMenu>
+                        <ContextMenu DataContext="{Binding SelectedAlbum}">
+                            <MenuItem Header="加入歌单…" Click="AddAlbumToPlaylist_Click"/>
+                        </ContextMenu>
+                    </StackPanel.ContextMenu>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="120"/>

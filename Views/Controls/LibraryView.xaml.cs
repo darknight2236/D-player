@@ -415,6 +415,35 @@ public partial class LibraryView : UserControl
             await _vm.PlayAlbumTrackAsync(album, index);
     }
 
+    private void AddAlbumToPlaylist_Click(object sender, RoutedEventArgs e)
+    {
+        var album = (sender as FrameworkElement)?.DataContext as LibraryAlbum
+            ?? _vm?.SelectedAlbum;
+        if (album is null) return;
+        ShowAddToPlaylistDialog(album.Tracks);
+    }
+
+    private void AddTrackToPlaylist_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not MediaTrack track) return;
+        ShowAddToPlaylistDialog(new[] { track });
+    }
+
+    private void ShowAddToPlaylistDialog(IReadOnlyList<MediaTrack> tracks)
+    {
+        if (_vm is null || tracks.Count == 0) return;
+
+        var snapshot = tracks.ToArray();
+        var result = AddToPlaylistDialog.Show(
+            Window.GetWindow(this), _vm.Playlists, snapshot.Length);
+        if (result is null) return;
+
+        if (result.NewPlaylistName is { } name)
+            _vm.AddTracksToNewPlaylist(name, snapshot);
+        else if (result.Target is { } target)
+            _vm.AddTracksToPlaylist(target, snapshot);
+    }
+
     private void AlbumTile_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: LibraryAlbum album } && _vm is not null)

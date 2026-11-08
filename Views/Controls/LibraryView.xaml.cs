@@ -8,6 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using MediaTrack = DPlayer.Models.Track;
@@ -465,7 +466,16 @@ public partial class LibraryView : UserControl
         while (obj is not null)
         {
             if (obj is T match) return match;
-            obj = VisualTreeHelper.GetParent(obj);
+
+            // e.OriginalSource 可能是 Run/TextElement 等 ContentElement，不是 Visual；
+            // 对它们调用 VisualTreeHelper.GetParent 会抛 InvalidOperationException。
+            obj = obj switch
+            {
+                Visual or Visual3D => VisualTreeHelper.GetParent(obj),
+                ContentElement content => ContentOperations.GetParent(content)
+                    ?? (content as FrameworkContentElement)?.Parent,
+                _ => null,
+            };
         }
         return null;
     }

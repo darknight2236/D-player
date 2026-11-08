@@ -78,7 +78,7 @@ WinUI 3 壳（Phase 21 视觉打磨后）：自绘标题栏区 + 三栏 IA——
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：282 通过 0 失败（默认排除真实音频集成）
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：283 通过 0 失败（默认排除真实音频集成）
 dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实 WASAPI 集成测试（需音频设备）
 dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 ```
@@ -95,7 +95,7 @@ dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q   # 门
 - **三条一起跑的脚本（推荐，会逐步 fail-fast）**：
 
 ```bash
-powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（282，默认排除音频）
+powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（283，默认排除音频）
 powershell -File tools/verify-gates.ps1 -Full   # = 门禁 1 + 门禁 2 + 门禁 3
 powershell -File tools/verify-gates.ps1 -Full -Audio   # 再加 5 条真实音频集成测试
 ```
@@ -129,14 +129,14 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 ```bash
 # xunit v3 的测试工程是可执行程序，runner 是 Microsoft.Testing.Platform（MTP）
 dotnet run --project Tests/D-player.Tests.csproj -c Debug   # 直接跑可执行程序
-dotnet test D-player.slnf -c Debug                          # 同一 runner 的裸命令（跑全量 287）；门禁 2 用上面的 filter 排除音频
+dotnet test D-player.slnf -c Debug                          # 同一 runner 的裸命令（跑全量 288）；门禁 2 用上面的 filter 排除音频
 ```
 
 两条命令跑的是**同一个 runner（MTP）**，不是两套 runner：`dotnet test` 之所以仍可用，靠的是仓库根 `global.json` 里的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 这条命令就失败**。两条都**不要加 `--nologo`**：MTP 不认这个参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际是"运行了零个测试" + 退出码 5）；`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
-当前共 **287** 个测试（**282 默认 + 5 真实音频集成**；Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测）。Phase 25 新增 **59** 条默认测试：`LibrarySearchTests`(9) / `LibraryRootScannerTests`(9) / `LibraryRefreshSchedulerTests`(9) / `FileSystemLibraryWatcherTests`(3)，并扩充 `LibraryViewModelTests`(+17 → 30)、`PlaylistsViewModelTests`(+7 → 45)、`PlaybackResumeTests`(+3 → 22)、`LibraryScannerServiceTests`(+2 → 23)；`AddDPlayerCoreTests` 在同一个用例里补了根扫描器/watcher/`TimeProvider` 解析断言（用例数不变）。**这 287 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 25 验收边界见 [`docs/PHASE25-ACCEPTANCE.md`](docs/PHASE25-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
+当前共 **288** 个测试（**283 默认 + 5 真实音频集成**；Models / Services / ViewModels / Configuration 全覆盖 + DI 图解析（`Tests/Extensions/AddDPlayerCoreTests.cs`）+ 纯字符串函数 `PlaylistImportReportFormatter`；其余 View 层代码按项目惯例不做单测）。Phase 25 新增 **59** 条默认测试：`LibrarySearchTests`(9) / `LibraryRootScannerTests`(9) / `LibraryRefreshSchedulerTests`(9) / `FileSystemLibraryWatcherTests`(3)，并扩充 `LibraryViewModelTests`(+17 → 30)、`PlaylistsViewModelTests`(+7 → 45)、`PlaybackResumeTests`(+4 → 23，其中 2026-11-08 启动恢复清 `ViewedPlaylist` 回归 +1)、`LibraryScannerServiceTests`(+2 → 23)；`AddDPlayerCoreTests` 在同一个用例里补了根扫描器/watcher/`TimeProvider` 解析断言（用例数不变）。**这 288 条覆盖的是 Core + WPF + Tests：WinUI 壳一条都不覆盖**——门禁 3 只保证它能编译（0 警告），UI 行为仍靠真机手测（Phase 25 验收边界见 [`docs/PHASE25-ACCEPTANCE.md`](docs/PHASE25-ACCEPTANCE.md)）。逐文件分解见 [`docs/PROJECT.md`](docs/PROJECT.md) §3 的 Tests 目录树）。
 
-> **测试过滤实测（2026-11-06，Phase 25 收尾）**：`--filter "Category!=AudioDevice"` 实跑 **282** 通过、0 失败；本次未执行 `--filter "Category=AudioDevice"` 的 5 条真实 WASAPI 测试，因此只记录默认门禁 282，不把 287 写成实跑结果。2026-11-02 Phase 24 时的历史记录（无过滤 228 = 223 默认 + 5 音频）保留；需要覆盖真实输出路径时用 `powershell -File tools/verify-gates.ps1 -Full -Audio`。
+> **测试过滤实测（2026-11-08）**：`--filter "Category!=AudioDevice"` 实跑 **283** 通过、0 失败（Phase 25 收尾为 282，交付后新增启动恢复清 `ViewedPlaylist` 回归 +1）；本次未执行 `--filter "Category=AudioDevice"` 的 5 条真实 WASAPI 测试，因此只记录默认门禁 283，不把 288 写成实跑结果。2026-11-02 Phase 24 时的历史记录（无过滤 228 = 223 默认 + 5 音频）保留；需要覆盖真实输出路径时用 `powershell -File tools/verify-gates.ps1 -Full -Audio`。
 
 ---
 

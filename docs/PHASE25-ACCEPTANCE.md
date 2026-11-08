@@ -16,13 +16,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-gates.ps1 -Full
 | 门禁 | 结果 |
 |---|---|
 | 1/3 解决方案筛选器构建（Core + WPF + Tests） | 通过，0 警告 / 0 错误 |
-| 2/3 默认测试（`Category!=AudioDevice`） | **282/282 通过**，0 失败，0 跳过 |
+| 2/3 默认测试（`Category!=AudioDevice`） | **283/283 通过**，0 失败，0 跳过 |
 | 3/3 WinUI 3 构建 | 通过，0 警告 / 0 错误 |
 
 计数口径：
 
-- Phase 25 前默认门禁 **223**；本次最终默认 **282**，新增 **59** 条默认测试。
-- 真实音频集成仍为 **5** 条；本次未执行 `-Audio`，因此不把 287 写成实跑结果。若执行，总数应为 **282 + 5 = 287**。
+- Phase 25 前默认门禁 **223**；Phase 25 收尾 **282**（新增 59 条）；2026-11-08 交付后回归新增 1 条（库视图恢复清 `ViewedPlaylist`），当前默认 **283**。
+- 真实音频集成仍为 **5** 条；本次未执行 `-Audio`，因此不把 288 写成实跑结果。若执行，总数应为 **283 + 5 = 288**。
 - 构建与测试均基于当前 `master`，未修改 `D-player.slnf` 或 WinUI 工程。
 
 新增/扩充的主要覆盖：
@@ -35,7 +35,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-gates.ps1 -Full
 | `FileSystemLibraryWatcherTests` | 父子/相邻根路径关联、溢出分类、真实 Created 事件、Dispose 后停止监控 |
 | `LibraryViewModelTests` | 根快照合并、不可用根保缓存、删除/空根、无差异不重置集合、同名专辑选择保持、监听只刷受影响根、启动先订阅后校准、清理晚到结果不发布、搜索时序/返回快照/播放/晚查询 |
 | `PlaylistsViewModelTests` | 共享根缓存更新后仍按队列成员差分；导入/刷新使用根扫描；清理幂等 |
-| `PlaybackResumeTests` | 搜索态关闭仍持久化非搜索导航；默认初始化不启动 watcher；Main 清理返回同一任务 |
+| `PlaybackResumeTests` | 搜索态关闭仍持久化非搜索导航；默认初始化不启动 watcher；Main 清理返回同一任务；库视图恢复清 `ViewedPlaylist`（2026-11-08 +1） |
 | `AddDPlayerCoreTests` | 根扫描器、watcher、`TimeProvider` 可由 DI 解析；解析 watcher 不启动监控 |
 
 ## 2. WPF 交互验收
@@ -55,7 +55,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-gates.ps1 -Full
 | W5 | PASS（自动）/ 部分未验证 | fallback、NewInvalidPaths 与 1s/3s 有界重试、Stop 排空均有测试；真实「复制中文件」与退出后文件句柄计数未做 UI 走查。 |
 | U1 | PASS（边界） | 宽窗与约 680×532 窄窗下搜索框、清空、刷新可见；三组结果可滚动到后段，长名称省略号。精确 600×500 与超长名称改由 U3 覆盖。 |
 | U2 | PASS | Ctrl+F 聚焦搜索框；Enter 播放、Esc 清空、Space 输入均实测；点击分组标题不触发导航。真实 IME 候选窗组合输入与模态对话框下 Ctrl+F 由用户 2026-11-08 手动验收通过。 |
-| R1 | PASS（自动 + 部分 UI） | 侧栏切出清空搜索；搜索播放标记在详情与搜索结果行显示；启动显示门禁、断点续播由自动测试覆盖；歌单排序/文件夹刷新未在本轮重新走查。 |
+| R1 | PASS（自动 + 部分 UI） | 侧栏切出清空搜索；搜索播放标记在详情与搜索结果行显示；启动显示门禁、断点续播由自动测试覆盖；启动恢复库页时侧栏不残留歌单选中（回归测试 + 真机重启复核）；歌单排序/文件夹刷新未在本轮重新走查。 |
 | R2 | PASS（自动） | 根集合未变时设置保存不扫描、不替换 watcher；搜索/监听不修改播放队列、EQ 或音量。UI 未再次改设置验证。 |
 | R3 | PASS（自动 + 部分 UI） | 搜索态关闭时应用完成清理后退出，无卡死；Main 重复清理返回同一 Task。用户 2026-11-08 手动确认「退出排空通过」；慢保存期间的重复关闭未注入 UI 场景。 |
 | U3 | PASS | 合成库（2 专辑 / 5 首、长 ASCII 与无空格标题、未知标签），窗口 `GetWindowRect` 实测精确 600×500。艺术家行、专辑磁贴、专辑/艺术家详情、搜索三组均按 `CharacterEllipsis` 截断，计数与时长可见，无横向溢出；无结果提示完整换行。三项窄窗问题均已修复并复测：① 专辑详情「播放全部」完整显示（按钮移到封面行下方）；② 播放栏循环键与音量条不再重叠（窄窗音量滑块 100→48）；③ 搜索提示带省略号。900×650 复测恢复 100px 音量条与原布局。 |
@@ -80,4 +80,5 @@ Phase 25 的共享 Core 实现、WPF 搜索界面与监听生命周期均已完�
 - **搜索框「清空」仍像纯文字标签（同日用户复验发现）**：该按钮没有指定样式，落到全局透明 `Button` 隐式样式（无背景、无边框）；对话框按钮的同款问题在 `8597497` 已修，但当时漏了搜索栏。修复：套用共享的次级按钮外观（`DialogSecondaryButton`，带底色、描边、悬停/按下反馈），与 30px 搜索框同高。真机截图复核通过，`-Full` 复跑 282/282。该样式同时服务对话框与库内次级操作，不再只限对话框。
 - **点击库列表文字导致崩溃（2026-11-08 合成库验收发现）**：`LibraryView.FindAncestor` 对 `e.OriginalSource`（TextBlock 内的 `Run`，属于 `ContentElement` 而非 `Visual`）调用 `VisualTreeHelper.GetParent`，抛 `InvalidOperationException` 并终止进程（Windows 事件日志 CLR20r3；堆栈在 `LibraryView.xaml.cs:468`）。修复：`Visual`/`Visual3D` 走 `VisualTreeHelper`，`ContentElement` 走 `ContentOperations.GetParent` 或 `FrameworkContentElement.Parent`。真机复测点击分组标题文字、搜索结果文字与艺术家行文字后进程存活；`-Full` 3/3、282/282。
 - **600 宽搜索提示硬截断（同日合成库验收发现）**：提示 `TextBlock` 没有 `TextTrimming`，600 宽时只剩「搜索艺术家、专辑或曲」且无省略号。补 `TextTrimming="CharacterEllipsis"`，复测显示「搜索艺术家、专辑…」；`-Full` 3/3、282/282。
+- **重启后库页与侧栏第一个歌单同时高亮（2026-11-08 用户发现）**：`Playlists.Hydrate` 为恢复播放把 `ViewedPlaylist` 对齐到第一个可见歌单，随后 `RestoreLibraryView` 只置 `IsLibraryViewActive=true`，没有清查看指针，侧栏因此保持高亮。修复：`MainViewModel` 的 `OnIsLibraryViewActiveChanged(true)` 统一清空 `ViewedPlaylist`；侧栏在 `Loaded` 后监听 `MainViewModel.IsLibraryViewActive` 与 `LibraryViewModel.Page`，按库页补亮「艺术家/专辑」节点（搜索态保留来源节点）。回归 `PlaybackResumeTests.InitializeAsync_RestoresLibraryView_ClearsViewedPlaylist`（先红后绿）。真机用合成库 + 两个合成歌单重启复测：库页居中、侧栏专辑节点高亮、无歌单选中；点歌单恢复歌单选中与队列视图、库节点熄灭，切回库页再次清除歌单选中并点亮专辑。`-Full` 3/3、默认测试 **283/283**。
 - **600×500 窄窗布局两项（U3，按推荐方案修复并复测）**：① 专辑详情「播放全部」原来被裁成「播放」——封面固定 120px，文本列在 600 宽只剩约 55px；已把按钮移到封面/标题行下方，与艺术家详情页一致，600 宽完整显示。② 播放栏循环键与音量条原来重叠——居中传输组（272px）与右对齐音量组（212px）在 600 宽相撞；`PlayerBar.SizeChanged` 在宽度小于 740px 时把音量滑块从 100px 缩到 48px，并去掉 EQ/设置按钮的 8px 左边距；600 宽下两组分离，900×650 恢复 100px 与 8px 间距。两项均属既有布局，不在 Phase 25 主要代码路径内；真机 600/900 截图复核，`-Full` 3/3、282/282。

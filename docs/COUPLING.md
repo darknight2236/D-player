@@ -1,6 +1,6 @@
 # D-player 耦合分析与重构备忘
 
-> 创建日期：2026-06-06 · 更新日期：2026-11-06 · 基线：`e178ab6`（Phase 25 UI）+ `22a138e`（回归） · 分支：`master` · 当前：**Phase 25 实现完成 / 验收完成（2026-11-06，Core + WPF 主壳的音乐库搜索与实时监听）**。**2026-11-02 路线决策：WinUI 壳开发搁置（Phase 23 是最后一个 WinUI 功能阶段），后续功能开发在 Core/WPF；Avalonia 全量重构仅保留为未来可能（未排期）。** Phase 25 的验收与证据边界见 [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md)；库视图历史见 [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md)；频谱/EQ 的平台级缩放撕裂与证据边界见 [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md)，不得把它误记为布局缺陷。历史验收见 [Phase 21](./PHASE21-ACCEPTANCE.md) / [Phase 22](./PHASE22-ACCEPTANCE.md)，Phase 20 续投决策见 [对比材料](./PHASE20-COMPARISON.md)。
+> 创建日期：2026-06-06 · 更新日期：2026-11-08 · 分支：`master` · 当前：**Phase 25 实现完成 / 验收完成 / 交付后修复（Core + WPF 主壳）**。**2026-11-02 路线决策：WinUI 壳开发搁置（Phase 23 是最后一个 WinUI 功能阶段），后续功能开发在 Core/WPF；Avalonia 全量重构仅保留为未来可能（未排期）。** Phase 25 的验收与证据边界见 [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md)；库视图历史见 [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md)；频谱/EQ 的平台级缩放撕裂与证据边界见 [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md)，不得把它误记为布局缺陷。历史验收见 [Phase 21](./PHASE21-ACCEPTANCE.md) / [Phase 22](./PHASE22-ACCEPTANCE.md)，Phase 20 续投决策见 [对比材料](./PHASE20-COMPARISON.md)。
 >
 > **本文档的用途：** 不是行动清单，是**风险登记册**。Phase 2 偿还债 #2；Phase 3 偿还债 #3/#4 + 完成 VM 拆分 + View 去硬转型；Phase 4 加入队列持久化（无新还债，仅功能增量 + 2 个 WPF 隐式契约）；Phase 5 加入拖拽支持 + 偿还旧债 #5（in-flight RemoveTrack 重入），新增 5 个 WPF 隐式契约；Phase 6 加入多命名歌单 + xUnit 骨架 + debt #1 部分偿还；Phase 7 完成 debt #1 完整偿还（VM 层无 WPF 类型）；Phase 8 建立 ViewModel 单元测试体系；Phase 9 sidebar 歌单拖拽重排；Phase 10 文件夹绑定歌单 + AudioConstants 层级修正；Phase 11 设置对话框；Phase 12 UI 重构 + 全局 Shuffle/Repeat + TrackInfoView；Phase 13 音频可视化（SampleAggregator FFT + SpectrumView，无新架构债，仅新增跨线程封送等隐式契约）；Phase 14 均衡器（EqualizerSampleProvider 10 段图形 EQ 中间件 + EqualizerDialog，无新架构债，仅给 IPlaybackService 加 1 属性、 0 新 DI 服务、 0 新 ViewModel，新增线程安全/Nyquist 旁路/ComboBox 首项自选等隐式契约）。所有技术债已清零。详见 §6。Phase 15 耦合健康度审计完成：结论为耦合低/健康、无需解耦（详见[审计报告](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md)）。Phase 16 图标矢量化（emoji/字形图标 → `Themes/Icons.xaml` 统一描边矢量 Geometry 集，转换器返回 Geometry，▶ 标记 TextBlock→Path；纯表现层，0 新依赖）。Phase 17 UI 深度深色定制（无边框 WindowChrome + 自绘 TitleBar 应用于主窗与 3 个对话框、ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式；纯表现层，0 新依赖）。Phase 18 播放列表文件导入导出（新增 `Services/PlaylistFiles` 门面模块 + `IPlaylistFileService` 1 个新 Singleton DI 服务；两个 VM 各加 1 个依赖 + 可 await 公开方法；追加路径复用既有 `DropExternalFiles` 不加新元数据依赖；无新架构债，新增 7 条隐式契约，详见 §5）。Phase 19 依赖迁移（NAudio 收窄到 `NAudio.Core` + `NAudio.Wasapi`、输出经 `WasapiPlayerBuilder` 建链、测试栈迁到 xunit.v3 + 单一 MTP runner；**无新增架构债**，仅新增 1 条测试栈隐式契约，详见 §5）。Phase 20 WinUI 3 第二 UI 壳（共享层物理抽成 WPF-free 的 `D-player.Core` 类库；`IFileDialogService` 的实现与用户数据目录 `DPlayerDataPaths` 改由各壳注入；门禁改走 `D-player.slnf`；新建 `D-player.WinUI` 切片壳。**架构债仍是 0 项，但新增 9 条跨壳隐式契约**（Core 不得引 WPF / 两壳共用一份 VM-Service / 同一手势共用 Core 公开入口 / 数据目录由壳注入 / 每壳自注册自己的对话框 / 门禁走筛选器且 WinUI 刻意在外 / 仓库根级新工程必须进 glob 排除集 / Mica 依赖根背景 Transparent / 每壳各自 await `CleanupAsync` 且不同步 Dispose 容器），详见 §5 与 §7）。
 
@@ -10,8 +10,8 @@
 
 | 维度 | 评级 | 备注 |
 |------|------|------|
-| 整体耦合度 | **低** | Phase 3 后 MainViewModel 仅 44 行（Strict Facade）；Phase 4 仅给 PlaylistViewModel 加 `IQueuePersistence` 一个新依赖；Phase 5 加拖拽完全在 PlaylistVM 域内完成（2 个新 RelayCommand，0 新依赖；View 层 +2 文件）；Phase 6 多命名歌单 + Phase 7 偿还债 #1 后 VM 层无 WPF 类型泄漏；Phase 13 频谱仅给 IPlaybackService 加 1 事件 + 1 属性，0 新 DI 依赖；Phase 14 均衡器仅给 IPlaybackService 加 1 属性（EqualizerConfig），0 新 DI 服务、 0 新 ViewModel；**Phase 15 审计确认**（M1–M6 客观度量）：0 环 / 0 层级违规 / IPlaybackService=20 成员 / 无 >600 LOC 多职责文件 / 2 stub 已注册未消费；Phase 16/17 均为纯表现层（0 新依赖 / 0 新 DI / 0 新 ViewModel）；Phase 18 播放列表文件导入导出仅新增 1 个无状态门面服务（`IPlaylistFileService` Singleton）+ 1 个文案格式化器（Phase 18 在 View 层，Phase 20 搬进 `D-player.Core/ViewModels`），两个 VM 各加 1 个依赖，追加路径复用既有 `DropExternalFiles`；**Phase 20 是纯结构调整**（搬家 + 依赖注入改道），0 新依赖方向变化、0 环、0 层级违规，代价换成"两壳并存"的 9 条跨壳纪律（§5 末尾那 9 行）而不是新的耦合边 |
-| 是否需要立即重构 | ✅ 无 | Phase 3 完成所有结构性改造；Phase 4/5/6/7 沿用既有模式；Phase 15 审计裁决：D4 无必修项（0 环 / 0 违规）、D1 IPlaybackService 宽度可接受（观察项）、D5 PlaylistViewModel 652 LOC 单职责 cohesive（观察项，不拆分） |
+| 整体耦合度 | **低** | Core 单向依赖、0 环、0 层级违规（Phase 15 审计基线保持）。Phase 24/25 新增库 VM、根扫描事务与 watcher，均通过接口接入；两壳仍只共用 Core。 |
+| 是否需要立即重构 | ✅ 无 | Phase 15 裁决仍成立；PlaylistViewModel / PlaylistsViewModel 超过 600 行但单职责 cohesive，作为观察项不拆分；库 VM 已按 Scanning / Search 拆分 partial。 |
 | 已识别"待还的债" | 0 项剩余（#1/#2/#3/#4/#5 ✅ 全部已偿） | 见 §3 |
 | 已识别"过度抽象" | 2 项 | 见 §4 |
 
@@ -25,9 +25,9 @@
 ✅ 无 `static` 单例、无全局可变状态
 ✅ Layer 边界清晰（`Models/` / `Services/` / `ViewModels/` / `Views/` 物理隔离）
 ✅ Phase 2 新增（`PlaylistView` / Phase 2 命令 / 推进算法）全部沿用既有模式，未引入新抽象层
-✅ Phase 3 拆分：MainViewModel 收敛为 Strict Facade（44 行）；PlayerVM/PlaylistVM 互不持引用，仅共享 IPlaybackService Singleton；View 跨域命令用 RelativeSource AncestorType=Window 跨级绑定
-✅ Phase 4 队列持久化沿用相同模式：`IQueuePersistence` 接口 + `JsonQueuePersistence` 实现 + Singleton 注册；与 `JsonSettingsPersistence` 文件隔离、锁隔离；PlaylistViewModel 读盘、MainWindow 写盘，无 VM 间耦合
-✅ Phase 5 拖拽功能完全在 PlaylistVM 域内：DragDrop 事件 / 命中测试 / 文件过滤 / Adorner 绘制全在 View 层；VM 仅暴露 2 个纯数据 RelayCommand（`DropExternalFiles(paths)` / `MoveTracks(args)`），无 `DataObject` / `DragEventArgs` / `AdornerLayer` 渗透；MainViewModel Facade 维持 ~44 行不变
+✅ Phase 3 拆分：MainViewModel 收敛为 Strict Facade（Phase 3 时 44 行；Phase 24/25 后随库与生命周期增长，现约 354 行）；PlayerVM/PlaylistVM 互不持引用，仅共享 IPlaybackService Singleton；View 跨域命令用 RelativeSource AncestorType=Window 跨级绑定
+✅ Phase 4 队列持久化沿用相同模式：`IQueuePersistence` 接口 + `JsonQueuePersistence` 实现 + Singleton 注册（Phase 6 起由 `IPlaylistService` / `JsonPlaylistService` 取代）；与 `JsonSettingsPersistence` 文件隔离、锁隔离；无 VM 间耦合
+✅ Phase 5 拖拽功能完全在 PlaylistVM 域内：DragDrop 事件 / 命中测试 / 文件过滤 / Adorner 绘制全在 View 层；VM 仅暴露 2 个纯数据 RelayCommand（`DropExternalFiles(paths)` / `MoveTracks(args)`），无 `DataObject` / `DragEventArgs` / `AdornerLayer` 渗透；MainViewModel Facade 在 Phase 5 时仍为 44 行
 ✅ Phase 10 文件夹绑定歌单：`ILibraryScannerService` + `ILibraryCache` 接口 + 实现注入 PlaylistsViewModel；`AudioConstants` 从 View 层提取到 Models 层消除层级违规；启动后台自动增量同步
 ✅ Phase 13 音频可视化：`SampleAggregator` 作为 `ISampleProvider` 透明中间件插入播放链，`IPlaybackService` 仅增 `SpectrumDataAvailable` 事件 + `SpectrumConfig` 属性；VM 层零新依赖（PlayerViewModel 已持有 IPlaybackService）；SpectrumView 纯 code-behind 绘制不进 VM —— 印证“加可视化不触碰核心架构”的判断
 ✅ Phase 14 均衡器：`EqualizerSampleProvider` 同样作为 `ISampleProvider` 透明中间件插入播放链（在 SampleAggregator 之前），`IPlaybackService` 仅增 `EqualizerConfig` 1 个属性（镜像 `SpectrumConfig`）；**0 新 DI 服务**（EQ provider 在 `NAudioPlaybackService.LoadAsync` 内按曲创建，同 `SampleAggregator`）、**0 新 ViewModel**（方案 A：`EqualizerDialog` 直写 `IPlaybackService` + `ISettingsPersistence`，PlayerViewModel 仅持 `EqualizerEnabled` 供按钮高亮）—— 同 Phase 13 印证“加功能不触碰核心架构”的判断
@@ -82,119 +82,19 @@
 
 ---
 
-## 3. 已识别的 5 个"待还的债"
+## 3. 历史债务（全部已偿）
 
-### 债 #1 — VM 持有 `BitmapImage`（WPF 类型泄漏）✅ 已偿（Phase 7）
+Phase 2–5 的 5 项债务均已在当时阶段偿还，保留摘要供追溯：
 
-**位置：** `ViewModels/PlayerViewModel.cs` — 原 `AlbumArtImage` 字段 + `CreateAlbumArtImage` 方法
+| 债 | 内容 | 偿还 |
+|---|---|---|
+| #1 | VM 持有 `BitmapImage`（WPF 类型泄漏） | Phase 6 引入转换器；Phase 7 改为 `byte[]` |
+| #2 | `IPlaybackService` 缺自然播完信号 | Phase 2 增加 `TrackEnded`（200ms 容差） |
+| #3 | settings.json 双写者无合并纪律 | Phase 3 `UpdateAsync(Func<>)` 锁内读改写 |
+| #4 | 元数据读取硬编码 `ATL.Track` | Phase 3 `ITrackMetadataReader` |
+| #5 | `RemoveTrack` 未顶替 `_playToken` | Phase 5 `RemoveTrack` / `MoveTracks` 入口自增 |
 
-**Phase 6 部分偿还：** 交付 `Converters/BytesToBitmapImageConverter.cs`（byte[] → Frozen BitmapImage），注册为 App.xaml 全局资源。
-
-**Phase 7 完整偿还：**
-- `PlayerViewModel.AlbumArtImage` (BitmapImage) → `AlbumArtBytes` (byte[])
-- 删除 `CreateAlbumArtImage` 方法 + `System.IO` / `System.Windows.Media.Imaging` using
-- `PlayerBar.xaml` 绑定改为 `{Binding AlbumArtBytes, Converter={StaticResource BytesToBitmapImage}}`
-- `HandleTrackChanged` 直接赋 `track?.AlbumArt`（零拷贝）
-
-**收益：** PlayerViewModel 不再依赖任何 WPF 类型，可在无 WPF 上下文的 xUnit 测试中实例化。
-
----
-
-### 债 #2 — `IPlaybackService` 缺"自然播完"信号 ✅ 已偿
-
-**位置：** `Services/NAudioPlaybackService.cs:OnPlaybackStopped`
-
-```csharp
-private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
-{
-    if (e.Exception != null) RaiseOnUIThread(PlaybackError, e.Exception.Message);
-    SetState(PlayState.Stopped);  // ← 用户 Stop 和 自然播完 没区分
-}
-```
-
-**影响：** 加播放列表后无法实现"曲终自动下一首"—— `PlayState.Stopped` 不携带原因。
-
-**触发时机：** Phase 2 加播放列表的**第一天**就会撞上。
-
-**预修方案（约 30 分钟）：** 给 `IPlaybackService` 加 `event Action TrackEnded`，仅在"非用户主动停止 + 无异常 + 播放头已到 Duration" 时触发。
-
-**✅ Phase 2 已偿还**（commit: 见 `git log --grep TrackEnded`）—— 加入 `event Action? TrackEnded`，
-通过 200ms 容差判定"自然播完"。
-
----
-
-### 债 #3 — settings.json 双写者无合并纪律 ✅ 已偿（Phase 3）
-
-**位置：**
-- 写入者 A：`MainViewModel.OnVolumeChanged` → `_persistence.SaveAsync(_settings)`（fire-and-forget，**不重读**）
-- 写入者 B：`MainWindow.Window_Closing` → 重读 + 合并 + 保存（正确做法）
-
-**影响（理论 race）：**
-```
-T0  MainWindow 写入 { Volume=0.5, WindowLeft=200 }
-T1  VM 内存中的 _settings 仍是 { Volume=0.5, WindowLeft=100 }  ← 旧值
-T2  用户拖音量 → VM 写入 { Volume=0.6, WindowLeft=100 }  ← WindowLeft 被复活
-```
-
-`JsonSettingsPersistence` 的 `SemaphoreSlim` 只保护**单次读写原子**，不保护**读-改-写的合并**。
-
-**触发时机：** 当前可能性低（用户拖音量时通常不会同时关窗口），但字段增多后概率上升。
-
-**预修方案（约 1 小时）：** 两种思路任选其一
-1. **细化接口：** `ISettingsPersistence.UpdateAsync(Func<AppSettings, AppSettings> mutator)`，把"读-改-写"封装在锁内
-2. **改用 KV 存储：** 每个字段独立 set/get，无合并问题（更彻底，但要重写持久化层）
-
----
-
-### 债 #4 — 元数据读取硬编码 `ATL.Track` ✅ 已偿（Phase 3）
-
-**位置：** `ViewModels/MainViewModel.cs:ReadTrackMetadataAsync`
-
-```csharp
-var atlTrack = new ATL.Track(filePath);  // ← 直接 new，无抽象
-```
-
-**影响：**
-- 想换标签库（如 TagLib#）要改 VM
-- 加播放列表后想批量读元数据，逻辑只能复制粘贴
-
-**触发时机：** Phase 2 加播放列表 / 音乐库扫描时；想换底层标签库时
-
-**预修方案（约 45 分钟）：**
-```csharp
-public interface ITrackMetadataReader
-{
-    Task<Track> ReadAsync(string filePath);
-    Task<IReadOnlyList<Track>> ReadBatchAsync(IEnumerable<string> filePaths);
-}
-
-public sealed class AtlMetadataReader : ITrackMetadataReader { ... }
-```
-注入到 VM，删掉 VM 中的两个 static 辅助方法。
-
----
-
-### 债 #5 — `RemoveTrack` 期间不顶替 `_playToken` ✅ 已偿（Phase 5）
-
-**位置：** `ViewModels/PlaylistViewModel.cs:RemoveTrack`（Phase 2 引入，Phase 3/4 沿用未修）
-
-```csharp
-[RelayCommand]
-private void RemoveTrack(int index)
-{
-    if (index < 0 || index >= Queue.Count) return;
-    // ❌ 没有 _playToken++ —— in-flight PlayTrackAtAsync 还在 await 元数据，
-    //    继续后会用旧 index 写 Queue[index] = meta，索引语义已变（错位甚至越界）
-    Queue.RemoveAt(index);
-    ...
-}
-```
-
-**影响：** 用户在 `PlayTrackAtAsync` 元数据读取期间（几 ms 窗口）删除非当前曲，可能让随后 `Queue[index] = meta` 写到错位（被删项之后的某项被覆盖）；最坏越界抛 `IndexOutOfRangeException` 被静默吞。触发概率极低但语义脏。
-
-**Phase 5 偿还：** `RemoveTrack` 入口加 `_playToken++`；新增的 `MoveTracks` 同样在入口加 `_playToken++`（拖拽重排会让所有被移动项的索引变化，旧 in-flight 必须中止）。两处 commit `170bca8`。
-
----
+当前没有待还债务；历史细节见 git 历史与 Phase 15 审计报告。
 
 ## 4. 已识别的"过度抽象"（pre-emptive abstraction）
 
@@ -236,9 +136,6 @@ private void RemoveTrack(int index)
 | **Phase 4 新增** | | |
 | `MainWindow.Window_Closing` 必须用 cancel-and-close 模式 | `MainWindow.xaml.cs:Window_Closing` 注释 + `_isClosing` 标志 | `async void` 多 await 时第一个 await yield 后 WPF 立即继续关闭流程，`ShutdownMode.OnLastWindowClose` 触发 `Application.Shutdown → Dispatcher.InvokeShutdown`，后续 await 续延 post 到死 dispatcher 上**永不运行**。Phase 4 加 queue.json 写盘后从 2 个 await 涨到 4 个，settings 还能写但 queue 永远不更新（commit `9bae7ce` 用此模式修复）。任何新增 await 都要遵守此纪律 |
 | WPF inline `Style` 必须 `BasedOn="{StaticResource {x:Type X}}"` | `PlayerBar.xaml` ▶ 按钮 inline Style 注释 | `<X.Style><Style TargetType="X">` 没有 `BasedOn` 会完全替换 `Themes/Controls.xaml` 中的隐式 Style，回退到 OS 原生外观（Button 白底灰框、Slider 灰色等）。Phase 4 ▶ 按钮加 DataTrigger 时漏 BasedOn → 按钮变白底（commit `ca66fa9` 修复）。Code review checklist：看到 inline Style 就检查 BasedOn |
-| `IQueuePersistence.LoadAsync` 隐式契约：绝不抛 | `JsonQueuePersistence.LoadAsync` catch-all + 注释 | 任何异常逃出会让 `PlaylistViewModel` 构造抛 → 应用启动崩溃。文件不存在/JSON 损坏/版本不匹配/反序列化得 null 全部走静默 fallback |
-| `PlaylistViewModel.SnapshotState()` 必须纯读、无副作用 | 方法 XML 注释 | `MainWindow.Window_Closing` 在 `CleanupAsync` 之后调它，假定不会改 Queue/CurrentIndex/Shuffle/Repeat。若未来加副作用会让人意外 |
-| `LoadFromDisk` 同步段不可 await | `PlaylistViewModel.LoadFromDisk` 注释（用 `.GetAwaiter().GetResult()`） | DI 容器构造 VM 时若死锁 UI sync ctx 会让窗口永不显示。`JsonQueuePersistence` 内部已 `ConfigureAwait(false)`，UI 线程同步等待 worker pool 任务回调时不会死锁 |
 | **Phase 5 新增** | | |
 | 拖拽 View/VM 边界：DragEventArgs / DataObject / AdornerLayer 不得渗入 VM | `PlaylistViewModel.DropExternalFiles(IReadOnlyList<string>)` / `MoveTracks(MoveTracksArgs)` 接口签名 + 注释 | 让 VM 仍可单测、保持 PlayerVM/PlaylistVM 不持引用的拓扑。任何把 OLE 类型/事件参数下推到 VM 的修改都倒退此契约 |
 | `MoveTracks` 必须用对象身份（`ReferenceEquals` / `ReferenceEqualityComparer.Instance`）回找 CurrentIndex 与 _shuffleHistory | `PlaylistViewModel.MoveTracks` 注释 | Track 是 `sealed record`，结构相等会让 `Queue.IndexOf(currentTrackObj)` 在出现重复占位时返回首个等价匹配而非原始那一个 → ▶ 跟到错的曲、Shuffle 历史塌陷。code-behind 多选拖拽收集源索引也同此规则（`QueueList_PreviewMouseMove` 用 `ReferenceEqualityComparer` HashSet 扫一遍 Queue） |
@@ -312,10 +209,10 @@ private void RemoveTrack(int index)
 | `OnPlaybackStopped`（播放线程回调）**不得**取 `_chainGate` | `NAudioPlaybackService.OnPlaybackStopped` | 持锁方可能正阻塞在输出类的 `Stop()` / `Dispose()` 上等待播放线程退出（`NAudio.Wasapi 3.3.0` 随包 XML 文档只把 `Dispose` 标为 "Stops playback (blocking) and releases all resources"，`Stop` 仅 "Stop playback and flush buffers" —— 阻塞面按两者计，别只盯着 `Stop()`）；在回调里取同一把锁会立即死锁。该方法对 `_reader` 的读取因此是防御式的（并发拆除中的 reader 会抛）。**失效模式：本仓未配置任何逐条测试超时，这条纪律被改坏时表现为跑测试挂起（stall）而非失败** |
 | `TrackEnded` 只代表"曲目自然播完"：任何主动停止（`Stop()` / `DisposePlayback()`）都必须**先**置 `_stopRequested = true`，`Play()` 开新播放会话时清零 | `NAudioPlaybackService._stopRequested`（`OnPlaybackStopped` 命中即提前返回） | 用户停止与自然播完都只表现为一次 `PlaybackStopped`，输出类不告知发起方；仅凭"播放头距 TotalTime ≤ 200ms"无法区分，漏置位 = 曲尾 200ms 内按停止被误判为播完并自动推进下一首。该不确定性不随实现（同步/异步派发、`WasapiOut`/`WasapiPlayer`）变化。**回归证据只有一条落在本标记上**：`NAudioPlaybackServiceStopSemanticsTests.Stop_WhenPlayheadIsAtTrackEnd_DoesNotRaiseTrackEnded`；同类的 `Unload_WhenPlayheadIsAtTrackEnd_…` 走 `DisposePlayback`，而它先解订阅 `PlaybackStopped` 再停止（`NAudioPlaybackService.cs:388-390`），回调根本不触发，故那条用例钉住的是"解订阅早于停止"的顺序，不是本标记 |
 | **Phase 19 新增（依赖迁移后的测试栈契约）** | | |
-| 测试栈 = xunit.v3（`OutputType=Exe`）+ **单一 runner（MTP）的两个入口**；5 条真实音频集成以 `Category=AudioDevice` + `[Collection("AudioDevice")]` 从默认门禁拆出，`-Audio` 单独跑 | `Tests/D-player.Tests.csproj` + 仓库根 `global.json` + `Tests/Services/NAudioPlaybackService*Tests.cs` | 测试工程是可执行程序，`dotnet run --project Tests/D-player.Tests.csproj` 与 `dotnet test D-player.slnf` 跑的是同一个 Microsoft.Testing.Platform runner（Phase 19 当时写的是 `dotnet test D-player.sln`——解决方案筛选器是 Phase 20 才出现的；门禁现在且只现在 `D-player.slnf`，用 `.sln` 跑测试会把 WinUI 一起拖进 restore/构建）。`dotnet test` 的路由机制是仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 10 SDK 的原生 opt-in）——**删掉 `global.json` 就破坏 `dotnet test`**；csproj 的 `TestingPlatformDotnetTestSupport` 是 .NET 9 及更早版本的路由开关，在本 SDK 上不参与执行路径，`xunit.runner.visualstudio` / `Microsoft.NET.Test.Sdk` 同样只是为 IDE 测试发现（测试浏览器）的兼容性而保留 —— **该能力在本阶段未验证过**（验收只跑命令行两条路径），也不在跑测试的路径上。两条命令都不能加 `--nologo`（MTP 不识别该参数：一条测试都不跑，摘要却显示 `成功: 0`，退出码 5）。5 条音频测试真实占用 WASAPI 设备：xunit v3 默认并行实测稳定（10 次 MTP + 3 次 `dotnet test` 全绿），故当时既未加 `[Collection("AudioDevice")]` 也未全局禁用并行——新增音频测试若出现设备争用，按设计稿 §5.3 的顺序收紧（先集合串行，再全局禁用并行）。**2026-11-02 起这 5 条已加 `[Trait("Category","AudioDevice")]` + `[Collection("AudioDevice")]` 并从默认门禁拆出**（见 Phase 24 块与 §5 的测试计数口径；Phase 19 那段并行结论保留为历史） |
+| 测试栈 = xunit.v3（`OutputType=Exe`）+ 单一 runner（MTP）；5 条真实音频以 `Category=AudioDevice` + `[Collection("AudioDevice")]` 从默认门禁拆出，`-Audio` 单独跑 | `Tests/D-player.Tests.csproj` + 仓库根 `global.json` + `Tests/Services/NAudioPlaybackService*Tests.cs` | 2026-11-02 起 csproj 只保留 `xunit.v3` + `NSubstitute`（已移除 `Microsoft.NET.Test.Sdk`、`xunit.runner.visualstudio`、`coverlet.collector` 与 `TestingPlatformDotnetTestSupport`）。`dotnet test` 依赖 `global.json` 的 MTP runner opt-in，删掉即失败；两条测试命令都不能加 `--nologo`（零测试运行 + 退出码 5）。默认门禁 283，音频 5；计数口径见 §5 Phase 25 块。 |
 | 输出工厂 `StubAudioOutputFactory` 返回 `WasapiPlayer`（共享 + 事件同步 + 100ms，与播放链同参）；仓库 `#pragma warning disable CS0618` 数为 **0** | `Services/StubAudioOutputFactory.cs`、`Services/IAudioOutputFactory.cs` | 该工厂只注册、无消费方；Phase 19 收尾经用户拍板把它从 legacy 的 `WasapiOut` 迁到 `WasapiPlayer`（零契约改动：`WasapiPlayer` 实现 `IWavePlayer`，契约一字未改），顺带退休仓库最后一处过时 API 抑制。详见设计稿文末勘误与 §7 对应条目 |
 | **断点续播（2026-10-06）** | | |
-| 断点续播的写入时机（暂停/停止/切歌**立即**写、播放中由 `PositionChanged` 驱动但**最多 30 秒一次**、关闭时 `CleanupAsync` 兜底写）与恢复语义（**只就位不出声**；文件缺失/不在歌单则跳过并提示一次；恢复时把 `CurrentPlaylistId` 同步到曲目所属歌单） | `PlayerViewModel.SaveLastPlayedState` / `TrySaveLastPlayedState` / `CleanupAsync`、`MainViewModel.RestoreLastPlayedAsync`、`PlaylistsViewModel.FindPlaylistTrackByPath`、`Views/MainWindow.xaml.cs`（提示） | 每次 `PositionChanged` 无条件写盘 ≈ 30Hz 读改写，会持续打盘并与 `ISettingsPersistence` 的锁内读改写互相排队；恢复路径**不得**调用 `Play()`（启动主动出声违背"本地优先、不打扰"，`▶` 才出声）；无当前曲目时不得写（清空队列/卸载后旧断点仍有效）；恢复成功后必须立即回写一次，否则"启动后马上退出"会把位置退回 0。归属同步是 2026-10-24 补的：旧版本从 `ViewedPlaylist` 发起播放不同步指针，升级后首次启动可能"恢复曲目属于 B、CurrentPlaylistId 仍是 A"，不修正会让 ▶ 出声后的 `TrackEnded` 守卫推进 A（`Tests/ViewModels/PlaybackResumeTests.cs` 12 条钉住以上各点） |
+| 断点续播的写入时机（暂停/停止/切歌**立即**写、播放中由 `PositionChanged` 驱动但**最多 30 秒一次**、关闭时 `CleanupAsync` 兜底写）与恢复语义（**只就位不出声**；文件缺失/不在歌单则跳过并提示一次；恢复时把 `CurrentPlaylistId` 同步到曲目所属歌单） | `PlayerViewModel.SaveLastPlayedState` / `TrySaveLastPlayedState` / `CleanupAsync`、`MainViewModel.RestoreLastPlayedAsync`、`PlaylistsViewModel.FindPlaylistTrackByPath`、`Views/MainWindow.xaml.cs`（提示） | 每次 `PositionChanged` 无条件写盘 ≈ 30Hz 读改写，会持续打盘并与 `ISettingsPersistence` 的锁内读改写互相排队；恢复路径**不得**调用 `Play()`（启动主动出声违背"本地优先、不打扰"，`▶` 才出声）；无当前曲目时不得写（清空队列/卸载后旧断点仍有效）；恢复成功后必须立即回写一次，否则"启动后马上退出"会把位置退回 0。归属同步是 2026-10-24 补的：旧版本从 `ViewedPlaylist` 发起播放不同步指针，升级后首次启动可能"恢复曲目属于 B、CurrentPlaylistId 仍是 A"，不修正会让 ▶ 出声后的 `TrackEnded` 守卫推进 A（`Tests/ViewModels/PlaybackResumeTests.cs` 现有 23 条覆盖以上各点） |
 
 | **Phase 20 新增（两壳并存后的跨壳契约）** | | |
 | Core 必须 WPF-free | `D-player.Core/**/*.cs` 不得出现 `System.Windows.*` / `PresentationFramework` / `ICollectionView` / `CollectionViewSource`（grep 自检见 PROJECT.md §9） | 一旦 Core 引到 WPF 类型，第二壳就被拖回 WPF，Phase 20 的全部收益（一份逻辑两套 UI）作废，且这类污染很容易在"顺手用个 `ICollectionView` 视图"时重新长回来（`SortedView` 就是这么被删掉的） |
@@ -389,59 +286,24 @@ private void RemoveTrack(int index)
 >
 > **Phase 20 审计复跑（最终修复波把 scan root 补到四个）：** `tools/coupling-audit/Invoke-CouplingAudit.ps1` 现在同时扫 `D-player.Core/<层>`、`D-player.WinUI/<层>`、`D-player/<层>` 与仓库根（**四个 scan root**；第四个是本波补的——Phase 20 把 WPF 壳的 `Services` 挪进仓库根下的 `D-player/` 之后，`D-player\Services\Win32FileDialogService.cs` 静默掉出了扫描集，而它在 Phase 20 之前是被收集的），DI 注册表也从 Core 下解析。复跑：`0 cycles` / **`0 violations`** / 无新增未登记契约。加第四个根**没有改动任何读数**：实测收文件数 73 → 74（增量正是那一个文件），完整输出逐字相同——那个文件里没有 `using DPlayer.*`，命名空间节点 `DPlayer.Services` 本就在集合里，M6 按规则排除接口实现类，40 行也够不到 M5 的 600 阈值。所以这条改的是**口径**：补的是一个收集回归，不是新发现的耦合。
 >
-> **读数纪律（比上面那个数字重要）**：`WinUI->Services : 1` **不是"新壳只带来一条层边"的测量结果，而是收集规则的产物**。`DPlayer.WinUI` 命名空间下的两个根级文件（`D-player.WinUI/App.xaml.cs`、`D-player.WinUI/MainWindow.xaml.cs`）从来不在扫描集里，而它们实际 import 的是 `DPlayer.Models` / `DPlayer.ViewModels` / `DPlayer.Configuration` / `DPlayer.Extensions` / `DPlayer.Services`——收进来至少要再多 4 条方向合法的层边。于是**真实层边数未知且高于 1**，报出的 1 只是下界；同理 `DPlayer.Services` 的 fan-in "6 → 7" 也只是"被收集的那部分"的读数。**盲区两面都得写明**：仓库根自己的根级 `App.xaml.cs`（命名空间 `DPlayer`，正是审计里的 `Root` 层）**是**被收集的（`Root->Configuration` / `Root->Extensions` / `Root->Services` / `Root->ViewModels` 四条层边就来自它），而 WinUI 壳根级那两个文件**不是**——差别不在"要不要收根级文件"，而在四个 scan root 里只有 `$RepoRoot` 这一个额外收了根级 `*.cs`。补齐它要改的是收集规则本身（M1/M3/M5 的口径会一起变，Phase 15 的基线要重算），属独立决策，不在本波。M6 仍只报 `IAudioDeviceManager`、`IAudioOutputFactory` 两个已登记的预留 Stub（§4）。M5 的两个 >600 LOC 文件现在显示为 `D-player.Core\ViewModels\PlaylistViewModel.cs`(721) 与 `…PlaylistsViewModel.cs`(661 —— 本波给 `HandleDoubleClickPlay` 的 XML 注释加了三行，commit `398de93`) —— 与 Phase 15 D5 观察项同源（单职责 cohesive，不拆分），搬家只改了路径。**审计脚本在 Phase 20 的搬迁后曾一度跑不出结果**（M2 的 BFS 撞到"被引用但未被扫描到"的命名空间 → `ContainsKey(null)` 抛；M6 读的注册表文件也已不存在），这是 P-5 裁定的直接后果，不是新发现的耦合。
+> **读数纪律（比上面那个数字重要）**：`WinUI->Services : 1` **不是"新壳只带来一条层边"的测量结果，而是收集规则的产物**。`DPlayer.WinUI` 命名空间下的两个根级文件（`D-player.WinUI/App.xaml.cs`、`D-player.WinUI/MainWindow.xaml.cs`）从来不在扫描集里，而它们实际 import 的是 `DPlayer.Models` / `DPlayer.ViewModels` / `DPlayer.Configuration` / `DPlayer.Extensions` / `DPlayer.Services`——收进来至少要再多 4 条方向合法的层边。于是**真实层边数未知且高于 1**，报出的 1 只是下界；同理 `DPlayer.Services` 的 fan-in "6 → 7" 也只是"被收集的那部分"的读数。**盲区两面都得写明**：仓库根自己的根级 `App.xaml.cs`（命名空间 `DPlayer`，正是审计里的 `Root` 层）**是**被收集的（`Root->Configuration` / `Root->Extensions` / `Root->Services` / `Root->ViewModels` 四条层边就来自它），而 WinUI 壳根级那两个文件**不是**——差别不在"要不要收根级文件"，而在四个 scan root 里只有 `$RepoRoot` 这一个额外收了根级 `*.cs`。补齐它要改的是收集规则本身（M1/M3/M5 的口径会一起变，Phase 15 的基线要重算），属独立决策，不在本波。M6 仍只报 `IAudioDeviceManager`、`IAudioOutputFactory` 两个已登记的预留 Stub（§4）。M5 的两个 >600 LOC 文件现在显示为 `D-player.Core\ViewModels\PlaylistViewModel.cs`(755) 与 `…PlaylistsViewModel.cs`(875) —— 与 Phase 15 D5 观察项同源（单职责 cohesive，不拆分），搬家只改了路径。**审计脚本在 Phase 20 的搬迁后曾一度跑不出结果**（M2 的 BFS 撞到"被引用但未被扫描到"的命名空间 → `ContainsKey(null)` 抛；M6 读的注册表文件也已不存在），这是 P-5 裁定的直接后果，不是新发现的耦合。
 
 ---
 
-## 6. 启动检查清单（Phase 15 完成）
+## 6. Phase 15 审计结论
 
-> Phase 15（耦合健康度审计）已完成。所有结构性改造与债务偿还已清零；Phase 11/12/13/14 均为功能增量，未触碰核心架构（Phase 13/14 同构：透明 ISampleProvider 中间件 + 仅给 IPlaybackService 加 1 属性 + 0 新 DI 服务 + 0 新 ViewModel）。Phase 15 以脚本度量 + 人工裁决确认耦合低/健康、无需解耦。Phase 16/17 为纯表现层重构（图标矢量化 + 深色定制），0 新依赖、0 新债。
-
-1. ✅ **VM 拆分**（Phase 3 完成，commit `54edf9a`）—— MainViewModel 643→44 行 Strict Facade；PlayerVM + PlaylistVM 互不持引用
-2. ✅ **`PlayerBar` / `PlaylistView` 去硬转型**（Phase 3 完成）—— DataContext 切到子 VM；跨域命令用 `RelativeSource AncestorType=Window`
-3. ✅ **抽 `ITrackMetadataReader`**（Phase 3 完成，commit `c9cd1bd`）—— `AtlMetadataReader` 封装 z440.atl.core
-4. ✅ **解决 settings 合并纪律**（Phase 3 完成，commit `fadae44`）—— `UpdateAsync(Func<>)` 把读-改-写封进锁内
-5. ✅ **队列持久化**（Phase 4 完成）—— `%LocalAppData%\D-player\queue.json` 与 settings.json 分离
-6. ✅ **多命名播放列表**（Phase 6 完成）—— `Playlist` record + `IPlaylistService` + `PlaylistsViewModel` 容器 + sidebar UI + v1→v2 迁移
-7. ✅ **拖拽支持**（Phase 5 完成）—— 外部文件拖入入队 + 队列内拖拽重排（含多选）+ 视觉反馈；同步偿还旧债 #5
-8. ✅ **偿还债 #1 (`BitmapImage`)** —— Phase 7 已完成：`AlbumArtImage` → `AlbumArtBytes` (byte[])，VM 层无 WPF 类型
-9. ✅ **图标矢量化**（Phase 16 完成）—— `Themes/Icons.xaml` 矢量图标集 + 转换器返回 Geometry + ▶ 标记改 Path；VM 层移除 `VolumeIcon`
-10. ✅ **UI 深度深色定制**（Phase 17 完成）—— 无边框 WindowChrome + 自绘 TitleBar（主窗三键 / 对话框仅关闭键）+ ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu 深色隐式样式
-11. ✅ **播放列表文件导入导出**（Phase 18 完成）—— `Services/PlaylistFiles` 门面模块（`IPlaylistFileService`：编码探测 → 解析 → 归一化 → 过滤计数，读侧不抛/写侧抛）+ 双入口分层（侧边栏新建歌单 / 工具栏追加当前）+ 拖拽按落点分流 + `.m3u8` 导出（绝对路径 + `#EXTINF`）
-12. ✅ **音乐库视图**（Phase 24 完成）—— `LibraryViewModel`（多根扫描 + 缓存 + 分组 + 惰性封面 + generation 并发守卫）+ 隐藏库播放队列（`QueueState.LibraryPlayback`）+ WPF `LibraryView` 四级钻取与侧栏固定节点；新增 8 条隐式契约（§5 Phase 24 块），**0 新债**、0 循环依赖
-
-**Phase 11+ 候选范围：**
-- [x] PlayerViewModel 单元测试（Phase 8 完成，15 个测试）
-- [x] PlaylistViewModel 单元测试（Phase 8 完成，16 个测试）
-- [x] PlaylistsViewModel 单元测试（Phase 8 完成，17 个测试）
-- [x] sidebar 拖拽重排歌单顺序（Phase 9 完成）
-- [x] 文件夹绑定歌单（Phase 10 完成：扫描 + 增量同步 + 元数据缓存）
-- [x] 设置对话框（Phase 11）—— 模态 Window，PlayerBar ⚙ 按钮 + Ctrl+, 快捷键；不加 SettingsViewModel（YAGNI）
-- [x] UI 界面重构（Phase 12）—— PlayerBar 移底 + 圆形播放键 + PlaylistView 优化 + Sidebar 图标 + 色板微调
-- [x] Phase 12 持续优化 —— 全局 Shuffle/Repeat + TrackInfoView + #列 + 表头排序 + 导入文件夹到当前歌单 + 多项 UI 修复
-- [x] 音频可视化（Phase 13 完成）—— SampleAggregator FFT（8192 点 + 汉宁窗 + 50% 重叠 + 对数分组 20Hz–16kHz + RMS/gamma）+ SpectrumView 32 柱 60fps + 4 色主题 + 灵敏度/平滑度/启用配置 + settings.json 持久化 + TrackInfoView 底部集成
-- [x] 均衡器（Phase 14 完成）—— EqualizerSampleProvider 10 段图形 EQ（ISO 倍频程 31Hz–16kHz ±12dB 峰值滤波 Q≈1.1 + preamp，插在 SampleAggregator 之前→频谱反映 EQ 后信号）+ 9 个内置预设 + Custom + 实时就地 SetPeakingEq 重算（防爆音）+ EqualizerDialog 竖直滑块对话框 + PlayerBar 🎚 启用态高亮按钮 + settings.json 持久化
-- [x] 耦合健康度审计（Phase 15 完成）—— M1–M6 脚本度量 + M7/D1–D5 裁决；结论：耦合低、无需解耦（D1 观察项、D5 观察项）
-- [x] 图标矢量化（Phase 16 完成）—— Icons.xaml 矢量 Geometry 集 + IconPath 样式；转换器 string→Geometry；▶ 标记与 sidebar 活跃标记改 Path（Fill=AccentPrimary 实心）
-- [x] UI 深度深色定制（Phase 17 完成）—— 自定义无边框标题栏（TitleBar + WindowChrome，含最大化常量边距）+ ComboBox/CheckBox/ScrollBar/ToolTip/ContextMenu/MenuItem 深色模板
-- [x] 播放列表文件导入导出（Phase 18 完成）—— 导入 M3U/M3U8/PLS（相对路径解析 + UTF-8/UTF-16(BOM)/GBK 编码探测 + URL/后缀/存在性过滤计数报告）+ 导出 M3U8（绝对路径 + `#EXTINF`，UTF-8 无 BOM + CRLF）；无新 NuGet 包（CodePages 在 net10.0 框架隐含）
-- [x] WinUI 3 第二 UI 壳 + 决策门材料（Phase 20 **已交付**）—— `D-player.Core` 抽取（WPF-free）+ 数据目录由壳注入 + 门禁改走 `D-player.slnf` + `D-player.WinUI` 第一条纵向切片（真机起窗、Mica、双击走共享入口、关闭落盘）。**0 新增架构债，新增 9 条跨壳契约（§5 末尾的 9 行）**；"续投还是停止"的决策门**已拍板：续投 WinUI（2026-10-07）**
-- [x] WinUI 壳视觉与交互打磨（Phase 21 **已交付**）—— 三栏 IA（NavRail/TrackList/InfoPanel/PlayerBar）+ 令牌层（间距/圆角/字号/时长）+ 六态样式 + 键盘/无障碍 + 9 项动效；新增 4 条视觉层契约（§5 末尾）+ 6 条 ❌ 纪律（§7）。**23 项验收全部通过、验收闭合（2026-10-08，逐项结果见 `docs/PHASE21-ACCEPTANCE.md`）；起窗崩溃（exit 0xC0000005）已修复并验证（`bba9ad4`）**
-- [x] WinUI 功能补齐（Phase 22 **验收已完成**）—— 异步文件对话框 + 真实 picker、导入/导出、歌单增删改与 ▶ 标记、上一首/下一首/随机/循环/音量/静音、基础设置、窗口几何、本地日志；WinUI 构建升为 `-Full` 的门禁 3；新增 5 条功能层契约（§5 末尾 Phase 22 块）。**频谱/EQ/拖拽/排序/文件夹绑定管理留 Phase 23/24；验收已完成——验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 `docs/PHASE22-ACCEPTANCE.md`**
-
----
+Phase 15 已完成，启动检查清单已并入 §5 / §7。结论：0 环、0 层级违规、无必修项；`IAudioDeviceManager` / `IAudioOutputFactory` 两个预留 Stub 保留（§4）；`PlaylistViewModel` / `PlaylistsViewModel` 超过 600 行但单职责 cohesive，作为观察项不拆分。审计脚本与读数见 `tools/coupling-audit/` 与 Phase 15 报告。
 
 ## 7. 不要做的事 🚫
 
 - ❌ 现在删 `IAudioDeviceManager` / `IAudioOutputFactory` —— 删了未来加多设备支持还要写回来
 - ❌ 现在引入 MediatR / EventAggregator —— 6 个事件直连完全够用；两个子 VM 通过 `IPlaybackService` 间接协作已足够解耦
-- ❌ 现在为 `PlayerViewModel` 写单测 —— 先把债 #1（`BitmapImage`）抽掉再说
 - ❌ 用 `IPlaybackService.Stop()` 代替 `Unload()` 来"清空当前曲" —— 会重现已修复的 Bug（清队列后按 Play 重播刚才那首）
 - ❌ 让 `PlayerViewModel` 与 `PlaylistViewModel` 互相持有引用 —— 直接违反 spec §2.1 硬规则，会让 MainViewModel Facade 倒退为转发层
 - ❌ 在 `UpdateAsync` mutator 闭包内读 WPF DependencyProperty —— 见 §5 隐式契约
 - ❌ **在 `Window_Closing` 内继续堆 await 而不用 cancel-and-close 模式**（Phase 4）—— 静默丢失后续写盘
 - ❌ **写 inline `<Style TargetType="X">` 而不加 `BasedOn="{StaticResource {x:Type X}}"`**（Phase 4）—— 控件回退到 OS 原生外观
-- ❌ **让 `IQueuePersistence.LoadAsync` 抛异常**（Phase 4）—— 应用启动崩溃；任何异常都该被 catch-all 捕获并 fallback 到 `new QueueState()`
+- ❌ **让 `IPlaylistService.LoadAsync` 抛异常** —— 应用启动崩溃；任何异常都该被 catch-all 捕获并 fallback 到 `new QueueState()`
 - ❌ **把 `BorderBrush`/`Background` 等可能被 Style.Trigger 改的 DP 写成元素的 local attribute**（Phase 5）—— DP 优先级 `local > trigger setter`，触发器永远赢不了；默认值要放进 Style.Setter（commit `214d595`）
 - ❌ **在 `MoveTracks` 或类似重排逻辑用 `Queue.IndexOf` / 默认 `HashSet<Track>` 找回原 Track 实例**（Phase 5）—— Track record 结构相等会塌陷重复占位；必须用 `ReferenceEquals` + `ReferenceEqualityComparer.Instance`
 - ❌ **假定子元素 `Drop` 设 `Handled=true` 后父元素的清理代码会冒泡执行**（Phase 5）—— 不会；清 Adorner / IsDragOver 必须在每条 Drop 路径自己显式做（commit `a80afdd`）
@@ -496,29 +358,10 @@ private void RemoveTrack(int index)
 
 ---
 
+
 ## 8. 参考
 
-- 完整代码导读：[`docs/PROJECT.md`](./PROJECT.md)
-- 原始设计稿：
-  - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1
-  - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2
-  - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3
-  - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4
-  - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5
-  - [`docs/superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md`](./superpowers/specs/2026-06-13-uma-player-phase6-named-playlists-design.md) — Phase 6
-  - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md) — Phase 15 设计规格
-  - [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md`](./superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-report.md) — Phase 15 审计报告
-  - [`docs/superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md`](./superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md) — Phase 16 图标矢量化设计规格
-  - [`docs/superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md`](./superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md) — Phase 17 UI 深度深色定制设计规格
-  - [`docs/superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md`](./superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md) — Phase 18 播放列表文件导入导出设计规格
-- 原始实现计划：
-  - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
-  - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
-  - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3
-  - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4
-  - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
-  - [`docs/superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md`](./superpowers/plans/2026-06-13-uma-player-phase6-named-playlists.md) — Phase 6
-  - [`docs/superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md`](./superpowers/plans/2026-09-12-d-player-phase15-coupling-audit-implementation.md) — Phase 15 实现计划
-  - [`docs/superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase16-icon-refactor-implementation.md) — Phase 16 实现计划
-  - [`docs/superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md`](./superpowers/plans/2026-09-13-d-player-phase17-ui-dark-theming-implementation.md) — Phase 17 实现计划
-  - [`docs/superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md`](./superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md) — Phase 18 实现计划
+- 当前架构与模块：[PROJECT.md](./PROJECT.md)
+- 当前文档地图：[docs/README.md](./README.md)
+- 历史设计与计划：`docs/superpowers/specs/`、`docs/archive/`
+- 最近验收：Phase 24/25；历史验收：Phase 20–23

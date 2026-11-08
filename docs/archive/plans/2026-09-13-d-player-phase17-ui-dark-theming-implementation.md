@@ -8,7 +8,7 @@
 
 **Tech Stack:** WPF XAML（`System.Windows.Shell.WindowChrome`、`SystemCommands`）· 复用 `Themes/Colors.xaml` 画刷与 `Themes/Icons.xaml` 矢量图标
 
-**设计稿：** [`docs/superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md`](../specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md)
+**设计稿：** [`docs/superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md`](../../superpowers/specs/2026-09-13-d-player-phase17-ui-dark-theming-design.md)
 
 **验证基线：** 每 Task 后 `dotnet build` 0 错误 + `dotnet test` 96 全绿；最终 ComputerUse 截图核对标题栏/下拉/复选框/滚动条/ToolTip/最大化边距。
 

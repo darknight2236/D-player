@@ -8,7 +8,7 @@
 
 **Tech Stack:** WPF / XAML ResourceDictionary + `Geometry`(path markup) / `Path` · CommunityToolkit.Mvvm · 几何数据源自 Feather/Lucide（MIT/ISC，需在 Icons.xaml 头注释署名）
 
-**设计稿：** [`docs/superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md`](../specs/2026-09-13-d-player-phase16-icon-refactor-design.md)
+**设计稿：** [`docs/superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md`](../../superpowers/specs/2026-09-13-d-player-phase16-icon-refactor-design.md)
 
 **验证基线：** 每 Task 后 `dotnet build` 0 错误 + `dotnet test` 96 全绿（无测试引用被改转换器/VolumeIcon，涟漪≈0）；最终 ComputerUse GUI 截图确认无 emoji 残留、活跃态着色、▶ 标记正常。
 

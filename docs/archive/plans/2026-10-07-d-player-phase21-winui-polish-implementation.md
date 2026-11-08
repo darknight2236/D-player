@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 10（`net10.0-windows10.0.19041.0`）· WinUI 3 / Windows App SDK **2.5.1**（unpackaged + self-contained，x64）· CommunityToolkit.Mvvm（经 Core）· CommunityToolkit.WinUI（本阶段新引入，版本实测钉死）· xunit.v3（不新增测试）
 
-**Spec:** [`docs/superpowers/specs/2026-10-07-d-player-phase21-winui-polish-design.md`](../specs/2026-10-07-d-player-phase21-winui-polish-design.md)
+**Spec:** [`docs/superpowers/specs/2026-10-07-d-player-phase21-winui-polish-design.md`](../../superpowers/specs/2026-10-07-d-player-phase21-winui-polish-design.md)
 
 **验证基线：** 起点 `a49727a`（master，工作树干净）；`.slnf` 门禁 **180 测试绿 / 0 警告**。
 

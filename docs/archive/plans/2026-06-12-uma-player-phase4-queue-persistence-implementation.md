@@ -1254,28 +1254,28 @@ scenarios verified:
 
 ```markdown
 - 设计稿：
-  - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
-  - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
-  - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3 VM 拆分 + 技术债清算设计
+  - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](../specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
+  - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](../specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
+  - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](../specs/2026-06-07-uma-player-phase3-design.md) — Phase 3 VM 拆分 + 技术债清算设计
 - 实现计划：
-  - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
-  - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
-  - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3
+  - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./2026-04-24-uma-player-implementation.md) — Phase 1
+  - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./2026-06-06-uma-player-playlist-implementation.md) — Phase 2
+  - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./2026-06-07-uma-player-phase3-implementation.md) — Phase 3
 ```
 
 替换为（追加 Phase 4 设计 / 计划）：
 
 ```markdown
 - 设计稿：
-  - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](./superpowers/specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
-  - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](./superpowers/specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
-  - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](./superpowers/specs/2026-06-07-uma-player-phase3-design.md) — Phase 3 VM 拆分 + 技术债清算设计
-  - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](./superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4-1 队列持久化设计
+  - [`docs/superpowers/specs/2026-04-23-uma-player-design.md`](../specs/2026-04-23-uma-player-design.md) — Phase 1 整体设计
+  - [`docs/superpowers/specs/2026-06-06-uma-player-playlist-design.md`](../specs/2026-06-06-uma-player-playlist-design.md) — Phase 2 播放列表设计
+  - [`docs/superpowers/specs/2026-06-07-uma-player-phase3-design.md`](../specs/2026-06-07-uma-player-phase3-design.md) — Phase 3 VM 拆分 + 技术债清算设计
+  - [`docs/superpowers/specs/2026-06-12-uma-player-phase4-queue-persistence-design.md`](../specs/2026-06-12-uma-player-phase4-queue-persistence-design.md) — Phase 4-1 队列持久化设计
 - 实现计划：
-  - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./superpowers/plans/2026-04-24-uma-player-implementation.md) — Phase 1
-  - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./superpowers/plans/2026-06-06-uma-player-playlist-implementation.md) — Phase 2
-  - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./superpowers/plans/2026-06-07-uma-player-phase3-implementation.md) — Phase 3
-  - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4-1
+  - [`docs/superpowers/plans/2026-04-24-uma-player-implementation.md`](./2026-04-24-uma-player-implementation.md) — Phase 1
+  - [`docs/superpowers/plans/2026-06-06-uma-player-playlist-implementation.md`](./2026-06-06-uma-player-playlist-implementation.md) — Phase 2
+  - [`docs/superpowers/plans/2026-06-07-uma-player-phase3-implementation.md`](./2026-06-07-uma-player-phase3-implementation.md) — Phase 3
+  - [`docs/superpowers/plans/2026-06-12-uma-player-phase4-queue-persistence-implementation.md`](./2026-06-12-uma-player-phase4-queue-persistence-implementation.md) — Phase 4-1
 ```
 
 并在 §10 最后的"主要里程碑提交"列表末尾，Phase 3 块之后追加：

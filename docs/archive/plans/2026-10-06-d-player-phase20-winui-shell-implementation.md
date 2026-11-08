@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 10（`net10.0-windows` / `net10.0-windows10.0.19041.0`）· WPF（既有壳）· WinUI 3 / Windows App SDK（unpackaged + self-contained）· CommunityToolkit.Mvvm · NAudio 3.1.0 · xunit.v3 + MTP
 
-**Spec:** [`docs/superpowers/specs/2026-10-06-d-player-phase20-winui-shell-design.md`](../specs/2026-10-06-d-player-phase20-winui-shell-design.md)
+**Spec:** [`docs/superpowers/specs/2026-10-06-d-player-phase20-winui-shell-design.md`](../../superpowers/specs/2026-10-06-d-player-phase20-winui-shell-design.md)
 
 **验证基线：** 起点 `92b8412`（工作树干净）；当前 **172 测试全绿 / 构建 0 警告**。每个 Task 结束都以"0 警告 + 172（或更多）测试绿"收尾。
 > **勘误**：起点数字对、提交号不对——计划写 `92b8412`，实施台账记录的 BASE 是 `3f6a340`（即"把本计划归档"那次提交，内容等价、在其之后）。"172（或更多）"的"更多"后来一路涨到 180，逐 Task 的真实值见下一条（Global Constraints 计数勘误）。

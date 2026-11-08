@@ -4,7 +4,7 @@
 
 - 日期：2026-10-28 首记；2026-10-29 补充 C1/听感实测与宽窗静音缺陷修复；2026-11-02 用户确认 B、C 组全部通过并完成 A、B 组仪器化复验。状态：**实现完成 / 验收通过（2026-11-02）**；平台级缩放撕裂见 2026-11-01 一节，不阻塞 Phase 23。
 - 实现基线：Task1 `af2e944`（含暂停守卫）；Task2 `898f0a7`。2026-10-29 缺陷修复只改 `PlayerBar.xaml.cs` 一处（未改 Core/WPF/包）；此前的记录与文档提交不含代码改动。
-- [实施计划 Task3](./superpowers/plans/2026-10-27-d-player-phase23-spectrum-eq-implementation.md)；[设计](./superpowers/specs/2026-10-27-d-player-phase23-spectrum-eq-design.md)。原计划不回改，勘误见 B 组。
+- [实施计划 Task3](./archive/plans/2026-10-27-d-player-phase23-spectrum-eq-implementation.md)；[设计](./superpowers/specs/2026-10-27-d-player-phase23-spectrum-eq-design.md)。原计划不回改，勘误见 B 组。
 - 依据：[Task1 报告](../.superpowers/sdd/2026-10-27-d-player-phase23-spectrum-eq-implementation/task-1-report.md)、[Task2 报告](../.superpowers/sdd/2026-10-27-d-player-phase23-spectrum-eq-implementation/task-2-report.md)、[Task3 报告](../.superpowers/sdd/2026-10-27-d-player-phase23-spectrum-eq-implementation/task-3-report.md)。SDD 被 Git 忽略，链接仅本地可用；A/B 结果为报告转录，本次没有重跑整组或逐张复核旧截图。
 - [Phase 21](./PHASE21-ACCEPTANCE.md)、[Phase 22](./PHASE22-ACCEPTANCE.md) 是历史验收；[Phase 20 对比材料](./PHASE20-COMPARISON.md) §2 是历史快照、§3 是当前能力。历史 PASS 不自动成为 Phase 23 PASS。
 

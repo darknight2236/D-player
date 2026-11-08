@@ -8,7 +8,7 @@
 
 **Tech Stack:** C# / .NET 10 / WPF · NAudio 2.2.1（`NAudio.Dsp.BiQuadFilter.PeakingEQ/SetPeakingEq/Transform`）· CommunityToolkit.Mvvm · xUnit + NSubstitute
 
-**设计稿：** [`docs/superpowers/specs/2026-09-08-d-player-phase14-equalizer-design.md`](../specs/2026-09-08-d-player-phase14-equalizer-design.md)
+**设计稿：** [`docs/superpowers/specs/2026-09-08-d-player-phase14-equalizer-design.md`](../../superpowers/specs/2026-09-08-d-player-phase14-equalizer-design.md)
 
 ---
 

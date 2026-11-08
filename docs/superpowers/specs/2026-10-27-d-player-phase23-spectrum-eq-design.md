@@ -125,7 +125,7 @@ Core 公开面没有新增成员，测试总数不变；如实现中不得不动
 
 - 新建 `docs/PHASE23-ACCEPTANCE.md` 记录逐项结果。
 - `docs/PROJECT.md`、`docs/COUPLING.md`、`README.md` 补频谱/EQ 能力与契约；`docs/PHASE20-COMPARISON.md` §3 的频谱/EQ 缺口销项。
-- 实施计划：`docs/superpowers/plans/2026-10-27-d-player-phase23-spectrum-eq-implementation.md`（Task 1 频谱 → Task 2 EQ → Task 3 验收与文档）。
+- 实施计划：`docs/archive/plans/2026-10-27-d-player-phase23-spectrum-eq-implementation.md`（Task 1 频谱 → Task 2 EQ → Task 3 验收与文档）。
 
 ## 6. 风险与缓解
 

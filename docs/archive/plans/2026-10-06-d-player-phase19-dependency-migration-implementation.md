@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 10（`net10.0-windows`）· NAudio 3.1.0（Core + Wasapi）· xunit.v3 4.0.1 · xunit.runner.visualstudio 4.0.0 · Microsoft.NET.Test.Sdk 18.10.1 · NSubstitute 6.2.0 · Microsoft.Testing.Platform + VSTest 双路径 —— 落地校正（Task 3 实测）："双路径"不成立，runner 只有一个（Microsoft.Testing.Platform），到达它的命令有两条（`dotnet run --project Tests/D-player.Tests.csproj -c Debug` 与 `dotnet test D-player.sln -c Debug`，后者经仓根 `global.json` 路由）；VSTest 在 xunit.v3 4.0.1 + MTP 2.4.0 + .NET 10 SDK 上不可达，`xunit.runner.visualstudio` / `Microsoft.NET.Test.Sdk` 属兼容性保留 —— 详见 Task 3 Step 5 的注记
 
-**Spec:** [`docs/superpowers/specs/2026-10-06-d-player-phase19-dependency-migration-design.md`](../specs/2026-10-06-d-player-phase19-dependency-migration-design.md)
+**Spec:** [`docs/superpowers/specs/2026-10-06-d-player-phase19-dependency-migration-design.md`](../../superpowers/specs/2026-10-06-d-player-phase19-dependency-migration-design.md)
 
 **验证基线：** 起点 `7d42c08`（工作树干净）；每 Task 后 `dotnet build D-player.sln -c Debug --nologo -v q` **0 错误 0 警告** + 全量 **161** 条测试绿（当前基线）。
 

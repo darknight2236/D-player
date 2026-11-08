@@ -76,6 +76,8 @@ Phase 25 的共享 Core 实现、WPF 搜索界面与监听生命周期均已完�
 
 ## 5. 交付后修正（2026-11-08）
 
+> 以下前四条修复完成时默认测试为 282；最后一条回归加入后为 283，最终门禁以 §1 的 283/283 为准。
+
 - **搜索框提示文字与光标错开约 8px（用户手动验收发现）**：全局 `TextBox` 模板把 `Padding` 又绑成 `PART_ContentHost` 的 `Margin`，而 `TextBox` 自身已按 `Padding` 缩进文本，内边距实际翻倍——提示层停在 9px，输入文字与光标在 16px。修复：去掉模板里的重复 Margin；搜索框提示层改用与 `Padding` 左值一致的 8px；搜索框与 `PromptDialog` 输入框补 `MinHeight`（30/28）维持原控件高度。像素复核：修复前提示文字起点 x≈166、输入文字起点 x≈173；修复后两者均为 x≈166，光标垂直范围与提示文字行高一致。仅 XAML 改动，`verify-gates.ps1 -Full` 复跑 3/3 通过（默认测试 282/282，两处构建 0 警告 0 错误）；`PromptDialog` 的新高度未单独开对话框走查。
 - **搜索框「清空」仍像纯文字标签（同日用户复验发现）**：该按钮没有指定样式，落到全局透明 `Button` 隐式样式（无背景、无边框）；对话框按钮的同款问题在 `8597497` 已修，但当时漏了搜索栏。修复：套用共享的次级按钮外观（`DialogSecondaryButton`，带底色、描边、悬停/按下反馈），与 30px 搜索框同高。真机截图复核通过，`-Full` 复跑 282/282。该样式同时服务对话框与库内次级操作，不再只限对话框。
 - **点击库列表文字导致崩溃（2026-11-08 合成库验收发现）**：`LibraryView.FindAncestor` 对 `e.OriginalSource`（TextBlock 内的 `Run`，属于 `ContentElement` 而非 `Visual`）调用 `VisualTreeHelper.GetParent`，抛 `InvalidOperationException` 并终止进程（Windows 事件日志 CLR20r3；堆栈在 `LibraryView.xaml.cs:468`）。修复：`Visual`/`Visual3D` 走 `VisualTreeHelper`，`ContentElement` 走 `ContentOperations.GetParent` 或 `FrameworkContentElement.Parent`。真机复测点击分组标题文字、搜索结果文字与艺术家行文字后进程存活；`-Full` 3/3、282/282。

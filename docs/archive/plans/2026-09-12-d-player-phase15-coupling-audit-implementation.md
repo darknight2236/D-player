@@ -8,7 +8,7 @@
 
 **Tech Stack:** PowerShell 5.1（分析脚本）· C#/.NET 源码（被审计对象）· Markdown（报告/文档）
 
-**设计稿：** [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md`](../specs/2026-09-12-d-player-phase15-coupling-audit-design.md)
+**设计稿：** [`docs/superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md`](../../superpowers/specs/2026-09-12-d-player-phase15-coupling-audit-design.md)
 
 **验证基线（脚本跑出的指标须匹配）：** M2=0 环；M3=0 层级违规；M4 `IPlaybackService`=20 成员；M5 无 >600 行文件（PlaylistViewModel ~564）；M6 未消费服务 = `IAudioDeviceManager` + `IAudioOutputFactory`。
 

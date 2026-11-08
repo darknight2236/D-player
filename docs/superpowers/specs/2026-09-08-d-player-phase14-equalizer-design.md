@@ -49,7 +49,7 @@
 | `PlayerViewModel` 持有频谱设置 observable + 启动 load + `OnXxxChanged` 持久化/传播 | `PlayerViewModel` 仅加 `EqualizerEnabled` + 启动 load/apply |
 
 **关键事实（已核对代码）**：
-- 音频链（[NAudioPlaybackService.LoadAsync](../../../Services/NAudioPlaybackService.cs) 第 98-110 行）：
+- 音频链（[NAudioPlaybackService.LoadAsync](../../../D-player.Core/Services/NAudioPlaybackService.cs) 第 98-110 行）：
   `MediaFoundationReader → ToSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiOut(Shared, 100ms)`
 - 运行时配置传播（`SpectrumConfig` setter，第 66-77 行）：setter 存字段 + 若在链中间件存在则下发。
 - `SpectrumConfig` 默认 `Enabled=true`；EQ 相反，默认 `Enabled=false`（透明旁路，不影响存量用户）。
@@ -428,9 +428,9 @@ private bool _equalizerEnabled;   // 供 PlayerBar EQ 按钮激活态高亮（�
 
 ## 16. 参考
 
-- 现有音频链与运行时配置传播：[`Services/NAudioPlaybackService.cs`](../../../Services/NAudioPlaybackService.cs)
-- 中间件模式先例（Phase 13）：[`Services/SampleAggregator.cs`](../../../Services/SampleAggregator.cs)
+- 现有音频链与运行时配置传播：[`Services/NAudioPlaybackService.cs`](../../../D-player.Core/Services/NAudioPlaybackService.cs)
+- 中间件模式先例（Phase 13）：[`Services/SampleAggregator.cs`](../../../D-player.Core/Services/SampleAggregator.cs)
 - 对话框模式先例：[`Views/Dialogs/SettingsDialog.xaml.cs`](../../../Views/Dialogs/SettingsDialog.xaml.cs)
-- 设置持久化模式：[`ViewModels/PlayerViewModel.cs`](../../../ViewModels/PlayerViewModel.cs) · [`Configuration/AppSettings.cs`](../../../Configuration/AppSettings.cs)
-- Phase 13 设计稿：[`2026-06-24-uma-player-phase13-audio-visualization-design.md`](./2026-06-24-uma-player-phase13-audio-visualization-design.md)
+- 设置持久化模式：[`ViewModels/PlayerViewModel.cs`](../../../D-player.Core/ViewModels/PlayerViewModel.cs) · [`Configuration/AppSettings.cs`](../../../D-player.Core/Configuration/AppSettings.cs)
+- Phase 13 设计稿：[`2026-06-24-uma-player-phase13-audio-visualization-design.md`](../../archive/specs/2026-06-24-uma-player-phase13-audio-visualization-design.md)
 - 架构纪律与隐式契约登记册：[`docs/COUPLING.md`](../../COUPLING.md)

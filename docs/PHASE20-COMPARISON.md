@@ -1,8 +1,10 @@
 # Phase 20 对比材料：WPF 壳 vs WinUI 壳
 
-> 文档日期：2026-10-06 · 最后更新：2026-10-28（仅当前能力 §3 更新至 Phase 23 实现完成 / 验收待补；§2 保留 Phase 20 验收快照） · 上一轮 2026-10-07（最终修复波 + 同日**两轮**用户真机验收：第一轮走查逐项结果见 §2.2；同晚走查报出的那条进度条单击定位缺陷被量出根因、修掉并用仪器复量，「进度显示」格 ⚠️ → 🟡；**同日第二轮复验把走查剩下的四项待复验逐条关掉——单击的听觉那一半、浅色系统下 WinUI 是否仍深色、列表下方空白区双击、正在播放时关窗的退出码与残留进程——「进度显示」「启动与窗口」「退出与收尾」三格 🟡 → ✅，本表已无待用户复验项**；仍没人够得着的两处见 §2.2 末段） · 代码基线：`27f5e39`（单击定位修复，纯壳侧）+ `dc67f13`（A1-A5 壳侧修复）+ 本波文档提交 · 对应分支：`master`
+> 文档日期：2026-10-06 · 最后更新：2026-11-08（补充历史边界；§2 保留 Phase 20 验收快照，§3/§4 保留当时读数） · 上一轮 2026-10-07（最终修复波 + 同日**两轮**用户真机验收：第一轮走查逐项结果见 §2.2；同晚走查报出的那条进度条单击定位缺陷被量出根因、修掉并用仪器复量，「进度显示」格 ⚠️ → 🟡；**同日第二轮复验把走查剩下的四项待复验逐条关掉——单击的听觉那一半、浅色系统下 WinUI 是否仍深色、列表下方空白区双击、正在播放时关窗的退出码与残留进程——「进度显示」「启动与窗口」「退出与收尾」三格 🟡 → ✅，本表已无待用户复验项**；仍没人够得着的两处见 §2.2 末段） · 代码基线：`27f5e39`（单击定位修复，纯壳侧）+ `dc67f13`（A1-A5 壳侧修复）+ 本波文档提交 · 对应分支：`master`
 > 关联设计稿：[`specs/2026-10-06-d-player-phase20-winui-shell-design.md`](./superpowers/specs/2026-10-06-d-player-phase20-winui-shell-design.md)
-> 关联实现计划：[`plans/2026-10-06-d-player-phase20-winui-shell-implementation.md`](./superpowers/plans/2026-10-06-d-player-phase20-winui-shell-implementation.md)
+> 关联实现计划：[`plans/2026-10-06-d-player-phase20-winui-shell-implementation.md`](./archive/plans/2026-10-06-d-player-phase20-winui-shell-implementation.md)
+
+> **历史文档（最后更新 2026-10-28）**：WinUI 壳已于 2026-11-02 冻结；Phase 23 已验收通过，Phase 24/25 已完成。§2、§4 保留 Phase 20 当时的读数与评分材料，不代表当前状态；当前能力与限制见 [README](../README.md) 与 [PROJECT](./PROJECT.md)。§3 的“当前差距”也只到 2026-10-28。
 
 **这份材料怎么用（请先读这一段）**
 
@@ -133,11 +135,11 @@ Phase 20 交付了一条 WinUI 3 的第二 UI 壳（第一条纵向切片），�
 
 ## 3. 当前 WinUI 能力与差距（2026-10-28，Phase 23）
 
-> **Phase 23 实现完成 / 验收待补**：频谱与 EQ 实现已有，不再属于缺失功能，但不代表全验收。当前证据与缺口见 [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md)；[Phase 21](./PHASE21-ACCEPTANCE.md) / [Phase 22](./PHASE22-ACCEPTANCE.md) 验收及本文 §2、§4、§5 均为历史参考，不替代本阶段回归。以下“已具备”仅说明实现能力。
+> **Phase 23 已验收通过（2026-11-02）**：频谱与 EQ 不再属于缺失功能；证据见 [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md)。[Phase 21](./PHASE21-ACCEPTANCE.md) / [Phase 22](./PHASE22-ACCEPTANCE.md) 验收及本文 §2、§4、§5 均为历史参考。以下“已具备”保留 Phase 23 实现时点的能力描述。
 
-> **Phase 22 交付了基础功能；Phase 23 新增频谱/EQ 实现（验收待补），拖拽/排序/文件夹绑定管理仍为后续缺口。** 本节按 2026-10-23 Phase 22 交付后的状态记录，并补记 2026-10-24 快赢切片（TrackList ▶ 当前曲标记、行尾移除按钮、InfoPanel 采样率）与 2026-10-27 的修正（折叠钮统一回各自栏头、底栏精简、滑块提示格式化、窄窗悬停音量弹层）；§2 是 Phase 20 的验收快照，保留当时的读数与结论，不回填本节。
+> **Phase 22 交付了基础功能；Phase 23 的频谱/EQ 已验收通过（2026-11-02）**；拖拽/排序/文件夹绑定管理仍是 WinUI 缺口。本节按 2026-10-23 Phase 22 交付后的状态记录，并补记 2026-10-24 快赢切片（TrackList ▶ 当前曲标记、行尾移除按钮、InfoPanel 采样率）与 2026-10-27 的修正（折叠钮统一回各自栏头、底栏精简、滑块提示格式化、窄窗悬停音量弹层）；§2 是 Phase 20 的验收快照，保留当时的读数与结论，不回填本节。
 
-Phase 20 的这段差距表原本是设计稿的 Non-Goals（只做第一条纵向切片 + 决策门）。Phase 22 把日常可用闭环补齐后，**当前仍须区分未实现项与 Phase 23 已实现但验收待补项**；它们仍是工作量证据，不是"已经会做但懒得做"。
+Phase 20 的这段差距表原本是设计稿的 Non-Goals（只做第一条纵向切片 + 决策门）。Phase 22 把日常可用闭环补齐后，**当前仍须区分未实现项与已验收项**；Phase 23 的频谱/EQ 已于 2026-11-02 收口，剩余未实现项仍是工作量证据，不是"已经会做但懒得做"。
 
 | 能力 | WPF | WinUI（Phase 23 当前实现） | 备注 |
 |---|---|---|---|
@@ -145,12 +147,12 @@ Phase 20 的这段差距表原本是设计稿的 Non-Goals（只做第一条纵�
 | 播放列表文件导入/导出 | ✅ | ✅ | 追加到当前歌单 / 新建歌单 / 导出 M3U8 |
 | 音量与静音 | ✅ | ✅ | 64px 底栏内，音量滑块在窄窗收起；窄窗悬停静音钮弹纵向音量条（2026-10-27） |
 | 上一首/下一首、随机、循环三态 | ✅ | ✅ | 底栏单行 |
-| 设置对话框 | ✅ | ✅（基础版） | 默认音量 + 音频输出只读 + 日志入口；Phase 23 已增频谱启用/灵敏度/主题/平滑度，EQ 由底栏独立入口打开（未全验收） |
+| 设置对话框 | ✅ | ✅（基础版） | 默认音量 + 音频输出只读 + 日志入口；Phase 23 已增频谱启用/灵敏度/主题/平滑度，EQ 由底栏独立入口打开（2026-11-02 已验收） |
 | 歌单增删/重命名 | ✅ | ✅ | 左栏工具栏 + 双击重命名；拖拽重排仍缺 |
 | 窗口几何持久化 + 可见性自愈 | ✅ | ✅ | 物理像素；最大化不覆盖普通几何；屏外自愈用 `DisplayArea.GetFromPoint`（偏离原设计的 `FindAll`，见 `COUPLING.md` Phase 22 块） |
-| 曲目信息面板 | ✅ | 已具备 | 封面/标题/艺术家/专辑/时长/采样率已有；Phase 23 已补 32 柱频谱及暂停守卫，A 组沿用 Task1 证据，最终组合回归未全验收 |
-| 10 段 EQ + Pre / 预设 / 预览 / 取消 / 保存 | ✅ | 已实现，验收待补 | Task2 只有部分 UI 验收；鼠标拖动、听感、无曲目、失败/竞态等仍待补，见 Phase 23 验收 |
-| 拖拽 / 排序 / 文件夹绑定管理 | ✅ | ❌ | Phase 24 后续范围，未开始 |
+| 曲目信息面板 | ✅ | 已具备 | 封面/标题/艺术家/专辑/时长/采样率已有；Phase 23 已补 32 柱频谱及暂停守卫，A/B 组已完成仪器化复验（2026-11-02） |
+| 10 段 EQ + Pre / 预设 / 预览 / 取消 / 保存 | ✅ | ✅（已验收） | 2026-11-02 用户确认 B/C 组通过，并完成回环、写盘计数、失败注入等仪器化复验；见 Phase 23 验收 |
+| 拖拽 / 排序 / 文件夹绑定管理 | ✅ | ❌ | Phase 24/25 已另行完成音乐库与搜索/监听，但 WinUI 侧这三项仍未实现 |
 
 **仍缺实现的接法（Phase 24）**：
 - **拖拽**：WinUI 的 DragDrop API 与 WPF 不同（无 `AdornerLayer`），插入线要换高亮机制；VM 侧命令 `DropExternalFiles` / `MoveTracks` 已在 Core。
@@ -169,10 +171,10 @@ Phase 20 的这段差距表原本是设计稿的 Non-Goals（只做第一条纵�
 |---|---|---|---|
 | 视觉观感 |  |  | WPF：19 个阶段打磨出的深色自绘主题（`Themes/Controls.xaml` 全量隐式模板 + `Icons.xaml` 矢量图标集 + WindowChrome 自绘标题栏）。WinUI：原生 Fluent 深色 + Mica 半透明材质 + `NavigationView`，一眼是"新一点的 Windows 应用"；Mica 这一格要说清强度：**是否仍生效，本波没能复现**——§5 关切 6 记了本波的 A/B/C 三位置复探，四个采样点全部位置不变，没复现出 Task 4 当年的变化签名，所以这里沿用的是 **Task 4 的归档取证 + "本波未复现"** 这个标注，别拿它加分也别拿它减分；已确认的只有"材质依赖根背景 `Transparent` 这一约定"（不 Transparent 就被页面底色盖住，见 `MainWindow.xaml` 顶部注释）。要判定它，按 Task 4 的**三行对照协议**重做（材质+不透明底 / 材质+Transparent / 无材质+Transparent），本机给不出全部条件，列为"续投 WinUI 的第一件工作"。**切片只有三个区域，控件覆盖度远低**（无对话框、无滑块主题、无列表列）。请就你肉眼看到的窗口做判断。 |
 | 操作手感 |  |  | 需要你的真机操作才能填。未验证项：③ 双击出声与进度推进、④ 暂停/继续、⑤ 断点续播、多歌单恢复态、**松手后进度条是否停在手指处**（A2 修的就是这件事；这句备注写于"没有曲目我无从判定落点"的时候，2026-10-07 晚同一操作已经有仪器读数了——注入鼠标拖到行程 30% → `Value=0.3`、`Position=00:01:21.6`，顺带量出修前同一手势停在 0，见 §2.2。"停不停"这一半量过了，**手感仍归你**）。可对照的事实：两壳共用同一个 `PlaylistsViewModel.HandleDoubleClickPlay` 双击入口，且 A3 之后空白区双击两壳都不动作；**切片期"拖动会连续跳"与"空白区双击会重播上次选中"这两条已知差异已被修掉**，不再是扣分项；随机/循环/上一首/下一首在 WinUI 侧根本没有按钮。 |
-| 性能 |  |  | 尚未做两侧对比测量（没有启动耗时/内存/帧率的量化数据，别按印象打分，可注明"未测"）。**已知的一侧成本是包体与恢复时间**：WinUI 走 unpackaged + self-contained，`Microsoft.WindowsAppSDK` 2.5.1 会拉 9 个子包、首次 restore 实测约 8.1 分钟、自包含输出目录明显大于 WPF 侧；WPF 壳只依赖 NAudio 两子包 + ATL，`dotnet restore D-player.sln`（全量、可选）与两条门禁（走 `D-player.slnf`）的差别就在这里。另记一条与本维度无关但客观存在的差别：**退出码**（见 §2 最后一行——WPF 因既有 `App.OnExit` 缺陷非 0，WinUI 为 0）。 |
+| 性能 |  |  | 尚未做两侧对比测量（没有启动耗时/内存/帧率的量化数据，别按印象打分，可注明"未测"）。**已知的一侧成本是包体与恢复时间**：WinUI 走 unpackaged + self-contained，`Microsoft.WindowsAppSDK` 2.5.1（Phase 23 起升到 2.6.4）会拉 9 个子包、首次 restore 实测约 8.1 分钟、自包含输出目录明显大于 WPF 侧；WPF 壳只依赖 NAudio 两子包 + ATL，`dotnet restore D-player.sln`（全量、可选）与两条门禁（走 `D-player.slnf`）的差别就在这里。另记一条与本维度无关但客观存在的差别：**退出码**（见 §2 最后一行——WPF 因既有 `App.OnExit` 缺陷非 0，WinUI 为 0）。 |
 | 开发体验 |  |  | **门禁 = 两条**（`D-player.slnf` 构建 0 警告 + 测试 **180 通过**），**这 180 条只覆盖 Core + WPF + Tests，WinUI 壳一条都不覆盖**；WinUI 侧唯一的自动化级保护是一条**需要手跑**的"壳侧构建检查"（0 警告），**触发条件 = `D-player.Core` 的公开面一变就跑**，一键跑法 `powershell -File tools/verify-gates.ps1 -Fast|-Full`（增量后实测约 9 秒）。这条触发条件不是形式主义：本波就有一次"死 using 整理"报错了对象，而 `.slnf` 门禁对 WinUI 完全无感（详见 PROJECT §4.3 第 28 条）。WPF：一条 `dotnet run --project D-player.csproj` 就能跑；XAML 编译器报错信息成熟。WinUI：`dotnet build D-player.WinUI/D-player.WinUI.csproj` / `dotnet run --project …` 裸命令可用（靠 csproj 里 `<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`，`Platforms` 只声明支持面、不设默认值，裸构建会报 "requires a supported Windows architecture"）。**WinUI 刻意不进门禁**，所以每次改动它都要单独构建；XamlCompiler 崩过 WMC9999（`x:Bind` 经可空中间段），这类错误没有可读信息、只能靠逐块剥离法定位；`Slider` 缺 `DragStarted/DragCompleted`（WMC0011 / WMC0010 / CS1061 三条路实测都堵；投影里也没有 WPF 那个 `SliderBase` 类型可查）也是同一类"文档没说、只能试"的摩擦。 |
 | 维护与演进成本 |  |  | 已经付掉的成本：Core 抽取 + 数据目录参数化对 WPF 零行为影响，两壳从此共享一份 VM/Service。WinUI 侧新增的长期约定：每壳各自注册 `IFileDialogService`（`Tests/Extensions/AddDPlayerCoreTests.cs` 钉住了 Core 图，但**钉不住壳忘注册自己的那一个**）；每壳各自的数据目录（`D-player` vs `D-player-winui`，UmaPlayer 更名迁移仍只属 WPF）；每壳各自的关闭落盘（await `CleanupAsync`，不得同步 Dispose 容器）。未解风险：WinUI 不进门禁 → XAML 编译、左栏逻辑、关闭落盘**没有自动回归**，而手跑的壳侧检查只在有人记得跑时才跑；**A2 的拖动语义挂在模板部件名 `HorizontalThumb` 上，部件找不到时是静默退回"连续 Seek"的旧行为**——没有任何自动回归能发现这种退化；`IFileDialogService` 同步/异步死锁；Mica 依赖 Transparent 约定；已知既有缺陷（WPF `App.OnExit` 同步 Dispose 容器，表现为退出码非 0）刻意没被复制到 WinUI，也刻意没在本阶段修（见 §5 的收尾任务清单）。 |
-| 生态与可扩展性 |  |  | WPF：.NET 内置、无额外 SDK 依赖，但控件生态停止演进，本项目已自建全套深色模板与矢量图标。WinUI：官方 Fluent/Win32 控件、Mica、`NavigationView` 等开箱即用，未来可 MSIX 打包与自更新；代价是 Windows App SDK 版本与运行时耦合（本项目钉在 2.5.1 + TFM `net10.0-windows10.0.19041.0`），且 unpackaged/self-contained 形态带来体积与 restore 时间成本（见"性能"行）。请结合你后续想做的功能（频谱/拖拽/EQ/打包分发）判断哪一侧扩建更便宜。 |
+| 生态与可扩展性 |  |  | WPF：.NET 内置、无额外 SDK 依赖，但控件生态停止演进，本项目已自建全套深色模板与矢量图标。WinUI：官方 Fluent/Win32 控件、Mica、`NavigationView` 等开箱即用，未来可 MSIX 打包与自更新；代价是 Windows App SDK 版本与运行时耦合（Phase 20 当时钉在 2.5.1，Phase 23 起为 2.6.4；TFM `net10.0-windows10.0.19041.0`），且 unpackaged/self-contained 形态带来体积与 restore 时间成本（见"性能"行）。请结合你后续想做的功能（频谱/拖拽/EQ/打包分发）判断哪一侧扩建更便宜。 |
 
 ---
 

@@ -376,7 +376,7 @@ catch (Exception ex) { return $"导出失败：{ex.Message}"; }
   7. **`DropExternalFilesCommand` 的"paths 已过滤"契约新增一个调用方**：原本只有 View 拖拽入口，Phase 18 起 VM 内部导入路径也会调用它；任何新增调用方必须自己保证路径已过滤。
   §7 don't-do 补两条：❌ 不要在 `PlaylistViewModel` 里为导入引入 `ILibraryScannerService`（追加路径复用既有外部文件入队）；❌ 不要把导出入口放到侧边栏（选中项 ≠ 查看项，语义歧义）。
 - `README.md`：功能列表加"播放列表导入（M3U/M3U8/PLS）与导出（M3U8）"。
-- 实现计划：`docs/superpowers/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md`。
+- 实现计划：`docs/archive/plans/2026-10-05-d-player-phase18-playlist-file-io-implementation.md`。
 
 ## 12. 验收标准
 
@@ -407,5 +407,5 @@ catch (Exception ex) { return $"导出失败：{ex.Message}"; }
 - 白名单单一来源：`Models/AudioConstants.cs`、`Views/Controls/DragDropExtensions.cs`。
 - 对话框与主题：`Services/IFileDialogService.cs`、`Services/Win32FileDialogService.cs`、`Views/Dialogs/ConfirmDialog.xaml.cs`、`Themes/Icons.xaml`、`Themes/Controls.xaml`。
 - 持久化与加载路径：`Services/JsonPlaylistService.cs`、`Models/Playlist.cs`（`SourceFolder` 语义）、`PlaylistsViewModel.Hydrate`。
-- 先例：Phase 10 库扫描与文件夹绑定歌单（`docs/superpowers/specs/2026-06-14-uma-player-phase10-library-scan-design.md`）、Phase 5 拖拽（`2026-06-12-uma-player-phase5-drag-drop-design.md`）。
+- 先例：Phase 10 库扫描与文件夹绑定歌单（`docs/archive/specs/2026-06-14-uma-player-phase10-library-scan-design.md`）、Phase 5 拖拽（`../../archive/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`）。
 - 格式规范：M3U/M3U8（`#EXTM3U` + `#EXTINF:时长,显示名`）、PLS（INI 风格 `[playlist]` + `File<N>` / `Title<N>` / `Length<N>` + `NumberOfEntries`）。

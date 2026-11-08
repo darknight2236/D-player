@@ -152,7 +152,7 @@ DPlayer.Views.Dialogs -> DPlayer.ViewModels
 | ILibraryScannerService | 3 |
 | ILibraryCache | 2 |
 
-> `IPlaybackService` 20 成员经人工复核 [`Services/IPlaybackService.cs`](../../../Services/IPlaybackService.cs) 逐条确认（4 只读状态属性 + Volume + 6 控制方法 + 7 事件 + SpectrumConfig + EqualizerConfig = 20；`IDisposable.Dispose` 为继承成员不计）。
+> `IPlaybackService` 20 成员经人工复核 [`Services/IPlaybackService.cs`](../../../D-player.Core/Services/IPlaybackService.cs) 逐条确认（4 只读状态属性 + Volume + 6 控制方法 + 7 事件 + SpectrumConfig + EqualizerConfig = 20；`IDisposable.Dispose` 为继承成员不计）。
 
 ### M5 — 文件 >600 LOC
 
@@ -194,11 +194,11 @@ IAudioOutputFactory
 
 | # | 契约 | 代码证据 | 结果 |
 |---|------|---------|------|
-| 1 | EqualizerSampleProvider：Read（音频线程）/Update（UI 线程）buffer 粒度 `lock`；Update 用 `SetPeakingEq` 就地重算保留延迟线 | [`EqualizerSampleProvider.cs`](../../../Services/EqualizerSampleProvider.cs) L47/L72 `lock (_lock)`；L91 `existing.SetPeakingEq(...)`（仅新建时 `PeakingEQ`） | ✅ consistent |
+| 1 | EqualizerSampleProvider：Read（音频线程）/Update（UI 线程）buffer 粒度 `lock`；Update 用 `SetPeakingEq` 就地重算保留延迟线 | [`EqualizerSampleProvider.cs`](../../../D-player.Core/Services/EqualizerSampleProvider.cs) L47/L72 `lock (_lock)`；L91 `existing.SetPeakingEq(...)`（仅新建时 `PeakingEQ`） | ✅ consistent |
 | 2 | 立体声每声道独立 `BiQuadFilter?[channel][band]` | 同上 L21 `_filters` 声明为 `BiQuadFilter?[][]`（`[channel][band]`）；L84 逐声道填充 | ✅ consistent |
-| 3 | EQ 插入点必须在 SampleAggregator 之前 | [`NAudioPlaybackService.cs`](../../../Services/NAudioPlaybackService.cs) `LoadAsync` L118-120：`sampleProvider → _equalizer → _sampleAggregator` | ✅ consistent |
+| 3 | EQ 插入点必须在 SampleAggregator 之前 | [`NAudioPlaybackService.cs`](../../../D-player.Core/Services/NAudioPlaybackService.cs) `LoadAsync` L118-120：`sampleProvider → _equalizer → _sampleAggregator` | ✅ consistent |
 | 4 | `IPlaybackService.EqualizerConfig` setter 语义对齐 `SpectrumConfig`：存字段 + `_equalizer?.Update` | 同上 L85-93：`_equalizerConfig = value; _equalizer?.Update(value);` | ✅ consistent |
-| 5 | 加 `IPlaybackService` 成员须同步 `PlaylistsViewModel.NullPlaybackService`（第二生产实现者） | [`PlaylistsViewModel.cs`](../../../ViewModels/PlaylistsViewModel.cs) L548-571 `NullPlaybackService : IPlaybackService`，L569 含 `EqualizerConfig` | ✅ consistent |
+| 5 | 加 `IPlaybackService` 成员须同步 `PlaylistsViewModel.NullPlaybackService`（第二生产实现者） | [`PlaylistsViewModel.cs`](../../../D-player.Core/ViewModels/PlaylistsViewModel.cs) L548-571 `NullPlaybackService : IPlaybackService`，L569 含 `EqualizerConfig` | ✅ consistent |
 | 6 | `EqualizerDialog.OnLoaded` 填充预设下拉须在 `_suppress` 窗口内 | [`EqualizerDialog.xaml.cs`](../../../Views/Dialogs/EqualizerDialog.xaml.cs) L67-74：`_suppress=true` → `PresetCombo.Items.Add` → `finally _suppress=false` | ✅ consistent |
 | 7 | 取消回滚基准 `_initialConfig` 取「打开瞬间实时 `_playbackService.EqualizerConfig`」 | 同上 L50 `_initialConfig = _playbackService.EqualizerConfig;`（读盘失败保留此快照）；L259-260 `OnClosed` 用 `_initialConfig` 回滚 | ✅ consistent |
 | 8 | PlayerBar EQ 竖直滑块须自定义模板 `EqBandSlider` | [`EqualizerDialog.xaml`](../../../Views/Dialogs/EqualizerDialog.xaml) L19-21：`<Style x:Key="EqBandSlider" TargetType="Slider">` + `Orientation=Vertical` + `Width=24` | ✅ consistent |

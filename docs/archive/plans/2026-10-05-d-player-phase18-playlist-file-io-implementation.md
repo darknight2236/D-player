@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 10（`net10.0-windows`）· WPF · CommunityToolkit.Mvvm · `System.Text.Encoding.CodePages`（GBK 回退）· xUnit + NSubstitute · 复用 `Models/AudioConstants` 白名单与 `Themes/Icons.xaml` 矢量图标
 
-**设计稿：** [`docs/superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md`](../specs/2026-10-05-d-player-phase18-playlist-file-io-design.md)
+**设计稿：** [`docs/superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md`](../../superpowers/specs/2026-10-05-d-player-phase18-playlist-file-io-design.md)
 
 **验证基线：** 每个 Task 结束后 `dotnet build D-player.sln -c Debug --nologo -v q` → **0 错误 0 警告**；`dotnet test D-player.sln -c Debug --nologo -v q` → 原有 **96 个测试无回归** + 本阶段新增测试全绿。最后一个 Task 做 ComputerUse GUI 实地验收。
 

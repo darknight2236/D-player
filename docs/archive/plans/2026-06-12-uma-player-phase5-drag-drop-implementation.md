@@ -920,12 +920,12 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 
 在 §10 设计稿列表末尾追加：
 ```
-  - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5 拖拽支持设计
+  - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](../specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5 拖拽支持设计
 ```
 
 在实现计划列表末尾追加：
 ```
-  - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
+  - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
 ```
 
 在主要里程碑提交末尾（Phase 4 那一组之后）追加：
@@ -1036,11 +1036,11 @@ All 10 drag-drop scenarios + 3 Phase 4 regressions verified passing:
 
 在 specs/ 列表末尾追加：
 ```
-  - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](./superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5
+  - [`docs/superpowers/specs/2026-06-12-uma-player-phase5-drag-drop-design.md`](../specs/2026-06-12-uma-player-phase5-drag-drop-design.md) — Phase 5
 ```
 在 plans/ 列表末尾追加：
 ```
-  - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
+  - [`docs/superpowers/plans/2026-06-12-uma-player-phase5-drag-drop-implementation.md`](./2026-06-12-uma-player-phase5-drag-drop-implementation.md) — Phase 5
 ```
 
 - [x] **Step 17: 构建验证（确认文档改动未触发任何代码错）**

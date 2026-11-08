@@ -1,0 +1,172 @@
+<!-- Views/Dialogs/AddToPlaylistDialog.xaml -->
+<Window x:Class="DPlayer.Views.Dialogs.AddToPlaylistDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:controls="clr-namespace:DPlayer.Views.Controls"
+        Title="加入歌单"
+        Width="360" Height="460"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="{StaticResource BackgroundPrimary}"
+        Foreground="{StaticResource ForegroundPrimary}">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="32" UseAeroCaptionButtons="False" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Window.Resources>
+        <Style x:Key="PlaylistRowStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd" Background="Transparent" Padding="8,6" CornerRadius="4">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{StaticResource BackgroundTertiary}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{StaticResource AccentPressed}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <controls:TitleBar Grid.Row="0" Title="加入歌单" ShowMaximize="False"/>
+
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="SubtitleText"
+                       Grid.Row="0"
+                       Foreground="{StaticResource ForegroundSecondary}"
+                       FontSize="11"
+                       Margin="0,0,0,8"/>
+
+            <Border Grid.Row="1"
+                    Background="{StaticResource BackgroundSecondary}"
+                    CornerRadius="4">
+                <Grid>
+                    <ListBox x:Name="PlaylistList"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             SelectionChanged="PlaylistList_SelectionChanged"
+                             MouseDoubleClick="PlaylistList_MouseDoubleClick"
+                             KeyDown="PlaylistList_KeyDown">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem"
+                                   BasedOn="{StaticResource PlaylistRowStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasSourceFolder}" Value="True">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="ToolTip"
+                                                Value="文件夹歌单由目录内容管理，不能手动加入"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}"
+                                                   ToolTip="{Binding Name}"
+                                                   Foreground="{StaticResource ForegroundPrimary}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="文件夹歌单 · 由文件夹管理"
+                                                   Foreground="{StaticResource ForegroundSecondary}"
+                                                   FontSize="11">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasSourceFolder}"
+                                                                     Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Queue.Count, StringFormat={}{0} 首}"
+                                               Foreground="{StaticResource ForegroundSecondary}"
+                                               Margin="12,0,0,0"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock x:Name="EmptyText"
+                               Text="还没有普通歌单"
+                               Foreground="{StaticResource ForegroundSecondary}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               IsHitTestVisible="False"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="NewNameBox"
+                         MinHeight="28"
+                         KeyDown="NewNameBox_KeyDown"/>
+                <Button Grid.Column="1"
+                        Content="新建并加入"
+                        Margin="8,0,0,0"
+                        Padding="14,5"
+                        Style="{StaticResource DialogSecondaryButton}"
+                        Click="Create_Click"/>
+            </Grid>
+
+            <StackPanel Grid.Row="3"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,12,0,0">
+                <Button Content="取消"
+                        Width="80" Height="28"
+                        Margin="0,0,8,0"
+                        Style="{StaticResource DialogSecondaryButton}"
+                        IsCancel="True"/>
+                <Button x:Name="JoinButton"
+                        Content="加入"
+                        Width="80" Height="28"
+                        Style="{StaticResource DialogPrimaryButton}"
+                        Click="Join_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

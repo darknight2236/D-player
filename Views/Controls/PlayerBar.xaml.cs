@@ -18,9 +18,15 @@ namespace DPlayer.Views.Controls;
 /// </summary>
 public partial class PlayerBar : UserControl
 {
+    // 窄于该宽度时，居中的传输按钮组会与右对齐的音量组相撞（600 宽时实测重叠）。
+    private const double NarrowLayoutThreshold = 740;
+    private const double WideVolumeWidth = 100;
+    private const double NarrowVolumeWidth = 48;
+
     public PlayerBar()
     {
         InitializeComponent();
+        SizeChanged += PlayerBar_SizeChanged;
 
         // 单击跳转必须用 handledEventsToo:true 挂接 —— 隐式 Slider 样式开启了
         // IsMoveToPointEnabled（Phase 13），Slider 的类处理器 OnPreviewMouseLeftButtonDown
@@ -30,6 +36,16 @@ public partial class PlayerBar : UserControl
         SeekBar.AddHandler(PreviewMouseLeftButtonDownEvent,
             new MouseButtonEventHandler(SeekBar_PreviewMouseLeftButtonDown),
             handledEventsToo: true);
+    }
+
+    /// <summary>窄窗收缩音量区：传输组居中固定 272px，600 宽时右侧音量组必须让出空间。</summary>
+    private void PlayerBar_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var narrow = e.NewSize.Width < NarrowLayoutThreshold;
+        VolumeSlider.Width = narrow ? NarrowVolumeWidth : WideVolumeWidth;
+        var gap = narrow ? new Thickness(0) : new Thickness(8, 0, 0, 0);
+        EqualizerButton.Margin = gap;
+        SettingsButton.Margin = gap;
     }
 
     /// <summary>

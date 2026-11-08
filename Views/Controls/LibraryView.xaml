@@ -466,39 +466,41 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <Grid Grid.Row="0" Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="120"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Width="120" Height="120"
-                            Background="{StaticResource BackgroundTertiary}"
-                            CornerRadius="6"
-                            Loaded="AlbumDetailCover_Loaded">
-                        <Grid>
-                            <Path Style="{StaticResource IconPath}"
-                                  Data="{StaticResource Icon.MusicNote}"
-                                  Stroke="{StaticResource ForegroundSecondary}"
-                                  Width="36" Height="36"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"/>
-                            <Image Source="{Binding SelectedAlbum.CoverArt, Converter={StaticResource BytesToBitmapImage}}"
-                                   Stretch="UniformToFill"/>
-                        </Grid>
-                    </Border>
-                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                        <TextBlock Text="{Binding SelectedAlbum.Title}"
-                                   FontSize="18" FontWeight="SemiBold"
-                                   TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding SelectedAlbum.Subtitle}"
-                                   Foreground="{StaticResource ForegroundSecondary}"
-                                   TextTrimming="CharacterEllipsis"/>
-                        <Button Content="播放全部"
-                                Style="{StaticResource LibraryActionButton}"
-                                Command="{Binding PlayAlbumCommand}"
-                                CommandParameter="{Binding SelectedAlbum}"/>
-                    </StackPanel>
-                </Grid>
+                <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="120" Height="120"
+                                Background="{StaticResource BackgroundTertiary}"
+                                CornerRadius="6"
+                                Loaded="AlbumDetailCover_Loaded">
+                            <Grid>
+                                <Path Style="{StaticResource IconPath}"
+                                      Data="{StaticResource Icon.MusicNote}"
+                                      Stroke="{StaticResource ForegroundSecondary}"
+                                      Width="36" Height="36"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                                <Image Source="{Binding SelectedAlbum.CoverArt, Converter={StaticResource BytesToBitmapImage}}"
+                                       Stretch="UniformToFill"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                            <TextBlock Text="{Binding SelectedAlbum.Title}"
+                                       FontSize="18" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding SelectedAlbum.Subtitle}"
+                                       Foreground="{StaticResource ForegroundSecondary}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Grid>
+                    <Button Content="播放全部"
+                            Style="{StaticResource LibraryActionButton}"
+                            Command="{Binding PlayAlbumCommand}"
+                            CommandParameter="{Binding SelectedAlbum}"/>
+                </StackPanel>
                 <Border Grid.Row="1"
                         Background="{StaticResource BackgroundSecondary}"
                         CornerRadius="4">

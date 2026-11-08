@@ -22,6 +22,7 @@ namespace DPlayer.Views.Controls;
 public partial class PlaylistsSidebarView : UserControl
 {
     private PlaylistsViewModel? _vm;
+    private MainViewModel? _shell;
 
     /// <summary>内部拖拽自定义 DataObject 格式名。</summary>
     private const string PlaylistItemsFormat = "DPlayer.PlaylistItems";
@@ -38,6 +39,7 @@ public partial class PlaylistsSidebarView : UserControl
         DataContextChanged += OnDataContextChanged;
         Loaded += (_, _) =>
         {
+            HookShell();
             PlaylistList.ItemContainerGenerator.StatusChanged += (_, _) =>
             {
                 if (PlaylistList.ItemContainerGenerator.Status ==
@@ -45,6 +47,7 @@ public partial class PlaylistsSidebarView : UserControl
                     RefreshActiveMarker();
             };
         };
+        Unloaded += (_, _) => UnhookShell();
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -229,6 +232,73 @@ public partial class PlaylistsSidebarView : UserControl
 
         SetLibraryNodeActive(LibraryArtistsButton, artistsActive);
         SetLibraryNodeActive(LibraryAlbumsButton, !artistsActive);
+    }
+
+    private void HookShell()
+    {
+        var shell = Window.GetWindow(this)?.DataContext as MainViewModel;
+        if (ReferenceEquals(shell, _shell))
+        {
+            SyncLibraryNodeActive();
+            return;
+        }
+
+        UnhookShell();
+        _shell = shell;
+        if (_shell is not null)
+        {
+            _shell.PropertyChanged += OnShellPropertyChanged;
+            _shell.Library.PropertyChanged += OnLibraryPropertyChanged;
+        }
+        SyncLibraryNodeActive();
+    }
+
+    private void UnhookShell()
+    {
+        if (_shell is null) return;
+        _shell.PropertyChanged -= OnShellPropertyChanged;
+        _shell.Library.PropertyChanged -= OnLibraryPropertyChanged;
+        _shell = null;
+    }
+
+    private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.IsLibraryViewActive))
+            SyncLibraryNodeActive();
+    }
+
+    private void OnLibraryPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LibraryViewModel.Page))
+            SyncLibraryNodeActive();
+    }
+
+    /// <summary>启动恢复库视图不会走点击路径，需要按 Library.Page 补亮正确的库节点；搜索态保持来源节点。</summary>
+    private void SyncLibraryNodeActive()
+    {
+        if (_shell is null) return;
+
+        if (!_shell.IsLibraryViewActive)
+        {
+            SetLibraryNodeActive(LibraryArtistsButton, false);
+            SetLibraryNodeActive(LibraryAlbumsButton, false);
+            return;
+        }
+
+        switch (_shell.Library.Page)
+        {
+            case LibraryPage.Artists:
+            case LibraryPage.ArtistDetail:
+                SetLibraryNodeActive(LibraryArtistsButton, true);
+                SetLibraryNodeActive(LibraryAlbumsButton, false);
+                break;
+            case LibraryPage.Albums:
+            case LibraryPage.AlbumDetail:
+                SetLibraryNodeActive(LibraryArtistsButton, false);
+                SetLibraryNodeActive(LibraryAlbumsButton, true);
+                break;
+            // Search：保留查询发起时的节点高亮
+        }
     }
 
     private void PlaylistList_SelectionChanged(object sender, SelectionChangedEventArgs e)

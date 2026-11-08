@@ -444,6 +444,34 @@ public class PlaybackResumeTests : IDisposable
     }
 
     [Fact]
+    public async Task InitializeAsync_RestoresLibraryView_ClearsViewedPlaylist()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dplayer-resume-view-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith(_tempTrack)));
+            _settings.LoadAsync().Returns(Task.FromResult(new AppSettings
+            {
+                LibraryFolders = new[] { root },
+                LibraryViewActive = true,
+                LibraryViewPage = nameof(LibraryPage.Artists),
+            }));
+
+            var vm = CreateMainVm();
+            await vm.InitializeAsync();
+
+            Assert.True(vm.IsLibraryViewActive);
+            Assert.Null(vm.Playlists.ViewedPlaylist);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
+    }
+
+    [Fact]
     public async Task CleanupAsync_PersistsLibraryNavigationState()
     {
         _playlistService.LoadAsync().Returns(Task.FromResult(SnapshotWith(_tempTrack)));

@@ -74,6 +74,14 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsLibraryViewActive = false;
     }
 
+    partial void OnIsLibraryViewActiveChanged(bool value)
+    {
+        // 库视图没有“查看中的歌单”：启动恢复直接置位时也要清掉 Hydrate 选中的第一个歌单，
+        // 否则库页与侧栏歌单会同时高亮。
+        if (value)
+            Playlists.ViewedPlaylist = null;
+    }
+
     /// <summary>
     /// MainWindow Loaded 时调用一次。读 queue.json (含 v1→v2 迁移), Hydrate 容器, 开始监听 StateChanged,
     /// 读库缓存回填库播放队列, 然后做断点续播就位（只加载不出声）, 最后启动两路后台扫描。

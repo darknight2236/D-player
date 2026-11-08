@@ -56,6 +56,11 @@ public class PlaylistsViewModelTests
             _rootScanner);
     }
 
+    private PlaylistsViewModel CreateContainerVmPreservingSeeds()
+        => new(seed => new PlaylistViewModel(
+                seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+            _rootScanner);
+
     private static PlaylistImportResult ImportResult(
         string name, string[] accepted, int missing = 0, int unsupported = 0)
         => new(name, accepted, accepted.Length + missing + unsupported, missing, unsupported);
@@ -177,6 +182,182 @@ public class PlaylistsViewModelTests
         container.AddPlaylistCommand.Execute("");
 
         Assert.Equal("新歌单", container.Playlists[1].Name);
+    }
+
+    // —— Phase 26: 库 → 歌单追加 / 新建并加入 ——
+
+    [Fact]
+    public void AppendTracks_NormalPlaylist_AppendsInOrder()
+    {
+        var container = CreateContainerVmPreservingSeeds();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var target = container.Playlists[0];
+        var tracks = new[] { FallbackTrack("a.mp3"), FallbackTrack("b.mp3") };
+
+        var appended = container.AppendTracks(target, tracks);
+
+        Assert.True(appended);
+        Assert.Equal(new[] { "a.mp3", "b.mp3" },
+            target.Queue.Select(t => t.FilePath));
+    }
+
+    [Fact]
+    public void AppendTracks_FolderBoundPlaylist_IsRejected()
+    {
+        var container = CreateContainerVmPreservingSeeds();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "Folder", Array.Empty<string>(), -1, false,
+                    RepeatMode.Off, @"C:\music"),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var target = container.Playlists[0];
+
+        var appended = container.AppendTracks(target, new[] { FallbackTrack("a.mp3") });
+
+        Assert.False(appended);
+        Assert.Empty(target.Queue);
+    }
+
+    [Fact]
+    public void AppendTracks_TargetNotInContainer_IsRejected()
+    {
+        var container = CreateContainerVm();
+        var orphan = CreatePlaylistVm("orphan", "Orphan");
+
+        var appended = container.AppendTracks(orphan, new[] { FallbackTrack("a.mp3") });
+
+        Assert.False(appended);
+        Assert.Empty(orphan.Queue);
+    }
+
+    [Fact]
+    public void AppendTracks_EmptyList_IsRejected()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+
+        Assert.False(container.AppendTracks(
+            container.Playlists[0], Array.Empty<Track>()));
+    }
+
+    [Fact]
+    public void AppendTracks_DuplicatePaths_AreKeptAndPlaybackUntouched()
+    {
+        var container = CreateContainerVmWithMocks();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var target = container.Playlists[0];
+        var viewed = container.ViewedPlaylist;
+        var current = container.CurrentPlaylistId;
+        var track = FallbackTrack("a.mp3");
+
+        Assert.True(container.AppendTracks(target, new[] { track, track }));
+
+        Assert.Equal(2, target.Queue.Count);
+        Assert.Equal(-1, target.CurrentIndex);
+        Assert.Same(viewed, container.ViewedPlaylist);
+        Assert.Equal(current, container.CurrentPlaylistId);
+        _player.DidNotReceive().Play();
+        _player.DidNotReceive().Stop();
+        _player.DidNotReceive().Unload();
+    }
+
+    [Fact]
+    public void AppendTracks_RaisesStateChanged_AndSnapshotKeepsPaths()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var raised = 0;
+        container.StateChanged += (_, _) => raised++;
+
+        container.AppendTracks(container.Playlists[0],
+            new[] { FallbackTrack("a.mp3"), FallbackTrack("b.mp3") });
+
+        Assert.True(raised > 0);
+        var snapshot = container.BuildSnapshot();
+        Assert.Equal(new[] { "a.mp3", "b.mp3" },
+            snapshot.Playlists[0].Items);
+    }
+
+    [Fact]
+    public void CreatePlaylistWithTracks_AddsPlaylistAndTracks_WithoutSelecting()
+    {
+        var container = CreateContainerVm();
+        container.Hydrate(new QueueState
+        {
+            Playlists = new[]
+            {
+                new Playlist("id1", "A", Array.Empty<string>(), -1, false, RepeatMode.Off),
+            },
+            CurrentPlaylistId = "id1"
+        });
+        var viewed = container.ViewedPlaylist;
+        var current = container.CurrentPlaylistId;
+
+        var created = container.CreatePlaylistWithTracks(
+            "From Library", new[] { FallbackTrack("a.mp3") });
+
+        Assert.NotNull(created);
+        Assert.Equal("From Library", created!.Name);
+        Assert.Equal(new[] { "a.mp3" }, created.Queue.Select(t => t.FilePath));
+        Assert.Equal(2, container.Playlists.Count);
+        Assert.Same(viewed, container.ViewedPlaylist);
+        Assert.Equal(current, container.CurrentPlaylistId);
+    }
+
+    [Fact]
+    public void CreatePlaylistWithTracks_BlankName_UsesDefault()
+    {
+        var container = CreateContainerVm();
+
+        var created = container.CreatePlaylistWithTracks(
+            "   ", new[] { FallbackTrack("a.mp3") });
+
+        Assert.NotNull(created);
+        Assert.Equal("新歌单", created!.Name);
+    }
+
+    [Fact]
+    public void CreatePlaylistWithTracks_EmptyTracks_ReturnsNullAndAddsNothing()
+    {
+        var container = CreateContainerVm();
+        var before = container.Playlists.Count;
+
+        var created = container.CreatePlaylistWithTracks("X", Array.Empty<Track>());
+
+        Assert.Null(created);
+        Assert.Equal(before, container.Playlists.Count);
     }
 
     // —— RemovePlaylist ——

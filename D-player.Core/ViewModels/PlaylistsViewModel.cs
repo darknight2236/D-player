@@ -362,8 +362,47 @@ public sealed partial class PlaylistsViewModel : ObservableObject
             await target.PlayTrackAtCommand.ExecuteAsync(index).ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// 把曲目按顺序追加到普通歌单。文件夹歌单由目录驱动，拒绝手动写入。
+    /// 不改变 ViewedPlaylist / CurrentPlaylistId，也不触发播放。
+    /// </summary>
+    public bool AppendTracks(PlaylistViewModel target, IReadOnlyList<Track> tracks)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(tracks);
+
+        if (tracks.Count == 0) return false;
+        if (target.HasSourceFolder) return false;
+        if (!Playlists.Contains(target)) return false;
+
+        foreach (var track in tracks)
+            target.Queue.Add(track);
+        return true;
+    }
+
+    /// <summary>
+    /// 新建普通歌单并追加曲目；不改变 ViewedPlaylist —— 库视图下侧栏不能出现高亮歌单。
+    /// </summary>
+    public PlaylistViewModel? CreatePlaylistWithTracks(
+        string? name, IReadOnlyList<Track> tracks)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+        if (tracks.Count == 0) return null;
+
+        var vm = CreatePlaylistCore(name);
+        foreach (var track in tracks)
+            vm.Queue.Add(track);
+        return vm;
+    }
+
     [RelayCommand]
     private void AddPlaylist(string? name)
+    {
+        var vm = CreatePlaylistCore(name);
+        ViewedPlaylist = vm;
+    }
+
+    private PlaylistViewModel CreatePlaylistCore(string? name)
     {
         var trimmed = string.IsNullOrWhiteSpace(name) ? "新歌单" : name.Trim();
         var seed = new Playlist(
@@ -376,7 +415,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         var vm = _factory(seed);
         HookPlaylistVm(vm);
         Playlists.Add(vm);
-        ViewedPlaylist = vm;
+        return vm;
     }
 
     [RelayCommand]

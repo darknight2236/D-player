@@ -101,9 +101,23 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name}"
-                                                   ToolTip="{Binding Name}"
                                                    Foreground="{StaticResource ForegroundPrimary}"
-                                                   TextTrimming="CharacterEllipsis"/>
+                                                   TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="ToolTip" Value="{Binding Name}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasSourceFolder}"
+                                                                     Value="True">
+                                                            <Setter Property="ToolTip"
+                                                                    Value="文件夹歌单由目录内容管理，不能手动加入"/>
+                                                            <Setter Property="ToolTipService.ShowOnDisabled"
+                                                                    Value="True"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <TextBlock Text="文件夹歌单 · 由文件夹管理"
                                                    Foreground="{StaticResource ForegroundSecondary}"
                                                    FontSize="11">

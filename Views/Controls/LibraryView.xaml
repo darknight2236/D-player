@@ -176,6 +176,7 @@
         <DataTemplate x:Key="AlbumTileTemplate">
             <StackPanel Width="140"
                         HorizontalAlignment="Center"
+                        Background="Transparent"
                         Loaded="AlbumTile_Loaded">
                 <StackPanel.ContextMenu>
                     <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
@@ -213,7 +214,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="TrackRowTemplate">
-            <Grid>
+            <Grid Background="Transparent">
                 <Grid.ContextMenu>
                     <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
                         <MenuItem Header="加入歌单…" Click="AddTrackToPlaylist_Click"/>
@@ -271,7 +272,7 @@
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type vm:LibraryAlbum}">
-            <Grid Loaded="SearchAlbum_Loaded">
+            <Grid Background="Transparent" Loaded="SearchAlbum_Loaded">
                 <Grid.ContextMenu>
                     <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
                         <MenuItem Header="加入歌单…" Click="AddAlbumToPlaylist_Click"/>
@@ -310,7 +311,7 @@
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type models:Track}">
-            <Grid>
+            <Grid Background="Transparent">
                 <Grid.ContextMenu>
                     <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
                         <MenuItem Header="加入歌单…" Click="AddTrackToPlaylist_Click"/>
@@ -539,7 +540,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                <StackPanel Grid.Row="0" Margin="0,0,0,8" Background="Transparent">
                     <StackPanel.ContextMenu>
                         <ContextMenu DataContext="{Binding SelectedAlbum}"
                                      Style="{StaticResource LibraryContextMenuStyle}">

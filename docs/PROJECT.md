@@ -38,11 +38,12 @@
 | 图标 | 全量描边矢量图标集（Themes/Icons.xaml，24 个 `Icon.*`，Feather/Lucide 几何）；随机/循环/EQ 活跃态 accent 着色；▶ 标记实心三角 (Phase 16) |
 | 窗口外观 | 无边框 WindowChrome + 自绘 TitleBar（最小化/最大化/关闭；对话框仅关闭按钮；最大化常量式工作区边距；OS 保留拖动/快照行为）(Phase 17) |
 | 播放列表文件 | 导入 .m3u / .m3u8 / .pls（相对路径按列表所在目录解析；UTF-8/UTF-16(BOM)/GBK 编码探测；URL/后缀/存在性严格过滤 + 跳过计数报告）；导出 .m3u8（绝对路径 + `#EXTINF`）；侧边栏入口新建歌单、歌单工具栏入口追加当前歌单、拖拽按落点分流 (Phase 18) |
-| 音乐库 | 多库根目录（设置里添加/移除，规范化 + 大小写不敏感去重，多根嵌套不重复计数）；侧栏固定「音乐库 / 艺术家 / 专辑」节点 + 中间面板四级钻取（艺术家列表 / 专辑封面网格 / 艺术家详情 / 专辑详情）；专辑封面按首曲惰性读取；`播放全部`/双击从当前上下文播放；库播放走隐藏的专用队列（`queue.json` 的 `LibraryPlayback`，支持上一首/下一首、Shuffle/Repeat、断点续播与重启恢复，不污染用户歌单）；不可用根目录跳过且不清缓存 (Phase 24)；全局搜索（艺术家/专辑/曲目三组、200ms 去抖、CJK 字面匹配、Ctrl+F、返回快照）与按根实时监听（800ms / 5s 窗口、共享根扫描事务、删除/改名不打断播放）(Phase 25) |
+| 音乐库 | 多库根目录（设置里添加/移除，规范化 + 大小写不敏感去重，多根嵌套不重复计数）；侧栏固定「音乐库 / 艺术家 / 专辑」节点 + 中间面板四级钻取（艺术家列表 / 专辑封面网格 / 艺术家详情 / 专辑详情）；专辑封面按首曲惰性读取；`播放全部`/双击从当前上下文播放；库播放走隐藏的专用队列（`queue.json` 的 `LibraryPlayback`，支持上一首/下一首、Shuffle/Repeat、断点续播与重启恢复，不污染用户歌单）；不可用根目录跳过且不清缓存 (Phase 24)；全局搜索（艺术家/专辑/曲目三组、200ms 去抖、CJK 字面匹配、Ctrl+F、返回快照）与按根实时监听（800ms / 5s 窗口、共享根扫描事务、删除/改名不打断播放）(Phase 25)；库内右键将单曲 / 专辑加入普通歌单，或新建歌单并加入 (Phase 26) |
 
 ### 1.2 已知边界与后续候选
 
 - 音乐库搜索为内存字面匹配（不做拼音/罗马字/模糊/正则，不分词），查询与结果不持久化 (Phase 25)；实时监听为根级 best-effort，不监听同路径标签内容写入，不承诺网络根、复制中文件或缓冲区溢出的固定延迟；库播放队列仍无独立管理界面 (Phase 25)。
+- 库内曲目 / 专辑只能加入普通歌单（文件夹歌单由目录管理）；不支持拖拽入歌单；右键可能让该行获得选中态，但不起播、不切换视图 (Phase 26)。
 - OGG/Vorbis 支持（MF 不原生支持，需额外解码器）
 - 多设备 / 输出模式切换（WASAPI Shared / Exclusive / ASIO）—— 接口已预留
 - **WinUI 壳的功能补齐（Phase 20 决策门已于 2026-10-07 拍板续投，Phase 21 视觉打磨已交付，Phase 22 功能层已交付；2026-11-02 起 WinUI 壳开发搁置，本项不再跟进）**：Phase 22 补齐了导入/导出、歌单增删改、完整播放控制、基础设置、窗口几何与本地日志（验收已完成，验收 23 项全部 PASS（含用户 2026-10-24 确认的 C4/D3 与 D1 轮转），步骤见 `docs/PHASE22-ACCEPTANCE.md`）。**Phase 23 频谱/EQ 已交付并验收通过（2026-11-02）**（[验收记录](./PHASE23-ACCEPTANCE.md)）；**仍缺**：拖拽 / 表头排序 / 文件夹绑定歌单的管理与刷新；TrackList 的 ▶ 当前曲标记与 InfoPanel 采样率已在 2026-10-24 补齐。剩余范围以对比材料 [`PHASE20-COMPARISON.md`](./PHASE20-COMPARISON.md) §3 的差距表为准，此处只给指针、不另列一份。剩余 WinUI 缺口随壳冻结保留；后续功能开发回归 Core + WPF。
@@ -678,6 +679,9 @@ public Task UpdateSearchAsync(string query); public void ClearSearch();
 public void OpenSearchArtist(LibraryArtist); public void OpenSearchAlbum(LibraryAlbum);
 public Task PlaySearchTrackAsync(Track);
 public LibraryNavigationSnapshot CaptureNavigation();
+public IReadOnlyList<PlaylistViewModel> Playlists;   // Phase 26：对话框选择集（容器集合的只读视图）
+public bool AddTracksToPlaylist(PlaylistViewModel, IReadOnlyList<Track>); // Phase 26：转发容器规则
+public PlaylistViewModel? AddTracksToNewPlaylist(string?, IReadOnlyList<Track>);
 public IReadOnlyDictionary<string, LibraryCacheEntry> CachedEntriesByPath;
 ```
 
@@ -685,6 +689,7 @@ public IReadOnlyDictionary<string, LibraryCacheEntry> CachedEntriesByPath;
 - 扫描并发：根代际（`LibraryRefreshScheduler.RootEpoch`）、扫描代（`Generation`）、查询版本（`_queryVersion`）与库数据版本（`_libraryVersion`）分别失效；生命周期 CTS 让 `CleanupAsync` 取消初始化/封面任务。晚到结果在投递前与 UI 回调内都要复核，过期结果不写 UI、不写缓存。不可用根（`ScanFolderWithStatus.IsUnavailable`）跳过而不当空扫描，避免把离线盘/无权限目录的缓存清空。
 - 封面：按专辑首曲读一次 `AlbumArt`（`SemaphoreSlim` 串行），只对用户看得到的 tile/详情头部 `Loaded` 触发；重建库时旧结果丢弃。
 - 播放入口只调用 `PlaylistsViewModel.PlayLibraryTracksAsync`，不直接碰 `IPlaybackService`（库 VM → 播放容器单向依赖）。
+- 库 → 歌单（Phase 26）：追加只允许普通歌单（文件夹歌单拒绝）、允许重复；新建路径不设置 `ViewedPlaylist` / `CurrentPlaylistId`，避免库视图下侧栏出现高亮歌单。两条入口都只转发容器规则，不复制守卫。
 
 ### 5.5 `Views`
 
@@ -707,7 +712,7 @@ public IReadOnlyDictionary<string, LibraryCacheEntry> CachedEntriesByPath;
   - **Phase 5 拖拽（code-behind）：** 拖拽启动用 `PreviewMouseLeftButtonDown` 记起点 + `PreviewMouseMove` 4px 阈值（`SystemParameters.MinimumHorizontal/VerticalDragDistance`）。**多选拖拽保护：** 用户 Ctrl+多选后再不带修饰键点击其中一项时，ListBox 默认会把选中塌成单项 —— `PreviewMouseLeftButtonDown` 在"已选 ≥ 2 项 + 无 Ctrl/Shift + 点中已选项"时 `e.Handled = true` 拦下默认塌选；若未过阈值就松手，`PreviewMouseLeftButtonUp` 手动塌成单选模拟原行为；过阈值真启动拖拽则保留多选。`DataObject` 自定义格式 `"DPlayer.QueueItems"` 区分内部重排，`DataFormats.FileDrop` 是外部文件。命中测试 `ComputeInsertIndex` 对每个 ListBoxItem 容器用 `TransformToAncestor(QueueList)` 算 bounds + 半高判定。`HideAdorner` 在 `Drop` / `DragLeave` 都清理插入线，避免残留
   - **Phase 5 高亮纪律：** `Root_DragEnter` 必须先 `FilterAudioPaths` 再决定是否高亮 —— 仅看 `FileDrop` 存在就亮会让文件夹/全非音频也亮（光标已显示禁止但边框还紫，视觉冲突）。`Root_Drop` 与 `QueueList_Drop` **都要清高亮** —— `QueueList_Drop` 设 `e.Handled=true` 后 Drop 事件不再冒泡到 `Root_Drop`，否则文件落到列表区高亮卡死
 - **`PlaylistsSidebarView`** *(UserControl, Phase 6/9/10/12 continued/18)*：左侧歌单栏。`+` 按钮直接创建新歌单（Phase 12 continued 移除 ContextMenu 子菜单）；`-` 按钮删除选中歌单；**Phase 18 第三个 28×28 图标按钮**（`Icon.Import`，ToolTip「导入播放列表（M3U / M3U8 / PLS）→ 新建歌单」）→ `PlaylistImportUi.RunDialogAsync(_vm.ImportPlaylistFileAsync, ...)`（容器级 = 新建歌单）；ListBox 支持双击重命名、拖拽重排（Phase 9）。`▶` 标记由 `IsActivePlaylist` DataTrigger 驱动。文件夹绑定歌单显示 📂 图标 + 🔄 扫描指示。**Phase 18 拖拽**：`PlaylistList_DragOver/Drop` 接受外部 `.m3u/.m3u8/.pls`（`Effects = Copy`，**不显示重排插入线**——这不是重排；音频文件落在侧边栏无意义，不认），内部重排格式（`PlaylistItemsFormat`）优先；多个列表文件逐个导入（每个文件一个歌单）聚合成一份报告。导出**不放侧边栏**：侧边栏按钮作用于"选中项"，导出语义是"当前查看的歌单"，两个指针在键盘导航下可能不同步。Phase 24 起顶部固定「音乐库 / 艺术家 / 专辑」节点；2026-11-08 起监听 `MainViewModel.IsLibraryViewActive` 与 `Library.Page` 同步节点高亮（搜索态保留来源节点）。
-- **`LibraryView`** *(UserControl, Phase 24/25)*：中间库视图。五页：艺术家列表 / 专辑网格 / 艺术家详情 / 专辑详情 / 搜索；搜索框常驻（Ctrl+F、200ms 去抖、清空/返回快照）；详情页按上下文播放全部、双击/Enter 播放、行首 ▶ 仅在库队列为当前上下文且路径匹配时显示；封面按 tile/详情 `Loaded` 惰性读取；600px 窄窗下详情按钮移至封面行下方、播放栏音量条 100→48px；搜索提示与输入框对齐，清空按钮使用次级按钮样式。
+- **`LibraryView`** *(UserControl, Phase 24/25/26)*：中间库视图。五页：艺术家列表 / 专辑网格 / 艺术家详情 / 专辑详情 / 搜索；搜索框常驻（Ctrl+F、200ms 去抖、清空/返回快照）；详情页按上下文播放全部、双击/Enter 播放、行首 ▶ 仅在库队列为当前上下文且路径匹配时显示；封面按 tile/详情 `Loaded` 惰性读取；600px 窄窗下详情按钮移至封面行下方、播放栏音量条 100→48px；搜索提示与输入框对齐，清空按钮使用次级按钮样式。Phase 26：五处右键菜单（专辑卡片 / 艺术家详情专辑 / 搜索结果专辑 / 曲目行 / 专辑详情头部）→ `AddToPlaylistDialog`；菜单显式使用本地 `LibraryContextMenuStyle`（全局 `MenuItem` 模板不会进入 `ContextMenu` 的 Popup，直接依赖会出现系统白色图标栏遮住文字）。
 - **`TrackInfoView`** *(UserControl, Phase 12 continued/13)*：右侧曲目信息面板。`DataContext = PlayerViewModel`。`BackgroundSecondary` 背景 + 圆角 Border。两行 Grid：Row0（`*`）曲目信息 —— 封面用 `Viewbox MaxWidth/MaxHeight=250` 包裹自动缩放（内含 `Border` 180×180 + `Image Stretch="UniformToFill"`），文本元数据（标题/艺术家/专辑/采样率）居中，无曲目时 DataTrigger 显示"播放曲目以查看信息"占位；Row1（`Auto`）**Phase 13 `SpectrumView`**（高 120px，绑 `SpectrumData`/`SpectrumColorTheme`，`Visibility` 绑 `SpectrumEnabled`）。封面 Border 加 `ClipToBounds=True` 圆角裁切（ViewBox 缩放后内容溢出问题）。
 - **`SettingsDialog`** *(Window, Phase 11/13/24)*：设置对话框。模态 ToolWindow（**420×660**）；三行 Grid（标题栏 / 可滚动内容 / 固定按钮），内容含通用音量、音频输出只读占位、音乐库根目录（列表 + 添加/移除）、频谱启用/灵敏度/主题/平滑度；EQ 在独立 `EqualizerDialog`。静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂。构造注入 `IPlaybackService`（音量滑块实时调 `_playbackService.Volume`）+ 可选 `PlayerViewModel`（保存后即时同步频谱属性，免重启）。OnLoaded async 读盘加载音量 + 频谱设置并绑定滑块 ValueChanged 实时更新数值标签；Save_Click 通过 `UpdateAsync` 原子写盘后同步 VM —— **故意不 `ConfigureAwait(false)`，留在 UI 线程**才能直接写 `PlayerViewModel` 属性；失败弹 MessageBox（Phase 13）。Phase 17：`WindowStyle=None` + `WindowChrome` + `TitleBar(ShowMaximize=False)`（仅关闭键）。
 - **`EqualizerDialog`** *(Window, Phase 14)*：均衡器对话框。复用 SettingsDialog 模式（静态 `Show(Window?, ISettingsPersistence, IPlaybackService, PlayerViewModel?)` 工厂 + 模态 `ShowDialog()`，返回 true = 用户保存）。模态 ToolWindow（**480×400**），三行 Grid：Row0 启用 CheckBox + 预设 ComboBox；Row1（`*`）频段滑块区 `BandsPanel`（UniformGrid）；Row2 恢复 Flat + 取消/保存。
@@ -718,6 +723,7 @@ public IReadOnlyDictionary<string, LibraryCacheEntry> CachedEntriesByPath;
   - **取消回滚**：`_initialConfig` 取“打开瞬间的实时 `_playbackService.EqualizerConfig`”（权威，不受 LoadAsync 失败影响），再试读盘覆盖；`OnClosed` 若未 `_saved` 则把 `_playbackService.EqualizerConfig = _initialConfig` 撤销实时预览（回滚基准非二次读盘 —— 读盘失败会把基准误置为禁用平直）
   - **Save_Click**：`UpdateAsync` 原子写 settings.json（EqualizerEnabled/Preamp/Bands/Preset）→ 再确认一次链上配置 → 写 `PlayerViewModel.EqualizerEnabled`（按钮高亮即时更新）—— **故意不 `ConfigureAwait(false)`，留在 UI 线程**；失败弹 MessageBox
   - **Phase 17**：`WindowStyle=None` + `WindowChrome` + `TitleBar(ShowMaximize=False)`（仅关闭键）；标题栏占 Row 0，频段区/按钮区行号顺延
+- **`AddToPlaylistDialog`** *(Window, Phase 26)*：库 → 歌单选择对话框。模态 ToolWindow（**360×460**），深色 WindowChrome + `TitleBar(ShowMaximize=False)`；列出可见歌单（名称 + 当前曲目数），文件夹歌单置灰并注明「文件夹歌单 · 由文件夹管理」，普通歌单双击/Enter/「加入」确认；预填「新歌单」+「新建并加入」，空名回落「新歌单」；`Show(Window?, IReadOnlyList<PlaylistViewModel>, int)` 返回 `AddToPlaylistResult(Target, NewPlaylistName)`，对话框本身不修改歌单或选中态。
 - **`ConfirmDialog`** *(Window, 2026-10-05)*：主题化对话框（深色 WindowChrome + TitleBar + 自动换行文案），替代系统 MessageBox。`Show(Window?, string title, string message)` = 确认模式（取消/确定，返回 bool）；`ShowError(owner, title, message)` = 单按钮错误模式（仅确定，Esc 可关）；**`ShowInfo(owner, title, message)`（Phase 18）** = 单按钮信息模式（与 ShowError 共用 `ShowCore(showCancel: false)`，区别只在语义命名——导入报告不是错误）。接入点：删除歌单（`PlaylistsSidebarView`）、清空歌单与移除曲目（`PlaylistView` 的清空按钮 / × 按钮 / Delete 键，确认文案含歌单名/曲名）、保存失败提示（`SettingsDialog` / `EqualizerDialog`）、**导入报告与导出失败（Phase 18，经 `PlaylistImportUi` / `PlaylistView`）**。空队列点清空直接 no-op（不弹框）。
 
 ### 5.5a `Views/Controls/DragDropExtensions`（Phase 5/18）
@@ -1210,8 +1216,9 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - PROJECT.md（本文）— 架构、模块、数据流
 - [COUPLING.md](./COUPLING.md) — 耦合分析与隐式契约
 - [README.md](./README.md) — 文档地图
+- [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) — Phase 26 库→歌单验收（当前）
 - [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) — Phase 25 搜索/监听验收（当前）
-- [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md) — Phase 24 库视图验收（当前）
+- [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md) — Phase 24 库视图验收
 
 **历史验收与决策**
 - [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md)
@@ -1219,8 +1226,8 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - [PHASE21-ACCEPTANCE.md](./PHASE21-ACCEPTANCE.md)
 - [PHASE20-COMPARISON.md](./PHASE20-COMPARISON.md)
 
-**当前设计稿（Phase 14–25，按需查阅）**
-- `docs/superpowers/specs/` — Phase 14–23 的 D-player 设计稿；Phase 24/25 库视图与搜索/监听设计稿是当前实现的直接依据。
+**当前设计稿（Phase 14–26，按需查阅）**
+- `docs/superpowers/specs/` — Phase 14–26 的 D-player 设计稿；Phase 24/25 库视图与搜索/监听、Phase 26 库→歌单设计稿是当前实现的直接依据。
 - 设计稿不回改；与最终实现不一致处，以实现与验收记录为准。
 
 **归档（历史执行材料）**
@@ -1228,4 +1235,4 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - `docs/archive/plans/` — Phase 1–23 实现计划（执行清单，已被代码、验收记录与 git 历史覆盖）。
 - 两份 Phase 24/25 计划刻意未跟踪，保留在 `docs/superpowers/plans/` 本地工作区，不属于仓库发布面。
 
-**查历史提交**：`git log --oneline --all`；按阶段查用 `git log --grep "phase24"` / `git log --grep "phase25"`。细节不再复制到文档里。
+**查历史提交**：`git log --oneline --all`；按阶段查用 `git log --grep "phase24"` / `git log --grep "phase25"` / `git log --grep "phase26"`。细节不再复制到文档里。

@@ -8,7 +8,7 @@
 - **格式**：MP3 / WMA / FLAC / AAC / WAV（Windows Media Foundation 原生解码）。
 - **元数据**：标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 曲目号 / 内嵌封面（z440.atl.core）。
 - **队列与歌单**：内存队列（多选入队、删除、清空、自动推进、表头排序）；多命名歌单（Viewed/Current 双指针）；文件夹绑定歌单（递归扫描 + 后台增量同步 + 元数据缓存）。
-- **音乐库**（Phase 24/25）：多库根目录；艺术家列表 / 专辑网格 / 艺术家详情 / 专辑详情四级钻取；按专辑惰性读取封面；独立的隐藏库播放队列；断点续播与重启恢复；全局搜索（艺术家/专辑/曲目三组、200ms 去抖、CJK 字面匹配、Ctrl+F）与按库根实时监听（800ms 静默窗口 / 5s 上限、删除/改名不打断播放）。
+- **音乐库**（Phase 24/25/26）：多库根目录；艺术家列表 / 专辑网格 / 艺术家详情 / 专辑详情四级钻取；按专辑惰性读取封面；独立的隐藏库播放队列；断点续播与重启恢复；全局搜索（艺术家/专辑/曲目三组、200ms 去抖、CJK 字面匹配、Ctrl+F）与按库根实时监听（800ms 静默窗口 / 5s 上限、删除/改名不打断播放）；库内单曲 / 专辑可右键加入普通歌单（Phase 26）。
 - **播放列表文件**：导入 `.m3u` / `.m3u8` / `.pls`（相对路径、UTF-8/UTF-16(BOM)/GBK 探测、严格过滤与跳过计数）；导出 `.m3u8`（绝对路径 + `#EXTINF`）。
 - **拖拽**：外部音频文件拖入入队；队列内单/多选拖拽重排（插入线 + 高亮）。
 - **持久化**：窗口几何、音量、队列、歌单、频谱/EQ、库根与库导航、断点续播均落盘。
@@ -36,13 +36,13 @@
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：283 通过 0 失败
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：294 通过 0 失败
 dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实音频（需设备）
 dotnet run     --project D-player.csproj                 # 运行 WPF 壳
 ```
 
 - `D-player.slnf` 只含 Core + WPF + Tests；WinUI 刻意不进日常门禁。
-- 当前 **283 默认测试 + 5 真实音频 = 288**；默认门禁实跑 283，`-Audio` 才执行 5 条音频测试。
+- 当前 **294 默认测试 + 5 真实音频 = 299**；默认门禁实跑 294，`-Audio` 才执行 5 条音频测试。
 - 两条测试命令**不要加 `--nologo`**：MTP 不识别该参数，会零测试运行却打印“成功: 0”（退出码 5）。`--nologo` 只用于 `dotnet build`。
 - `dotnet test` 依赖仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`，不要删除。
 
@@ -102,6 +102,7 @@ D-player/                    # 仓库根 = WPF 壳工程
 | 20–23 | WinUI 3 第二壳：共享 Core 抽取、视觉打磨、功能补齐、频谱/EQ；**2026-11-02 起冻结** |
 | 24 | **音乐库视图（WPF）**：多库根、四级钻取、隐藏库播放队列、断点续播；验收完成 2026-11-02 |
 | 25 | **音乐库搜索与实时监听（WPF）**：三组搜索、Ctrl+F、按根 watcher、可等待清理；验收完成 2026-11-06 |
+| 26 | **音乐库 → 歌单互通（WPF）**：右键加入普通歌单、新建并加入；验收完成 2026-11-11 |
 
 WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全量重构仅为未来可能（未排期、未选型）。
 
@@ -117,6 +118,7 @@ WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全
 - 库播放队列没有独立管理界面，也不出现在侧栏。
 - 专辑封面只读该专辑第一首曲目的内嵌图；专辑网格未做 UI 虚拟化，大库首次进入可能较慢。
 - 进入库视图会清空当前查看的歌单（`ViewedPlaylist`）；库视图期间侧栏 `−` 与 PlayerBar 的无曲回落不可用，需点选一个可见歌单回到队列视图。
+- 库内曲目 / 专辑只能加入普通歌单（文件夹歌单由目录管理）；不支持拖拽入歌单。
 - WinUI 壳冻结且没有自动行为回归：它只有门禁 3 编译保护，XAML 运行时行为仍需真机手测；拖拽、表头排序、文件夹绑定管理在 WinUI 侧仍未实现。
 
 ## 文档
@@ -124,5 +126,5 @@ WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全
 - [项目架构与模块详解](docs/PROJECT.md)
 - [耦合分析与隐式契约](docs/COUPLING.md)
 - [文档地图](docs/README.md) · [历史归档](docs/archive/README.md)
-- 最近验收：[Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md) · [Phase 23](docs/PHASE23-ACCEPTANCE.md)
+- 最近验收：[Phase 26](docs/PHASE26-ACCEPTANCE.md) · [Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md)
 - 历史验收与 WinUI 决策：[Phase 22](docs/PHASE22-ACCEPTANCE.md) · [Phase 21](docs/PHASE21-ACCEPTANCE.md) · [Phase 20 对比](docs/PHASE20-COMPARISON.md)

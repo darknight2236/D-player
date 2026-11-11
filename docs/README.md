@@ -5,11 +5,12 @@
 - [README](../README.md) — 入口、快速开始、当前限制
 - [PROJECT.md](./PROJECT.md) — 架构、模块、数据流、已知陷阱
 - [COUPLING.md](./COUPLING.md) — 耦合分析、隐式契约、不要做的事
-- [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) — 当前最近一次验收（搜索与实时监听）
-- [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md) — 音乐库视图验收
+- [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) — 当前最近一次验收（库 → 歌单）
+- [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) — 搜索与实时监听验收
 
 ## 历史验收与决策
 
+- [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md) — 音乐库视图验收
 - [PHASE23-ACCEPTANCE.md](./PHASE23-ACCEPTANCE.md) — WinUI 频谱/EQ（已验收）
 - [PHASE22-ACCEPTANCE.md](./PHASE22-ACCEPTANCE.md) — WinUI 功能补齐
 - [PHASE21-ACCEPTANCE.md](./PHASE21-ACCEPTANCE.md) — WinUI 视觉打磨
@@ -19,7 +20,7 @@
 
 ## 设计稿
 
-- `superpowers/specs/` — Phase 14–25 的 D-player 设计稿；Phase 24/25 是当前音乐库实现的直接依据。
+- `superpowers/specs/` — Phase 14–26 的 D-player 设计稿；Phase 24/25 是音乐库实现的直接依据，Phase 26 是库→歌单的直接依据。
 - `superpowers/plans/` — 只保留两份刻意未跟踪的 Phase 24/25 本地计划，不属于发布面。
 - `archive/specs/` — UmaPlayer 时代（Phase 1–13）设计稿。
 - `archive/plans/` — Phase 1–23 实现计划。

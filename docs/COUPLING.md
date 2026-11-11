@@ -279,6 +279,8 @@ Phase 2–5 的 5 项债务均已在当时阶段偿还，保留摘要供追溯�
 | `PlaylistViewModel.HandleTrackEnded` 必须以 `IsActivePlaylist` 守卫 | `D-player.Core/ViewModels/PlaylistViewModel.cs` 的 `HandleTrackEnded` 入口 | `IPlaybackService` 是全局单例，所有歌单 VM 都订阅 `TrackEnded`。没有守卫时，曲目自然播完会让每个歌单都改自己的 `CurrentIndex` 并调用全局 `LoadAsync/Play`，最后完成者抢走播放（Phase 22 冒烟实见非查看歌单 "1" 抢播）。回归：`TrackEnded_WhenPlaylistIsInactive_DoesNotAdvanceOrPlay` / `TrackEnded_RepeatOne_WhenPlaylistIsInactive_DoesNotReplay` |
 | `PlaylistViewModel.PlayTrackAtAsync` 开始播放前必须把 `Container.CurrentPlaylistId` 指向自己 | 同一方法的 `_playToken` 抢占之后、`CurrentIndex = index` 之前 | 双击入口与"无已加载曲目时的首播"（`ViewedPlaylist.PlayCurrentCommand`）仍可从非当前歌单直达播放（上一首/下一首已改绑 `CurrentPlaylist`，见下一行）。不同步指针 → ▶ 标记留在旧歌单，且下一次 `TrackEnded` 会推进旧歌单。自动推进时 Id 相同，不产生额外通知/写盘。回归：`PlayTrackAt_FromViewedNonPlayingPlaylist_ClaimsCurrentPlaylistId` |
 | 上一首/下一首绑定 `Playlists.CurrentPlaylist`，不绑 `ViewedPlaylist` | WPF `Views/Controls/PlayerBar.xaml` 两个 Command 绑定；WinUI `PlayerBar.SyncTransportVisuals` + `Prev/NextButton_Click`；Core `PlaylistsViewModel.CurrentPlaylist` | 双指针模型：切查看不打断播放，只有双击跨歌单切换音频。绑查看项会在新导入歌单 `CurrentIndex = -1` 时让按钮变灰（2026-10-24 用户冒烟发现），且按键会作用于未播放队列。`CurrentPlaylist` 在 CurrentPlaylistId 或集合变化时发 PropertyChanged；`▶` 的无曲回退仍用 `ViewedPlaylist.PlayCurrentCommand`（无音频可打断） |
+| 库 → 歌单的新建路径不得设置 `ViewedPlaylist` / `CurrentPlaylistId` | `PlaylistsViewModel.CreatePlaylistWithTracks` + `LibraryViewModel.AddTracksToNewPlaylist` + 单测 | 一旦设置，库视图下侧栏会出现高亮歌单（Phase 25 侧栏/库高亮同步的回归点）。新建只创建并追加，不切换查看/播放指针 |
+| 库视图 `ContextMenu` 必须显式使用本地样式（`LibraryContextMenuStyle`） | `Views/Controls/LibraryView.xaml` 五个 `ContextMenu`；`Themes/Controls.xaml` 的全局 `MenuItem` 模板不含 Popup/图标列 | 依赖全局隐式样式会退回系统默认模板，出现白色图标栏遮住「加入歌单…」文字（Phase 26 手测发现）；本地模板只保留 `Border + ContentPresenter` |
 
 **建议：** 这些不需要立即修，但**每次改相关代码时去注释里复习一遍**。
 
@@ -337,6 +339,8 @@ Phase 15 已完成，启动检查清单已并入 §5 / §7。结论：0 环、0 
 - ❌ **把 `LibraryPage.Search`、查询词或搜索结果写进 settings/queue/cache**（Phase 25）—— 搜索是会话内瞬态；关闭时用 `CaptureNavigation()` 保存来源详情，启动只恢复原四页
 - ❌ **在 watcher 构造函数/DI 解析或 WinUI 共用 `InitializeAsync` 中启动文件监听**（Phase 25）—— watcher 必须由 WPF 壳显式 `StartMonitoringAsync`；构造只保存服务，后台订阅由显式调用建立
 - ❌ **不核对版本/`IsCurrent` 就发布晚到扫描或查询结果**（Phase 25）—— 根代际、扫描代、查询版本、库数据版本分别失效；UI 回调内也要复核，否则旧结果会覆盖新库或新查询
+- ❌ **在库视图的「新建并加入」路径里复用 `AddPlaylistCommand`**（Phase 26）—— 它会设置 `ViewedPlaylist`，在库视图下重现侧栏高亮错位；必须走不设置的 `CreatePlaylistWithTracks`
+- ❌ **让库视图右键菜单依赖 `Themes/Controls.xaml` 的全局 `MenuItem` 隐式样式**（Phase 26）—— 该模板不进入 ContextMenu 的 Popup，会退回系统默认模板并出现白色图标栏遮住文字；五个入口都必须显式套 `LibraryContextMenuStyle`
 - ❌ **把导出入口放到侧边栏**（Phase 18）—— 侧边栏按钮作用于"选中项"，导出语义是"当前查看的歌单"（`ViewedPlaylist`），两个指针在键盘导航下可能不同步，放侧边栏会产生"到底导出哪个"的歧义
 - ❌ **重新引入 `#pragma warning disable CS0618`（或任何抑制手段）来压 NAudio 的过时警告** —— 依赖已全部迁到 3.x 新 API，仓库当前 pragma 数为 **0**（`StubAudioOutputFactory` 已于 2026-10-06 收尾迁到 `WasapiPlayer`，经用户拍板；此前那条"不要顺手迁"的条目随迁移完成作废）。要压警告说明又用回了 legacy 类（`WasapiOut` 等），正确做法是改用 `WasapiPlayerBuilder → WasapiPlayer`（见 §5 输出工厂条目）
 - ❌ **在 `PositionChanged` 回写里无条件写盘，或在断点恢复路径里调用 `Play()`**（2026-10-06）—— 前者每帧一次"读盘→改→写盘"（≈30Hz）持续打盘并与 `ISettingsPersistence` 的锁竞争；后者让应用**启动即出声**，违背断点续播"只就位、`▶` 才出声"的既定语义（契约见 §5 断点续播条目）
@@ -364,4 +368,4 @@ Phase 15 已完成，启动检查清单已并入 §5 / §7。结论：0 环、0 
 - 当前架构与模块：[PROJECT.md](./PROJECT.md)
 - 当前文档地图：[docs/README.md](./README.md)
 - 历史设计与计划：`docs/superpowers/specs/`、`docs/archive/`
-- 最近验收：Phase 24/25；历史验收：Phase 20–23
+- 最近验收：Phase 26；历史验收：Phase 20–25

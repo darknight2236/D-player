@@ -21,11 +21,11 @@
 | 层 | 选型 |
 |---|---|
 | 运行时 | .NET 10（Core/WPF 为 `net10.0-windows`；WinUI 为 `net10.0-windows10.0.19041.0` + x64） |
-| UI | WPF 主壳（`UseWPF=true`）· WinUI 3 / Windows App SDK 2.6.4（冻结，unpackaged + self-contained） |
+| UI | WPF 主壳（`UseWPF=true`）· WinUI 3 / Windows App SDK 2.6.5（冻结，unpackaged + self-contained） |
 | 共享层 | `D-player.Core`：Models / Services / ViewModels / Configuration / DI，**不得出现 WPF 类型** |
-| MVVM / DI / 配置 | CommunityToolkit.Mvvm 8.x · Microsoft.Extensions.DependencyInjection 10.x · Configuration.Json + `IOptions<AppSettings>` |
+| MVVM / DI / 配置 | CommunityToolkit.Mvvm 8.x · Microsoft.Extensions.DependencyInjection 11.x · Configuration.Json + `IOptions<AppSettings>` |
 | 音频 | NAudio 3.3.0（`NAudio.Core` + `NAudio.Wasapi`；`MediaFoundationReader` 解码，`WasapiPlayer` Shared 输出） |
-| 标签 / 测试 | z440.atl.core 7.18 · xUnit v3（MTP）+ NSubstitute；5 条真实 WASAPI 集成测试标记 `Category=AudioDevice` |
+| 标签 / 测试 | z440.atl.core 7.19.0 · xUnit v3（MTP）+ NSubstitute；5 条真实 WASAPI 集成测试标记 `Category=AudioDevice` |
 
 ## 构建与运行
 

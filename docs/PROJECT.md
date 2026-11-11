@@ -56,14 +56,14 @@
 |----|------|
 | 运行时 | .NET 10（共享层与 WPF 壳 `net10.0-windows`；WinUI 壳 `net10.0-windows10.0.19041.0`） |
 | 共享层 | `D-player.Core` 类库（Phase 20，`net10.0-windows` 且**不开** `UseWPF`）：Models / Services / ViewModels / Configuration / Extensions；被两个 UI 壳引用，不得出现任何 WPF 类型 |
-| UI 框架 | WPF（`UseWPF=true`，主壳，完整功能）· WinUI 3 / Windows App SDK **2.6.4**（Phase 20 建壳，Phase 22 功能补齐；unpackaged + self-contained，`<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`） |
+| UI 框架 | WPF（`UseWPF=true`，主壳，完整功能）· WinUI 3 / Windows App SDK **2.6.5**（Phase 20 建壳，Phase 22 功能补齐；unpackaged + self-contained，`<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`） |
 | MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
-| DI 容器 | `Microsoft.Extensions.DependencyInjection` 10.x |
+| DI 容器 | `Microsoft.Extensions.DependencyInjection` 11.x |
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
 | 音频引擎 | [NAudio 3.3.0](https://github.com/naudio/NAudio)（Phase 19 把 meta 包 `NAudio` 收窄为实际用到的两个子包：`NAudio.Core` + `NAudio.Wasapi`；2026-10-24 升到 3.3.0 后 `NAudio.Wasapi` 仍只依赖 `NAudio.Core`，而 `NAudio.Core 3.3.0` 新增传递依赖 `System.Numerics.Tensors` 9.0.0，两个壳的输出目录因此是三个 DLL。3.3.0 是 nullable 注解 + COM 包装异常类型调整 + `MediaFoundationReader` 帧对齐 seek 修复，源码级兼容） |
 | 音频解码 | `MediaFoundationReader` |
 | 输出后端 | WASAPI Shared（`WasapiPlayer`：经 `WasapiPlayerBuilder` 建链 —— `WithSharedMode()` + `WithEventSync()` + `WithLatency(100)`，与迁移前的 `WasapiOut(Shared, 100)` 语义等价；Phase 19 起替代 legacy 的 `WasapiOut`，`WasapiPlayer` 实现 `IWavePlayer` 故服务侧字段类型未变） |
-| 元数据/标签 | [z440.atl.core 7.18](https://github.com/Zeugma440/atldotnet)（`40338f5` 与 NAudio 同批升级；7.14–7.18 全是解析层修复，零 API 变更，故无代码改动） |
+| 元数据/标签 | [z440.atl.core 7.19.0](https://github.com/Zeugma440/atldotnet)（当前 pin 7.19.0；7.14–7.18 的解析层修复、零 API 变更记录保留） |
 
 ---
 
@@ -191,7 +191,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 ├── D-player/Services/
 │   └── Win32FileDialogService.cs # Microsoft.Win32.OpenFileDialog / OpenFolderDialog / SaveFileDialog 封装（只属 WPF 壳，命名空间仍是 DPlayer.Services）(Phase 20 从 Core 搬回壳里)
 │
-├── D-player.WinUI/              # Phase 22 功能补齐后的 WinUI 壳（WinUI 3 / Windows App SDK 2.6.4，unpackaged + self-contained，x64）；**仍不进 `D-player.slnf`**，构建由 `verify-gates.ps1 -Full` 的门禁 3 覆盖（见 §4.3 第 28 条）
+├── D-player.WinUI/              # Phase 22 功能补齐后的 WinUI 壳（WinUI 3 / Windows App SDK 2.6.5，unpackaged + self-contained，x64）；**仍不进 `D-player.slnf`**，构建由 `verify-gates.ps1 -Full` 的门禁 3 覆盖（见 §4.3 第 28 条）
 │   ├── D-player.WinUI.csproj    # WindowsPackageType=None + WindowsAppSDKSelfContained=true + Platforms/Platform=x64；ProjectReference 到 Core；链接根上的 appsettings.json
 │   ├── App.xaml(.cs)            # UI 线程建容器（AddDPlayerCore + 本壳的 WinUiFileDialogService + ISettingsPersistence，数据目录 D-player-winui）+ 合并 Theme/ 资源字典 + AppLog 初始化/异常钩子；刻意**不**同步 Dispose ServiceProvider
 │   ├── MainWindow.xaml(.cs)     # 三栏 IA 主窗口：标题栏 + NavRail + TrackList + InfoPanel + PlayerBar；窗口几何恢复/保存（物理像素）、`_cleanupCompleted` 关闭守卫、对话框/文本输入的空格守卫；AppWindow.Closing → await CleanupAsync；Mica 依赖根 Grid Background=Transparent
@@ -785,7 +785,7 @@ public IReadOnlyDictionary<string, LibraryCacheEntry> CachedEntriesByPath;
 - **计划勘误（保留原计划不改）**：计划 Task2 的预览/取消写 `Player.EqualizerEnabled` 是错误路径，Core setter 会下发并落盘。当前实现只在完整配置 `UpdateAsync` 成功后同步 VM；启用值变化时 VM setter 仍可能追加同值持久化，不能称为单次写盘。保存前冻结全部值，保存中防编辑/重复保存/ESC/关闭；失败留窗、内联提示并记 AppLog；主窗清理前有 EQ 保存守卫。失败/慢存储竞态尚无动态验证。
 - EQ 由 PlayerBar 直接管理 ContentDialog 与事件退订，不经通用 `WinUiDialogService`；[验收记录](./PHASE23-ACCEPTANCE.md) 区分实现证据、历史 UI 证据与未验项。
 
-WinUI 3 / Windows App SDK **2.6.4**（钉具体版本以保证可复现构建），unpackaged（`WindowsPackageType=None`）+ `WindowsAppSDKSelfContained=true`，TFM `net10.0-windows10.0.19041.0`，`<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`（后者是必需的：`Platforms` 只声明支持面、不设默认值，裸 `dotnet build` / `dotnet run` 会因求值出的 `Platform=AnyCPU` 被 WASDK 的 `WindowsAppSDKSelfContained.targets` 直接拒掉）。**只消费 Core 的公开成员，不反向引用 WPF 壳，也不进 `D-player.slnf`。**
+WinUI 3 / Windows App SDK **2.6.5**（钉具体版本以保证可复现构建），unpackaged（`WindowsPackageType=None`）+ `WindowsAppSDKSelfContained=true`，TFM `net10.0-windows10.0.19041.0`，`<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`（后者是必需的：`Platforms` 只声明支持面、不设默认值，裸 `dotnet build` / `dotnet run` 会因求值出的 `Platform=AnyCPU` 被 WASDK 的 `WindowsAppSDKSelfContained.targets` 直接拒掉）。**只消费 Core 的公开成员，不反向引用 WPF 壳，也不进 `D-player.slnf`。**
 
 - `App.xaml.cs`：**构造函数里 `RequestedTheme = ApplicationTheme.Dark`**（spec §4.4 要求的那句，最终修复波 A1 才补上；不设 = 跟随系统主题，浅色 Windows 上两壳会像两个产品。类型注意：WinUI 3 的 `Application.RequestedTheme` 是 `ApplicationTheme`（只有 Light/Dark），不是 FrameworkElement 上的 `ElementTheme` —— 写错是 CS0266）。之后在 UI 线程 `AddDPlayerCore(configuration, new DPlayerDataPaths { FolderName = "D-player-winui" })` + `AddSingleton<IFileDialogService, WinUiFileDialogService>()` → 解析 `MainViewModel`、`ISettingsPersistence` 与同一 `IPlaybackService` → `new MainWindow(vm, settings, playback)` → `Activate()` → `_ = StartAsync(vm)`（水化 + 断点续播就位）。刻意**不**同步 `Dispose` 容器（见 §4.3 第 31 条）。Phase 22 起构造函数里先 `AppLog.Initialize(WinUiAppPaths.LogDirectory)` 并写一条 `WinUI shell starting`，再挂 `Application.UnhandledException` / `AppDomain.UnhandledException` / `TaskScheduler.UnobservedTaskException`（只记录，不设 `Handled`）；`OnLaunched` 订阅 `IPlaybackService.PlaybackError` 写 `PlaybackError: ...`；`StartAsync` 的恢复跳过/异常改走 `AppLog`（不再是 `Debug.WriteLine`）。
 - `MainWindow.xaml(.cs)`：三行布局 —— 自绘标题栏区（`ExtendsContentIntoTitleBar` + `SetTitleBar`，`Title = "D-player"`）/ `NavigationView` 左栏 + 中区 `ListView` / 底部播放器栏。`SystemBackdrop = new MicaBackdrop()`（该类型在 WASDK 2.5.1/2.6.4 里都住 `Microsoft.UI.Xaml.Media`，不是 `...Composition.SystemBackdrops` —— 文件顶部有逐条删除实测的注释），根 `Grid` 必须 `Background="Transparent"`（§4.3 第 32 条）。左栏是 `PlaylistsViewModel.ViewedPlaylist` 的**投影**：`SyncPlaylistMenu` 的选中优先级固定为 `ViewedPlaylist` → 重建前已选项 → 第一项，并有 `_syncingMenu` 重入守卫（设 `SelectedItem` 会绕回 `SelectionChanged`）；`Playlists.PropertyChanged` 回灌左栏（Core 的 `Hydrate` 在 `Playlists.Add` 之后才恢复 `ViewedPlaylist`）。重建时机 = `RootGrid.Loaded` + `Playlists.CollectionChanged`（歌单是异步水化的，比 `Loaded` 晚）。Phase 22 追加：启动时 `RestoreWindowGeometry()`（物理像素；任一维低于 800×500 整对回落 1200×800；中心点不在任何 `DisplayArea` 工作区时主屏居中；`DisplayArea.FindAll()` 在本机运行时崩溃，改用 `GetFromPoint(center, None)`），关闭时仅在 `OverlappedPresenterState.Restored` 保存几何；`_cleanupCompleted` 让收尾期间的二次关闭继续取消、收尾后的自家 `Close()` 放行；空格守卫扩展到「对话框开着或焦点在文本输入控件」时一律不抢；通用弹窗经 `WinUiDialogService`（Phase 23 EQ 例外：由 PlayerBar 直接管理并单独纳入守卫）。
@@ -1103,7 +1103,7 @@ AppWindow.Closing → _cleanupCompleted ? 放行自家 Close() : args.Cancel = t
 
 - Windows 10/11（开发于 Windows 11 IoT Enterprise LTSC 2024）；WinUI 壳的 TFM 要求 build 19041（Windows 10 2004）及以上，self-contained 形态不需另装 Windows App SDK 运行时
 - .NET 10 SDK（`net10.0-windows`）
-- 构建 WinUI 壳需 nuget.org 可达（首次 restore 拉 `Microsoft.WindowsAppSDK` 2.6.4）；WinUI 工程只支持 x64
+- 构建 WinUI 壳需 nuget.org 可达（首次 restore 拉 `Microsoft.WindowsAppSDK` 2.6.5）；WinUI 工程只支持 x64
 - 任意 IDE：Visual Studio 2026+ / JetBrains Rider / VSCode + C# Dev Kit
 
 ### 8.2 命令行构建与门禁
@@ -1142,9 +1142,9 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 
 **门禁 3 什么时候跑**：每个 Phase 22 任务必跑（`powershell -File tools/verify-gates.ps1 -Full`），以及任何改到 `D-player.Core` 公开面或 WinUI 本身的时候。理由就是 B1 的要害：**这类改动让门禁 1/2 照样全绿，而 WinUI 壳已经编译不过**。成本不是借口——首次 restore 之后它是增量构建，2026-10-07 实测 **9.31 秒**。
 
-**`dotnet restore D-player.sln` 与 `dotnet build D-player.sln` 仍然存在，但不是门禁**：`.sln` 里四个工程全在，restore 会**首次**从 nuget.org 拉 Windows App SDK（当前 2.6.4，连带 9 个子包；8.1 分钟是 2.5.1 时的实测），且 self-contained 输出目录很大。只有这两种情况才需要它：① 要构建/跑 WinUI；② 要确认 IDE 的「Build Solution」不被 WinUI 打挂（Phase 20 实测整解构建 0 警告 0 错误）。
+**`dotnet restore D-player.sln` 与 `dotnet build D-player.sln` 仍然存在，但不是门禁**：`.sln` 里四个工程全在，restore 会**首次**从 nuget.org 拉 Windows App SDK（当前 2.6.5，连带 9 个子包；8.1 分钟是 2.5.1 时的实测），且 self-contained 输出目录很大。只有这两种情况才需要它：① 要构建/跑 WinUI；② 要确认 IDE 的「Build Solution」不被 WinUI 打挂（Phase 20 实测整解构建 0 警告 0 错误）。
 
-**测试栈（Phase 19，2026-10-24 升到 xunit.v3 4.0.2）**：`xunit.v3` 4.0.2（测试工程是**可执行程序**，`OutputType=Exe`）。runner 只有一个 —— Microsoft.Testing.Platform（MTP）；上面两条测试命令是同一个 runner 的两个入口，不是"MTP + VSTest 双 runner"。**测试总数 299（294 默认实跑 + 5 音频集成；本次未跑音频）**（逐文件分解见 §3 的 Tests 树）。
+**测试栈（Phase 19 起；2026-11-11 升到 xunit.v3 4.0.3）**：`xunit.v3` 4.0.3（测试工程是**可执行程序**，`OutputType=Exe`）。runner 只有一个 —— Microsoft.Testing.Platform（MTP）；上面两条测试命令是同一个 runner 的两个入口，不是"MTP + VSTest 双 runner"。**测试总数 299（294 默认实跑 + 5 音频集成；本次未跑音频）**（逐文件分解见 §3 的 Tests 树）。
 
 > **测试过滤实测（2026-11-11）**：`--filter "Category!=AudioDevice"` 实跑 **294** 通过、0 失败（Phase 25 收尾 283，Phase 26 新增 11 条）；本次未执行 5 条 `Category=AudioDevice` 真实 WASAPI 测试，因此只把默认门禁 294 记为实跑，不把 299 写成观测值。Phase 25 的历史读数（283 默认 + 5 音频 = 288）与 2026-11-02 Phase 24 的历史观察（无过滤 228 = 223 默认 + 5 音频）保留为历史；需要真实输出路径时用 `verify-gates.ps1 -Audio` 追加。
 

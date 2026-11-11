@@ -146,6 +146,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBox x:Name="NewNameBox"
                          MinHeight="28"
+                         GotFocus="NewNameBox_GotFocus"
                          KeyDown="NewNameBox_KeyDown"/>
                 <Button Grid.Column="1"
                         Content="新建并加入"

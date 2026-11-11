@@ -89,6 +89,13 @@ public partial class AddToPlaylistDialog : Window
 
     private void Create_Click(object sender, RoutedEventArgs e) => AcceptNew();
 
+    /// <summary>
+    /// 名称框获得焦点即进入“新建”意图：清掉列表选中，避免回车语义看起来仍指向高亮歌单。
+    /// 点回列表任一项会重新选中并恢复「加入」。
+    /// </summary>
+    private void NewNameBox_GotFocus(object sender, RoutedEventArgs e)
+        => PlaylistList.SelectedItem = null;
+
     private void NewNameBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter) return;

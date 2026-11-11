@@ -75,7 +75,8 @@ internal static class LibraryGrouping
 
                 var year = kv.Value.Select(t => t.Year).FirstOrDefault(y => y is > 0);
                 var albumTracks = kv.Value
-                    .OrderBy(t => t.TrackNumber ?? int.MaxValue)
+                    .OrderBy(t => LibraryIdentity.DiscOrderOf(t))
+                    .ThenBy(t => t.TrackNumber ?? int.MaxValue)
                     .ThenBy(t => t.Title, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(t => t.FilePath, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
@@ -126,6 +127,7 @@ internal static class LibraryGrouping
                     .ToArray(),
                 b.Tracks
                     .OrderBy(t => Normalize(t.Album), StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(t => LibraryIdentity.DiscOrderOf(t))
                     .ThenBy(t => t.TrackNumber ?? int.MaxValue)
                     .ThenBy(t => t.Title, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(t => t.FilePath, StringComparer.OrdinalIgnoreCase)

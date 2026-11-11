@@ -107,4 +107,136 @@ public sealed class LibraryGroupingTests
         Assert.Empty(result.Albums);
         Assert.Empty(result.Artists);
     }
+
+    [Fact]
+    public void Build_MultiDiscFolders_MergeIntoOneAlbum()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Artist\Album\Disc 1\01.flac", "D1T1", "Artist", "Album", 1),
+            T(@"C:\Music\Artist\Album\Disc 1\02.flac", "D1T2", "Artist", "Album", 2),
+            T(@"C:\Music\Artist\Album\Disc 2\01.flac", "D2T1", "Artist", "Album", 1),
+        });
+
+        var album = Assert.Single(result.Albums);
+        Assert.Equal("Album", album.Title);
+        Assert.Equal(3, album.Tracks.Count);
+        Assert.Equal(1, Assert.Single(result.Artists).AlbumCount);
+    }
+
+    [Fact]
+    public void Build_MultiDisc_OrdersByDiscThenTrackNumber()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Album\Disc 2\01.flac", "D2T1", "A", "Album", 1),
+            T(@"C:\Music\Album\Disc 1\02.flac", "D1T2", "A", "Album", 2),
+            T(@"C:\Music\Album\Disc 2\02.flac", "D2T2", "A", "Album", 2),
+            T(@"C:\Music\Album\Disc 1\01.flac", "D1T1", "A", "Album", 1),
+        });
+
+        var album = Assert.Single(result.Albums);
+        Assert.Equal(new[] { "D1T1", "D1T2", "D2T1", "D2T2" },
+            album.Tracks.Select(t => t.Title));
+    }
+
+    [Theory]
+    [InlineData("Disc 1", "Disc 2")]
+    [InlineData("CD1", "CD2")]
+    [InlineData("disc 1", "disc 2")]
+    [InlineData("Disc3", "Disc4")]
+    [InlineData("Disk 1", "Disk 2")]
+    [InlineData("碟1", "碟2")]
+    [InlineData("ディスク 1", "ディスク 2")]
+    [InlineData("Disc-1", "Disc-2")]
+    public void Build_DiscFolderNameVariants_MergeIntoOneAlbum(string disc1, string disc2)
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T($@"C:\Music\Album\{disc1}\01.flac", "T1", "A", "Album", 1),
+            T($@"C:\Music\Album\{disc2}\01.flac", "T2", "A", "Album", 1),
+        });
+
+        Assert.Single(result.Albums);
+    }
+
+    [Fact]
+    public void Build_DiscFoldersWithDifferentAlbumTags_StaySeparate()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Album\Disc 1\01.flac", "T1", "A", "Album One", 1),
+            T(@"C:\Music\Album\Disc 2\01.flac", "T2", "A", "Album Two", 1),
+        });
+
+        Assert.Equal(2, result.Albums.Count);
+    }
+
+    [Fact]
+    public void Build_FoldersWithoutDiscNumber_StaySeparate()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Album\Discography\01.flac", "T1", "A", "Album", 1),
+            T(@"C:\Music\Album\CD Backup\01.flac", "T2", "A", "Album", 1),
+            T(@"C:\Music\Album\Disc\01.flac", "T3", "A", "Album", 1),
+        });
+
+        Assert.Equal(3, result.Albums.Count);
+    }
+
+    [Fact]
+    public void Build_MultiDisc_ArtistTracksFollowDiscOrder()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Album\Disc 2\01.flac", "D2T1", "A", "Album", 1),
+            T(@"C:\Music\Album\Disc 1\02.flac", "D1T2", "A", "Album", 2),
+            T(@"C:\Music\Album\Disc 1\01.flac", "D1T1", "A", "Album", 1),
+        });
+
+        var artist = Assert.Single(result.Artists);
+        Assert.Equal(new[] { "D1T1", "D1T2", "D2T1" },
+            artist.Tracks.Select(t => t.Title));
+    }
+
+    [Fact]
+    public void Build_MultiDisc_AlbumKeyMatchesEveryMemberTrack()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Artist\Album\Disc 1\01.flac", "T1", "A", "Album", 1),
+            T(@"C:\Music\Artist\Album\Disc 2\01.flac", "T2", "A", "Album", 1),
+        });
+
+        var album = Assert.Single(result.Albums);
+        var key = LibraryIdentity.AlbumOf(album);
+        Assert.Equal(new LibraryAlbumKey("Album", @"C:\Music\Artist\Album"), key);
+        Assert.All(album.Tracks, t => Assert.Equal(key, LibraryIdentity.AlbumOf(t)));
+    }
+
+    [Fact]
+    public void Build_MultiDiscUnderDifferentParents_StaySeparate()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\A1\Album\Disc 1\01.flac", "T1", "A", "Album", 1),
+            T(@"C:\Music\A2\Album\Disc 1\01.flac", "T2", "A", "Album", 1),
+        });
+
+        Assert.Equal(2, result.Albums.Count);
+    }
+
+    [Fact]
+    public void Build_RootTracksAndDiscSubfolder_RootTracksFirst()
+    {
+        var result = LibraryGrouping.Build(new[]
+        {
+            T(@"C:\Music\Album\Disc 2\01.flac", "D2T1", "A", "Album", 1),
+            T(@"C:\Music\Album\01.flac", "Root", "A", "Album", 1),
+        });
+
+        var album = Assert.Single(result.Albums);
+        Assert.Equal(new[] { "Root", "D2T1" }, album.Tracks.Select(t => t.Title));
+    }
 }

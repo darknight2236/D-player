@@ -65,6 +65,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-gates.ps1 -Full
 
 用户实测发现：点击名称输入框时，上方歌单列表仍保持上一项高亮，无法判断回车将加入高亮歌单还是新建。修复：`AddToPlaylistDialog.NewNameBox_GotFocus` 清空 `PlaylistList.SelectedItem`；点回列表任一项由既有 `SelectionChanged` 恢复高亮与「加入」。复测：聚焦名称框后列表无选中、「加入」禁用；点回 Acceptance Playlist 后恢复高亮与「加入」。提交 `57b580a`；门禁 1/2 通过 294/294。
 
+随后修复两项 Minor：
+
+- 右键落在曲目行 / 专辑卡片空白区域不弹菜单：五处 `ContextMenu` 根元素加 `Background="Transparent"`，整行可命中；复测曲目行右侧空白右键弹出「加入歌单…」。
+- 文件夹歌单名称悬停显示名称而非原因：名称 `TextBlock` 改为 Style（普通行 `ToolTip=Name`；文件夹行 `ToolTip=原因` 并开启 `ToolTipService.ShowOnDisabled`）；复测悬停文件夹名称显示「文件夹歌单由目录内容管理，不能手动加入」。
+
+提交 `698f61f`；门禁 1/2 通过 294/294。
+
 ## 5. 限制
 
 仅支持普通歌单、单曲与整张专辑；允许重复路径；无拖拽、去重、撤销、多选与 toast；对话框列表无搜索；追加使用点击时数组快照，不重新解析对话框打开期间的库变化。不改变 `queue.json` / `settings.json` / `library-cache.json` schema。

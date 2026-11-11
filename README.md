@@ -8,7 +8,7 @@
 - **格式**：MP3 / WMA / FLAC / AAC / WAV（Windows Media Foundation 原生解码）。
 - **元数据**：标题 / 艺术家 / 专辑 / 流派 / 年份 / 采样率 / 曲目号 / 内嵌封面（z440.atl.core）。
 - **队列与歌单**：内存队列（多选入队、删除、清空、自动推进、表头排序）；多命名歌单（Viewed/Current 双指针）；文件夹绑定歌单（递归扫描 + 后台增量同步 + 元数据缓存）。
-- **音乐库**（Phase 24/25/26）：多库根目录；艺术家列表 / 专辑网格 / 艺术家详情 / 专辑详情四级钻取；按专辑惰性读取封面；独立的隐藏库播放队列；断点续播与重启恢复；全局搜索（艺术家/专辑/曲目三组、200ms 去抖、CJK 字面匹配、Ctrl+F）与按库根实时监听（800ms 静默窗口 / 5s 上限、删除/改名不打断播放）；库内单曲 / 专辑可右键加入普通歌单（Phase 26）。
+- **音乐库**（Phase 24/25/26/27）：多库根目录；艺术家列表 / 专辑网格 / 艺术家详情 / 专辑详情四级钻取；按专辑惰性读取封面；独立的隐藏库播放队列；断点续播与重启恢复；全局搜索（艺术家/专辑/曲目三组、200ms 去抖、CJK 字面匹配、Ctrl+F）与按库根实时监听（800ms 静默窗口 / 5s 上限、删除/改名不打断播放）；库内单曲 / 专辑可右键加入普通歌单（Phase 26）；多碟子文件夹（Disc N / CD N 等）归并为同一张专辑、按碟序 + 曲号排序（Phase 27）。
 - **播放列表文件**：导入 `.m3u` / `.m3u8` / `.pls`（相对路径、UTF-8/UTF-16(BOM)/GBK 探测、严格过滤与跳过计数）；导出 `.m3u8`（绝对路径 + `#EXTINF`）。
 - **拖拽**：外部音频文件拖入入队；队列内单/多选拖拽重排（插入线 + 高亮）。
 - **持久化**：窗口几何、音量、队列、歌单、频谱/EQ、库根与库导航、断点续播均落盘。
@@ -36,13 +36,13 @@
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：294 通过 0 失败
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：310 通过 0 失败
 dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实音频（需设备）
 dotnet run     --project D-player.csproj                 # 运行 WPF 壳
 ```
 
 - `D-player.slnf` 只含 Core + WPF + Tests；WinUI 刻意不进日常门禁。
-- 当前 **294 默认测试 + 5 真实音频 = 299**；默认门禁实跑 294，`-Audio` 才执行 5 条音频测试。
+- 当前 **310 默认测试 + 5 真实音频 = 315**；默认门禁实跑 310，`-Audio` 才执行 5 条音频测试。
 - 两条测试命令**不要加 `--nologo`**：MTP 不识别该参数，会零测试运行却打印“成功: 0”（退出码 5）。`--nologo` 只用于 `dotnet build`。
 - `dotnet test` 依赖仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`，不要删除。
 
@@ -103,6 +103,7 @@ D-player/                    # 仓库根 = WPF 壳工程
 | 24 | **音乐库视图（WPF）**：多库根、四级钻取、隐藏库播放队列、断点续播；验收完成 2026-11-02 |
 | 25 | **音乐库搜索与实时监听（WPF）**：三组搜索、Ctrl+F、按根 watcher、可等待清理；验收完成 2026-11-06 |
 | 26 | **音乐库 → 歌单互通（WPF）**：右键加入普通歌单、新建并加入；验收完成 2026-11-11 |
+| 27 | **多碟专辑归并（Core）**：Disc N / CD N 等碟子文件夹上提一层归并、按碟序 + 曲号排序；验收完成 2026-11-11 |
 
 WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全量重构仅为未来可能（未排期、未选型）。
 
@@ -112,7 +113,7 @@ WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全
 - WASAPI Exclusive / ASIO 与多设备切换接口已预留、尚未实现。
 - 播放列表导出仅 M3U8（绝对路径）；不导出 PLS、不做相对路径导出。
 - 列表文件中的网络流条目导入时计入“格式不支持”，不支持流媒体播放；`#EXTINF` / PLS `Title=` 元数据刻意忽略。
-- 音乐库专辑身份为 `(Album, 所在文件夹)`：同文件夹合辑会合并，多碟子文件夹仍可能拆开；同文件夹同名不同专辑（罕见）会合并。
+- 音乐库专辑身份为 `(Album, 专辑文件夹)`：同文件夹合辑会合并；Disc N / CD N / Disk N / 碟N / ディスクN 命名的多碟子文件夹归并（Phase 27），乱命名碟文件夹或专辑标签变体仍会拆开；同文件夹同名不同专辑（罕见）会合并。
 - 库搜索为内存字面匹配（`OrdinalIgnoreCase` 子串，不做拼音/模糊/正则/分词），查询与结果不持久化。
 - 实时监听为根级 best-effort：只监听文件名/目录名变化，不保证网络根、复制中文件、缓冲区溢出场景的固定延迟；删除/改名不主动停止当前播放。
 - 库播放队列没有独立管理界面，也不出现在侧栏。
@@ -126,5 +127,5 @@ WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全
 - [项目架构与模块详解](docs/PROJECT.md)
 - [耦合分析与隐式契约](docs/COUPLING.md)
 - [文档地图](docs/README.md) · [历史归档](docs/archive/README.md)
-- 最近验收：[Phase 26](docs/PHASE26-ACCEPTANCE.md) · [Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md)
+- 最近验收：[Phase 27](docs/PHASE27-ACCEPTANCE.md) · [Phase 26](docs/PHASE26-ACCEPTANCE.md) · [Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md)
 - 历史验收与 WinUI 决策：[Phase 22](docs/PHASE22-ACCEPTANCE.md) · [Phase 21](docs/PHASE21-ACCEPTANCE.md) · [Phase 20 对比](docs/PHASE20-COMPARISON.md)

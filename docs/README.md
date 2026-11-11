@@ -5,7 +5,8 @@
 - [README](../README.md) — 入口、快速开始、当前限制
 - [PROJECT.md](./PROJECT.md) — 架构、模块、数据流、已知陷阱
 - [COUPLING.md](./COUPLING.md) — 耦合分析、隐式契约、不要做的事
-- [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) — 当前最近一次验收（库 → 歌单）
+- [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) — 当前最近一次验收（多碟专辑归并）
+- [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) — 库 → 歌单验收
 - [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) — 搜索与实时监听验收
 
 ## 历史验收与决策

@@ -85,6 +85,9 @@
                                         <Setter Property="IsEnabled" Value="False"/>
                                         <Setter Property="ToolTip"
                                                 Value="文件夹歌单由目录内容管理，不能手动加入"/>
+                                        <!-- 禁用行默认不显示 ToolTip，显式开启 -->
+                                        <Setter Property="ToolTipService.ShowOnDisabled"
+                                                Value="True"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

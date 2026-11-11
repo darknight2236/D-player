@@ -60,6 +60,10 @@ public partial class AddToPlaylistDialog : Window
     private void PlaylistList_MouseDoubleClick(
         object sender, MouseButtonEventArgs e)
     {
+        // 空白处双击不应接受当前选中项：只处理源自 ListBoxItem 的双击
+        if (ItemsControl.ContainerFromElement(
+                PlaylistList, e.OriginalSource as DependencyObject) is null)
+            return;
         if (PlaylistList.SelectedItem is PlaylistViewModel { HasSourceFolder: false })
             AcceptSelected();
     }

@@ -120,12 +120,65 @@
             </Setter>
         </Style>
 
+        <!--
+            库视图右键菜单：ContextMenu 位于独立弹层，应用级隐式 MenuItem 样式不保证生效，
+            这里显式挂局部深色样式，去掉默认模板的白色图标/勾选栏，只保留文本与悬停底。
+        -->
+        <Style x:Key="LibraryMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="bd"
+                                Background="Transparent"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{StaticResource BackgroundTertiary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="LibraryContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+            <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BackgroundTertiary}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="ItemContainerStyle"
+                    Value="{StaticResource LibraryMenuItemStyle}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <!-- 只渲染深色圆角容器，避免系统默认模板的浅色边栏渗透出来 -->
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ItemsPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <DataTemplate x:Key="AlbumTileTemplate">
             <StackPanel Width="140"
                         HorizontalAlignment="Center"
                         Loaded="AlbumTile_Loaded">
                 <StackPanel.ContextMenu>
-                    <ContextMenu>
+                    <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
                         <MenuItem Header="加入歌单…" Click="AddAlbumToPlaylist_Click"/>
                     </ContextMenu>
                 </StackPanel.ContextMenu>
@@ -162,7 +215,7 @@
         <DataTemplate x:Key="TrackRowTemplate">
             <Grid>
                 <Grid.ContextMenu>
-                    <ContextMenu>
+                    <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
                         <MenuItem Header="加入歌单…" Click="AddTrackToPlaylist_Click"/>
                     </ContextMenu>
                 </Grid.ContextMenu>
@@ -220,7 +273,7 @@
         <DataTemplate DataType="{x:Type vm:LibraryAlbum}">
             <Grid Loaded="SearchAlbum_Loaded">
                 <Grid.ContextMenu>
-                    <ContextMenu>
+                    <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
                         <MenuItem Header="加入歌单…" Click="AddAlbumToPlaylist_Click"/>
                     </ContextMenu>
                 </Grid.ContextMenu>
@@ -259,7 +312,7 @@
         <DataTemplate DataType="{x:Type models:Track}">
             <Grid>
                 <Grid.ContextMenu>
-                    <ContextMenu>
+                    <ContextMenu Style="{StaticResource LibraryContextMenuStyle}">
                         <MenuItem Header="加入歌单…" Click="AddTrackToPlaylist_Click"/>
                     </ContextMenu>
                 </Grid.ContextMenu>
@@ -488,7 +541,8 @@
                 </Grid.RowDefinitions>
                 <StackPanel Grid.Row="0" Margin="0,0,0,8">
                     <StackPanel.ContextMenu>
-                        <ContextMenu DataContext="{Binding SelectedAlbum}">
+                        <ContextMenu DataContext="{Binding SelectedAlbum}"
+                                     Style="{StaticResource LibraryContextMenuStyle}">
                             <MenuItem Header="加入歌单…" Click="AddAlbumToPlaylist_Click"/>
                         </ContextMenu>
                     </StackPanel.ContextMenu>

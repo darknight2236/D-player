@@ -61,7 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-gates.ps1 -Full
 | 右键会让行获得选中态 | 接受 | WPF 列表默认行为；不起播、不切换视图，spec §3.1 已注明。 |
 | 600px 下歌单表格列极窄 | 既有 | 与 Phase 26 无因果关系；本阶段不扩展表格布局，记入已知限制。 |
 
-## 4. 交付后修复（2026-11-11）
+## 4. 交付后修复与用户确认（2026-11-11）
 
 用户实测发现：点击名称输入框时，上方歌单列表仍保持上一项高亮，无法判断回车将加入高亮歌单还是新建。修复：`AddToPlaylistDialog.NewNameBox_GotFocus` 清空 `PlaylistList.SelectedItem`；点回列表任一项由既有 `SelectionChanged` 恢复高亮与「加入」。复测：聚焦名称框后列表无选中、「加入」禁用；点回 Acceptance Playlist 后恢复高亮与「加入」。提交 `57b580a`；门禁 1/2 通过 294/294。
 
@@ -71,6 +71,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-gates.ps1 -Full
 - 文件夹歌单名称悬停显示名称而非原因：名称 `TextBlock` 改为 Style（普通行 `ToolTip=Name`；文件夹行 `ToolTip=原因` 并开启 `ToolTipService.ShowOnDisabled`）；复测悬停文件夹名称显示「文件夹歌单由目录内容管理，不能手动加入」。
 
 提交 `698f61f`；门禁 1/2 通过 294/294。
+
+用户确认（2026-11-11）：
+
+- 真实曲目播放中加入专辑，无可听停顿或爆音。
+- 真实歌单规模下对话框滚动与长名称正常；搜索结果专辑行、艺术家详情专辑卡片的右键加入均正常。
 
 ## 5. 限制
 

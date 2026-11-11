@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net11.0-windows</TargetFramework>
     <AssemblyName>D-player.Tests</AssemblyName>
     <RootNamespace>DPlayer.Tests</RootNamespace>
     <Nullable>enable</Nullable>
@@ -8,7 +8,7 @@
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
     <!-- Phase 19 耦合点：`dotnet test D-player.slnf` 能路由到 Microsoft.Testing.Platform 的真实机制是仓库根
-         global.json 的 {"test":{"runner":"Microsoft.Testing.Platform"}}（.NET 10 SDK 的原生 opt-in），
+         global.json 的 {"test":{"runner":"Microsoft.Testing.Platform"}}（.NET 11 SDK 的原生 opt-in），
          删掉 global.json 这条命令即失败。2026-11-02 起测试工程只保留 CLI/MTP 路径：移除
          Microsoft.NET.Test.Sdk、xunit.runner.visualstudio、coverlet.collector 与
          TestingPlatformDotnetTestSupport；IDE 测试发现不再保证（需要时再加回）。 -->

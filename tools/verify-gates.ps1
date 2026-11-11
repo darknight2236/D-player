@@ -9,7 +9,7 @@
     GATE 1 (every change): dotnet build D-player.slnf -c Debug --nologo -v q
       -> 0 warnings / 0 errors
     GATE 2 (every change): dotnet test D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"
-      -> 176 passed / 0 failed (the 5 real-WASAPI integration tests are opt-in via -Audio)
+      -> 310 passed / 0 failed (the 5 real-WASAPI integration tests are opt-in via -Audio)
     GATE 3 (-Full only; every Phase 22 task):
       dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q
       -> 0 warnings / 0 errors

@@ -23,7 +23,7 @@ internal static class CoverArtLoader
         using var stream = new InMemoryRandomAccessStream();
 
         // brief 给了两条写法，这里落的是第一条 `AsBuffer()`（System.Runtime.InteropServices.WindowsRuntime
-        // 的 WindowsRuntimeBufferExtensions，本机 net10.0-windows10.0.19041 + WASDK 2.5.1 编译通过，
+        // 的 WindowsRuntimeBufferExtensions，本机 net11.0-windows10.0.19041 + WASDK 2.6.5 编译通过，
         // 所以没退回 DataWriter 那条）。实测记录见 task-2-report.md §1。
         await stream.WriteAsync(bytes.AsBuffer());
         stream.Seek(0);

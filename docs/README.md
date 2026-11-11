@@ -21,7 +21,7 @@
 ## 设计稿
 
 - `superpowers/specs/` — Phase 14–26 的 D-player 设计稿；Phase 24/25 是音乐库实现的直接依据，Phase 26 是库→歌单的直接依据。
-- `superpowers/plans/` — 只保留两份刻意未跟踪的 Phase 24/25 本地计划，不属于发布面。
+- `superpowers/plans/` — 三份刻意未跟踪的 Phase 24–26 本地实现计划，不属于发布面。
 - `archive/specs/` — UmaPlayer 时代（Phase 1–13）设计稿。
 - `archive/plans/` — Phase 1–23 实现计划。
 

@@ -1,6 +1,6 @@
 # Phase 22 WinUI 功能补齐验收清单
 
-> **历史验收记录**：本页“仍未实现”的频谱/EQ 已由 Phase 23 补齐；Phase 23 已验收通过（2026-11-02）。当前能力与限制见 [README](../README.md) 与 [PROJECT](./PROJECT.md)。本页计数（180/186）是当时基线，当前默认门禁 283（+5 音频 = 288）。
+> **历史验收记录**：本页“仍未实现”的频谱/EQ 已由 Phase 23 补齐；Phase 23 已验收通过（2026-11-02）。当前能力与限制见 [README](../README.md) 与 [PROJECT](./PROJECT.md)。本页计数（180/186）是当时基线，当前默认测试与音频计数见 [README](../README.md)。
 
 **状态**：**23 项全部 PASS**。A1–A7、B1–B6、C1–C4、D1–D3、E1–E3 均已 PASS；C4/D3 与 D1 的 1 MiB 轮转由用户 2026-10-24 手测确认。可选的冷启动空态复验见第 5 项。A6 的“删最后一个歌单重建默认”与 B3 的“单曲循环自然播完”已由用户 2026-10-24 手测确认。收尾修复：首启空态提示缺失已修复并提交为 `adc0fbf`（fix(winui): show the empty-state hint on first launch）；修复后 `-Full` 三门禁复跑通过（0/0、180/0、WinUI 0/0，证据 `%TEMP%\p22-acc\gates-postfix.log`）。空态在会话内新建空歌单时已实测可见（`ct-fix-01-created.txt`）；“冷启动即空歌单”的复验仍交用户，原因见「已知问题 / 交给用户」第 5 项。
 

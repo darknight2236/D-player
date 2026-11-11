@@ -15,4 +15,4 @@
 
 验收文档中的相关链接已指向本目录。原始路径仍可通过 `git log --follow <file>` 追溯。
 
-两份 Phase 24/25 计划刻意未跟踪，仍留在 `docs/superpowers/plans/` 本地工作区，不在本归档内。
+Phase 24–26 的三份本地计划刻意未跟踪，仍留在 `docs/superpowers/plans/` 本地工作区，不在本归档内。

@@ -56,11 +56,13 @@ internal sealed class RootGateRegistry
 
     internal sealed class Entry
     {
+        // Users counts holders and waiters; the semaphore is disposed only at
+        // Users == 0 and is never released by a canceled waiter.
         internal readonly SemaphoreSlim Semaphore = new(1, 1);
         internal int Users;
     }
 
-    internal struct Lease : IDisposable
+    internal sealed class Lease : IDisposable
     {
         private readonly RootGateRegistry _owner;
         private readonly string _key;

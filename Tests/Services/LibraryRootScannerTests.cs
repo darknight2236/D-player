@@ -377,15 +377,21 @@ public sealed class LibraryRootScannerTests
         using var leaseB = new LibraryScanLease(CancellationToken.None);
 
         var first = service.ScanAsync(rootA, leaseA);
-        await enteredA.Task.WaitAsync(TimeSpan.FromSeconds(5),
-            TestContext.Current.CancellationToken);
-        var second = service.ScanAsync(rootB, leaseB);
+        try
+        {
+            await enteredA.Task.WaitAsync(TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
+            var second = service.ScanAsync(rootB, leaseB);
 
-        await second.WaitAsync(TimeSpan.FromSeconds(5),
-            TestContext.Current.CancellationToken);
-        Assert.Equal(2, Volatile.Read(ref callCount));
+            await second.WaitAsync(TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
+            Assert.Equal(2, Volatile.Read(ref callCount));
+        }
+        finally
+        {
+            releaseA.TrySetResult();
+        }
 
-        releaseA.TrySetResult();
         await first.WaitAsync(TimeSpan.FromSeconds(5),
             TestContext.Current.CancellationToken);
     }
@@ -419,13 +425,74 @@ public sealed class LibraryRootScannerTests
         var service = new LibraryRootScanner(scanner, cache, metadata);
         using var lease = new LibraryScanLease(CancellationToken.None);
         var scan = service.ScanAsync(Root, lease);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5),
-            TestContext.Current.CancellationToken);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
 
-        lease.Revoke();
-        release.TrySetResult();
+            lease.Revoke();
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scan);
+        Assert.Equal(0, service.ActiveRootGates);
+    }
+
+    [Fact]
+    public async Task ScanAsync_PreCancelledWaiter_DoesNotLeakGate()
+    {
+        var scanner = Substitute.For<ILibraryScannerService>();
+        var cache = Substitute.For<ILibraryCache>();
+        var metadata = Substitute.For<ITrackMetadataReader>();
+        var firstEntered = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var callCount = 0;
+
+        scanner.ScanFolderWithStatus(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                if (Interlocked.Increment(ref callCount) == 1)
+                {
+                    firstEntered.TrySetResult();
+                    releaseFirst.Task.GetAwaiter().GetResult();
+                }
+                return new LibraryScanResult(Array.Empty<string>(), false);
+            });
+        cache.LoadAsync(Root)
+            .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                Array.Empty<LibraryCacheEntry>()));
+        scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(Array.Empty<string>(), Array.Empty<string>(),
+                Array.Empty<LibraryCacheEntry>()));
+
+        var service = new LibraryRootScanner(scanner, cache, metadata);
+        using var firstLease = new LibraryScanLease(CancellationToken.None);
+        using var cancelledLease = new LibraryScanLease(
+            new CancellationToken(canceled: true));
+
+        var first = service.ScanAsync(Root, firstLease);
+        try
+        {
+            await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => service.ScanAsync(Root, cancelledLease));
+            Assert.Equal(1, service.ActiveRootGates);
+        }
+        finally
+        {
+            releaseFirst.TrySetResult();
+        }
+
+        await first.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
         Assert.Equal(0, service.ActiveRootGates);
     }
 }

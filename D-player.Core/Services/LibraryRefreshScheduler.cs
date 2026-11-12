@@ -58,9 +58,12 @@ internal sealed class LibraryRefreshScheduler : IAsyncDisposable
             Task<IReadOnlyList<LibraryRootSnapshot>>> execute,
         Action<Exception> reportError)
     {
-        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _reportError = reportError ?? throw new ArgumentNullException(nameof(reportError));
+        ArgumentNullException.ThrowIfNull(clock);
+        _clock = clock;
+        ArgumentNullException.ThrowIfNull(execute);
+        _execute = execute;
+        ArgumentNullException.ThrowIfNull(reportError);
+        _reportError = reportError;
         _worker = Task.Run(RunAsync);
     }
 

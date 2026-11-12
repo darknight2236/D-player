@@ -95,14 +95,22 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         IPlaylistFileService playlistFiles,
         ILibraryRootScanner rootScanner)
     {
-        _factory = factory ?? throw new ArgumentNullException(nameof(factory));
-        _player = player ?? throw new ArgumentNullException(nameof(player));
-        _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
-        _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
-        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-        _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
-        _playlistFiles = playlistFiles ?? throw new ArgumentNullException(nameof(playlistFiles));
-        _rootScanner = rootScanner ?? throw new ArgumentNullException(nameof(rootScanner));
+        ArgumentNullException.ThrowIfNull(factory);
+        _factory = factory;
+        ArgumentNullException.ThrowIfNull(player);
+        _player = player;
+        ArgumentNullException.ThrowIfNull(fileDialog);
+        _fileDialog = fileDialog;
+        ArgumentNullException.ThrowIfNull(scanner);
+        _scanner = scanner;
+        ArgumentNullException.ThrowIfNull(cache);
+        _cache = cache;
+        ArgumentNullException.ThrowIfNull(metadataReader);
+        _metadataReader = metadataReader;
+        ArgumentNullException.ThrowIfNull(playlistFiles);
+        _playlistFiles = playlistFiles;
+        ArgumentNullException.ThrowIfNull(rootScanner);
+        _rootScanner = rootScanner;
         _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
         Playlists.CollectionChanged += OnPlaylistsCollectionChanged;
     }

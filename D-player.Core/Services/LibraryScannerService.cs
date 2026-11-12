@@ -16,7 +16,8 @@ public sealed class LibraryScannerService : ILibraryScannerService
 
     public LibraryScannerService(ITrackMetadataReader metadataReader)
     {
-        _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
+        ArgumentNullException.ThrowIfNull(metadataReader);
+        _metadataReader = metadataReader;
     }
 
     /// <inheritdoc />

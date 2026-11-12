@@ -106,10 +106,14 @@ public partial class PlaylistViewModel : ObservableObject
         IPlaylistFileService playlistFiles)
     {
         ArgumentNullException.ThrowIfNull(seed);
-        _player = player ?? throw new ArgumentNullException(nameof(player));
-        _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
-        _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
-        _playlistFiles = playlistFiles ?? throw new ArgumentNullException(nameof(playlistFiles));
+        ArgumentNullException.ThrowIfNull(player);
+        _player = player;
+        ArgumentNullException.ThrowIfNull(fileDialog);
+        _fileDialog = fileDialog;
+        ArgumentNullException.ThrowIfNull(metadataReader);
+        _metadataReader = metadataReader;
+        ArgumentNullException.ThrowIfNull(playlistFiles);
+        _playlistFiles = playlistFiles;
 
         Id = seed.Id;
         Name = seed.Name;

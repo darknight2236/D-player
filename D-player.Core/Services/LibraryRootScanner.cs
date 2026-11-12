@@ -19,9 +19,12 @@ public sealed class LibraryRootScanner : ILibraryRootScanner
         ILibraryCache cache,
         ITrackMetadataReader metadata)
     {
-        _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
-        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-        _metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
+        ArgumentNullException.ThrowIfNull(scanner);
+        _scanner = scanner;
+        ArgumentNullException.ThrowIfNull(cache);
+        _cache = cache;
+        ArgumentNullException.ThrowIfNull(metadata);
+        _metadata = metadata;
     }
 
     public async Task<LibraryRootSnapshot> ScanAsync(string root, LibraryScanLease lease)

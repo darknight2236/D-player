@@ -50,12 +50,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         IPlaylistService playlistService,
         ISettingsPersistence settings)
     {
-        Player = player ?? throw new ArgumentNullException(nameof(player));
-        Playlists = playlists ?? throw new ArgumentNullException(nameof(playlists));
-        Library = library ?? throw new ArgumentNullException(nameof(library));
-        _player = playbackService ?? throw new ArgumentNullException(nameof(playbackService));
-        _playlistService = playlistService ?? throw new ArgumentNullException(nameof(playlistService));
-        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        ArgumentNullException.ThrowIfNull(player);
+        Player = player;
+        ArgumentNullException.ThrowIfNull(playlists);
+        Playlists = playlists;
+        ArgumentNullException.ThrowIfNull(library);
+        Library = library;
+        ArgumentNullException.ThrowIfNull(playbackService);
+        _player = playbackService;
+        ArgumentNullException.ThrowIfNull(playlistService);
+        _playlistService = playlistService;
+        ArgumentNullException.ThrowIfNull(settings);
+        _settings = settings;
     }
 
     public void ShowLibrary(LibraryPage page)

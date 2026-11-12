@@ -24,10 +24,13 @@ public partial class SettingsDialog : Window
         PlayerViewModel? playerViewModel,
         IFileDialogService fileDialog)
     {
-        _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
-        _playbackService = playbackService ?? throw new ArgumentNullException(nameof(playbackService));
+        ArgumentNullException.ThrowIfNull(persistence);
+        _persistence = persistence;
+        ArgumentNullException.ThrowIfNull(playbackService);
+        _playbackService = playbackService;
         _playerViewModel = playerViewModel;
-        _fileDialog = fileDialog ?? throw new ArgumentNullException(nameof(fileDialog));
+        ArgumentNullException.ThrowIfNull(fileDialog);
+        _fileDialog = fileDialog;
         InitializeComponent();
         // 草稿集合在构造期就绑定：设置加载失败时列表仍可用（只是为空）。
         LibraryFoldersList.ItemsSource = _libraryFoldersDraft;

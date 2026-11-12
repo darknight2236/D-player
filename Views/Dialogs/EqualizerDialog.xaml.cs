@@ -29,8 +29,10 @@ public partial class EqualizerDialog : Window
 
     public EqualizerDialog(ISettingsPersistence persistence, IPlaybackService playbackService, PlayerViewModel? playerViewModel = null)
     {
-        _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
-        _playbackService = playbackService ?? throw new ArgumentNullException(nameof(playbackService));
+        ArgumentNullException.ThrowIfNull(persistence);
+        _persistence = persistence;
+        ArgumentNullException.ThrowIfNull(playbackService);
+        _playbackService = playbackService;
         _playerViewModel = playerViewModel;
         InitializeComponent();
         Loaded += OnLoaded;

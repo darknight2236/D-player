@@ -112,14 +112,21 @@ public sealed partial class LibraryViewModel : ObservableObject
         ILibraryWatcher watcher,
         TimeProvider clock)
     {
-        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        _rootScanner = rootScanner ?? throw new ArgumentNullException(nameof(rootScanner));
-        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-        _metadataReader = metadataReader ?? throw new ArgumentNullException(nameof(metadataReader));
-        _playlists = playlists ?? throw new ArgumentNullException(nameof(playlists));
-        _watcher = watcher ?? throw new ArgumentNullException(nameof(watcher));
+        ArgumentNullException.ThrowIfNull(settings);
+        _settings = settings;
+        ArgumentNullException.ThrowIfNull(rootScanner);
+        _rootScanner = rootScanner;
+        ArgumentNullException.ThrowIfNull(cache);
+        _cache = cache;
+        ArgumentNullException.ThrowIfNull(metadataReader);
+        _metadataReader = metadataReader;
+        ArgumentNullException.ThrowIfNull(playlists);
+        _playlists = playlists;
+        ArgumentNullException.ThrowIfNull(watcher);
+        _watcher = watcher;
         _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
-        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        ArgumentNullException.ThrowIfNull(clock);
+        _clock = clock;
         _scheduler = new LibraryRefreshScheduler(
             _clock, RunRefreshBatchAsync, ReportRefreshError);
     }

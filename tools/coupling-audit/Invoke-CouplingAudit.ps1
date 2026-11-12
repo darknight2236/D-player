@@ -86,11 +86,17 @@ foreach ($e in $nsEdges) {
 function Test-SelfReachable([string]$start, $adj) {
     $seen = @{}
     $q = [System.Collections.Generic.Queue[string]]::new()
-    foreach ($nb in @($adj[$start])) { if (-not $seen.ContainsKey($nb)) { $seen[$nb]=$true; $q.Enqueue($nb) } }
+    foreach ($nb in @($adj[$start])) {
+        if ($null -eq $nb) { continue } # namespace used but no collected source file
+        if (-not $seen.ContainsKey($nb)) { $seen[$nb]=$true; $q.Enqueue($nb) }
+    }
     while ($q.Count -gt 0) {
         $n = $q.Dequeue()
         if ($n -eq $start) { return $true }
-        foreach ($nb in @($adj[$n])) { if (-not $seen.ContainsKey($nb)) { $seen[$nb]=$true; $q.Enqueue($nb) } }
+        foreach ($nb in @($adj[$n])) {
+            if ($null -eq $nb) { continue } # namespace used but no collected source file
+            if (-not $seen.ContainsKey($nb)) { $seen[$nb]=$true; $q.Enqueue($nb) }
+        }
     }
     return $false
 }

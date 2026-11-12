@@ -22,7 +22,9 @@ public sealed class LibraryScannerService : ILibraryScannerService
 
     /// <inheritdoc />
     public IReadOnlyList<string> ScanFolder(string folderPath, CancellationToken ct = default)
-        => ScanFolderWithStatus(folderPath, ct).Files;
+        => ScanFolderWithStatus(folderPath, ct) is ScanAvailable available
+            ? available.Files
+            : Array.Empty<string>();
 
     /// <inheritdoc />
     public LibraryScanResult ScanFolderWithStatus(
@@ -48,7 +50,7 @@ public sealed class LibraryScannerService : ILibraryScannerService
                 if (AudioConstants.IsAudioFile(file))
                     files.Add(file);
             }
-            return new LibraryScanResult(files, IsUnavailable: false);
+            return new ScanAvailable(files);
         }
         catch (OperationCanceledException)
         {
@@ -64,8 +66,7 @@ public sealed class LibraryScannerService : ILibraryScannerService
         }
     }
 
-    private static LibraryScanResult Unavailable()
-        => new(Array.Empty<string>(), IsUnavailable: true);
+    private static LibraryScanResult Unavailable() => ScanUnavailable.Instance;
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<Track>> ReadMetadataBatchAsync(

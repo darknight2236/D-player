@@ -62,14 +62,14 @@ public sealed class LibraryRootScanner : ILibraryRootScanner
             return Unavailable(root);
         }
 
-        if (scan.IsUnavailable)
+        if (scan is not ScanAvailable available)
             return Unavailable(root);
 
         ct.ThrowIfCancellationRequested();
         var cached = await _cache.LoadAsync(root).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
 
-        var diff = _scanner.ComputeDiff(scan.Files, cached);
+        var diff = _scanner.ComputeDiff(available.Files, cached);
         var fresh = diff.AddedPaths.Count == 0
             ? Array.Empty<Track>()
             : await _scanner.ReadMetadataBatchAsync(diff.AddedPaths, ct).ConfigureAwait(false);

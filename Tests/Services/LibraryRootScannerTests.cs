@@ -37,7 +37,7 @@ public sealed class LibraryRootScannerTests
         var cache = Substitute.For<ILibraryCache>();
         var metadata = Substitute.For<ITrackMetadataReader>();
         scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
-            .Returns(new LibraryScanResult(Array.Empty<string>(), true));
+            .Returns(ScanUnavailable.Instance);
         using var lease = new LibraryScanLease(CancellationToken.None);
         var service = new LibraryRootScanner(scanner, cache, metadata);
 
@@ -74,7 +74,7 @@ public sealed class LibraryRootScannerTests
             .Returns(_ =>
             {
                 Interlocked.Increment(ref scanCount);
-                return new LibraryScanResult(new[] { file }, false);
+                return new ScanAvailable(new[] { file });
             });
         cache.LoadAsync(Arg.Any<string>())
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
@@ -131,7 +131,7 @@ public sealed class LibraryRootScannerTests
         var releaseLoad = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
-            .Returns(new LibraryScanResult(new[] { file }, false));
+            .Returns(new ScanAvailable(new[] { file }));
         cache.LoadAsync(Root).Returns(async _ =>
         {
             loadEntered.TrySetResult();
@@ -164,7 +164,7 @@ public sealed class LibraryRootScannerTests
         var cache = Substitute.For<ILibraryCache>();
         var metadata = Substitute.For<ITrackMetadataReader>();
         scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
-            .Returns(new LibraryScanResult(new[] { file }, false));
+            .Returns(new ScanAvailable(new[] { file }));
         cache.LoadAsync(Root)
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
                 Array.Empty<LibraryCacheEntry>()));
@@ -211,7 +211,7 @@ public sealed class LibraryRootScannerTests
         var cache = Substitute.For<ILibraryCache>();
         var metadata = Substitute.For<ITrackMetadataReader>();
         scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
-            .Returns(new LibraryScanResult(new[] { file }, false));
+            .Returns(new ScanAvailable(new[] { file }));
         cache.LoadAsync(Root)
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(new[] { cached }));
         scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
@@ -243,8 +243,8 @@ public sealed class LibraryRootScannerTests
         var cache = Substitute.For<ILibraryCache>();
         var metadata = Substitute.For<ITrackMetadataReader>();
         scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
-            .Returns(new LibraryScanResult(new[] { good, badNew, badCached, goodCached },
-                false));
+            .Returns(new ScanAvailable(
+                new[] { good, badNew, badCached, goodCached }));
         cache.LoadAsync(Root).Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
             new[] { cachedEntry, cachedInvalid }));
         scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
@@ -276,7 +276,7 @@ public sealed class LibraryRootScannerTests
         var cache = Substitute.For<ILibraryCache>();
         var metadata = Substitute.For<ITrackMetadataReader>();
         scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
-            .Returns(new LibraryScanResult(new[] { file }, false));
+            .Returns(new ScanAvailable(new[] { file }));
         cache.LoadAsync(Root)
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
                 Array.Empty<LibraryCacheEntry>()));
@@ -321,7 +321,7 @@ public sealed class LibraryRootScannerTests
         var cache = Substitute.For<ILibraryCache>();
         var metadata = Substitute.For<ITrackMetadataReader>();
         scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
-            .Returns(new LibraryScanResult(Array.Empty<string>(), false));
+            .Returns(new ScanAvailable(Array.Empty<string>()));
         cache.LoadAsync(Root)
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
                 Array.Empty<LibraryCacheEntry>()));
@@ -362,7 +362,7 @@ public sealed class LibraryRootScannerTests
                     enteredA.TrySetResult();
                     releaseA.Task.GetAwaiter().GetResult();
                 }
-                return new LibraryScanResult(Array.Empty<string>(), false);
+                return new ScanAvailable(Array.Empty<string>());
             });
         cache.LoadAsync(Arg.Any<string>())
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
@@ -412,7 +412,7 @@ public sealed class LibraryRootScannerTests
             {
                 entered.TrySetResult();
                 release.Task.GetAwaiter().GetResult();
-                return new LibraryScanResult(Array.Empty<string>(), false);
+                return new ScanAvailable(Array.Empty<string>());
             });
         cache.LoadAsync(Root)
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
@@ -461,7 +461,7 @@ public sealed class LibraryRootScannerTests
                     firstEntered.TrySetResult();
                     releaseFirst.Task.GetAwaiter().GetResult();
                 }
-                return new LibraryScanResult(Array.Empty<string>(), false);
+                return new ScanAvailable(Array.Empty<string>());
             });
         cache.LoadAsync(Root)
             .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(

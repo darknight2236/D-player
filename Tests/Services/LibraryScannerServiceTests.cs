@@ -105,8 +105,7 @@ public class LibraryScannerServiceTests : IDisposable
     {
         var result = _sut.ScanFolderWithStatus(Path.Combine(_tempRoot, "no_such_dir"), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsUnavailable);
-        Assert.Empty(result.Files);
+        Assert.IsType<ScanUnavailable>(result);
     }
 
     [Fact]
@@ -114,8 +113,7 @@ public class LibraryScannerServiceTests : IDisposable
     {
         var result = _sut.ScanFolderWithStatus("   ", TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsUnavailable);
-        Assert.Empty(result.Files);
+        Assert.IsType<ScanUnavailable>(result);
     }
 
     [Fact]
@@ -126,8 +124,8 @@ public class LibraryScannerServiceTests : IDisposable
 
         var result = _sut.ScanFolderWithStatus(emptyDir, TestContext.Current.CancellationToken);
 
-        Assert.False(result.IsUnavailable);
-        Assert.Empty(result.Files);
+        var available = Assert.IsType<ScanAvailable>(result);
+        Assert.Empty(available.Files);
     }
 
     [Fact]
@@ -138,8 +136,8 @@ public class LibraryScannerServiceTests : IDisposable
 
         var result = _sut.ScanFolderWithStatus(_tempRoot, TestContext.Current.CancellationToken);
 
-        Assert.False(result.IsUnavailable);
-        Assert.Equal(new[] { mp3 }, result.Files);
+        var available = Assert.IsType<ScanAvailable>(result);
+        Assert.Equal(new[] { mp3 }, available.Files);
     }
 
     [Fact]

@@ -104,7 +104,7 @@
 
 ### 2.9 补充候选（2026-11-12 复核，用户 2026-11-12 确认全部纳入）
 
-- **Null Object 与 internal 兼容构造器**：`PlaylistsViewModel.cs:110-113` 的 2 参 internal 构造器 + `:847-913` 的 6 个私有 Null* 服务；生产代码 0 使用，测试只有 `PlaylistsViewModelTests.cs:47`（`CreateContainerVm`）与 `:60`（`CreateContainerVmPreservingSeeds`）两个辅助方法使用。NSubstitute 已在测试依赖中；删除后测试辅助方法改用 mock，公开 8 参构造器不变。
+- **Null Object 与 internal 兼容构造器**：`PlaylistsViewModel.cs:110-113` 的 2 参 internal 构造器 + `:847-913` 的 6 个私有 Null* 服务；生产代码 0 使用，测试有四处使用：`PlaylistsViewModelTests.cs:47`（`CreateContainerVm`）、`:60`（`CreateContainerVmPreservingSeeds`）、`LibraryViewModelTests.cs:67`、`PlaybackResumeTests.cs:73`。NSubstitute 已在测试依赖中；删除后四处测试构造改用 mock/公开 8 参构造器，公开构造器签名不变。
 - **分组/差集样板**：`LibraryGrouping.cs:32-44` 用 `Dictionary.TryAdd` 实现“先到者胜”，`:46-55` 依赖字典插入序；`LibraryScannerService.cs:104-154` 用字典做差集（重复路径后写覆盖）并按枚举顺序产出 added/unchanged。`LibraryGroupingTests.cs:65,89,112-231` 锁定合辑/多碟顺序与“重复路径取首条 Title”；`LibraryScannerServiceTests` 只断言计数/集合，无顺序断言。现代化只能替换同构样板，**先到者胜、后写覆盖、枚举顺序三条语义逐字保留**。
 - **Search 手写 INPC**：`LibraryViewModel.Search.cs:21-51` 三个属性 `SearchQuery`/`SearchResults`/`SearchMessage` 手写 backing field + `OnPropertyChanged()`，私有 setter 绕开源生成器；其中 `SearchQuery`/`SearchMessage` 有相等性短路，`SearchResults` 每次必通知。先用编译探针确认 Toolkit 8.4.2 partial property 能否保留 private setter 与通知语义；能则替换，不能则保留手写并在验收记录偏离。
 - **普通 `lock` 字段**：Core 内非音频的 `object` gate 至少有 `FileSystemLibraryWatcher.cs:7`、`LibraryRefreshScheduler.cs:32`、`LibraryScanLease.cs:7`、`LibraryViewModel.cs:30-31`、`MainViewModel` 的 `_cleanupGate`、`PlaylistsViewModel` 的 `_folderGate`。全仓无 `Monitor.Wait/Pulse`，可安全改为 `System.Threading.Lock`（C# 13+，`lock` 语句语义等价）。**音频路径的 `EqualizerSampleProvider.cs:22` 与 `NAudioPlaybackService.cs:42` 不改**；`SemaphoreSlim` 的 async 临界区不改。
@@ -405,7 +405,7 @@ GUI 走查前备份 `settings.json` / `queue.json` / `library-cache.json` 并记
 
 | # | 附录 C 原说法 | 复核结论 |
 |---|---|---|
-| 1 | Null Object/internal 构造器唯一使用者 `PlaylistsViewModelTests.cs:47` | 还有 `:60` 的 `CreateContainerVmPreservingSeeds`，被 3+ 测试调用；改 NSubstitute 时两个辅助方法都要改 |
+| 1 | Null Object/internal 构造器唯一使用者 `PlaylistsViewModelTests.cs:47` | 实际有四处：`PlaylistsViewModelTests.cs:47`、`:60`、`LibraryViewModelTests.cs:67`、`PlaybackResumeTests.cs:73`；删除时四个测试构造都要改 |
 | 2 | 后缀白名单循环 3 处同构 | 实际 5 处以上且形状不同；`AudioConstants` 已是权威常量但只是 `IReadOnlyList`，`PlaylistViewModel` 还有两处硬编码 |
 | 3 | JSON 原子写/v1→v2 迁移“被测试锁定” | 实际无直接测试；本阶段必须先补契约测试再重构 |
 | 4 | `Clear()+foreach Add` 改批量替换会让计数断言红 | 全 Tests 只有两处弱订阅，没有严格计数断言；仍不做，因为会改 UI 刷新行为 |

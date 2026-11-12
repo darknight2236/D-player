@@ -5,6 +5,7 @@
 - 范围：四个工程 TFM 抬 net11.0（Core / WPF / Tests → `net11.0-windows`；WinUI → `net11.0-windows10.0.19041.0`，OS build 19041 不变）；`CommunityToolkit.Mvvm` 由浮动 `8.*` 钉死 `8.4.2`；**零行为变更意图**——不引入任何 .NET 11 新 API、不使用任何 C# 15 新语法；WinUI 壳继续冻结，只参与门禁 3 编译
 - 设计：[Phase 28 设计](superpowers/specs/2026-11-12-d-player-phase28-net11-upgrade-design.md)
 - 升级 diff（`cb4066d..53b594f`）：6 文件、8 增 8 删——4 处 TFM + 1 处版本号 + 3 处注释；唯一的 `.cs` 改动是 `D-player.WinUI/Views/CoverArtLoader.cs:26` 的一行注释。**未新增任何测试**，现有 310 条默认测试即回归网。
+- **自包含说明**：本记录的**全部承重读数**（门禁输出、测试摘要、产物字节数与时间戳、SHA-256、音频回环指标、崩溃原文、复现输出）均已**内联或写全**，核对结论**不需要访问任何外部文件或目录**。文中 `Task N Step X` / `§Y` 形态的标注是对 Phase 28 实施过程记录（未随仓库发布）的出处标签，仅供追溯；走查截图、回环 WAV、queue 快照等视觉/音频原件已在核对后按项目既有验收惯例丢弃，本记录不以它们作为论据。
 
 ## 1. 自动化门禁
 
@@ -26,12 +27,12 @@
 | 项 | 结果 | 证据 |
 |---|---|---|
 | GBK `.m3u` 解码（单测） | `Decode_GbkBytes_FallsBackTo936` **1/1**、`Import_GbkEncodedChinesePaths_DecodeAndResolve` **1/1**，两条真实退出码均 0（非 8，filter 确实匹配） | Task 1 Step 11；`Tests/Services/PlaylistFileEncodingTests.cs:71`、`Tests/Services/PlaylistFileServiceTests.cs:195`；dll 路径 net11.0-windows |
-| GBK `.m3u` 导入（端到端） | 走查第 14 项：报告「2 首入列」，**接受 2 / 缺失 0**；中文曲目 FilePath/Title/Artist/Album 无乱码 | Task 3 §4 第 14 项；`task-3-evidence/shots/14b-import-result.png`、`queue.walkthrough.json` |
+| GBK `.m3u` 导入（端到端） | 走查第 14 项：报告「2 首入列」，**接受 2 / 缺失 0**；中文曲目 FilePath/Title/Artist/Album 无乱码 | Task 3 §4 第 14 项；导入报告原文与队列新增项见 §3 第 14 行 |
 | 输出目录与 exe | `bin/Debug/net11.0-windows/D-player.exe`，**73,728 B**，LastWriteTime **2026-11-12 00:59:11.492 +0800**；FileVersion `1.0.0.0`、ProductVersion `1.0.0+53b594f3ea69c117f27f3eb72a8086ddec2e5318`；runtimeconfig `tfm: net11.0` + `Microsoft.NETCore.App 11.0.0` + `Microsoft.WindowsDesktop.App 11.0.0` | Task 2 Step 8。时间戳被 Step 3/4 伴随构建重写（落在 Step 4 gate 1 窗口），**字节数与提交身份均与 Task 1 产物一致**；旧 `net10.0-windows/` 目录仍在盘上未删，走查严禁从旧路径启动 |
 | publish 产物 | `bin/Release/net11.0-windows/win-x64/publish/D-player.exe`，**3,156,050 B**（≈3.01 MB），2026-11-12 01:00:38；同目录 `D-player.Core.pdb` 111,756 B / `D-player.pdb` 91,164 B / `appsettings.json` 234 B。framework-dependent 单文件（`--self-contained false`），**目标机现需 .NET 11 Desktop Runtime**；只验证能发布，未运行该产物 | Task 2 Step 5（exit=0）。Git Bash 下需 `MSYS_NO_PATHCONV=1` 让 `/p:PublishSingleFile=true` 逐字到达 dotnet（shell 适配，非产品/构建失败，见 §5） |
 | Core WPF-free 自检 | 四类型名 grep（`System.Windows\|PresentationFramework\|ICollectionView\|CollectionViewSource`，排除 obj/bin）**无输出，exit=1** | Task 2 Step 6；Core 保持 WPF-free |
 | 耦合审计 | **官方脚本崩溃，无 M1–M6 官方读数**；`0 cycles / 0 violations` 仅来自**明确标注的非官方原口径只读复现**（105 文件 / 14 命名空间 / 40 边）。**不得读作「耦合审计通过」** | Task 2 Step 7；详见 §5 与 §8.B–E（崩溃原文 + 复现输出 + 两个复现脚本全文内联） |
-| queue.json SchemaVersion | **仍为 3**（抬 TFM 未改持久化 schema） | Task 3 §7；`task-3-evidence/queue.walkthrough.json` 原文转录 |
+| queue.json SchemaVersion | **仍为 3**（抬 TFM 未改持久化 schema） | Task 3 §7；走查期 queue.json 原文转录（SchemaVersion=3） |
 | MVVM 钉版生效 | `D-player.Core/obj/project.assets.json` 实际解析 `"CommunityToolkit.Mvvm/8.4.2"` | Task 1 Step 5（grep 取证） |
 | CoverArtLoader 注释断言 | `D-player.WinUI/Views/CoverArtLoader.cs:26`「本机 net11.0-windows10.0.19041 + WASDK 2.6.5 编译通过」**已坐实**（门禁 3 绿） | Task 2 §1 |
 
@@ -39,32 +40,32 @@
 
 环境：Windows 11 / **.NET 11**（runtimeconfig 11.0.0）/ Debug；渲染端点 MOONDROP MM3A。执行方式按 controller 裁决：**implementer 亲自用 Computer Use（node_repl + @qoder-space/computer-use）驱动真实窗口，不派任何子代理**；「独立复核」由 controller（读关键截图 + queue.json 原文）与 task reviewer 承担（执行与复核分离）。起窗经显式路径 `D:\CodingProjects\D-player\bin\Debug\net11.0-windows\D-player.exe`，进程核对 PID 26888、Responding=True、Path 为 net11.0-windows；**未启动旧 net10.0 exe**。
 
-临时合成库 **5 首**带标签 FLAC（ffmpeg 生成：2 位艺术家 / 3 张专辑，含 1 个中文文件名曲目）+ 1 个 **GBK 编码 `.m3u`**（`#EXTM3U` + 2 条相对路径、其中 1 条中文文件名，GBK + CRLF，确认非 UTF-8 → 端到端必走 CodePages 回退分支）。验收前备份 `settings.json` / `queue.json` / `library-cache.json` 并记 SHA-256，**三文件全部移走隔离（含 settings.json）**；结束后按字节还原，三文件 SHA-256 逐一全等；临时库、备份、脚本与截图已删除（curated 证据先保全到 workspace，见 §8）；未修改用户音乐文件（否定性声明口径见下）。
+临时合成库 **5 首**带标签 FLAC（ffmpeg 生成：2 位艺术家 / 3 张专辑，含 1 个中文文件名曲目）+ 1 个 **GBK 编码 `.m3u`**（`#EXTM3U` + 2 条相对路径、其中 1 条中文文件名，GBK + CRLF，确认非 UTF-8 → 端到端必走 CodePages 回退分支）。验收前备份 `settings.json` / `queue.json` / `library-cache.json` 并记 SHA-256，**三文件全部移走隔离（含 settings.json）**；结束后按字节还原，三文件 SHA-256 逐一全等；临时库、备份、脚本与截图已删除；未修改用户音乐文件（否定性声明口径见下）。
 
 **16 项结果：14 PASS / 1 清单偏差（#8）/ 1 需用户确认（#9 听感子项；其客观持久化子项 PASS）。**
 
-| # | 操作 | 结果 | 观测与覆盖限制 | 截图（`task-3-evidence/shots/`） |
-|---|---|---|---|---|
-| 1 | 起窗 | PASS | 800×650 正常渲染：空库、侧栏仅「默认歌单」、播放栏/设置钮齐全，无崩溃；进程路径核实 net11.0-windows（PID 26888，Responding=True）。空库证明 settings 隔离生效 | 01-launch.png |
-| 2 | 设置加合成库根 → 库视图 | PASS | 专辑网格 3 卡片（Album One/Artist A、Album Three/Artist B、Album Two/Artist A）；底栏「2 位艺术家 · 3 张专辑 · 5 首」 | 02-album-grid.png（另 02a–02d 过程帧） |
-| 3 | 艺术家页四级钻取 | PASS | 艺术家列表（Artist A 2 专辑·3 首 / Artist B 1 专辑·2 首）→ 双击 Artist A → 详情（Album One+Two、播放全部、BackButton）→ 双击 Album One → 专辑详情 2 行曲序 01→02；单击仅选中、双击钻取 | 03a-artists.png、03b-artistA-detail.png、03c-albumOne-detail.png |
-| 4 | 播放全部 + 真的出声 | PASS | 播放栏 Track One 播放中、进度前进、信息面板 44,100 Hz。**客观音频**：WASAPI 回环 5s = AUDIO_PRESENT（peak 0.099993、RMS 0.070695、5 活跃秒、逐秒 RMS 恒 0.0707）；暂停对照 = SILENT（RMS 0）。非 UI 推断 | 04-playing.png、04b-progress-advanced.png；`audio/playing-5s.wav`、`audio/probe-outputs.txt` |
-| 5 | 暂停/继续/下一首/上一首 | PASS | 暂停冻结 seek；继续 seek 前进（0.0744→0.1044）；下一首→Track Two；上一首→Track One（重置曲首）；再暂停冻结 | 05a-paused.png … 05e-paused-again.png |
-| 6 | 进度条单击跳转 + 拖动 | PASS | 单击 x=400 → seek 0:16（value 0.540，历史坏点本次正常）；从 thumb 拖到 x=150 → seek 0:03。首次拖动因起点不在 thumb 上未生效，改从 thumb 起拖后生效（**操作问题，非产品缺陷**） | 06a-seek-click.png、06b-seek-drag.png |
-| 7 | 音量滑块 + 静音钮 | PASS | 拖动音量 thumb 0.8→≈0.207；静音→VolumeSlider=0；再点静音→恢复 0.207（round-trip 正确） | 07a-volume-down.png、07b-muted.png、07c-unmuted.png |
-| 8 | 频谱 | **清单偏差（非 net11 回归）** | 判据「暂停归 2px」不满足：播放时 32 柱渲染（maxBarHeight=71px、90 列≥3px），空闲=0px（2px 基线），**暂停 2.5s 与 6s 后仍 71px/84 列、未归 2px**（冻结末帧）。源码核对：WPF `Views/Controls/SpectrumView.xaml.cs` 无 Paused/Stopped 归零路径（既有设计）。**「32 柱跳动」未验**——纯正弦刺激下稳态频谱时不变，两播放帧隔 700ms 像素相同，动态物理不可判；渲染 32 柱有证据、动态跳动未验。详见 §5 | 08a1-playing.png、08a2-playing.png、08b-spectrum-paused-settled.png、08c-paused-6s.png；`spectrum-pixels.txt` |
-| 9 | EQ 打开→拖动→保存 | **客观子项 PASS；听感子项未验（用户未确认）** | EQ 对话框 11 根竖直滑块渲染正确（31…16k+Pre）、全 0、Flat；启用后拖 500Hz→即时显示 +3、preset 变 Custom；保存→重开仍 +3 且启用 → **持久化 PASS**。「拖动即时听感变化、无爆音」为主观听感，**未验（用户未确认）**，不得写成 PASS；DSP 数学由单测覆盖 | 09a-eq-open.png、09b-eq-dragged.png、09c-eq-reopen.png |
-| 10 | EQ 打开→拖动→取消 | PASS | 在已保存（500=+3）基础上拖 1k→+8；取消→重开：1k 回 0、500 仍 +3 → 回滚到打开瞬间实时配置，正确 | 10a-eq-dragged-1k.png、10b-eq-after-cancel.png |
-| 11 | 库搜索 "Track" + 清空 | PASS（测试数据说明） | "Track"→曲目组 4 行（中文曲目不含 Track 正确排除）。brief 期望「三组」但 "Track" 只匹配曲目（无艺术家/专辑名含 Track）——**测试数据命名问题，非应用缺陷**；另用补充词 "r" 验证三组布局：艺术家(2)/专辑(3)/曲目(5) 均渲染。清空按钮→搜索框回 placeholder、结果列表移除 | 11a-search-track.png、11b-search-three-groups.png、11c-search-cleared.png |
-| 12 | 库内右键专辑→加入歌单→新建并加入 | PASS | 右键 Album One→「加入歌单…」→对话框「将加入 2 首曲目」；点名称框→列表高亮清空且「加入」禁用（Phase 26 焦点一致性保持）；填「走查歌单」→新建并加入；**库视图保持、侧栏无高亮错位**；打开走查歌单含 Track One+Track Two | 12a-album-contextmenu-0.png … 12e-new-playlist-contents.png |
-| 13 | 歌单内拖拽重排 + ▶ 跟随 | PASS（输入限制） | 播放中把 Track One 从 idx0 拖到 idx1 → 队列变 [Track Two, Track One]；**当前曲高亮/▶ 跟随到 Track One 的新行**（信息面板仍 Track One、seek 继续前进）→ 引用身份而非结构相等；`queue.json` `CurrentIndex=1` 佐证。**覆盖限制**：Computer Use click API 无 modifier 参数，无法注入 Ctrl/Shift 多选点击，故以**单行拖拽（同一重排代码路径）**验证；字面「多选」拖拽未直接注入 | 13a-before-reorder.png、13b-after-reorder.png |
-| 14 | 导入 gbk.m3u | PASS | 导入报告「已导入「gbk.m3u」→ 歌单「走查歌单」/ 2 首入列」（**接受 2、缺失 0**）；队列新增 中文曲目（FilePath `…\01 中文曲目.flac`、Title 中文曲目、Artist B/Album Three，**无乱码**）+ Track Five。CodePages GBK 回退在 net11.0 端到端成立。**状态说明（防误读）**：`14c-queue-after-import.png` 显示**自然播完到队列尾停止**（信息面板 Track Two、seek 0:03/0:03、无当前曲标记），与 13b 的播放态不同；第 15 项显式重置 Track One——**这不是引用身份塌缩** | 14a-import-filedialog.png、14b-import-result.png、14c-queue-after-import.png |
-| 15 | 关闭应用 | PASS | 先置 Track One 暂停 ~0:01 再点 CloseButton；窗口消失、`Get-Process` 无输出（正常退出、无崩溃）；关闭路径落盘 settings/queue/library-cache（cancel-and-close 生效） | 15a-before-close.png |
-| 16 | 重启断点续播 | PASS | 重启后队列恢复（走查歌单 4 首、▶/高亮在 Track One）、信息面板 Track One、seek 恢复 ~0:01、**播放钮为三角形=未自动播放**、频谱平直；回环 2s = NO_DATA（**只就位不出声**客观佐证）；库完整（3 专辑、底栏 2/3/5）、双歌单在侧栏 | 16a-restart-resume-0.png、16b-library-after-restart.png；`audio/resume-2s.wav` |
+| # | 操作 | 结果 | 观测与覆盖限制 |
+|---|---|---|---|
+| 1 | 起窗 | PASS | 800×650 正常渲染：空库、侧栏仅「默认歌单」、播放栏/设置钮齐全，无崩溃；进程路径核实 net11.0-windows（PID 26888，Responding=True）。空库证明 settings 隔离生效 |
+| 2 | 设置加合成库根 → 库视图 | PASS | 专辑网格 3 卡片（Album One/Artist A、Album Three/Artist B、Album Two/Artist A）；底栏「2 位艺术家 · 3 张专辑 · 5 首」 |
+| 3 | 艺术家页四级钻取 | PASS | 艺术家列表（Artist A 2 专辑·3 首 / Artist B 1 专辑·2 首）→ 双击 Artist A → 详情（Album One+Two、播放全部、BackButton）→ 双击 Album One → 专辑详情 2 行曲序 01→02；单击仅选中、双击钻取 |
+| 4 | 播放全部 + 真的出声 | PASS | 播放栏 Track One 播放中、进度前进、信息面板 44,100 Hz。**客观音频**：WASAPI 回环 5s = AUDIO_PRESENT（peak 0.099993、RMS 0.070695、5 活跃秒、逐秒 RMS 恒 0.0707）；暂停对照 = SILENT（RMS 0）。非 UI 推断 |
+| 5 | 暂停/继续/下一首/上一首 | PASS | 暂停冻结 seek；继续 seek 前进（0.0744→0.1044）；下一首→Track Two；上一首→Track One（重置曲首）；再暂停冻结 |
+| 6 | 进度条单击跳转 + 拖动 | PASS | 单击 x=400 → seek 0:16（value 0.540，历史坏点本次正常）；从 thumb 拖到 x=150 → seek 0:03。首次拖动因起点不在 thumb 上未生效，改从 thumb 起拖后生效（**操作问题，非产品缺陷**） |
+| 7 | 音量滑块 + 静音钮 | PASS | 拖动音量 thumb 0.8→≈0.207；静音→VolumeSlider=0；再点静音→恢复 0.207（round-trip 正确） |
+| 8 | 频谱 | **清单偏差（非 net11 回归）** | 判据「暂停归 2px」不满足：播放时 32 柱渲染（maxBarHeight=71px、90 列≥3px），空闲=0px（2px 基线），**暂停 2.5s 与 6s 后仍 71px/84 列、未归 2px**（冻结末帧）。源码核对：WPF `Views/Controls/SpectrumView.xaml.cs` 无 Paused/Stopped 归零路径（既有设计）。**「32 柱跳动」未验**——纯正弦刺激下稳态频谱时不变，两播放帧隔 700ms 像素相同，动态物理不可判；渲染 32 柱有证据、动态跳动未验。详见 §5 |
+| 9 | EQ 打开→拖动→保存 | **客观子项 PASS；听感子项未验（用户未确认）** | EQ 对话框 11 根竖直滑块渲染正确（31…16k+Pre）、全 0、Flat；启用后拖 500Hz→即时显示 +3、preset 变 Custom；保存→重开仍 +3 且启用 → **持久化 PASS**。「拖动即时听感变化、无爆音」为主观听感，**未验（用户未确认）**，不得写成 PASS；DSP 数学由单测覆盖 |
+| 10 | EQ 打开→拖动→取消 | PASS | 在已保存（500=+3）基础上拖 1k→+8；取消→重开：1k 回 0、500 仍 +3 → 回滚到打开瞬间实时配置，正确 |
+| 11 | 库搜索 "Track" + 清空 | PASS（测试数据说明） | "Track"→曲目组 4 行（中文曲目不含 Track 正确排除）。brief 期望「三组」但 "Track" 只匹配曲目（无艺术家/专辑名含 Track）——**测试数据命名问题，非应用缺陷**；另用补充词 "r" 验证三组布局：艺术家(2)/专辑(3)/曲目(5) 均渲染。清空按钮→搜索框回 placeholder、结果列表移除 |
+| 12 | 库内右键专辑→加入歌单→新建并加入 | PASS | 右键 Album One→「加入歌单…」→对话框「将加入 2 首曲目」；点名称框→列表高亮清空且「加入」禁用（Phase 26 焦点一致性保持）；填「走查歌单」→新建并加入；**库视图保持、侧栏无高亮错位**；打开走查歌单含 Track One+Track Two |
+| 13 | 歌单内拖拽重排 + ▶ 跟随 | PASS（输入限制） | 播放中把 Track One 从 idx0 拖到 idx1 → 队列变 [Track Two, Track One]；**当前曲高亮/▶ 跟随到 Track One 的新行**（信息面板仍 Track One、seek 继续前进）→ 引用身份而非结构相等；`queue.json` `CurrentIndex=1` 佐证。**覆盖限制**：Computer Use click API 无 modifier 参数，无法注入 Ctrl/Shift 多选点击，故以**单行拖拽（同一重排代码路径）**验证；字面「多选」拖拽未直接注入 |
+| 14 | 导入 gbk.m3u | PASS | 导入报告「已导入「gbk.m3u」→ 歌单「走查歌单」/ 2 首入列」（**接受 2、缺失 0**）；队列新增 中文曲目（FilePath `…\01 中文曲目.flac`、Title 中文曲目、Artist B/Album Three，**无乱码**）+ Track Five。CodePages GBK 回退在 net11.0 端到端成立。**状态说明（防误读）**：导入后队列显示**自然播完到队列尾停止**（信息面板 Track Two、seek 0:03/0:03、无当前曲标记），与第 13 项的播放态不同；第 15 项显式重置 Track One——**这不是引用身份塌缩** |
+| 15 | 关闭应用 | PASS | 先置 Track One 暂停 ~0:01 再点 CloseButton；窗口消失、`Get-Process` 无输出（正常退出、无崩溃）；关闭路径落盘 settings/queue/library-cache（cancel-and-close 生效） |
+| 16 | 重启断点续播 | PASS | 重启后队列恢复（走查歌单 4 首、▶/高亮在 Track One）、信息面板 Track One、seek 恢复 ~0:01、**播放钮为三角形=未自动播放**、频谱平直；回环 2s = NO_DATA（**只就位不出声**客观佐证）；库完整（3 专辑、底栏 2/3/5）、双歌单在侧栏 |
 
-**客观音频判别力**（`task-3-evidence/audio/probe-outputs.txt`，WasapiLoopbackCapture 探针，端点 MOONDROP MM3A）：空闲基线 NO_DATA、播放 AUDIO_PRESENT（peak 0.099993 / RMS 0.070695，5 活跃秒）、暂停 SILENT（peak 0 / RMS 0）、重启就位 NO_DATA（captured-bytes 0）→ 判别成立。第 4 项「真的出声」以客观端点证据判 PASS，未凭 UI 播放状态推断。reviewer 另对保全 WAV 逐样本复算 peak/RMS，与转录零偏差。
+**客观音频判别力**（WasapiLoopbackCapture 探针输出，端点 MOONDROP MM3A）：空闲基线 NO_DATA、播放 AUDIO_PRESENT（peak 0.099993 / RMS 0.070695，5 活跃秒）、暂停 SILENT（peak 0 / RMS 0）、重启就位 NO_DATA（captured-bytes 0）→ 判别成立。第 4 项「真的出声」以客观端点证据判 PASS，未凭 UI 播放状态推断。reviewer 另对捕获的 WAV 逐样本复算 peak/RMS，与转录零偏差（录制原件未保留）。
 
-**独立复核**：implementer 自读关键截图（Read 工具，非仅采信操作日志）02-album-grid.png、04-playing.png、13b-after-reorder.png、14c-queue-after-import.png、09b-eq-dragged.png，均与上表观测一致；Read `queue.json` 原文（走查结束、还原前）：SchemaVersion=3、`LibraryPlayback.Items`=[01 Track One, 02 Track Two]（曲序正确）/`CurrentIndex=1`、走查歌单 Items=[02 Track Two, 01 Track One, 01 中文曲目, 02 Track Five]（重排后顺序）/`CurrentIndex=1`（引用身份）、中文路径无乱码（解码后为「中文曲目」，`queue.walkthrough.json` 内以 JSON Unicode 转义保存），原文转录保全于 `task-3-evidence/queue.walkthrough.json`。controller 另读关键截图与 queue.json 原文复核；reviewer 亲读 12+ 张截图逐条吻合、对活文件重算 SHA-256 仍全等、确认 Temp 已删与无残留进程。
+**独立复核**：implementer 自读关键截图（Read 工具，非仅采信操作日志）——库网格、播放中、重排后、导入结果、EQ 拖动共 5 帧，均与上表观测一致；并 Read `queue.json` 原文（走查结束、还原前）：SchemaVersion=3、`LibraryPlayback.Items`=[01 Track One, 02 Track Two]（曲序正确）/`CurrentIndex=1`、走查歌单 Items=[02 Track Two, 01 Track One, 01 中文曲目, 02 Track Five]（重排后顺序）/`CurrentIndex=1`（引用身份）、中文路径无乱码（解码后为「中文曲目」，原文以 JSON Unicode 转义保存）。controller 另读关键截图与 queue.json 原文复核；reviewer 亲读 12+ 张截图逐条吻合、对活文件重算 SHA-256 仍全等、确认 Temp 已删与无残留进程。
 
 **数据还原 SHA-256 核对**（两组逐一全等）：
 
@@ -131,11 +132,9 @@
 - **Phase 30（音频实时路径性能重写）**：设计稿 §9.3；**必须先量基线 + 把随机证据升级为确定性证据**（闸门侧回归以 1–5ms 错位窗口断言「不抛异常」，是真实但随机的证据），再谈重写。不可动的纪律见 COUPLING §5/§7。
 - **观察项（独立决策，不在本阶段处置）**：WPF/WinUI 暂停频谱行为不对称（WPF 冻结末帧、WinUI 归 2px）是否统一；未来频谱动态验收改用瞬态信号。
 
-## 8. 证据内联（原件保全）
+## 8. 证据内联（原件未随仓库保留）
 
-**保全位置与口径**：Task 2 / Task 3 的证据原件已由 controller / implementer 保全到 workspace（**gitignored 本地路径，非 Temp**）：
-- `.superpowers/sdd/2026-11-12-d-player-phase28-net11-upgrade/task-2-evidence/`：`full-audio.log`（2019 B / 50 行）、`diag-coupling.ps1`、`diag-coupling-m2m3.ps1`。
-- `.superpowers/sdd/2026-11-12-d-player-phase28-net11-upgrade/task-3-evidence/`：`shots/`（54 张 PNG）、`audio/`（playing-5s.wav / paused-2s.wav / resume-2s.wav / baseline-idle.wav + probe-outputs.txt）、`queue.walkthrough.json`、`spectrum-pixels.txt`。
+**口径**：Task 2 / Task 3 的视觉与音频原件（走查截图 54 张、回环 WAV、queue 快照、门禁日志副本、复现脚本）已在核对后按项目既有验收惯例丢弃，**本记录不引用任何外部文件或目录作为证据出处**。核对结论所需的全部内容以下方**逐字内联**形式保存在本文件内：门禁日志 50 行原文、耦合崩溃原文与复现输出、两个复现脚本全文——**读者只读本文件即可复核，无需访问任何外部路径**。
 
 Temp 的 `dplayer-phase28/`（合成库、备份、脚本、截图、探针）已按 Task 3 Step 7 `rm -rf` 删除，**本记录不引用任何 Temp 路径作为证据出处**。`coupling-audit.log` 实测 **0 字节**（PowerShell 错误流未落盘），**本记录不引用它**；耦合崩溃引文以控制台捕获与下方内联原件为准。下文 A 的 `full-audio.log` 逐字内联，其中 `/flp:logfile=…Temp…` 是门禁脚本自身的瞬态 MSBuild 文件日志参数（原始输出的一部分），非证据引用路径。
 

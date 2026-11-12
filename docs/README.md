@@ -5,7 +5,8 @@
 - [README](../README.md) — 入口、快速开始、当前限制
 - [PROJECT.md](./PROJECT.md) — 架构、模块、数据流、已知陷阱
 - [COUPLING.md](./COUPLING.md) — 耦合分析、隐式契约、不要做的事
-- [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) — 当前最近一次验收（多碟专辑归并）
+- [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md) — 当前最近一次验收（升级到 .NET 11）
+- [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) — 多碟专辑归并验收
 - [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) — 库 → 歌单验收
 - [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) — 搜索与实时监听验收
 
@@ -21,7 +22,7 @@
 
 ## 设计稿
 
-- `superpowers/specs/` — Phase 14–26 的 D-player 设计稿；Phase 24/25 是音乐库实现的直接依据，Phase 26 是库→歌单的直接依据。
+- `superpowers/specs/` — Phase 14–28 的 D-player 设计稿；Phase 24/25 是音乐库实现的直接依据，Phase 26 是库→歌单的直接依据，[Phase 28 设计](./superpowers/specs/2026-11-12-d-player-phase28-net11-upgrade-design.md) 是 net11 升级的直接依据。
 - `superpowers/plans/` — 三份刻意未跟踪的 Phase 24–26 本地实现计划，不属于发布面。
 - `archive/specs/` — UmaPlayer 时代（Phase 1–13）设计稿。
 - `archive/plans/` — Phase 1–23 实现计划。

@@ -1,6 +1,6 @@
 # D-player
 
-> 本地优先的 Windows 音乐播放器（.NET 10 + NAudio）。共享层 `D-player.Core` 为 WPF-free；**WPF 主壳**承载完整功能，WinUI 3 壳自 2026-11-02 冻结，仅由门禁 3 编译防腐烂。原名 UmaPlayer，C# 命名空间为 `DPlayer`。
+> 本地优先的 Windows 音乐播放器（.NET 11 + NAudio）。共享层 `D-player.Core` 为 WPF-free；**WPF 主壳**承载完整功能，WinUI 3 壳自 2026-11-02 冻结，仅由门禁 3 编译防腐烂。原名 UmaPlayer，C# 命名空间为 `DPlayer`。
 
 ## 特性
 
@@ -20,7 +20,7 @@
 
 | 层 | 选型 |
 |---|---|
-| 运行时 | .NET 10（Core/WPF 为 `net10.0-windows`；WinUI 为 `net10.0-windows10.0.19041.0` + x64） |
+| 运行时 | .NET 11（Core/WPF 为 `net11.0-windows`；WinUI 为 `net11.0-windows10.0.19041.0` + x64） |
 | UI | WPF 主壳（`UseWPF=true`）· WinUI 3 / Windows App SDK 2.6.5（冻结，unpackaged + self-contained） |
 | 共享层 | `D-player.Core`：Models / Services / ViewModels / Configuration / DI，**不得出现 WPF 类型** |
 | MVVM / DI / 配置 | CommunityToolkit.Mvvm 8.x · Microsoft.Extensions.DependencyInjection 11.x · Configuration.Json + `IOptions<AppSettings>` |
@@ -29,7 +29,7 @@
 
 ## 构建与运行
 
-环境：Windows 10 2004（build 19041）及以上、.NET 10 SDK；构建 WinUI 壳需 nuget.org 可达。
+环境：Windows 10 2004（build 19041）及以上、.NET 11 SDK；构建 WinUI 壳需 nuget.org 可达。
 
 ### 门禁 1/2（每次改动）
 

@@ -2,7 +2,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using System.Windows.Media;
 using DPlayer.Services;
 using DPlayer.ViewModels;
 using DPlayer.Views.Dialogs;
@@ -55,7 +54,7 @@ public partial class PlayerBar : UserControl
     private void SeekBar_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         // 命中 Thumb 时跳过：避免单击 Thumb 也被当作"瞬移到鼠标位置"
-        if (FindAncestor<Thumb>(e.OriginalSource as DependencyObject) != null) return;
+        if (VisualTreeHelpers.FindAncestor<Thumb>(e.OriginalSource as DependencyObject) != null) return;
 
         if (sender is not Slider slider) return;
 
@@ -68,17 +67,6 @@ public partial class PlayerBar : UserControl
 
         (DataContext as PlayerViewModel)?.SeekCompletedCommand.Execute(ratio);
         e.Handled = true; // 阻止后续默认拖拽行为
-    }
-
-    /// <summary>沿可视化树向上找指定类型的祖先；用于检测点击是否命中 Thumb。</summary>
-    private static T? FindAncestor<T>(DependencyObject? obj) where T : DependencyObject
-    {
-        while (obj != null)
-        {
-            if (obj is T match) return match;
-            obj = VisualTreeHelper.GetParent(obj);
-        }
-        return null;
     }
 
     // —— Thumb 拖拽：开始时让 VM 进入 IsSeeking 状态，结束时提交最终位置 ——

@@ -2,9 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Shapes;
 using DPlayer.ViewModels;
 using DPlayer.Views.Dialogs;
@@ -130,7 +128,7 @@ public partial class PlaylistsSidebarView : UserControl
                 continue;
             if (PlaylistList.Items[i] is not PlaylistViewModel vm) continue;
 
-            var marker = FindChildByName<Path>(container, "PART_SidebarMarker");
+            var marker = VisualTreeHelpers.FindChildByName<Path>(container, "PART_SidebarMarker");
             if (marker is null) continue;
             marker.Visibility = vm.IsActivePlaylist ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -140,24 +138,6 @@ public partial class PlaylistsSidebarView : UserControl
             LibraryMarker.Visibility = _vm.IsLibraryPlaybackActive
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-        }
-    }
-
-    /// <summary>在 VisualTree 中按 x:Name 查找子元素。</summary>
-    private static T? FindChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
-    {
-        return Walk(parent);
-
-        T? Walk(DependencyObject p)
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(p); i++)
-            {
-                var c = VisualTreeHelper.GetChild(p, i);
-                if (c is T fe && fe.Name == name) return fe;
-                var deeper = Walk(c);
-                if (deeper != null) return deeper;
-            }
-            return null;
         }
     }
 
@@ -194,7 +174,7 @@ public partial class PlaylistsSidebarView : UserControl
     private void PlaylistList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_vm is null) return;
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item is null) return;
         if (item.DataContext is not PlaylistViewModel target) return;
 
@@ -202,16 +182,6 @@ public partial class PlaylistsSidebarView : UserControl
         if (!ok) return;
         _vm.RenamePlaylistCommand.Execute((target, text));
         e.Handled = true;
-    }
-
-    private static T? FindAncestor<T>(DependencyObject? obj) where T : DependencyObject
-    {
-        while (obj != null)
-        {
-            if (obj is T match) return match;
-            obj = VisualTreeHelper.GetParent(obj);
-        }
-        return null;
     }
 
     // —— Phase 24: 音乐库 / 歌单视图切换 ——
@@ -313,7 +283,7 @@ public partial class PlaylistsSidebarView : UserControl
     /// </summary>
     private void PlaylistList_PreviewMouseLeftButtonDown_Navigate(MouseButtonEventArgs e)
     {
-        if (FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject) is not null)
+        if (VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject) is not null)
             ShowPlaylistView();
     }
 
@@ -364,7 +334,7 @@ public partial class PlaylistsSidebarView : UserControl
             return;
 
         // 只有当拖动起点落在某个 ListBoxItem 上时才启动
-        var sourceItem = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var sourceItem = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (sourceItem is null) { _dragStartPoint = null; return; }
 
         int srcIndex = PlaylistList.ItemContainerGenerator.IndexFromContainer(sourceItem);
@@ -375,7 +345,7 @@ public partial class PlaylistsSidebarView : UserControl
         DragDrop.DoDragDrop(PlaylistList, data, DragDropEffects.Move);
 
         // 拖拽结束后清理 Adorner
-        HideAdorner();
+        VisualTreeHelpers.HideAdorner(PlaylistList, ref _currentAdorner);
     }
 
     private void PlaylistList_DragOver(object sender, DragEventArgs e)
@@ -384,8 +354,8 @@ public partial class PlaylistsSidebarView : UserControl
 
         if (e.Data.GetDataPresent(PlaylistItemsFormat))
         {
-            int insertIdx = ComputeInsertIndex(e.GetPosition(PlaylistList));
-            ShowAdorner(insertIdx);
+            int insertIdx = VisualTreeHelpers.ComputeInsertIndex(PlaylistList, e.GetPosition(PlaylistList));
+            VisualTreeHelpers.ShowAdorner(PlaylistList, ref _currentAdorner, insertIdx);
             e.Effects = DragDropEffects.Move;
         }
         else if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -404,7 +374,7 @@ public partial class PlaylistsSidebarView : UserControl
 
     private void PlaylistList_DragLeave(object sender, DragEventArgs e)
     {
-        HideAdorner();
+        VisualTreeHelpers.HideAdorner(PlaylistList, ref _currentAdorner);
     }
 
     private void PlaylistList_Drop(object sender, DragEventArgs e)
@@ -415,7 +385,7 @@ public partial class PlaylistsSidebarView : UserControl
             if (e.Data.GetDataPresent(PlaylistItemsFormat))
             {
                 int srcIndex = (int)e.Data.GetData(PlaylistItemsFormat)!;
-                int tgtIndex = ComputeInsertIndex(e.GetPosition(PlaylistList));
+                int tgtIndex = VisualTreeHelpers.ComputeInsertIndex(PlaylistList, e.GetPosition(PlaylistList));
                 _vm.MovePlaylistCommand.Execute((srcIndex, tgtIndex));
             }
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -433,44 +403,8 @@ public partial class PlaylistsSidebarView : UserControl
         }
         finally
         {
-            HideAdorner();
+            VisualTreeHelpers.HideAdorner(PlaylistList, ref _currentAdorner);
             e.Handled = true;
         }
-    }
-
-    private int ComputeInsertIndex(Point posInListBox)
-    {
-        for (int i = 0; i < PlaylistList.Items.Count; i++)
-        {
-            if (PlaylistList.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem container) continue;
-            var transform = container.TransformToAncestor(PlaylistList);
-            var topLeft = transform.Transform(new Point(0, 0));
-            var rect = new Rect(topLeft, new Size(container.ActualWidth, container.ActualHeight));
-            if (posInListBox.Y >= rect.Top && posInListBox.Y < rect.Bottom)
-            {
-                return posInListBox.Y < rect.Top + rect.Height / 2 ? i : i + 1;
-            }
-        }
-        return PlaylistList.Items.Count;
-    }
-
-    private void ShowAdorner(int insertIndex)
-    {
-        var layer = AdornerLayer.GetAdornerLayer(PlaylistList);
-        if (layer is null) return;
-        if (_currentAdorner is null)
-        {
-            _currentAdorner = new DropInsertionAdorner(PlaylistList);
-            layer.Add(_currentAdorner);
-        }
-        _currentAdorner.Update(insertIndex);
-    }
-
-    private void HideAdorner()
-    {
-        if (_currentAdorner is null) return;
-        var layer = AdornerLayer.GetAdornerLayer(PlaylistList);
-        layer?.Remove(_currentAdorner);
-        _currentAdorner = null;
     }
 }

@@ -7,8 +7,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using MediaTrack = DPlayer.Models.Track;
@@ -194,7 +192,7 @@ public partial class LibraryView : UserControl
             if (AlbumTracksList.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem container)
                 continue;
 
-            var marker = FindChildByName<Path>(container, "PART_Marker");
+            var marker = VisualTreeHelpers.FindChildByName<Path>(container, "PART_Marker");
             if (marker is null) continue;
 
             var isCurrent = isLibraryActive
@@ -212,7 +210,7 @@ public partial class LibraryView : UserControl
                 is not ListBoxItem container)
                 continue;
 
-            var marker = FindChildByName<Path>(container, "PART_Marker");
+            var marker = VisualTreeHelpers.FindChildByName<Path>(container, "PART_Marker");
             if (marker is null) continue;
 
             marker.Visibility = isLibraryActive && currentPath is not null &&
@@ -228,8 +226,8 @@ public partial class LibraryView : UserControl
         if (sender is not ListBox list) return;
 
         var source = e.OriginalSource as DependencyObject;
-        if (FindAncestor<ListBoxItem>(source) is not null) return;
-        if (FindAncestor<ScrollBar>(source) is not null) return;
+        if (VisualTreeHelpers.FindAncestor<ListBoxItem>(source) is not null) return;
+        if (VisualTreeHelpers.FindAncestor<ScrollBar>(source) is not null) return;
 
         list.SelectedItem = null;
     }
@@ -295,7 +293,7 @@ public partial class LibraryView : UserControl
 
     private void SearchResults_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item?.DataContext is not LibrarySearchRow row) return;
 
         switch (row.Item)
@@ -313,7 +311,7 @@ public partial class LibraryView : UserControl
 
     private async void SearchResults_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item?.DataContext is LibrarySearchRow { Item: MediaTrack track } &&
             _vm is not null)
         {
@@ -399,7 +397,7 @@ public partial class LibraryView : UserControl
     private async void AlbumTracksList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_vm?.SelectedAlbum is not { } album) return;
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item is null) return;
         var index = AlbumTracksList.ItemContainerGenerator.IndexFromContainer(item);
         if (index >= 0)
@@ -472,40 +470,7 @@ public partial class LibraryView : UserControl
 
     private static T? FindItemDataContext<T>(MouseButtonEventArgs e) where T : class
     {
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         return item?.DataContext as T;
-    }
-
-    private static T? FindChildByName<T>(DependencyObject parent, string name)
-        where T : FrameworkElement
-    {
-        if (parent is T match && match.Name == name)
-            return match;
-
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            if (FindChildByName<T>(VisualTreeHelper.GetChild(parent, i), name) is { } found)
-                return found;
-        }
-        return null;
-    }
-
-    private static T? FindAncestor<T>(DependencyObject? obj) where T : DependencyObject
-    {
-        while (obj is not null)
-        {
-            if (obj is T match) return match;
-
-            // e.OriginalSource 可能是 Run/TextElement 等 ContentElement，不是 Visual；
-            // 对它们调用 VisualTreeHelper.GetParent 会抛 InvalidOperationException。
-            obj = obj switch
-            {
-                Visual or Visual3D => VisualTreeHelper.GetParent(obj),
-                ContentElement content => ContentOperations.GetParent(content)
-                    ?? (content as FrameworkContentElement)?.Parent,
-                _ => null,
-            };
-        }
-        return null;
     }
 }

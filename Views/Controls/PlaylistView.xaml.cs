@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -106,8 +105,8 @@ public partial class PlaylistView : UserControl
             var container = QueueList.ItemContainerGenerator.ContainerFromIndex(i) as ListBoxItem;
             if (container == null) continue;
 
-            var marker = FindChildByName<Path>(container, "PART_Marker");
-            var title  = FindChildByName<TextBlock>(container, "PART_Title");
+            var marker = VisualTreeHelpers.FindChildByName<Path>(container, "PART_Marker");
+            var title  = VisualTreeHelpers.FindChildByName<TextBlock>(container, "PART_Title");
             if (marker == null || title == null) continue;
 
             // Phase 6: 只在 _vm 是当前正在播放的歌单时才显示 ▶/高亮 ——
@@ -129,26 +128,6 @@ public partial class PlaylistView : UserControl
             _vm.SortBy(column);
     }
 
-    /// <summary>
-    /// 在 VisualTree 中按 x:Name 查找子元素。
-    /// </summary>
-    private static T? FindChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
-    {
-        return Walk(parent);
-
-        T? Walk(DependencyObject p)
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(p); i++)
-            {
-                var c = VisualTreeHelper.GetChild(p, i);
-                if (c is T fe && fe.Name == name) return fe;
-                var deeper = Walk(c);
-                if (deeper != null) return deeper;
-            }
-            return null;
-        }
-    }
-
     // —— 事件转发 ——
 
     /// <summary>
@@ -159,7 +138,7 @@ public partial class PlaylistView : UserControl
     private void QueueList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_vm == null) return;
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item == null) return;
 
         int index = QueueList.ItemContainerGenerator.IndexFromContainer(item);
@@ -253,7 +232,7 @@ public partial class PlaylistView : UserControl
         // SelectedItems.Count == 1，多选拖拽失效。
         // 处理：若按下点是"已选 & 属于 ≥2 项的多选 & 无 Ctrl/Shift"，
         // Handled=true 拦掉塌选；MouseUp 时若没真正拖起来，再手动塌成单选模拟原行为。
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item is null) return;
         if (!item.IsSelected) return;
         if (QueueList.SelectedItems.Count < 2) return;
@@ -274,7 +253,7 @@ public partial class PlaylistView : UserControl
         if (_pendingSingleSelectItem is not null)
         {
             // 仅当鼠标抬起时还停在原项上才塌选；移到别处了说明是空操作
-            var hover = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+            var hover = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
             if (ReferenceEquals(hover, _pendingSingleSelectItem))
             {
                 QueueList.SelectedItems.Clear();
@@ -298,7 +277,7 @@ public partial class PlaylistView : UserControl
             return;
 
         // 只有当拖动起点落在某个 ListBoxItem 上时才启动（避免空白区拖出空选）
-        var sourceItem = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var sourceItem = VisualTreeHelpers.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (sourceItem is null) { _dragStartPoint = null; return; }
 
         // 按引用身份建立 selection 集合 —— Track 是 record（结构相等），用 IndexOf
@@ -321,7 +300,7 @@ public partial class PlaylistView : UserControl
         DragDrop.DoDragDrop(QueueList, data, DragDropEffects.Move);
 
         // 拖拽结束（无论 Drop / Esc / Leave）后清理 Adorner
-        HideAdorner();
+        VisualTreeHelpers.HideAdorner(QueueList, ref _currentAdorner);
     }
 
     // —— Phase 5：DragOver / Drop（区分内部重排 vs 外部 FileDrop） ——
@@ -333,8 +312,8 @@ public partial class PlaylistView : UserControl
         if (e.Data.GetDataPresent(QueueItemsFormat))
         {
             // 内部重排
-            int insertIdx = ComputeInsertIndex(e.GetPosition(QueueList));
-            ShowAdorner(insertIdx);
+            int insertIdx = VisualTreeHelpers.ComputeInsertIndex(QueueList, e.GetPosition(QueueList));
+            VisualTreeHelpers.ShowAdorner(QueueList, ref _currentAdorner, insertIdx);
             e.Effects = DragDropEffects.Move;
         }
         else if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -355,7 +334,7 @@ public partial class PlaylistView : UserControl
     private void QueueList_DragLeave(object sender, DragEventArgs e)
     {
         // 拖出 ListBox 边界即隐藏插入线（外部高亮由 Root_DragLeave 处理）
-        HideAdorner();
+        VisualTreeHelpers.HideAdorner(QueueList, ref _currentAdorner);
     }
 
     private void QueueList_Drop(object sender, DragEventArgs e)
@@ -367,7 +346,7 @@ public partial class PlaylistView : UserControl
             {
                 var sources = e.Data.GetData(QueueItemsFormat) as IReadOnlyList<int>;
                 if (sources is null || sources.Count == 0) return;
-                int target = ComputeInsertIndex(e.GetPosition(QueueList));
+                int target = VisualTreeHelpers.ComputeInsertIndex(QueueList, e.GetPosition(QueueList));
                 _vm.MoveTracksCommand.Execute(new MoveTracksArgs(sources, target));
             }
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -391,7 +370,7 @@ public partial class PlaylistView : UserControl
         }
         finally
         {
-            HideAdorner();
+            VisualTreeHelpers.HideAdorner(QueueList, ref _currentAdorner);
             // 同时清掉外层文件高亮：QueueList_Drop 会 e.Handled=true，事件不再冒泡到 Root_Drop，
             // 否则用户拖文件落到列表区时高亮会卡住不消失（DragLeave 已先于 Drop 离场，
             // Root_DragLeave 也不会再触发）。
@@ -473,60 +452,5 @@ public partial class PlaylistView : UserControl
 
             e.Handled = true;
         }
-    }
-
-    // —— Phase 5：插入位置命中测试 ——
-
-    /// <summary>
-    /// 把 ListBox 坐标系下的鼠标点映射到插入索引 ∈ [0, Queue.Count]。
-    /// 命中某项 → 鼠标在上半部 → 该项之前；下半部 → 该项之后。
-    /// 无命中 → Queue.Count（末尾）。
-    /// </summary>
-    private int ComputeInsertIndex(Point posInListBox)
-    {
-        for (int i = 0; i < QueueList.Items.Count; i++)
-        {
-            if (QueueList.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem container) continue;
-            var transform = container.TransformToAncestor(QueueList);
-            var topLeft = transform.Transform(new Point(0, 0));
-            var rect = new Rect(topLeft, new Size(container.ActualWidth, container.ActualHeight));
-            if (posInListBox.Y >= rect.Top && posInListBox.Y < rect.Bottom)
-            {
-                return posInListBox.Y < rect.Top + rect.Height / 2 ? i : i + 1;
-            }
-        }
-        return QueueList.Items.Count; // 鼠标在所有项之下 → 末尾
-    }
-
-    // —— Phase 5：Adorner 生命周期 ——
-
-    private void ShowAdorner(int insertIndex)
-    {
-        var layer = AdornerLayer.GetAdornerLayer(QueueList);
-        if (layer is null) return;
-        if (_currentAdorner is null)
-        {
-            _currentAdorner = new DropInsertionAdorner(QueueList);
-            layer.Add(_currentAdorner);
-        }
-        _currentAdorner.Update(insertIndex);
-    }
-
-    private void HideAdorner()
-    {
-        if (_currentAdorner is null) return;
-        var layer = AdornerLayer.GetAdornerLayer(QueueList);
-        layer?.Remove(_currentAdorner);
-        _currentAdorner = null;
-    }
-
-    private static T? FindAncestor<T>(DependencyObject? obj) where T : DependencyObject
-    {
-        while (obj != null)
-        {
-            if (obj is T match) return match;
-            obj = VisualTreeHelper.GetParent(obj);
-        }
-        return null;
     }
 }

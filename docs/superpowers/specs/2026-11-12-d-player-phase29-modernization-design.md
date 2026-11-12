@@ -185,7 +185,9 @@
 
 - `Users` 统计所有已进入 `EnterAsync` 但尚未 `Exit` 的调用（含等待者与持有者）；`Users == 0` 是移除并 Dispose 的唯一条件，且在 registry 锁内判断。
 - `SemaphoreSlim.WaitAsync` 在 registry 锁外；取消时在 catch 中 `Exit`，不会泄漏计数。
+- **持有信号量的正常退出必须 `Release()`；等待被取消的路径不得 `Release()`**（否则 `SemaphoreFullException`）。`Release`/`Dispose` 放在 registry 锁外，避免 `Release` 内联唤醒等待者后重入 `Exit`。
 - 移除后新调用创建新 gate；旧 gate 已无持有者/等待者，不会出现同根并行。
+- `Lease` 用 `Interlocked.Exchange` 做幂等，并声明为 `sealed class`（引用类型）以避免 struct 复制后各自 Dispose 造成重复递减。
 - `LibraryRootScanner` 实例持有 registry（Singleton），内存上限受进程内活跃/历史根数量影响，但每个根在最后一个使用者退出后立即归零；不再跨实例泄漏。
 - 测试通过 `internal int ActiveRootGates` 观察归零。
 

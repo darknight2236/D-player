@@ -133,109 +133,102 @@ public sealed partial class LibraryViewModel
         if (Page != LibraryPage.Search)
             return CurrentNavigation();
 
-        var fallback = new LibraryNavigationSnapshot(
-            LibraryPage.Artists, null, null, false, null);
-        return ResolveNavigation(_searchReturn ?? fallback);
+        return ResolveNavigation(_searchReturn ?? new ArtistsNavigation());
     }
 
-    private LibraryNavigationSnapshot CurrentNavigation() => new(
-        Page,
-        SelectedArtist?.Name,
-        SelectedAlbum is null ? null : LibraryIdentity.AlbumOf(SelectedAlbum),
-        _albumOpenedFromArtist,
-        SelectedAlbum?.Tracks.FirstOrDefault()?.FilePath);
+    private LibraryNavigationSnapshot CurrentNavigation() => Page switch
+    {
+        LibraryPage.ArtistDetail when SelectedArtist is { } artist =>
+            new ArtistDetailNavigation(artist.Name),
+        LibraryPage.AlbumDetail when SelectedAlbum is { } album =>
+            new AlbumDetailNavigation(
+                SelectedArtist?.Name,
+                LibraryIdentity.AlbumOf(album),
+                _albumOpenedFromArtist,
+                album.Tracks.FirstOrDefault()?.FilePath),
+        LibraryPage.Albums => new AlbumsNavigation(),
+        _ => new ArtistsNavigation(),
+    };
 
     private LibraryNavigationSnapshot ResolveNavigation(
         LibraryNavigationSnapshot snapshot)
     {
-        switch (snapshot.Page)
+        switch (snapshot)
         {
-            case LibraryPage.ArtistDetail:
+            case ArtistDetailNavigation detail:
             {
                 var artist = Artists.FirstOrDefault(candidate => string.Equals(
-                    candidate.Name, snapshot.ArtistName,
+                    candidate.Name, detail.ArtistName,
                     StringComparison.CurrentCultureIgnoreCase));
                 return artist is null
-                    ? new LibraryNavigationSnapshot(
-                        LibraryPage.Artists, null, null, false, null)
-                    : new LibraryNavigationSnapshot(
-                        LibraryPage.ArtistDetail, artist.Name, null, false, null);
+                    ? new ArtistsNavigation()
+                    : new ArtistDetailNavigation(artist.Name);
             }
-            case LibraryPage.AlbumDetail:
+            case AlbumDetailNavigation detail:
             {
-                var album = snapshot.Album is { } key
-                    ? Albums.FirstOrDefault(candidate =>
-                        LibraryIdentity.AlbumComparer.Equals(
-                            LibraryIdentity.AlbumOf(candidate), key))
-                    : null;
+                var album = Albums.FirstOrDefault(candidate =>
+                    LibraryIdentity.AlbumComparer.Equals(
+                        LibraryIdentity.AlbumOf(candidate), detail.Album));
                 if (album is null)
-                {
-                    return new LibraryNavigationSnapshot(
-                        LibraryPage.Albums, null, null, false, null);
-                }
+                    return new AlbumsNavigation();
 
-                var artist = snapshot.AlbumOpenedFromArtist
+                var artist = detail.OpenedFromArtist
                     ? Artists.FirstOrDefault(candidate => string.Equals(
-                        candidate.Name, snapshot.ArtistName,
+                        candidate.Name, detail.ArtistName,
                         StringComparison.CurrentCultureIgnoreCase))
                     : null;
-                return new LibraryNavigationSnapshot(
-                    LibraryPage.AlbumDetail,
+                return new AlbumDetailNavigation(
                     artist?.Name,
                     LibraryIdentity.AlbumOf(album),
-                    snapshot.AlbumOpenedFromArtist && artist is not null,
+                    detail.OpenedFromArtist && artist is not null,
                     album.Tracks.FirstOrDefault()?.FilePath);
             }
-            case LibraryPage.Albums:
-                return new LibraryNavigationSnapshot(
-                    LibraryPage.Albums, null, null, false, null);
+            case AlbumsNavigation:
+                return new AlbumsNavigation();
             default:
-                return new LibraryNavigationSnapshot(
-                    LibraryPage.Artists, null, null, false, null);
+                return new ArtistsNavigation();
         }
     }
 
     private void RestoreSearchReturn()
     {
-        var resolved = _searchReturn is null
-            ? new LibraryNavigationSnapshot(LibraryPage.Artists, null, null, false, null)
-            : ResolveNavigation(_searchReturn);
+        var resolved = _searchReturn is { } pending
+            ? ResolveNavigation(pending)
+            : new ArtistsNavigation();
         _searchReturn = null;
         SelectedArtist = null;
         SelectedAlbum = null;
         _albumOpenedFromArtist = false;
 
-        switch (resolved.Page)
+        switch (resolved)
         {
-            case LibraryPage.ArtistDetail:
+            case ArtistDetailNavigation detail:
                 SelectedArtist = Artists.FirstOrDefault(candidate => string.Equals(
-                    candidate.Name, resolved.ArtistName,
+                    candidate.Name, detail.ArtistName,
                     StringComparison.CurrentCultureIgnoreCase));
                 Page = SelectedArtist is null
                     ? LibraryPage.Artists : LibraryPage.ArtistDetail;
                 break;
-            case LibraryPage.AlbumDetail:
-                SelectedAlbum = resolved.Album is { } key
-                    ? Albums.FirstOrDefault(candidate =>
-                        LibraryIdentity.AlbumComparer.Equals(
-                            LibraryIdentity.AlbumOf(candidate), key))
-                    : null;
+            case AlbumDetailNavigation detail:
+                SelectedAlbum = Albums.FirstOrDefault(candidate =>
+                    LibraryIdentity.AlbumComparer.Equals(
+                        LibraryIdentity.AlbumOf(candidate), detail.Album));
                 if (SelectedAlbum is null)
                 {
                     Page = LibraryPage.Albums;
                     break;
                 }
-                SelectedArtist = resolved.ArtistName is { } artistName
+                SelectedArtist = detail.ArtistName is { } artistName
                     ? Artists.FirstOrDefault(candidate => string.Equals(
                         candidate.Name, artistName,
                         StringComparison.CurrentCultureIgnoreCase))
                     : null;
                 _albumOpenedFromArtist =
-                    resolved.AlbumOpenedFromArtist && SelectedArtist is not null;
+                    detail.OpenedFromArtist && SelectedArtist is not null;
                 Page = LibraryPage.AlbumDetail;
                 _ = EnsureCoverAsync(SelectedAlbum);
                 break;
-            case LibraryPage.Albums:
+            case AlbumsNavigation:
                 Page = LibraryPage.Albums;
                 break;
             default:

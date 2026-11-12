@@ -310,14 +310,22 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 await _settings.UpdateAsync(s => s with
                 {
                     LibraryViewActive = libraryViewActive,
-                    LibraryViewPage = libraryViewActive ? navigation.Page.ToString() : null,
+                    LibraryViewPage = libraryViewActive
+                        ? navigation switch
+                        {
+                            ArtistDetailNavigation => nameof(LibraryPage.ArtistDetail),
+                            AlbumDetailNavigation => nameof(LibraryPage.AlbumDetail),
+                            AlbumsNavigation => nameof(LibraryPage.Albums),
+                            _ => nameof(LibraryPage.Artists),
+                        }
+                        : null,
                     LibraryViewArtistName = libraryViewActive &&
-                        navigation.Page == LibraryPage.ArtistDetail
-                            ? navigation.ArtistName
+                        navigation is ArtistDetailNavigation artistNavigation
+                            ? artistNavigation.ArtistName
                             : null,
                     LibraryViewAlbumTrackPath = libraryViewActive &&
-                        navigation.Page == LibraryPage.AlbumDetail
-                            ? navigation.AlbumTrackPath
+                        navigation is AlbumDetailNavigation albumNavigation
+                            ? albumNavigation.AlbumTrackPath
                             : null,
                 }).ConfigureAwait(true);
             }

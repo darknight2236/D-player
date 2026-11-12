@@ -12,11 +12,26 @@ public enum LibraryPage
     Search,
 }
 
-public sealed record LibraryNavigationSnapshot(
-    LibraryPage Page,
+/// <summary>
+/// 音乐库导航快照: 四个互斥的导航分支, 由类型区分(Search 页会回退到进入搜索前的快照)。
+/// 快照同时用于关闭窗口时的持久化(页面名 / 艺术家名 / 专辑首曲路径)。
+/// </summary>
+public union LibraryNavigationSnapshot(
+    ArtistsNavigation,
+    AlbumsNavigation,
+    ArtistDetailNavigation,
+    AlbumDetailNavigation);
+
+public sealed record class ArtistsNavigation;
+
+public sealed record class AlbumsNavigation;
+
+public sealed record class ArtistDetailNavigation(string ArtistName);
+
+public sealed record class AlbumDetailNavigation(
     string? ArtistName,
-    LibraryAlbumKey? Album,
-    bool AlbumOpenedFromArtist,
+    LibraryAlbumKey Album,
+    bool OpenedFromArtist,
     string? AlbumTrackPath);
 
 public sealed class LibraryArtist

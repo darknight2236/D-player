@@ -709,7 +709,7 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
             TestContext.Current.CancellationToken);
 
         Assert.Single(vm.SearchResults.Tracks);
-        Assert.Equal(LibraryPage.AlbumDetail, vm.CaptureNavigation().Page);
+        Assert.True(vm.CaptureNavigation() is AlbumDetailNavigation);
 
         vm.ClearSearch();
 

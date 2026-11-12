@@ -4,7 +4,7 @@ namespace DPlayer.ViewModels;
 
 internal sealed class OneShotCleanup
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private Task? _task;
 
     internal Task RunAsync(

@@ -6,7 +6,7 @@ namespace DPlayer.Services;
 
 internal sealed class RootGateRegistry
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, Entry> _entries =
         new(StringComparer.OrdinalIgnoreCase);
 

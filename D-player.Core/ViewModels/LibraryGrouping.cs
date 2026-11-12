@@ -13,16 +13,10 @@ internal static class LibraryGrouping
     internal const string UnknownAlbum = "未知专辑";
     internal const string VariousArtists = "多位艺术家";
 
-    private sealed class ArtistBucket
+    private sealed class ArtistBucket(string name, bool isUnknown)
     {
-        public ArtistBucket(string name, bool isUnknown)
-        {
-            Name = name;
-            IsUnknown = isUnknown;
-        }
-
-        public string Name { get; }
-        public bool IsUnknown { get; }
+        public string Name { get; } = name;
+        public bool IsUnknown { get; } = isUnknown;
         public List<Track> Tracks { get; } = new();
         public HashSet<LibraryAlbum> Albums { get; } = new();
     }

@@ -9,11 +9,12 @@ namespace DPlayer.ViewModels;
 
 public readonly record struct LibraryAlbumKey(string Album, string Directory);
 
-public static class LibraryIdentity
+public static partial class LibraryIdentity
 {
-    private static readonly Regex DiscFolderPattern = new(
+    [GeneratedRegex(
         @"^(?:disc|cd|disk|碟|ディスク)[\s\-]*([0-9]+)$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex DiscFolderPattern();
 
     public static IEqualityComparer<LibraryAlbumKey> AlbumComparer { get; } =
         new AlbumKeyComparer();
@@ -22,7 +23,7 @@ public static class LibraryIdentity
     {
         var directory = TrackDirectory(track);
         // 多碟专辑：Disc N / CD N 等子文件夹上提一层，用父目录作专辑边界。
-        if (DiscFolderPattern.IsMatch(Path.GetFileName(directory)))
+        if (DiscFolderPattern().IsMatch(Path.GetFileName(directory)))
             directory = Path.GetDirectoryName(directory) ?? directory;
         return new((track.Album ?? string.Empty).Trim(), directory);
     }
@@ -30,7 +31,7 @@ public static class LibraryIdentity
     /// <summary>碟序号（Disc N 的 N）；不在碟子文件夹内时为 0，仅供排序。</summary>
     public static int DiscOrderOf(Track track)
     {
-        var match = DiscFolderPattern.Match(Path.GetFileName(TrackDirectory(track)));
+        var match = DiscFolderPattern().Match(Path.GetFileName(TrackDirectory(track)));
         return match.Success
             && int.TryParse(match.Groups[1].Value, NumberStyles.None,
                 CultureInfo.InvariantCulture, out var number)

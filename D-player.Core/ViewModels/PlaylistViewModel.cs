@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -481,16 +482,19 @@ public partial class PlaylistViewModel : ObservableObject
         }
     }
 
+    private static readonly SearchValues<char> InvalidFileNameChars =
+        SearchValues.Create(Path.GetInvalidFileNameChars());
+
     /// <summary>歌单名 → 合法文件名（非法字符替换为 '_'）。空名退化为 "playlist"。</summary>
     private static string SanitizeFileName(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "playlist";
 
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = new char[name.Length];
-        for (int i = 0; i < name.Length; i++)
+        var chars = name.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
         {
-            chars[i] = Array.IndexOf(invalid, name[i]) >= 0 ? '_' : name[i];
+            if (InvalidFileNameChars.Contains(chars[i]))
+                chars[i] = '_';
         }
         return new string(chars);
     }

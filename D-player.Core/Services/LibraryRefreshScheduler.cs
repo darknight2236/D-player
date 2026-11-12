@@ -506,18 +506,11 @@ internal sealed class LibraryRefreshScheduler : IAsyncDisposable
         request.Cts.Dispose();
     }
 
-    private sealed class PendingRoot
+    private sealed class PendingRoot(DateTimeOffset first, DateTimeOffset last)
     {
-        public PendingRoot(DateTimeOffset first, DateTimeOffset last)
-        {
-            First = first;
-            Last = last;
-            Due = first;
-        }
-
-        public DateTimeOffset First { get; }
-        public DateTimeOffset Last { get; set; }
-        public DateTimeOffset Due { get; set; }
+        public DateTimeOffset First { get; } = first;
+        public DateTimeOffset Last { get; set; } = last;
+        public DateTimeOffset Due { get; set; } = first;
     }
 
     private sealed class RetryCycle
@@ -531,42 +524,26 @@ internal sealed class LibraryRefreshScheduler : IAsyncDisposable
         public DateTimeOffset Due { get; set; }
     }
 
-    private sealed class FullRefreshRequest
+    private sealed class FullRefreshRequest(
+        long rootEpoch, long generation, LibraryRefreshReason reason,
+        IReadOnlyList<string> roots)
     {
-        public FullRefreshRequest(
-            long rootEpoch, long generation, LibraryRefreshReason reason,
-            IReadOnlyList<string> roots)
-        {
-            RootEpoch = rootEpoch;
-            Generation = generation;
-            Reason = reason;
-            Roots = roots;
-        }
-
-        public long RootEpoch { get; }
-        public long Generation { get; }
-        public LibraryRefreshReason Reason { get; }
-        public IReadOnlyList<string> Roots { get; }
+        public long RootEpoch { get; } = rootEpoch;
+        public long Generation { get; } = generation;
+        public LibraryRefreshReason Reason { get; } = reason;
+        public IReadOnlyList<string> Roots { get; } = roots;
         public required CancellationTokenSource Cts { get; init; }
         public TaskCompletionSource Completion { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
-    private sealed class WorkItem
+    private sealed class WorkItem(
+        LibraryRefreshBatch batch, CancellationTokenSource cts,
+        FullRefreshRequest? full, bool isRetry)
     {
-        public WorkItem(
-            LibraryRefreshBatch batch, CancellationTokenSource cts,
-            FullRefreshRequest? full, bool isRetry)
-        {
-            Batch = batch;
-            Cts = cts;
-            Full = full;
-            IsRetry = isRetry;
-        }
-
-        public LibraryRefreshBatch Batch { get; }
-        public CancellationTokenSource Cts { get; }
-        public FullRefreshRequest? Full { get; }
-        public bool IsRetry { get; }
+        public LibraryRefreshBatch Batch { get; } = batch;
+        public CancellationTokenSource Cts { get; } = cts;
+        public FullRefreshRequest? Full { get; } = full;
+        public bool IsRetry { get; } = isRetry;
     }
 }

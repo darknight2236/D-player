@@ -603,4 +603,20 @@ public class PlaybackResumeTests : IDisposable
         vm.ShowPlaylist();
         Assert.False(vm.IsLibraryViewActive);
     }
+
+    /// <summary>
+    /// 同步 ServiceProvider.Dispose 只认 IDisposable；MainViewModel 的无操作标记必须幂等，
+    /// 且不得替代 MainWindow.Closing 的 CleanupAsync 路径（这里库/歌单仍可正常清理）。
+    /// </summary>
+    [Fact]
+    public async Task MainViewModel_Dispose_IsIdempotent()
+    {
+        var vm = CreateMainVm();
+        var disposable = Assert.IsAssignableFrom<IDisposable>(vm);
+        disposable.Dispose();
+        disposable.Dispose();
+
+        await vm.CleanupAsync().WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+    }
 }

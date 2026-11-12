@@ -32,4 +32,12 @@ public sealed class DisposalTests : IDisposable
         settings.Dispose();
         settings.Dispose();
     }
+
+    [Fact]
+    public void Watcher_DisposeTwice_DoNotThrow()
+    {
+        var watcher = new FileSystemLibraryWatcher();
+        watcher.Dispose();
+        watcher.Dispose();
+    }
 }

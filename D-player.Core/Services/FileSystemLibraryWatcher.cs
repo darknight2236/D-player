@@ -93,6 +93,7 @@ public sealed class FileSystemLibraryWatcher : ILibraryWatcher
 
         foreach (var watcher in toDispose)
             watcher.Dispose();
+        _replaceGate.Dispose();
     }
 
     private FileSystemWatcher? Create(

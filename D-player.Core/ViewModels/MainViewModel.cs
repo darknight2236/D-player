@@ -18,7 +18,7 @@ namespace DPlayer.ViewModels;
 ///   - CleanupAsync 关闭前 flush: 取消挂起的 timer, 立即同步 SaveAsync, 再 Dispose Player
 ///   - Phase 24: IsLibraryViewActive 是壳级导航状态（播放列表 ↔ 音乐库），子 VM 不自持
 /// </summary>
-public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
+public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable, IDisposable
 {
     private const int DebounceMs = 500;
 
@@ -340,4 +340,13 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     public async ValueTask DisposeAsync() => await CleanupAsync().ConfigureAwait(false);
+
+    /// <summary>
+    /// 无操作标记：同步 ServiceProvider.Dispose 遇到只实现 IAsyncDisposable 的单例会抛
+    /// "Use DisposeAsync to dispose the container"，加上 IDisposable 后容器才能越过本实例，
+    /// 继续释放 Json 单例等资源。真正的清理仍由 MainWindow.Closing 驱动 CleanupAsync。
+    /// </summary>
+    public void Dispose()
+    {
+    }
 }

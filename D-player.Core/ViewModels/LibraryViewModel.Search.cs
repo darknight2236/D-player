@@ -309,6 +309,10 @@ public sealed partial class LibraryViewModel
                     // UI 上下文已关闭。
                 }
             }
+
+            // 已被更新查询顶替的 CTS 归本任务所有；仍是当前查询时由 Cleanup 统一释放。
+            if (!ReferenceEquals(Volatile.Read(ref _queryCts), cts))
+                cts.Dispose();
         }
     }
 

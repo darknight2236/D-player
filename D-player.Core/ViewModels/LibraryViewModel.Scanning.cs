@@ -443,18 +443,25 @@ public sealed partial class LibraryViewModel
     private async Task CompleteCleanupAsync()
     {
         _watcher.Changed -= OnWatcherChanged;
-        _watcher.Dispose();
         _lifetimeCts.Cancel();
         await _scheduler.StopAsync().ConfigureAwait(false);
+
         await WaitQuietAsync(_initializeTask).ConfigureAwait(false);
         await WaitQuietAsync(_monitorTask).ConfigureAwait(false);
         await WaitQuietAsync(_scanTask).ConfigureAwait(false);
+        await WaitQuietAsync(_queryTask).ConfigureAwait(false);
 
         Task[] covers;
         lock (_cleanupGate)
             covers = _coverTasks.ToArray();
         foreach (var cover in covers)
             await WaitQuietAsync(cover).ConfigureAwait(false);
+
+        _watcher.Dispose();
+        _coverGate.Dispose();
+        _lifetimeCts.Dispose();
+        _queryCts?.Dispose();
+        _queryCts = null;
     }
 
     private static async Task WaitQuietAsync(Task? task)

@@ -27,8 +27,8 @@ public sealed partial class LibraryViewModel : ObservableObject
         new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _coverGate = new(1, 1);
     private readonly CancellationTokenSource _lifetimeCts = new();
-    private readonly object _stateGate = new();
-    private readonly object _cleanupGate = new();
+    private readonly Lock _stateGate = new();
+    private readonly Lock _cleanupGate = new();
     private readonly HashSet<Task> _coverTasks = new();
     private readonly OneShotCleanup _cleanup = new();
 

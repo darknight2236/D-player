@@ -29,7 +29,7 @@ internal sealed class LibraryRefreshScheduler : IAsyncDisposable
     private readonly Func<LibraryRefreshBatch, LibraryScanLease,
         Task<IReadOnlyList<LibraryRootSnapshot>>> _execute;
     private readonly Action<Exception> _reportError;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Channel<bool> _wake = Channel.CreateUnbounded<bool>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly Dictionary<string, PendingRoot> _pending =

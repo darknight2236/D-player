@@ -4,7 +4,7 @@ namespace DPlayer.Services;
 
 public sealed class LibraryScanLease : IDisposable
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly CancellationTokenRegistration _registration;
     private bool _revoked;

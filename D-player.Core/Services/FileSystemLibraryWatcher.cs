@@ -4,7 +4,7 @@ namespace DPlayer.Services;
 
 public sealed class FileSystemLibraryWatcher : ILibraryWatcher
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, FileSystemWatcher> _watchers =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _desiredRoots =

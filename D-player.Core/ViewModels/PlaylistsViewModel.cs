@@ -28,7 +28,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private readonly SynchronizationContext _syncContext;
 
     private readonly CancellationTokenSource _folderLifetimeCts = new();
-    private readonly object _folderGate = new();
+    private readonly Lock _folderGate = new();
     private readonly HashSet<Task> _folderTasks = new();
     private readonly OneShotCleanup _cleanup = new();
     private bool _acceptingFolderTasks = true;

@@ -371,7 +371,7 @@ public partial class PlaylistViewModel : ObservableObject
     private async Task AddToQueue()
     {
         var files = await _fileDialog.OpenFilesAsync(
-            "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav",
+            AudioConstants.FileDialogFilter,
             multiselect: true);
         if (files.Count == 0) return;
 
@@ -389,16 +389,13 @@ public partial class PlaylistViewModel : ObservableObject
         var folder = await _fileDialog.OpenFolderAsync();
         if (folder is null) return;
 
-        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { ".mp3", ".wma", ".flac", ".aac", ".wav" };
-
         string[] files;
         try { files = Directory.GetFiles(folder, "*.*", SearchOption.AllDirectories); }
         catch { return; }
 
         foreach (var path in files)
         {
-            if (!extensions.Contains(Path.GetExtension(path))) continue;
+            if (!AudioConstants.IsAudioFile(path)) continue;
             try
             {
                 var track = await _metadataReader.ReadAsync(path);

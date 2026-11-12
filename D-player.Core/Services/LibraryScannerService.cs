@@ -40,14 +40,12 @@ public sealed class LibraryScannerService : ILibraryScannerService
             if (!Directory.Exists(folderPath))
                 return Unavailable();
 
-            var extensions = new HashSet<string>(AudioConstants.AudioExtensions, StringComparer.OrdinalIgnoreCase);
-
             var files = new List<string>();
             foreach (var file in Directory.EnumerateFiles(
                 folderPath, "*", SearchOption.AllDirectories))
             {
                 ct.ThrowIfCancellationRequested();
-                if (extensions.Contains(Path.GetExtension(file)))
+                if (AudioConstants.IsAudioFile(file))
                     files.Add(file);
             }
             return new LibraryScanResult(files, IsUnavailable: false);

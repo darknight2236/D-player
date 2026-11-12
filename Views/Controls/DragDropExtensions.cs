@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using DPlayer.Models;
 using DPlayer.Services.PlaylistFiles;
@@ -28,18 +27,8 @@ public static class DragDropExtensions
         var result = new List<string>();
         foreach (var path in paths)
         {
-            if (string.IsNullOrWhiteSpace(path)) continue;
-            // 文件夹一般 Path.GetExtension 返回 ""，自动被白名单排除
-            var ext = Path.GetExtension(path);
-            if (string.IsNullOrEmpty(ext)) continue;
-            foreach (var allowed in AudioExtensions)
-            {
-                if (string.Equals(ext, allowed, StringComparison.OrdinalIgnoreCase))
-                {
-                    result.Add(path);
-                    break;
-                }
-            }
+            if (AudioConstants.IsAudioFile(path))
+                result.Add(path);
         }
         return result;
     }

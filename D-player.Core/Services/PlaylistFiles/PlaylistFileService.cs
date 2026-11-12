@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using DPlayer.Models;
 
@@ -76,10 +75,10 @@ public sealed class PlaylistFileService : IPlaylistFileService
                 unsupported++; continue;      // 非法字符 / 无效路径形态
             }
 
-            var ext = Path.GetExtension(full);
-            if (!AudioConstants.AudioExtensions.Any(a => string.Equals(a, ext, StringComparison.OrdinalIgnoreCase)))
+            if (!AudioConstants.IsAudioFile(full))
             {
-                unsupported++; continue;      // 后缀判定先于存在性判定
+                unsupported++;
+                continue; // 后缀判定先于存在性判定
             }
 
             if (!File.Exists(full)) { missing++; continue; }

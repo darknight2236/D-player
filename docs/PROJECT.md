@@ -265,8 +265,8 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
     ├── PHASE22-ACCEPTANCE.md    # Phase 22 验收（历史）
     ├── PHASE21-ACCEPTANCE.md    # Phase 21 验收（历史）
     ├── PHASE20-COMPARISON.md    # Phase 20 两壳对比与决策门（历史）
-    ├── superpowers/specs/       # Phase 14–26 设计稿（Phase 1–13 已移入 archive）
-    ├── superpowers/plans/       # 三份刻意未跟踪的 Phase 24–26 本地计划（不属于发布面）
+    ├── superpowers/specs/       # Phase 14–28 设计稿（Phase 1–13 已移入 archive）
+    ├── superpowers/plans/       # 四份刻意未跟踪的 Phase 24–28 本地计划（不属于发布面）
     └── archive/
         ├── README.md            # 归档说明
         ├── specs/               # UmaPlayer 时代设计稿（Phase 1–13）
@@ -1163,6 +1163,8 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
     --self-contained false /p:PublishSingleFile=true
 ```
 
+发布形态未改：framework-dependent（`--self-contained false`）发布自 Phase 28 起要求目标机安装 **.NET 11 Desktop Runtime**（不再是 .NET 10）；WinUI 壳 self-contained 不受影响。
+
 ---
 
 ## 9. 已知约束与陷阱
@@ -1184,7 +1186,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **WPF ComboBox 向空集合添加首项会自动选中 index 0（Phase 14）**：`ComboBox` 在从空集合添加第一个项时会自动选中该项并触发一次 `SelectionChanged`。`EqualizerDialog.OnLoaded` 填充预设下拉必须在 `_suppress` 窗口内进行，否则打开对话框即误 push 一次 Flat/禁用配置，扰动正在播放的 EQ（Phase 14 code review 拦下的 Critical）。
 - **播放链生命周期必须串行化；"停止"意图必须显式标记**（Phase 18 后修复，Phase 19 迁移到 WasapiPlayer）：`NAudioPlaybackService.LoadAsync` 在线程池上重建整条播放链，而 `Unload` / `Dispose` / 传输命令来自 UI 线程。缺串行化时，后一次重建会释放前一次正在使用或构建的链（`_reader` / `_volumeProvider` / `_wavePlayer` 三个共享字段被交错读写）→ 异常从链内部抛出并冒进 `async void` 事件处理器（进程崩溃）。修复是单闸门 `_chainGate`，唯一例外是 `OnPlaybackStopped`（播放线程回调）——持锁方可能正阻塞在输出类的 `Stop()` / `Dispose()` 上等待播放线程退出（`NAudio.Wasapi 3.3.0` 随包 XML 文档：`Dispose` 一条明确写着 "Stops playback (blocking) and releases all resources"，而 `Stop` 只有 "Stop playback and flush buffers"），回调里取锁即死锁，故其读取一律防御式。**NAudio 3 的 guarded dispose 不使这条失效**：它只保护 NAudio 自己的对象，管不到我们的共享字段。同源的第二条陷阱：用户停止与自然播完都只表现为一次 `PlaybackStopped`，输出类不告知发起方，仅凭播放头位置无法区分（曲尾 200ms 内按停止会被误判为播完并自动推进下一首）；修复是 `_stopRequested` 意图标记（`Stop`/`DisposePlayback` 置位、`Play` 清零、`OnPlaybackStopped` 命中即提前返回）——该不确定性不随实现变化，故换类后依然必要。回归测试（两条的证据强度不同，别混着引用）：闸门侧 `NAudioPlaybackServiceConcurrencyTests` 的 `LoadAsync_TwoOverlappingCalls_DoNotThrow` / `Unload_DuringLoadAsync_DoesNotThrow` 以 1–5 ms 错位窗口断言"不抛异常"，是真实但**随机**的证据（窗口未命中时只是没有触发竞态）；意图标记侧只有 `NAudioPlaybackServiceStopSemanticsTests.Stop_WhenPlayheadIsAtTrackEnd_DoesNotRaiseTrackEnded` 一条确定性钉住"停止不得冒充播完"（`Seek` 到距曲尾 100ms 再 `Stop`），同类中的 `Unload_WhenPlayheadIsAtTrackEnd_DoesNotRaiseTrackEnded` **读不到** `_stopRequested`（`DisposePlayback` 会写入它，但先解订阅 `PlaybackStopped` 再停止，回调不触发，判定分支从未执行），故它钉住的是"解订阅早于停止"这条顺序；反方向由上句那 5 条中的 `NAudioPlaybackServiceConcurrencyTests.PlayToNaturalEnd_ThenAdvance_DoesNotThrow` 钉住（真自然播完仍须发 `TrackEnded`——注意它在闸门侧那个类里，不在 `…StopSemanticsTests`）。
 - **音频集成测试的并行度**（Phase 19）：仓库有 5 条测试真实占用 WASAPI 设备（`NAudioPlaybackServiceConcurrencyTests` 3 条 + `NAudioPlaybackServiceStopSemanticsTests` 2 条）。迁到 xunit v3 时在默认并行下实测：结论是 **level 0 —— 沿用 xunit v3 的默认并行，既没有加 `[Collection("AudioDevice")]`，也没有 `Tests/AssemblyInfo.cs` / `DisableTestParallelization`**。证据：10 次 MTP 运行 + 3 次 `dotnet test` 运行，每次都是 161 通过 / 0 失败 / 0 跳过（含那 5 条真设备用例），单次墙钟 5.875–6.249 s、runner 内 1.69–1.95 s。改这两个测试类或新增音频测试时沿用同一约束；若真出现设备争用/时序漂移，再按设计稿 §5.3 的顺序收紧（先给音频测试类加同一个 `[Collection("AudioDevice")]`，仍不稳才全局禁用并行）。
-- **音频集成测试已从默认门禁拆出（2026-11-02）**：5 条测试现在都带 `[Trait("Category","AudioDevice")]` + `[Collection("AudioDevice")]`；默认门禁用 `Category!=AudioDevice`（Phase 25 收尾 283、Phase 26 验收 294 为历史；Phase 27 实现实跑 **310**），`verify-gates.ps1 -Audio` 单独串行跑这 5 条。Phase 19 的默认并行结论保留为历史。**计数口径见 §8.2 的实测块**：总数 315 = 310 默认 + 5 音频（本次音频未跑）。
+- **音频集成测试已从默认门禁拆出（2026-11-02）**：5 条测试现在都带 `[Trait("Category","AudioDevice")]` + `[Collection("AudioDevice")]`；默认门禁用 `Category!=AudioDevice`（Phase 25 收尾 283、Phase 26 验收 294 为历史；Phase 27 实现实跑 **310**），`verify-gates.ps1 -Audio` 单独串行跑这 5 条。Phase 19 的默认并行结论保留为历史。**计数口径见 §8.2 的实测块**：总数 315 = 310 默认 + 5 音频（本次（Phase 27，2026-11-11）音频未跑）。
 - **库播放队列不得加入 `Playlists` 集合（Phase 24）**：`PlaylistsViewModel` 私有持有 `_libraryPlayback`（Id `__library-playback__`），只通过 `LibraryPlayback` 投影暴露。侧栏拖拽重排按 `ListBox` 索引调用 `MovePlaylistCommand`，把隐藏项塞进集合会让索引与歌单错位；同时它也不该出现在 `queue.json` 的可见歌单数组里（`QueueState.LibraryPlayback` 是独立字段）。只有 `CurrentPlaylistId` 能指向它。
 - **不可用库根必须与空根分开（Phase 24）**：`LibraryScannerService.ScanFolder` 会吞掉 Unauthorized/IO 异常并返回空集合；`LibraryViewModel` 必须走 `ScanFolderWithStatus` 的 `IsUnavailable`，跳过该根的缓存写入，否则一次离线的移动硬盘会被当成"所有文件已删除"而清空 `library-cache.json`。手工刷新路径同理。
 - **库封面与网格的规模边界（Phase 24）**：封面只按专辑首曲惰性读取（`EnsureCoverAsync`），tile/详情头部 `Loaded` 才触发；专辑页是非虚拟化 `WrapPanel`。不要改成"扫描时读全部封面"（几千张字节数组常驻内存）或依赖虚拟化——后者是独立子系统，本阶段明确不做（设计 §9）。
@@ -1239,6 +1241,6 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 **归档（历史执行材料）**
 - `docs/archive/specs/` — UmaPlayer 时代（Phase 1–13）设计稿。
 - `docs/archive/plans/` — Phase 1–23 实现计划（执行清单，已被代码、验收记录与 git 历史覆盖）。
-- 三份 Phase 24/25/26 计划刻意未跟踪，保留在 `docs/superpowers/plans/` 本地工作区，不属于仓库发布面。
+- 四份 Phase 24–28 计划刻意未跟踪，保留在 `docs/superpowers/plans/` 本地工作区，不属于仓库发布面。
 
 **查历史提交**：`git log --oneline --all`；按阶段查用 `git log --grep "phase24"` / `git log --grep "phase25"` / `git log --grep "phase26"`。细节不再复制到文档里。

@@ -4,7 +4,8 @@
 - 分支：`phase29-modernization`
 - 基线：`master` / `a1700af`；设计提交 `302f6f9`、边界修正 `12b00cf`
 - 设计：[2026-11-12-d-player-phase29-modernization-design.md](./superpowers/specs/2026-11-12-d-player-phase29-modernization-design.md)
-- 实施提交区间：`3236398..2921daa`（逐条见 `git log`；设计文档另有两笔 docs 提交）
+- 实施提交区间：`3236398..db86825`（逐条见 `git log`；设计/验收 docs 提交另计）
+- 终审修复：`db86825`（查询 CTS 关闭窗口、`_cleaned` 锁归属、容器同步释放测试与低成本契约/文档修正）
 - 范围：非音频路径现代化；**音频实时路径与 WinUI 壳零文件改动**
 
 ## 1. 门禁读数
@@ -13,15 +14,16 @@
 
 | 关 | 命令 | 实测 |
 |---|---|---|
-| 门禁 1 | `dotnet build D-player.slnf -c Debug --nologo -v q` | **0 警告 / 0 错误**（1.28s） |
-| 门禁 2 | `dotnet test D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"` | **336 通过 / 0 失败 / 0 跳过**（1.743s） |
-| 音频 | `dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"` | **5 通过 / 0 失败 / 0 跳过**（3.822s） |
-| 门禁 3 | `dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q` | **0 警告 / 0 错误**（16.55s） |
+| 门禁 1 | `dotnet build D-player.slnf -c Debug --nologo -v q` | **0 警告 / 0 错误**（终审修复后 pwsh 7.7 复跑；初版 1.28s） |
+| 门禁 2 | `dotnet test D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"` | **337 通过 / 0 失败 / 0 跳过**（终审修复后；初版 336，新增 1 条容器同步释放测试） |
+| 音频 | `dotnet test D-player.slnf -c Debug -v q --filter "Category=AudioDevice"` | **5 通过 / 0 失败 / 0 跳过**（初版实跑 3.822s；终审未改音频文件，沿用该读数） |
+| 门禁 3 | `dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q` | **0 警告 / 0 错误**（终审修复后 pwsh 7.7 复跑；初版 16.55s） |
 
-- 全量测试口径：**341 = 336 默认 + 5 音频**；Phase 29 新增 26 条默认测试。
+- 全量测试口径：**342 = 337 默认 + 5 音频**；Phase 29 新增 27 条默认测试。
 - 测试命令未加 `--nologo`；MTP 零匹配退出码 8 未被当作成功。
+- 终审修复后的 `verify-gates.ps1 -Full` 在 **pwsh 7.7.0** 下三关全过（末行 `all requested steps passed.`）；`-Audio` 未复跑，因为音频路径零文件改动。
 
-## 2. 新增测试（26 条）
+## 2. 新增测试（27 条）
 
 | 文件 | 新增 | 覆盖 |
 |---|---|---|
@@ -34,6 +36,7 @@
 | `Tests/Services/JsonContractParityTests.cs` | 3 | QueueState / AppSettings / 缓存字典的反射 vs 源生成全量输出对照 |
 | `Tests/Services/DisposalTests.cs` | 2 | Json 服务双 Dispose 不抛；watcher 双 Dispose 不抛 |
 | `Tests/ViewModels/PlaybackResumeTests.cs` | 1 | `MainViewModel` 的 `IDisposable` 标记幂等 |
+| `Tests/Extensions/AddDPlayerCoreTests.cs` | 1 | 容器同步 `Dispose()` 不抛；settings 服务随后已释放 |
 
 ## 3. 独立核对项
 

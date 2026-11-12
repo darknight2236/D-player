@@ -24,7 +24,8 @@ public sealed class AudioConstantsTests
     [Fact]
     public void FileDialogFilter_MatchesWhitelist()
     {
-        Assert.Contains("*.mp3", AudioConstants.FileDialogFilter);
-        Assert.Contains("*.wav", AudioConstants.FileDialogFilter);
+        Assert.Equal(5, AudioConstants.AudioExtensions.Count);
+        foreach (var extension in AudioConstants.AudioExtensions)
+            Assert.Contains($"*{extension}", AudioConstants.FileDialogFilter);
     }
 }

@@ -26,7 +26,10 @@ public static class AudioConstants
     public const string FileDialogFilter =
         "Audio Files|*.mp3;*.wma;*.flac;*.aac;*.wav";
 
-    /// <summary>路径后缀是否在音频白名单中（大小写不敏感；空/无后缀/目录返回 false）。</summary>
+    /// <summary>
+    /// 路径后缀是否在音频白名单中（大小写不敏感；空/无后缀返回 false）。
+    /// 只按后缀判定、不检查文件系统：名为 x.mp3 的目录同样返回 true。
+    /// </summary>
     public static bool IsAudioFile(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return false;

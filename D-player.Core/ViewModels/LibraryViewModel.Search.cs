@@ -64,6 +64,7 @@ public sealed partial class LibraryViewModel
 
     public void ClearSearch()
     {
+        if (_cleaned) return;
         Interlocked.Increment(ref _queryVersion);
         _queryCts?.Cancel();
         _searchDirty = false;
@@ -239,6 +240,7 @@ public sealed partial class LibraryViewModel
 
     private void ClearSearchForNavigation()
     {
+        if (_cleaned) return;
         Interlocked.Increment(ref _queryVersion);
         _queryCts?.Cancel();
         _searchDirty = false;

@@ -13,8 +13,8 @@ public interface ILibraryScannerService
 
     /// <summary>
     /// 递归扫描文件夹并附带根目录可用状态(绝不抛)。
-    /// 路径为空、目录不存在、无访问权限或 IO 失败时 IsUnavailable=true;
-    /// 目录存在但没有任何音频文件时 IsUnavailable=false 且 Files 为空。
+    /// 路径为空、目录不存在、无访问权限或 IO 失败时返回 <see cref="ScanUnavailable"/>;
+    /// 目录可枚举时返回 <see cref="ScanAvailable"/>, 其 Files 为空表示没有音频文件。
     /// </summary>
     LibraryScanResult ScanFolderWithStatus(string folderPath, CancellationToken ct = default);
 

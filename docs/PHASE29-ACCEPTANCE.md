@@ -40,7 +40,7 @@
 - **Core WPF-free**：`grep -rn "System.Windows\|PresentationFramework\|ICollectionView\|CollectionViewSource" D-player.Core --include=*.cs` → **零命中**（排除 obj/bin）。
 - **抑制项**：`#pragma warning disable` / `NoWarn` 在 Core/WPF/WinUI/Tests → **零命中**。
 - **耦合审计**：`tools/coupling-audit/Invoke-CouplingAudit.ps1` → **0 cycles / 0 violations**。审计脚本新增对“无源文件命名空间”的空邻接保护（提交 `2921daa`），否则 `DPlayer.WinUI.Theme` 会让 BFS 抛空键异常；这是工具修复，不改变审计图口径。
-  - M5 大文件读数（非门禁）：`PlaylistsViewModel.cs` 832、`PlaylistViewModel.cs` 760、WinUI `PlayerBar.xaml.cs` 665（冻结壳）、`LibraryViewModel.Scanning.cs` 611。
+  - M5 大文件读数（非门禁）：`PlaylistsViewModel.cs` 832、`PlaylistViewModel.cs` 760、WinUI `PlayerBar.xaml.cs` 665（冻结壳）、`LibraryViewModel.Scanning.cs` 616。
   - M6：`IAudioDeviceManager` / `IAudioOutputFactory` 仍为预注册未消费 Stub，属明示预留。
 - **发布**：`dotnet publish D-player.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true` 成功；`bin/Release/net11.0-windows/win-x64/publish/D-player.exe` 3,219,538 bytes（2026-11-12 18:50:42），publish 目录 4 个文件。
 - **输出目录**：`bin/Debug/net11.0-windows/D-player.exe` 73,728 bytes（18:48:53）；GUI 走查启动的是该路径的产物，不是旧 `net10.0-windows`。

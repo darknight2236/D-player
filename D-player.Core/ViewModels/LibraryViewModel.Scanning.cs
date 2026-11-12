@@ -460,8 +460,8 @@ public sealed partial class LibraryViewModel
         _watcher.Dispose();
         _coverGate.Dispose();
         _lifetimeCts.Dispose();
-        _queryCts?.Dispose();
-        _queryCts = null;
+        var cts = Interlocked.Exchange(ref _queryCts, null);
+        cts?.Dispose();
     }
 
     private static async Task WaitQuietAsync(Task? task)

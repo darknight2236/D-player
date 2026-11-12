@@ -13,8 +13,9 @@ namespace DPlayer.Views.Controls;
 ///   - insertIndex == Queue.Count → 画在最后一项底部
 ///   - 否则                       → 画在 Queue[insertIndex] 项顶部
 ///
-/// 生命周期由 PlaylistView code-behind 集中管理 —— DragOver 时 Update + AdornerLayer.Add，
-/// DragLeave/Drop/QueryContinueDrag 取消时 Hide + AdornerLayer.Remove。
+/// 生命周期由 VisualTreeHelpers 统一管理（PlaylistView 与 PlaylistsSidebarView 共用）——
+/// DragOver 时 ShowAdorner（Update + AdornerLayer.Add），DragLeave/Drop/QueryContinueDrag
+/// 取消时 HideAdorner（AdornerLayer.Remove 并置空引用）。
 /// </summary>
 public sealed class DropInsertionAdorner : Adorner
 {

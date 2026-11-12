@@ -51,8 +51,8 @@ public sealed class AddDPlayerCoreTests
             // UI 服务由壳注册，Core 不兜底——这行就是 WinUI 壳 App.xaml.cs 里的那一行
             services.AddSingleton<IFileDialogService, StubFileDialogService>();
 
-            // await using：MainViewModel 只实现 IAsyncDisposable，容器要求异步释放
-            // （同步 Dispose 会抛 "Use DisposeAsync to dispose the container"）。
+            // await using：走容器异步释放路径（MainViewModel 同时实现 IDisposable 与
+            // IAsyncDisposable，同步路径由下面那条测试单独覆盖）。
             await using var provider = services.BuildServiceProvider();
 
             var vm = provider.GetRequiredService<MainViewModel>();
@@ -77,6 +77,49 @@ public sealed class AddDPlayerCoreTests
 
             Assert.Equal("id1", playlist.Id);
             Assert.Empty(playlist.Queue);
+        }
+        finally
+        {
+            try { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+            catch (IOException) { /* 临时目录清不掉不影响断言结论 */ }
+        }
+    }
+
+    /// <summary>
+    /// 同步释放路径：桌面壳退出时可能走 <c>ServiceProvider.Dispose()</c>。
+    /// MainViewModel 的 IDisposable 标记让容器越过本实例、不抛
+    /// "Use DisposeAsync to dispose the container"，并继续释放 Json 单例。
+    /// 依图与上一条相同，目录同样固定在 %TEMP% 下。
+    /// </summary>
+    [Fact]
+    public async Task CoreGraph_SynchronousDispose_DoesNotThrow_AndReleasesSingletons()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dplayer-di-{Guid.NewGuid():N}");
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddDPlayerCore(
+                new ConfigurationBuilder().Build(),
+                new DPlayerDataPaths { Root = root, FolderName = "D-player-winui" });
+            services.AddSingleton<IFileDialogService, StubFileDialogService>();
+
+            var provider = services.BuildServiceProvider();
+            try
+            {
+                Assert.NotNull(provider.GetRequiredService<MainViewModel>());
+                var settings = provider.GetRequiredService<ISettingsPersistence>();
+
+                // 不抛 = MainViewModel.Dispose 标记生效，容器继续释放其余单例。
+                provider.Dispose();
+
+                // 容器已释放 JsonSettingsPersistence：再写盘会触碰释放后的 SemaphoreSlim。
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => settings.UpdateAsync(s => s));
+            }
+            finally
+            {
+                provider.Dispose(); // 幂等；断言中途失败也不留下容器
+            }
         }
         finally
         {

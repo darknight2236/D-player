@@ -172,7 +172,8 @@ public sealed partial class LibraryViewModel : ObservableObject
         => await RefreshFromSettingsAsync(forceEvenIfUnchanged: false).ConfigureAwait(false);
 
     public Task CleanupAsync()
-        => _cleanup.RunAsync(CompleteCleanupAsync, onFirst: () => _cleaned = true);
+        => _cleanup.RunAsync(CompleteCleanupAsync,
+            onFirst: () => { lock (_cleanupGate) _cleaned = true; });
 
     public void ShowArtists()
     {

@@ -47,7 +47,7 @@
   - M6：`IAudioDeviceManager` / `IAudioOutputFactory` 仍为预注册未消费 Stub，属明示预留。
 - **发布**：`dotnet publish D-player.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true` 成功；`bin/Release/net11.0-windows/win-x64/publish/D-player.exe` 3,219,538 bytes（2026-11-12 18:50:42），publish 目录 4 个文件。
 - **输出目录**：`bin/Debug/net11.0-windows/D-player.exe` 73,728 bytes（18:48:53）；GUI 走查启动的是该路径的产物，不是旧 `net10.0-windows`。
-- **Rider 红线**：代理侧不读取 IDE 诊断面板；**待用户在 Rider 内重新观察确认**（Phase 28 的红线机制未定性，不能沿用旧结论）。
+- **Rider 红线**：用户于 2026-11-12 在 Rider 内确认 Phase 28 的 `NotifyPropertyChangedForAttribute` 重复诊断**已消失**；本轮未为 IDE 诊断改产品代码、未加 `pragma`/`NoWarn`。
 
 ## 4. GUI 走查（Computer Use + 主代理复核）
 
@@ -97,7 +97,7 @@
 - **`LibraryRefreshScheduler` 仍未 Dispose**（既有缺口）；`LibraryViewModel` 的 `_queryCts`/`_lifetimeCts` 在极端关闭窗口存在 disposed-before-null/guard-token 窗口；刷新 fire-and-forget 与 watcher gate 释放存在极窄竞争，失败被 `_cleaned` 捕获吸收，不崩溃、不丢数据。
 - **测试覆盖缺口**：ArtistDetail 导航持久化臂无专测；源生成 parity 测试不覆盖三个服务的 options 接线；`FilterAudioPaths`/`ImportFolderToCurrent` 无专测；文件夹绑定歌单的独立创建入口未在 GUI 单独走查。
 - **union 探针字面 snippet 与 Search partial property 的细节**以本节为准，不要把字面 CS1073 误读为“union 不可用”。
-- **Rider 红线待用户确认**；不为 IDE 诊断改产品代码、不加 `pragma`/`NoWarn`。
+- **Rider 红线已在用户侧确认消失**（2026-11-12）；不为 IDE 诊断改产品代码、不加 `pragma`/`NoWarn`。
 
 ## 8. 结论
 

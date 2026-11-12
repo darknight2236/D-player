@@ -30,11 +30,11 @@ public sealed partial class LibraryViewModel : ObservableObject
     private readonly object _stateGate = new();
     private readonly object _cleanupGate = new();
     private readonly HashSet<Task> _coverTasks = new();
+    private readonly OneShotCleanup _cleanup = new();
 
     private IReadOnlyList<string> _roots = Array.Empty<string>();
     private long _libraryVersion;
     private bool _albumOpenedFromArtist;
-    private Task? _cleanupTask;
     private volatile bool _cleaned;
 
     public ObservableCollection<LibraryArtist> Artists { get; } = new();
@@ -165,19 +165,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         => await RefreshFromSettingsAsync(forceEvenIfUnchanged: false).ConfigureAwait(false);
 
     public Task CleanupAsync()
-    {
-        TaskCompletionSource completion;
-        lock (_cleanupGate)
-        {
-            if (_cleanupTask is not null) return _cleanupTask;
-            _cleaned = true;
-            completion = new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            _cleanupTask = completion.Task;
-        }
-        _ = CompleteCleanupAsync(completion);
-        return completion.Task;
-    }
+        => _cleanup.RunAsync(CompleteCleanupAsync, onFirst: () => _cleaned = true);
 
     public void ShowArtists()
     {

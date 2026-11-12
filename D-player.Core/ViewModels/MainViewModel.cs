@@ -28,8 +28,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private CancellationTokenSource? _saveCts;
     private Task? _saveTask;
     private volatile bool _hydrated;
-    private readonly object _cleanupGate = new();
-    private Task? _cleanupTask;
+    private readonly OneShotCleanup _cleanup = new();
 
     public PlayerViewModel Player { get; }
     public PlaylistsViewModel Playlists { get; }
@@ -258,31 +257,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     /// 用 cancel-and-close 模式包住此调用 (memory: wpf-async-void-closing-dispatcher-race)。
     /// </summary>
     public Task CleanupAsync()
-    {
-        TaskCompletionSource completion;
-        lock (_cleanupGate)
-        {
-            if (_cleanupTask is not null) return _cleanupTask;
-            completion = new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            _cleanupTask = completion.Task;
-        }
-        _ = CompleteCleanupAsync(completion);
-        return completion.Task;
-    }
-
-    private async Task CompleteCleanupAsync(TaskCompletionSource completion)
-    {
-        try
-        {
-            await CleanupCoreAsync().ConfigureAwait(true);
-            completion.TrySetResult();
-        }
-        catch (Exception ex)
-        {
-            completion.TrySetException(ex);
-        }
-    }
+        => _cleanup.RunAsync(CleanupCoreAsync, continueOnCapturedContext: true);
 
     private async Task CleanupCoreAsync()
     {

@@ -440,31 +440,21 @@ public sealed partial class LibraryViewModel
             _scheduler.Invalidate(root, notification.RootEpoch);
     }
 
-    private async Task CompleteCleanupAsync(TaskCompletionSource completion)
+    private async Task CompleteCleanupAsync()
     {
-        try
-        {
-            _watcher.Changed -= OnWatcherChanged;
-            _watcher.Dispose();
-            _lifetimeCts.Cancel();
-            await _scheduler.StopAsync().ConfigureAwait(false);
+        _watcher.Changed -= OnWatcherChanged;
+        _watcher.Dispose();
+        _lifetimeCts.Cancel();
+        await _scheduler.StopAsync().ConfigureAwait(false);
+        await WaitQuietAsync(_initializeTask).ConfigureAwait(false);
+        await WaitQuietAsync(_monitorTask).ConfigureAwait(false);
+        await WaitQuietAsync(_scanTask).ConfigureAwait(false);
 
-            await WaitQuietAsync(_initializeTask).ConfigureAwait(false);
-            await WaitQuietAsync(_monitorTask).ConfigureAwait(false);
-            await WaitQuietAsync(_scanTask).ConfigureAwait(false);
-
-            Task[] covers;
-            lock (_cleanupGate)
-                covers = _coverTasks.ToArray();
-            foreach (var cover in covers)
-                await WaitQuietAsync(cover).ConfigureAwait(false);
-
-            completion.TrySetResult();
-        }
-        catch (Exception ex)
-        {
-            completion.TrySetException(ex);
-        }
+        Task[] covers;
+        lock (_cleanupGate)
+            covers = _coverTasks.ToArray();
+        foreach (var cover in covers)
+            await WaitQuietAsync(cover).ConfigureAwait(false);
     }
 
     private static async Task WaitQuietAsync(Task? task)

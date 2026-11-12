@@ -30,7 +30,7 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private readonly CancellationTokenSource _folderLifetimeCts = new();
     private readonly object _folderGate = new();
     private readonly HashSet<Task> _folderTasks = new();
-    private Task? _cleanupTask;
+    private readonly OneShotCleanup _cleanup = new();
     private bool _acceptingFolderTasks = true;
 
     private PlaylistViewModel? _libraryPlayback;
@@ -113,21 +113,12 @@ public sealed partial class PlaylistsViewModel : ObservableObject
                new NullLibraryCache(), new NullMetadataReader(), new NullPlaylistFileService(), rootScanner) { }
 
     public Task CleanupAsync()
-    {
-        TaskCompletionSource completion;
-        lock (_folderGate)
+        => _cleanup.RunAsync(CompleteCleanupAsync, onFirst: () =>
         {
-            if (_cleanupTask is not null) return _cleanupTask;
-            _acceptingFolderTasks = false;
-            completion = new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            _cleanupTask = completion.Task;
-        }
-        _ = CompleteCleanupAsync(completion);
-        return completion.Task;
-    }
+            lock (_folderGate) _acceptingFolderTasks = false;
+        });
 
-    private async Task CompleteCleanupAsync(TaskCompletionSource completion)
+    private async Task CompleteCleanupAsync()
     {
         try
         {
@@ -141,12 +132,6 @@ public sealed partial class PlaylistsViewModel : ObservableObject
                 try { await task.ConfigureAwait(false); }
                 catch { /* folder work is abandoned during shutdown */ }
             }
-
-            completion.TrySetResult();
-        }
-        catch (Exception ex)
-        {
-            completion.TrySetException(ex);
         }
         finally
         {

@@ -17,6 +17,7 @@ public sealed class JsonLibraryCache : ILibraryCache
     {
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() },
+        TypeInfoResolver = DPlayerJsonContext.Default,
     };
 
     private readonly SemaphoreSlim _lock = new(1, 1);

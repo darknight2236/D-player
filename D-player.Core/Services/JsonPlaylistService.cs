@@ -20,6 +20,7 @@ public sealed class JsonPlaylistService : IPlaylistService
     {
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() },
+        TypeInfoResolver = DPlayerJsonContext.Default,
     };
 
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -158,14 +159,5 @@ public sealed class JsonPlaylistService : IPlaylistService
         catch { /* swallow — 内存仍是 v2, 下次启动重迁 */ }
 
         return v2;
-    }
-
-    private sealed record QueueStateV1
-    {
-        public int SchemaVersion { get; init; } = 1;
-        public IReadOnlyList<string>? Items { get; init; }
-        public int CurrentIndex { get; init; } = -1;
-        public bool ShuffleEnabled { get; init; }
-        public RepeatMode RepeatMode { get; init; } = RepeatMode.Off;
     }
 }

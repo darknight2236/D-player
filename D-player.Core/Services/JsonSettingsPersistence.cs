@@ -17,6 +17,7 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
+        TypeInfoResolver = DPlayerJsonContext.Default,
     };
 
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -89,6 +90,6 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
             return new AppSettings();
 
         var json = await JsonFileStore.ReadAllTextAsync(_path).ConfigureAwait(false);
-        return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+        return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
     }
 }

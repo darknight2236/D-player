@@ -12,7 +12,7 @@ namespace DPlayer.Services;
 /// Shuffle/Repeat 包成单条名为"默认歌单"的 v2 Playlist; 立即 SaveAsync 覆盖文件。
 /// 迁移阶段 SaveAsync 失败 → 吞掉, 内存里仍是 v2 表示, 下次启动重迁(幂等)。
 /// </summary>
-public sealed class JsonPlaylistService : IPlaylistService
+public sealed class JsonPlaylistService : IPlaylistService, IDisposable
 {
     private const int CurrentSchemaVersion = 3;
 
@@ -34,6 +34,8 @@ public sealed class JsonPlaylistService : IPlaylistService
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "queue.json");
     }
+
+    public void Dispose() => _lock.Dispose();
 
     public async Task<QueueState> LoadAsync()
     {

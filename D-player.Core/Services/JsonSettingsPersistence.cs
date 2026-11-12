@@ -12,7 +12,7 @@ namespace DPlayer.Services;
 /// 调用方只需提供 mutator (s => s with { Field = newValue })，
 /// 字段合并由实现保证。
 /// </summary>
-public sealed class JsonSettingsPersistence : ISettingsPersistence
+public sealed class JsonSettingsPersistence : ISettingsPersistence, IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -32,6 +32,8 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "settings.json");
     }
+
+    public void Dispose() => _lock.Dispose();
 
     /// <summary>文件不存在则返回 record 默认值（首次启动场景）。</summary>
     public async Task<AppSettings> LoadAsync()

@@ -11,7 +11,7 @@ namespace DPlayer.Services;
 /// 所有文件夹绑定歌单共用一个缓存文件, 按 SourceFolder 路径分组。
 /// LoadAsync 绝不抛(失败回空列表), SaveAsync IO 失败抛 IOException。
 /// </summary>
-public sealed class JsonLibraryCache : ILibraryCache
+public sealed class JsonLibraryCache : ILibraryCache, IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -31,6 +31,8 @@ public sealed class JsonLibraryCache : ILibraryCache
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "library-cache.json");
     }
+
+    public void Dispose() => _lock.Dispose();
 
     public async Task<IReadOnlyList<LibraryCacheEntry>> LoadAsync(string folderPath)
     {

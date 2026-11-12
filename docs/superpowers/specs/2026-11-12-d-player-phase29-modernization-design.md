@@ -398,7 +398,7 @@ GUI 走查前备份 `settings.json` / `queue.json` / `library-cache.json` 并记
 - **Lock 替换只覆盖非音频普通锁**：音频 `EqualizerSampleProvider`/`NAudioPlaybackService` 与 async `SemaphoreSlim` 不改，Phase 30 的锁纪律不受影响。
 - **测试计数以实跑为准**：设计只给“310 + 新增”的口径，不预写具体总数；避免把推演数字写成观测值。
 - **JSON 源生成是元数据替换，不是 AOT**：发布形态不变，仍为 framework-dependent；不要把它当成 trimming/AOT 改造。
-- **settings 原子写是行为改进**：写失败保留旧文件；Rider 红线与 IDE 诊断按 Phase 28 纪律重新观察，不为 IDE 改产品代码。
+- **settings 原子写是行为改进**：写失败保留旧文件；Windows 上覆盖被锁文件时，异常类型由旧的 `IOException`（`WriteAllTextAsync` 共享冲突）变为 `UnauthorizedAccessException`（`File.Move(overwrite: true)`）。当前调用方均宽泛捕获或 fire-and-forget，不依赖具体类型；验收记录保留这一契约变化。Rider 红线与 IDE 诊断按 Phase 28 纪律重新观察，不为 IDE 改产品代码。
 - **未做**：`ObservableCollection` 批量替换、`System.Threading.Lock` 替换 async 临界区、`PeriodicTimer`、`PlaylistImportReport`/`AddToPlaylistResult` union 建模、AOT/trimming、音频 `EqualizerSampleProvider` 的参数校验替换（保持音频文件零改动）。
 
 ## 附录 A：对 Phase 28 附录 C 的复核修正

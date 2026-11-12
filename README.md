@@ -36,13 +36,13 @@
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：310 通过 0 失败
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：336 通过 0 失败
 dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实音频（需设备）
 dotnet run     --project D-player.csproj                 # 运行 WPF 壳
 ```
 
 - `D-player.slnf` 只含 Core + WPF + Tests；WinUI 刻意不进日常门禁。
-- 当前 **310 默认测试 + 5 真实音频 = 315**；默认门禁实跑 310，`-Audio` 才执行 5 条音频测试。
+- 当前 **336 默认测试 + 5 真实音频 = 341**（Phase 29 实跑 336 默认 + 5 音频）；默认门禁不含音频，`-Audio` 才执行 5 条音频测试。
 - 两条测试命令**不要加 `--nologo`**：MTP 不识别该参数，会零测试运行却打印“成功: 0”（退出码 5）。`--nologo` 只用于 `dotnet build`。
 - `dotnet test` 依赖仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`，不要删除。
 
@@ -105,6 +105,7 @@ D-player/                    # 仓库根 = WPF 壳工程
 | 26 | **音乐库 → 歌单互通（WPF）**：右键加入普通歌单、新建并加入；验收完成 2026-11-11 |
 | 27 | **多碟专辑归并（Core）**：Disc N / CD N 等碟子文件夹上提一层归并、按碟序 + 曲号排序；验收完成 2026-11-11 |
 | 28 | **升级到 .NET 11**：四工程 TFM 全抬 net11.0（Core/WPF `net11.0-windows`、WinUI `net11.0-windows10.0.19041.0`），零行为变更意图；验收完成 2026-11-12 |
+| 29 | **非音频路径现代化（Core/WPF）**：RootGates 回收、树查找 helper 合并、JsonFileStore/源生成、union/closed 模型、清理/生命周期；验收完成 2026-11-12 |
 
 WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全量重构仅为未来可能（未排期、未选型）。
 
@@ -128,5 +129,5 @@ WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全
 - [项目架构与模块详解](docs/PROJECT.md)
 - [耦合分析与隐式契约](docs/COUPLING.md)
 - [文档地图](docs/README.md) · [历史归档](docs/archive/README.md)
-- 最近验收：[Phase 28](docs/PHASE28-ACCEPTANCE.md) · [Phase 27](docs/PHASE27-ACCEPTANCE.md) · [Phase 26](docs/PHASE26-ACCEPTANCE.md) · [Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md)
+- 最近验收：[Phase 29](docs/PHASE29-ACCEPTANCE.md) · [Phase 28](docs/PHASE28-ACCEPTANCE.md) · [Phase 27](docs/PHASE27-ACCEPTANCE.md) · [Phase 26](docs/PHASE26-ACCEPTANCE.md) · [Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md)
 - 历史验收与 WinUI 决策：[Phase 22](docs/PHASE22-ACCEPTANCE.md) · [Phase 21](docs/PHASE21-ACCEPTANCE.md) · [Phase 20 对比](docs/PHASE20-COMPARISON.md)

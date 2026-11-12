@@ -2,15 +2,15 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（.NET 11 + NAudio，WPF / WinUI 两套壳；共享层 `D-player.Core` 是 WPF-free 的）。
 >
-> 文档日期：2026-11-12 · 分支：`phase28-net11-upgrade` · 当前阶段：**Phase 28 实现完成 / 验收完成**（升级到 .NET 11；四工程 TFM 抬 net11.0，零行为变更意图）。**2026-11-02 路线决策：WinUI 壳开发搁置（Phase 23 是最后一个 WinUI 功能阶段），后续回归 Core + WPF；Avalonia 重构仅保留为未来可能（未排期）。** 测试 **315 = 310 默认 + 5 真实音频**（默认门禁实跑 310；5 条真实音频本次已实跑 5/5，两次一致）。WinUI 只由 `verify-gates.ps1 -Full` 门禁 3 编译，行为仍需真机验收。最近验收见 [Phase 28](./PHASE28-ACCEPTANCE.md)；历史验收见 [Phase 27](./PHASE27-ACCEPTANCE.md) / [Phase 26](./PHASE26-ACCEPTANCE.md) / [Phase 25](./PHASE25-ACCEPTANCE.md) / [24](./PHASE24-ACCEPTANCE.md) / [23](./PHASE23-ACCEPTANCE.md) / [22](./PHASE22-ACCEPTANCE.md) / [21](./PHASE21-ACCEPTANCE.md) / [20 对比](./PHASE20-COMPARISON.md)；历史结论不回改。**项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026-11-12 · 分支：`phase29-modernization` · 当前阶段：**Phase 29 实现完成 / 验收完成**（非音频路径现代化；音频实时路径与 WinUI 壳零改动）。**2026-11-02 路线决策：WinUI 壳开发搁置（Phase 23 是最后一个 WinUI 功能阶段），后续回归 Core + WPF；Avalonia 重构仅保留为未来可能（未排期）。** 测试 **341 = 336 默认 + 5 真实音频**（Phase 29 实跑 336 默认 + 5 音频）。WinUI 只由 `verify-gates.ps1 -Full` 门禁 3 编译，行为仍需真机验收。最近验收见 [Phase 29](./PHASE29-ACCEPTANCE.md)；上一阶段见 [Phase 28](./PHASE28-ACCEPTANCE.md)；历史验收见 [Phase 27](./PHASE27-ACCEPTANCE.md) / [Phase 26](./PHASE26-ACCEPTANCE.md) / [Phase 25](./PHASE25-ACCEPTANCE.md) / [24](./PHASE24-ACCEPTANCE.md) / [23](./PHASE23-ACCEPTANCE.md) / [22](./PHASE22-ACCEPTANCE.md) / [21](./PHASE21-ACCEPTANCE.md) / [20 对比](./PHASE20-COMPARISON.md)；历史结论不回改。**项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 
 ## 1. 项目简介
 
-**当前范围**：Phase 28 已交付升级到 .NET 11（四工程 TFM 抬 net11.0、`CommunityToolkit.Mvvm` 钉 8.4.2；零行为变更意图，验收完成 2026-11-12）；Phase 27 已交付多碟专辑归并（Disc N / CD N 等碟子文件夹上提一层作专辑边界，曲目按碟序 + 曲号排序；验收完成 2026-11-11）；Phase 26 已交付 Core + WPF 主壳的库 → 歌单互通（库内右键把单曲 / 专辑加入普通歌单，或新建歌单并加入；文件夹歌单不可选）；上一阶段 Phase 25 交付音乐库搜索与实时监听（三组搜索、按根 watcher、共享根扫描事务、可等待清理）；Phase 24 交付音乐库视图与隐藏库播放队列。WinUI 壳自 2026-11-02 冻结，不启动 watcher，只由门禁 3 编译。验收见 [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md)（当前）/ [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) / [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) / [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) / [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md)。
+**当前范围**：Phase 29 已交付非音频路径现代化（RootGates 回收、壳侧树查找 helper 合并、JsonFileStore/JSON 源生成、union/closed 模型、OneShotCleanup 与生命周期释放；音频实时路径与 WinUI 零改动；验收完成 2026-11-12）；Phase 28 已交付升级到 .NET 11（四工程 TFM 抬 net11.0、`CommunityToolkit.Mvvm` 钉 8.4.2；零行为变更意图）；Phase 27 已交付多碟专辑归并（Disc N / CD N 等碟子文件夹上提一层作专辑边界，曲目按碟序 + 曲号排序）；Phase 26 已交付 Core + WPF 主壳的库 → 歌单互通（库内右键把单曲 / 专辑加入普通歌单，或新建歌单并加入；文件夹歌单不可选）；上一阶段 Phase 25 交付音乐库搜索与实时监听（三组搜索、按根 watcher、共享根扫描事务、可等待清理）；Phase 24 交付音乐库视图与隐藏库播放队列。WinUI 壳自 2026-11-02 冻结，不启动 watcher，只由门禁 3 编译。验收见 [PHASE29-ACCEPTANCE.md](./PHASE29-ACCEPTANCE.md)（当前）/ [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md) / [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) / [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) / [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) / [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md)。
 
-**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1–19 在 WPF 单壳内完成播放、队列、歌单、扫描、设置、UI/EQ 与依赖迁移；Phase 20–23 抽出 WPF-free 的 `D-player.Core` 并完成 WinUI 第二壳（后于 2026-11-02 冻结）；Phase 24–26 回归 Core + WPF，交付音乐库视图、搜索与实时监听以及库 → 歌单互通。逐阶段一览见 [README 的开发阶段](../README.md#开发阶段)；当前状态与验收链接见页首。
+**D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1–19 在 WPF 单壳内完成播放、队列、歌单、扫描、设置、UI/EQ 与依赖迁移；Phase 20–23 抽出 WPF-free 的 `D-player.Core` 并完成 WinUI 第二壳（后于 2026-11-02 冻结）；Phase 24–26 回归 Core + WPF，交付音乐库视图、搜索与实时监听以及库 → 歌单互通；Phase 27 交付多碟专辑归并，Phase 28 把四个工程抬到 net11.0，Phase 29 完成非音频路径现代化。逐阶段一览见 [README 的开发阶段](../README.md#开发阶段)；当前状态与验收链接见页首。
 
 ### 1.1 关键特性（已实现）
 
@@ -94,7 +94,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │   │   ├── AudioConstants.cs         # 音频后缀白名单 (Phase 10, 从 DragDropExtensions 提取)
 │   │   ├── LibraryCacheEntry.cs      # 缓存条目 record (Phase 10)
 │   │   ├── LibraryDiff.cs            # 扫描增量同步 record (Phase 10)
-│   │   ├── LibraryScanResult.cs      # 扫描结果 record (Files + IsUnavailable；区分"根不可用"与"根为空"，Phase 24)
+│   │   ├── LibraryScanResult.cs      # 扫描结果 closed 层级：ScanAvailable(Files) / ScanUnavailable（区分"根不可用"与"根为空"，Phase 24；Phase 29 closed 化）
 │   │   ├── SpectrumConfig.cs        # 频谱分析配置 record (FftSize=8192/BarCount=32/Sensitivity/Smoothing) (Phase 13)
 │   │   ├── EqualizerConfig.cs       # 均衡器运行时配置 record (Enabled/PreampDb/BandGainsDb[10]/Preset + Create 工厂) (Phase 14)
 │   │   ├── EqualizerPresets.cs      # 均衡器频段常量 + 9 个内置预设 (ISO 倍频程中心频率/Q=1.1/±12dB) (Phase 14)
@@ -111,7 +111,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │   │   ├── LegacyDataMigration.cs   # 启动一次性迁移旧数据目录 UmaPlayer → D-player；`MigrateIfNeeded(DPlayerDataPaths)`，只由 WPF 壳调用 (Phase 20 加参数)
 │   │   ├── IPlaylistService.cs      # 多歌单持久化抽象 (Phase 6, 替换 IQueuePersistence)
 │   │   ├── JsonPlaylistService.cs   # 落点由 DPlayerDataPaths 决定：%LocalAppData%\D-player\queue.json; 内置 v1→v2 迁移 (Phase 6/20)
-│   │   ├── ILibraryScannerService.cs      # 库扫描抽象 (Phase 10)；Phase 24 增 ScanFolderWithStatus（绝不抛，带 IsUnavailable）
+│   │   ├── ILibraryScannerService.cs      # 库扫描抽象 (Phase 10)；Phase 24 增 ScanFolderWithStatus（绝不抛，返回 ScanAvailable / ScanUnavailable）
 │   │   ├── LibraryScannerService.cs       # 递归扫描 + Diff 实现 (Phase 10/24，ScanFolder 委托给 ScanFolderWithStatus)
 │   │   ├── LibraryPathNormalizer.cs       # 库根目录规范化：GetFullPath、去尾分隔符、NormalizeMany 大小写不敏感去重 (Phase 24)
 │   │   ├── LibraryScanLease.cs            # 根扫描取消/保存准入的线性化边界 (Phase 25)
@@ -211,7 +211,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │       ├── WinUiAppPaths.cs          # D-player-winui 数据目录与 logs 子目录常量
 │       └── AppLog.cs                 # app.log 追加 + 1 MiB 轮转到 app.log.1；IO 失败静默
 │
-├── Tests/                       # xUnit v3 测试项目 (Phase 6+，共 **315** 个测试 = 310 默认 + 5 真实 WASAPI；下列逐文件括号计数以 2026-11-11 Phase 27 实现后为准；Phase 20 起只引用 D-player.Core，不引用任何 UI 壳)
+├── Tests/                       # xUnit v3 测试项目 (Phase 6+，共 **341** 个测试 = 336 默认 + 5 真实 WASAPI；下列逐文件括号计数以 2026-11-12 Phase 29 实现后为准，Phase 29 新增 26 条默认测试；Phase 20 起只引用 D-player.Core，不引用任何 UI 壳)
 │   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit v3 + NSubstitute；CLI/MTP 路径，无 Coverlet/Test.Sdk/runner.visualstudio；OutputType=Exe)
 │   ├── Configuration/
 │   │   └── DPlayerDataPathsTests.cs      # 数据目录组合 + 两个壳各自注入的目录名钉桩 (2) (Phase 20)
@@ -256,8 +256,9 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
     ├── PROJECT.md               # 本文档：架构、模块、数据流
     ├── COUPLING.md              # 耦合分析与隐式契约
     ├── README.md                # 文档地图
-    ├── PHASE28-ACCEPTANCE.md    # Phase 28 验收（当前）
-    ├── PHASE27-ACCEPTANCE.md    # Phase 27 验收（上一阶段）
+    ├── PHASE29-ACCEPTANCE.md    # Phase 29 验收（当前）
+    ├── PHASE28-ACCEPTANCE.md    # Phase 28 验收（上一阶段）
+    ├── PHASE27-ACCEPTANCE.md    # Phase 27 验收（历史）
     ├── PHASE26-ACCEPTANCE.md    # Phase 26 验收（历史）
     ├── PHASE25-ACCEPTANCE.md    # Phase 25 验收（历史）
     ├── PHASE24-ACCEPTANCE.md    # Phase 24 验收（历史）
@@ -420,7 +421,7 @@ VM/Service 这一整棵树**两壳共用同一份代码**，谁都不许往 Core
 
 27. **共享层抽成 WPF-free 的 `D-player.Core`（Phase 20）**：Models / Services / ViewModels / Configuration / DI 注册整体搬进类库（`net10.0-windows`，**不开** `UseWPF`），两个 UI 壳各引用它。搬家只清掉两处真实的 WPF 泄漏：`PlaylistViewModel.SortedView`（`ICollectionView`）删除 —— `SortBy` 本来就把 `Queue` 物理重排，列表直接绑 `Queue` 即可，视图层没有任何东西需要"排序视图"这个中间概念；`Win32FileDialogService`（`Microsoft.Win32`）从 Core 搬回 WPF 壳，Core 只留 `IFileDialogService` 接口与消费点。**动机**：VM/Service 层早在 Phase 7 就已做到无 WPF 类型，物理隔离后第二壳才可能复用同一份逻辑而不引入 WPF 依赖。**WPF 侧行为零变化**是这一条的硬约束。（TFM 已于 Phase 28 抬至 net11.0）
 
-28. **门禁走解决方案筛选器 `D-player.slnf`；WinUI 构建是 `-Full` 的第三道门禁（Phase 20 起，Phase 22 起正式并入）**：词汇只有三层，别再混——**① 门禁 1/2（每次改动，`-Fast`）**：`dotnet build D-player.slnf -c Debug --nologo -v q`（0 警告 0 错误）+ `dotnet test D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"`（310 通过 / 0 失败；5 条真实音频集成由 `-Audio` 单独跑）；**② 门禁 3（`-Full`，每个 Phase 22 任务必跑）**：`dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q`（0/0），覆盖 WinUI 的 XAML 编译与 Core 公开面变化（构造参数、`IFileDialogService` 成员、`HandleDoubleClickPlay` 元数、`ViewedPlaylist` setter 等——这类改动让门禁 1/2 照样全绿，而壳已经编译不过），改到 WinUI 自身时同样跑；首次 restore 之后是增量构建，实测约 9 秒；**③ 整解 `D-player.sln` 构建 = 可选**，只为确认 IDE「Build Solution」没被打挂。`tools/verify-gates.ps1 -Fast` 跑门禁 1/2，`-Full` 跑门禁 1/2/3，`-Audio` 追加 5 条真实音频集成（逐步 fail-fast：任一步非零退出、**或两个构建步骤在 MSBuild 安静日志里报出任一行警告**即中止——口径是 **0 警告 0 错误**，而 `dotnet build` 只报警告时退出码仍是 0，光看退出码会把违约的构建印成 ok；`dotnet test` 那一步刻意不带 `--nologo`）。**筛选器只含 Core + WPF 壳 + Tests**，WinUI 刻意不放进 `.slnf`：Windows App SDK 一次 restore 拉 9 个子包、首次约 8.1 分钟、自包含输出目录很大，放进每次构建/测试会让"改一行共享层跑全量"的成本翻几十倍；代价是 **门禁 1/2 对 WinUI 完全无感**，所以每个 Phase 22 任务与任何 WinUI/Core 公开面改动都必须跑 `-Full` 的门禁 3。`Tests/Extensions/AddDPlayerCoreTests.cs` 只能钉住 Core 的 DI 图，钉不住壳忘记注册自己的 `IFileDialogService`（那种缺失要到第一次构造歌单才炸）。工作实例：A5 的"死 using"整理让门禁 1/2 全绿而 WinUI 已坏，只有单壳构建会发现。
+28. **门禁走解决方案筛选器 `D-player.slnf`；WinUI 构建是 `-Full` 的第三道门禁（Phase 20 起，Phase 22 起正式并入）**：词汇只有三层，别再混——**① 门禁 1/2（每次改动，`-Fast`）**：`dotnet build D-player.slnf -c Debug --nologo -v q`（0 警告 0 错误）+ `dotnet test D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"`（336 通过 / 0 失败；5 条真实音频集成由 `-Audio` 单独跑）；**② 门禁 3（`-Full`，每个 Phase 22 任务必跑）**：`dotnet build D-player.WinUI/D-player.WinUI.csproj -c Debug --nologo -v q`（0/0），覆盖 WinUI 的 XAML 编译与 Core 公开面变化（构造参数、`IFileDialogService` 成员、`HandleDoubleClickPlay` 元数、`ViewedPlaylist` setter 等——这类改动让门禁 1/2 照样全绿，而壳已经编译不过），改到 WinUI 自身时同样跑；首次 restore 之后是增量构建，实测约 9 秒；**③ 整解 `D-player.sln` 构建 = 可选**，只为确认 IDE「Build Solution」没被打挂。`tools/verify-gates.ps1 -Fast` 跑门禁 1/2，`-Full` 跑门禁 1/2/3，`-Audio` 追加 5 条真实音频集成（逐步 fail-fast：任一步非零退出、**或两个构建步骤在 MSBuild 安静日志里报出任一行警告**即中止——口径是 **0 警告 0 错误**，而 `dotnet build` 只报警告时退出码仍是 0，光看退出码会把违约的构建印成 ok；`dotnet test` 那一步刻意不带 `--nologo`）。**筛选器只含 Core + WPF 壳 + Tests**，WinUI 刻意不放进 `.slnf`：Windows App SDK 一次 restore 拉 9 个子包、首次约 8.1 分钟、自包含输出目录很大，放进每次构建/测试会让"改一行共享层跑全量"的成本翻几十倍；代价是 **门禁 1/2 对 WinUI 完全无感**，所以每个 Phase 22 任务与任何 WinUI/Core 公开面改动都必须跑 `-Full` 的门禁 3。`Tests/Extensions/AddDPlayerCoreTests.cs` 只能钉住 Core 的 DI 图，钉不住壳忘记注册自己的 `IFileDialogService`（那种缺失要到第一次构造歌单才炸）。工作实例：A5 的"死 using"整理让门禁 1/2 全绿而 WinUI 已坏，只有单壳构建会发现。
 
 29. **用户数据目录由 UI 壳注入（Phase 20）**：`DPlayerDataPaths(Root, FolderName)`（`Directory` 是组合属性）取代此前硬编码在三个持久化服务里的 `Environment.SpecialFolder.LocalApplicationData` + `"D-player"`；`AddDPlayerCore(IConfiguration, DPlayerDataPaths)` 因此多了第二个参数。**为什么必须分开**：两壳的 `queue.json`/`settings.json` 写入者之间没有任何跨进程协调，共用目录会互相覆盖对方的队列与音量。WPF 壳继续用 `D-player`（老用户数据不搬家，`LegacyDataMigration` 的 UmaPlayer 迁移也继续只属它），WinUI 壳用 `D-player-winui`。
 
@@ -689,7 +690,7 @@ public IReadOnlyDictionary<string, LibraryCacheEntry> CachedEntriesByPath;
 ```
 
 - 分组（`LibraryGrouping`，internal）：专辑 key = `(Album, 所在文件夹)`（空专辑 → `未知专辑`；同文件夹同专辑名不同 Artist 合并；同名不同文件夹是两张专辑）；专辑显示艺术家 = 曲目 Artist 唯一时显示它，否则 `多位艺术家`；艺术家列表按逐曲 `Track.Artist` 独立建（合辑的每位贡献者保留自己的艺术家页，并能看到该合辑）；曲目按 `TrackNumber ?? MaxValue` → `Title` → `FilePath`；未知组排最后。
-- 扫描并发：根代际（`LibraryRefreshScheduler.RootEpoch`）、扫描代（`Generation`）、查询版本（`_queryVersion`）与库数据版本（`_libraryVersion`）分别失效；生命周期 CTS 让 `CleanupAsync` 取消初始化/封面任务。晚到结果在投递前与 UI 回调内都要复核，过期结果不写 UI、不写缓存。不可用根（`ScanFolderWithStatus.IsUnavailable`）跳过而不当空扫描，避免把离线盘/无权限目录的缓存清空。
+- 扫描并发：根代际（`LibraryRefreshScheduler.RootEpoch`）、扫描代（`Generation`）、查询版本（`_queryVersion`）与库数据版本（`_libraryVersion`）分别失效；生命周期 CTS 让 `CleanupAsync` 取消初始化/封面任务。晚到结果在投递前与 UI 回调内都要复核，过期结果不写 UI、不写缓存。不可用根（`ScanFolderWithStatus` 返回 `ScanUnavailable`）跳过而不当空扫描，避免把离线盘/无权限目录的缓存清空。
 - 封面：按专辑首曲读一次 `AlbumArt`（`SemaphoreSlim` 串行），只对用户看得到的 tile/详情头部 `Loaded` 触发；重建库时旧结果丢弃。
 - 播放入口只调用 `PlaylistsViewModel.PlayLibraryTracksAsync`，不直接碰 `IPlaybackService`（库 VM → 播放容器单向依赖）。
 - 库 → 歌单（Phase 26）：追加只允许普通歌单（文件夹歌单拒绝）、允许重复；新建路径不设置 `ViewedPlaylist` / `CurrentPlaylistId`，避免库视图下侧栏出现高亮歌单。两条入口都只转发容器规则，不复制守卫。
@@ -1115,7 +1116,7 @@ AppWindow.Closing → _cleanupCompleted ? 放行自家 Close() : args.Cancel = t
 ```bash
 dotnet restore D-player.slnf
 dotnet build   D-player.slnf -c Debug --nologo -v q      # 门禁 1：0 警告 0 错误
-dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：310 通过 / 0 失败（默认排除音频）
+dotnet test    D-player.slnf -c Debug -v q --filter "Category!=AudioDevice"   # 门禁 2：336 通过 / 0 失败（默认排除音频）
 dotnet test    D-player.slnf -c Debug -v q --filter "Category=AudioDevice"    # 5 条真实 WASAPI 集成测试（需音频设备）
 dotnet run     --project D-player.csproj                 # 跑 WPF 壳
 dotnet run     --project Tests/D-player.Tests.csproj -c Debug   # 跑测试（MTP，直接跑测试可执行程序）
@@ -1124,7 +1125,7 @@ dotnet run     --project Tests/D-player.Tests.csproj -c Debug   # 跑测试（MT
 **一次跑完（推荐，逐步 fail-fast，任一步非零退出即中止）**：
 
 ```bash
-powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（310，默认排除音频）
+powershell -File tools/verify-gates.ps1 -Fast   # = 门禁 1 + 门禁 2（336，默认排除音频）
 powershell -File tools/verify-gates.ps1 -Full   # = 门禁 1 + 门禁 2 + 门禁 3（WinUI 单工程构建）
 powershell -File tools/verify-gates.ps1 -Full -Audio   # 再加 5 条真实音频集成（串行）
 ```
@@ -1146,9 +1147,9 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 
 **`dotnet restore D-player.sln` 与 `dotnet build D-player.sln` 仍然存在，但不是门禁**：`.sln` 里四个工程全在，restore 会**首次**从 nuget.org 拉 Windows App SDK（当前 2.6.5，连带 9 个子包；8.1 分钟是 2.5.1 时的实测），且 self-contained 输出目录很大。只有这两种情况才需要它：① 要构建/跑 WinUI；② 要确认 IDE 的「Build Solution」不被 WinUI 打挂（Phase 20 实测整解构建 0 警告 0 错误）。
 
-**测试栈（Phase 19 起；2026-11-11 升到 xunit.v3 4.0.3）**：`xunit.v3` 4.0.3（测试工程是**可执行程序**，`OutputType=Exe`）。runner 只有一个 —— Microsoft.Testing.Platform（MTP）；上面两条测试命令是同一个 runner 的两个入口，不是"MTP + VSTest 双 runner"。**测试总数 315（310 默认实跑 + 5 音频集成；本次（Phase 27，2026-11-11）未跑音频）**（逐文件分解见 §3 的 Tests 树）。
+**测试栈（Phase 19 起；2026-11-11 升到 xunit.v3 4.0.3）**：`xunit.v3` 4.0.3（测试工程是**可执行程序**，`OutputType=Exe`）。runner 只有一个 —— Microsoft.Testing.Platform（MTP）；上面两条测试命令是同一个 runner 的两个入口，不是"MTP + VSTest 双 runner"。**测试总数 341（336 默认实跑 + 5 音频集成；Phase 29 实测默认 336/0/0、音频 5/0/0）**（逐文件分解见 §3 的 Tests 树）。
 
-> **测试过滤实测（2026-11-11）**：`--filter "Category!=AudioDevice"` 实跑 **310** 通过、0 失败（Phase 26 收尾 294，Phase 27 新增 16 条）；本次（Phase 27，2026-11-11）未执行 5 条 `Category=AudioDevice` 真实 WASAPI 测试，因此只把默认门禁 310 记为实跑，不把 315 写成观测值。Phase 25 的历史读数（283 默认 + 5 音频 = 288）与 2026-11-02 Phase 24 的历史观察（无过滤 228 = 223 默认 + 5 音频）保留为历史；需要真实输出路径时用 `verify-gates.ps1 -Audio` 追加。
+> **测试过滤实测（2026-11-12 Phase 29）**：`--filter "Category!=AudioDevice"` 实跑 **336** 通过、0 失败、0 跳过；`Category=AudioDevice` 实跑 **5** 通过、0 失败、0 跳过。Phase 27 的历史读数（310 默认、音频未跑）与 Phase 26/25/24 的读数保留为历史；需要真实输出路径时用 `verify-gates.ps1 -Audio` 追加。
 
 > `dotnet test` 之所以还能跑，靠仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 11 SDK 的原生 opt-in，机制不变、Phase 28 已实测有效）。csproj 现在只保留 `xunit.v3` + `NSubstitute`（2026-11-02 移除 `Microsoft.NET.Test.Sdk`、`xunit.runner.visualstudio`、`coverlet.collector` 与 `TestingPlatformDotnetTestSupport`；IDE 测试发现不再保证，需要时再加回）。**删除 `global.json` 会让 `dotnet test D-player.slnf` 失败**（Microsoft.Testing.Platform 2.x 在 .NET 11 SDK 上不再支持 VSTest 目标）。
 >
@@ -1186,12 +1187,12 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **WPF ComboBox 向空集合添加首项会自动选中 index 0（Phase 14）**：`ComboBox` 在从空集合添加第一个项时会自动选中该项并触发一次 `SelectionChanged`。`EqualizerDialog.OnLoaded` 填充预设下拉必须在 `_suppress` 窗口内进行，否则打开对话框即误 push 一次 Flat/禁用配置，扰动正在播放的 EQ（Phase 14 code review 拦下的 Critical）。
 - **播放链生命周期必须串行化；"停止"意图必须显式标记**（Phase 18 后修复，Phase 19 迁移到 WasapiPlayer）：`NAudioPlaybackService.LoadAsync` 在线程池上重建整条播放链，而 `Unload` / `Dispose` / 传输命令来自 UI 线程。缺串行化时，后一次重建会释放前一次正在使用或构建的链（`_reader` / `_volumeProvider` / `_wavePlayer` 三个共享字段被交错读写）→ 异常从链内部抛出并冒进 `async void` 事件处理器（进程崩溃）。修复是单闸门 `_chainGate`，唯一例外是 `OnPlaybackStopped`（播放线程回调）——持锁方可能正阻塞在输出类的 `Stop()` / `Dispose()` 上等待播放线程退出（`NAudio.Wasapi 3.3.0` 随包 XML 文档：`Dispose` 一条明确写着 "Stops playback (blocking) and releases all resources"，而 `Stop` 只有 "Stop playback and flush buffers"），回调里取锁即死锁，故其读取一律防御式。**NAudio 3 的 guarded dispose 不使这条失效**：它只保护 NAudio 自己的对象，管不到我们的共享字段。同源的第二条陷阱：用户停止与自然播完都只表现为一次 `PlaybackStopped`，输出类不告知发起方，仅凭播放头位置无法区分（曲尾 200ms 内按停止会被误判为播完并自动推进下一首）；修复是 `_stopRequested` 意图标记（`Stop`/`DisposePlayback` 置位、`Play` 清零、`OnPlaybackStopped` 命中即提前返回）——该不确定性不随实现变化，故换类后依然必要。回归测试（两条的证据强度不同，别混着引用）：闸门侧 `NAudioPlaybackServiceConcurrencyTests` 的 `LoadAsync_TwoOverlappingCalls_DoNotThrow` / `Unload_DuringLoadAsync_DoesNotThrow` 以 1–5 ms 错位窗口断言"不抛异常"，是真实但**随机**的证据（窗口未命中时只是没有触发竞态）；意图标记侧只有 `NAudioPlaybackServiceStopSemanticsTests.Stop_WhenPlayheadIsAtTrackEnd_DoesNotRaiseTrackEnded` 一条确定性钉住"停止不得冒充播完"（`Seek` 到距曲尾 100ms 再 `Stop`），同类中的 `Unload_WhenPlayheadIsAtTrackEnd_DoesNotRaiseTrackEnded` **读不到** `_stopRequested`（`DisposePlayback` 会写入它，但先解订阅 `PlaybackStopped` 再停止，回调不触发，判定分支从未执行），故它钉住的是"解订阅早于停止"这条顺序；反方向由上句那 5 条中的 `NAudioPlaybackServiceConcurrencyTests.PlayToNaturalEnd_ThenAdvance_DoesNotThrow` 钉住（真自然播完仍须发 `TrackEnded`——注意它在闸门侧那个类里，不在 `…StopSemanticsTests`）。
 - **音频集成测试的并行度**（Phase 19）：仓库有 5 条测试真实占用 WASAPI 设备（`NAudioPlaybackServiceConcurrencyTests` 3 条 + `NAudioPlaybackServiceStopSemanticsTests` 2 条）。迁到 xunit v3 时在默认并行下实测：结论是 **level 0 —— 沿用 xunit v3 的默认并行，既没有加 `[Collection("AudioDevice")]`，也没有 `Tests/AssemblyInfo.cs` / `DisableTestParallelization`**。证据：10 次 MTP 运行 + 3 次 `dotnet test` 运行，每次都是 161 通过 / 0 失败 / 0 跳过（含那 5 条真设备用例），单次墙钟 5.875–6.249 s、runner 内 1.69–1.95 s。改这两个测试类或新增音频测试时沿用同一约束；若真出现设备争用/时序漂移，再按设计稿 §5.3 的顺序收紧（先给音频测试类加同一个 `[Collection("AudioDevice")]`，仍不稳才全局禁用并行）。
-- **音频集成测试已从默认门禁拆出（2026-11-02）**：5 条测试现在都带 `[Trait("Category","AudioDevice")]` + `[Collection("AudioDevice")]`；默认门禁用 `Category!=AudioDevice`（Phase 25 收尾 283、Phase 26 验收 294 为历史；Phase 27 实现实跑 **310**），`verify-gates.ps1 -Audio` 单独串行跑这 5 条。Phase 19 的默认并行结论保留为历史。**计数口径见 §8.2 的实测块**：总数 315 = 310 默认 + 5 音频（本次（Phase 27，2026-11-11）音频未跑）。
+- **音频集成测试已从默认门禁拆出（2026-11-02）**：5 条测试现在都带 `[Trait("Category","AudioDevice")]` + `[Collection("AudioDevice")]`；默认门禁用 `Category!=AudioDevice`（Phase 25 收尾 283、Phase 26 验收 294、Phase 27 实现 310 为历史；Phase 29 实现实跑 **336**），`verify-gates.ps1 -Audio` 单独串行跑这 5 条。Phase 19 的默认并行结论保留为历史。**计数口径见 §8.2 的实测块**：总数 341 = 336 默认 + 5 音频（Phase 29 实跑）。
 - **库播放队列不得加入 `Playlists` 集合（Phase 24）**：`PlaylistsViewModel` 私有持有 `_libraryPlayback`（Id `__library-playback__`），只通过 `LibraryPlayback` 投影暴露。侧栏拖拽重排按 `ListBox` 索引调用 `MovePlaylistCommand`，把隐藏项塞进集合会让索引与歌单错位；同时它也不该出现在 `queue.json` 的可见歌单数组里（`QueueState.LibraryPlayback` 是独立字段）。只有 `CurrentPlaylistId` 能指向它。
-- **不可用库根必须与空根分开（Phase 24）**：`LibraryScannerService.ScanFolder` 会吞掉 Unauthorized/IO 异常并返回空集合；`LibraryViewModel` 必须走 `ScanFolderWithStatus` 的 `IsUnavailable`，跳过该根的缓存写入，否则一次离线的移动硬盘会被当成"所有文件已删除"而清空 `library-cache.json`。手工刷新路径同理。
+- **不可用库根必须与空根分开（Phase 24）**：`LibraryScannerService.ScanFolder` 会吞掉 Unauthorized/IO 异常并返回空集合；`LibraryViewModel` 必须走 `ScanFolderWithStatus` 的 `ScanUnavailable`，跳过该根的缓存写入，否则一次离线的移动硬盘会被当成"所有文件已删除"而清空 `library-cache.json`。手工刷新路径同理。
 - **库封面与网格的规模边界（Phase 24）**：封面只按专辑首曲惰性读取（`EnsureCoverAsync`），tile/详情头部 `Loaded` 才触发；专辑页是非虚拟化 `WrapPanel`。不要改成"扫描时读全部封面"（几千张字节数组常驻内存）或依赖虚拟化——后者是独立子系统，本阶段明确不做（设计 §9）。
 - **库视图导航持久化（2026-11-03 修订；2026-11-08 补侧栏选中）**：关闭时 `MainViewModel.CleanupAsync` 把 `LibraryViewActive` / `LibraryViewPage` / 艺术家名 / 专辑首曲路径写入 `AppSettings`；启动在库缓存水化后恢复最后页签与专辑/艺术家详情，找不到目标时回落到专辑页/艺术家页。`IsLibraryViewActive` 置 true 时必须清空 `Playlists.ViewedPlaylist`（`OnIsLibraryViewActiveChanged`），否则 `Playlists.Hydrate` 选中的第一个歌单会与库页同时高亮；启动恢复不经过点击路径，`PlaylistsSidebarView` 监听 `IsLibraryViewActive` / `Library.Page` 补亮「艺术家/专辑」节点（搜索态保持来源节点）。回归 `PlaybackResumeTests.InitializeAsync_RestoresLibraryView_ClearsViewedPlaylist`；侧栏视觉由合成库重启走查覆盖。`QueueState` 仍不记录 `LibraryPage`；库播放队列继续按 `CurrentPlaylistId` 恢复。
-- **给 `IPlaybackService` 加成员必须同步改 `NullPlaybackService`（Phase 14）**：`PlaylistsViewModel` 内有一个手写的 `NullPlaybackService` 空对象（该接口的第二个生产实现者，供 internal 测试构造器用），NSubstitute 只覆盖测试替身。给 `IPlaybackService` 加 `EqualizerConfig` 时必须同步给 `NullPlaybackService` 补上该成员，否则 CS0535 编译失败。
+- **Phase 29 删除了 `PlaylistsViewModel` 的测试专用 Null Object/internal 2 参构造器（Phase 29）**：现在只有公开 8 参构造器；给 `IPlaybackService` 加成员只需同步生产实现与测试替身（NSubstitute），不再有手写 `NullPlaybackService` 需要补成员。
 - **矢量图标经 `Application.Current.FindResource` 解析（Phase 16）**：`PlayStateToIconConverter` / `RepeatModeToIconConverter` / `BoolToVolumeIconConverter` 返回的 `Geometry` 依赖 `Icons.xaml` 已在 `App.xaml` 合并；若漏合并会运行时抛异常。新增图标须同步 `Icons.xaml` 键与使用处（COUPLING.md §5 Phase 16 契约）。▶ 标记元素类型为 `Path`：`FindChildByName<Path>(container, "PART_Marker"/"PART_SidebarMarker")`，改回 TextBlock 或改泛型会静默失效。
 - **WindowChrome 自绘按钮必须 `IsHitTestVisibleInChrome=True`（Phase 17）**：caption 高度（32px）区域内的自绘按钮不加此 attached 属性会被 caption 拖动吞掉点击；改动标题栏按钮/新增标题栏控件时必查。
 - **无边框窗最大化边距必须用常量式工作区计算（Phase 17）**：`TitleBar.ApplyWindowState` 给根内容加「`WorkArea` 偏移 + `WindowResizeBorderThickness`」边距；不要改回"读窗口实际边界"的实现 —— 布局时序会让 right/bottom 边距偏大导致大片留空（commit `d86694b` 修）。
@@ -1221,8 +1222,9 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - PROJECT.md（本文）— 架构、模块、数据流
 - [COUPLING.md](./COUPLING.md) — 耦合分析与隐式契约
 - [README.md](./README.md) — 文档地图
-- [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md) — Phase 28 升级到 .NET 11 验收（当前）
-- [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) — Phase 27 多碟专辑归并验收（上一阶段）
+- [PHASE29-ACCEPTANCE.md](./PHASE29-ACCEPTANCE.md) — Phase 29 非音频路径现代化验收（当前）
+- [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md) — Phase 28 升级到 .NET 11 验收（上一阶段）
+- [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) — Phase 27 多碟专辑归并验收（历史）
 - [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) — Phase 26 库→歌单验收（历史）
 - [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) — Phase 25 搜索/监听验收（历史）
 - [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md) — Phase 24 库视图验收
@@ -1233,8 +1235,9 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - [PHASE21-ACCEPTANCE.md](./PHASE21-ACCEPTANCE.md)
 - [PHASE20-COMPARISON.md](./PHASE20-COMPARISON.md)
 
-**当前设计稿（Phase 14–28，按需查阅）**
-- `docs/superpowers/specs/` — Phase 14–28 的 D-player 设计稿；Phase 24/25 库视图与搜索/监听、Phase 26 库→歌单、Phase 28 net11 升级设计稿是当前实现的直接依据。
+**当前设计稿（Phase 14–29，按需查阅）**
+- `docs/superpowers/specs/` — Phase 14–29 的 D-player 设计稿；Phase 24/25 库视图与搜索/监听、Phase 26 库→歌单、Phase 28 net11 升级、Phase 29 非音频现代化设计稿是当前实现的直接依据。
+- [Phase 29 设计：非音频路径现代化](./superpowers/specs/2026-11-12-d-player-phase29-modernization-design.md) — RootGates/树查找修复、JsonFileStore/源生成、union/closed 模型、生命周期与验收边界（含 Phase 28 附录 C 的复核修正）。
 - [Phase 28 设计：升级到 .NET 11](./superpowers/specs/2026-11-12-d-player-phase28-net11-upgrade-design.md) — 四工程抬 net11.0 的直接依据（含三个失败域与回退、Rider 红线定性、C# 15 / .NET 11 BCL 核实附录、Phase 29/30 移交盘点）。
 - 设计稿不回改；与最终实现不一致处，以实现与验收记录为准。
 

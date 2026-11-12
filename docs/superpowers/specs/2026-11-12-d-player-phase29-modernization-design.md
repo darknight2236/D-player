@@ -129,7 +129,7 @@
 | `Services/JsonLibraryCache.cs`、`JsonPlaylistService.cs`、`JsonSettingsPersistence.cs` | 抽 `JsonFileStore`：`ReadAllTextAsync`、`WriteAtomicAsync`（tmp + `File.Move(overwrite: true)`）；服务保留各自的 `_lock`，存储 helper 不持锁 |
 | `JsonSettingsPersistence.cs:71-75` | 改用 `JsonFileStore.WriteAtomicAsync` + 静态 `JsonSerializerOptions`；失败时旧文件保留 |
 | `MainViewModel.cs:260-290`、`LibraryViewModel.cs:167-180`、`PlaylistsViewModel.cs:115-155` | 抽 `OneShotCleanup`（同 Task、幂等、`RunContinuationsAsynchronously`、晚到完成用 `TrySet*` 丢弃、异常经 Task 外抛）；三处保留各自的关闭逻辑 |
-| Core 33 处 + Views 5 处 `?? throw new ArgumentNullException` | 改 `ArgumentNullException.ThrowIfNull`；`ThrowIfNullOrWhiteSpace` 保持现状 |
+| Core 32 处 + Views 5 处 `?? throw new ArgumentNullException` | 改 `ArgumentNullException.ThrowIfNull`；`ThrowIfNullOrWhiteSpace` 保持现状；**音频 `EqualizerSampleProvider` 的那 1 处保留原样**，保证音频路径零文件改动 |
 | `AudioConstants.cs`、`PlaylistViewModel.cs:370,388-389`、`DragDropExtensions.cs:35-42`、`PlaylistFileService.cs:80`、`LibraryScannerService.cs:42` | 统一音频后缀到 `AudioConstants`（`FrozenSet` + `IsAudioFile` + `FileDialogFilter`）；消除硬编码 HashSet 与循环 |
 | `PlaylistFileFormats.cs:17,32-36` | 内部改 `FrozenSet`；保留 `Extensions` 有序公开属性 |
 | `PlaylistViewModel.cs:484-495` | `SanitizeFileName` 的 `Array.IndexOf` → `SearchValues<char>` 静态字段 |
@@ -397,7 +397,7 @@ GUI 走查前备份 `settings.json` / `queue.json` / `library-cache.json` 并记
 - **测试计数以实跑为准**：设计只给“310 + 新增”的口径，不预写具体总数；避免把推演数字写成观测值。
 - **JSON 源生成是元数据替换，不是 AOT**：发布形态不变，仍为 framework-dependent；不要把它当成 trimming/AOT 改造。
 - **settings 原子写是行为改进**：写失败保留旧文件；Rider 红线与 IDE 诊断按 Phase 28 纪律重新观察，不为 IDE 改产品代码。
-- **未做**：`ObservableCollection` 批量替换、`System.Threading.Lock` 替换 async 临界区、`PeriodicTimer`、`PlaylistImportReport`/`AddToPlaylistResult` union 建模、AOT/trimming。
+- **未做**：`ObservableCollection` 批量替换、`System.Threading.Lock` 替换 async 临界区、`PeriodicTimer`、`PlaylistImportReport`/`AddToPlaylistResult` union 建模、AOT/trimming、音频 `EqualizerSampleProvider` 的参数校验替换（保持音频文件零改动）。
 
 ## 附录 A：对 Phase 28 附录 C 的复核修正
 

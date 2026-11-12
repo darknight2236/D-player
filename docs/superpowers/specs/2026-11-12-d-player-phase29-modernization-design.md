@@ -88,7 +88,7 @@
 
 - `LibraryViewModel.cs:28-29` 的 `_coverGate`/`_lifetimeCts`、`Search.cs:17` 的 `_queryCts` 只 Cancel/换新，不 Dispose；`FileSystemLibraryWatcher.cs:12` 的 `_replaceGate` 在 `:82-96` 的 `Dispose` 中未释放；三个 Json 服务的 `_lock`（`JsonLibraryCache.cs:22`、`JsonPlaylistService.cs:25`、`JsonSettingsPersistence.cs:17`）从不释放。
 - `PlaylistsViewModel.cs:149-153` 已 Dispose `_folderLifetimeCts`；`MainViewModel.cs:306-307` 已 Dispose `_saveCts`；`MainViewModel` 实现 `IAsyncDisposable`（`:21,353`），`LibraryViewModel`/`PlaylistsViewModel` 不实现。
-- DI 全 Singleton（`ServiceCollectionExtensions.cs:30-54`）；`App.xaml.cs:76-79` 在 `OnExit` Dispose ServiceProvider → 只释放实现了 `IDisposable` 的服务（当前只有 NAudioPlaybackService 等）；`MainViewModel` 是 Transient，由 `MainWindow.xaml.cs:118` 调 `CleanupAsync`，不经容器释放。给 Json 服务加 `IDisposable` 即可被容器回收；给 VM 加 `IAsyncDisposable` 会与手动 Cleanup 形成双重路径，本期不做。
+- DI 全 Singleton（`ServiceCollectionExtensions.cs:30-54`）；`App.xaml.cs:76-79` 在 `OnExit` Dispose ServiceProvider → 只释放实现了 `IDisposable` 的服务（当前只有 NAudioPlaybackService 等）；`MainViewModel` 是 Transient，由 `MainWindow.xaml.cs:118` 调 `CleanupAsync`，不经容器释放。给 Json 服务加 `IDisposable` 即可被容器回收；给 VM 加 `IAsyncDisposable` 会与手动 Cleanup 形成双重路径，本期不做。**复核补充**：`MainViewModel` 只实现 `IAsyncDisposable` 会让同步 `ServiceProvider.Dispose()` 抛 `InvalidOperationException` 并中断后续释放，所以 Task 17 给 `MainViewModel` 增加一个无操作 `IDisposable` 标记（清理仍由 `MainWindow.Closing` 驱动），让容器能继续释放三个 Json 单例。
 
 ### 2.7 测试覆盖缺口（硬证据）
 
@@ -229,7 +229,7 @@
 
 ### 4.7 生命周期释放顺序
 
-- `JsonSettingsPersistence` 在 `MainViewModel.CleanupCoreAsync` 的最后一次 `UpdateAsync` 之后才允许被 Dispose；`App.OnExit` 在窗口关闭后执行，顺序满足。
+- `JsonSettingsPersistence` 在 `MainViewModel.CleanupCoreAsync` 的最后一次 `UpdateAsync` 之后才允许被 Dispose；`App.OnExit` 在窗口关闭后执行，顺序满足。`MainViewModel` 的无操作 `IDisposable.Dispose()` 让同步容器释放能越过这个 async-only 实例，继续释放 Json 单例。
 - `LibraryViewModel.CleanupAsync` 先 Cancel `_lifetimeCts`、停止 watcher、等待 cover/search 任务，再 Dispose；`_queryCts` 在搜索任务收尾后 Dispose。
 - `FileSystemLibraryWatcher.Dispose` 先释放 watcher 集合，再释放 `_replaceGate`；防止正在 `ReplaceRootsAsync` 的调用在 gate 释放后访问。
 - 不给 `LibraryViewModel`/`PlaylistsViewModel` 新增 `IAsyncDisposable`，避免与 `MainViewModel` 手动清理形成双重释放路径；释放逻辑封装在现有 `CleanupAsync` 内。

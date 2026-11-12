@@ -23,22 +23,17 @@ internal static class LibraryGrouping
 
     internal static LibraryGroupingResult Build(IEnumerable<Track> tracks)
     {
-        var unique = new Dictionary<string, Track>(StringComparer.OrdinalIgnoreCase);
-        foreach (var track in tracks)
-        {
-            if (string.IsNullOrWhiteSpace(track.FilePath)) continue;
-
-            string fullPath;
-            try { fullPath = Path.GetFullPath(track.FilePath); }
-            catch { continue; }
-
-            // 同一路径在多个根目录重复出现时保留先到者，保证结果与输入顺序确定。
-            unique.TryAdd(fullPath, track);
-        }
+        // 同一路径在多个根目录重复出现时保留先到者，保证结果与输入顺序确定。
+        var unique = tracks
+            .Where(track => !string.IsNullOrWhiteSpace(track.FilePath))
+            .Select(track => (Track: track, FullPath: TryGetFullPath(track.FilePath)))
+            .Where(item => item.FullPath is not null)
+            .DistinctBy(item => item.FullPath!, StringComparer.OrdinalIgnoreCase)
+            .Select(item => item.Track);
 
         var buckets = new Dictionary<LibraryAlbumKey, List<Track>>(
             LibraryIdentity.AlbumComparer);
-        foreach (var (_, track) in unique)
+        foreach (var track in unique)
         {
             // 专辑身份 = 专辑名 + 所在文件夹：没有共同 AlbumArtist 的合辑
             // 仍会被逐曲 Artist 拆开，而文件夹是本地专辑最可靠的边界。
@@ -135,4 +130,10 @@ internal static class LibraryGrouping
 
     private static string Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+    private static string? TryGetFullPath(string path)
+    {
+        try { return Path.GetFullPath(path); }
+        catch { return null; }
+    }
 }

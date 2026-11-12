@@ -118,9 +118,9 @@ public sealed class LibraryScannerService : ILibraryScannerService
             cacheMap[normalized] = entry with { FilePath = normalized };
         }
 
-        var added = new List<string>();
-        var removed = new List<string>();
-        var unchanged = new List<LibraryCacheEntry>();
+        List<string> added = [];
+        List<string> removed = [];
+        List<LibraryCacheEntry> unchanged = [];
 
         // 磁盘上有但缓存没有的 → 新增
         foreach (var path in currentSet.Keys)

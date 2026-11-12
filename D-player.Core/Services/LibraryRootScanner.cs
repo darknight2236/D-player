@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using DPlayer.Models;
@@ -7,8 +6,9 @@ namespace DPlayer.Services;
 
 public sealed class LibraryRootScanner : ILibraryRootScanner
 {
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> RootGates =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly RootGateRegistry _rootGates = new();
+
+    internal int ActiveRootGates => _rootGates.ActiveCount;
 
     private readonly ILibraryScannerService _scanner;
     private readonly ILibraryCache _cache;
@@ -29,17 +29,10 @@ public sealed class LibraryRootScanner : ILibraryRootScanner
         ArgumentNullException.ThrowIfNull(lease);
         var normalized = LibraryPathNormalizer.Normalize(root)
             ?? throw new ArgumentException("Invalid library root.", nameof(root));
-        var gate = RootGates.GetOrAdd(normalized, _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync(lease.Token).ConfigureAwait(false);
-        try
-        {
-            return await Task.Run(() => ScanLockedAsync(normalized, lease), lease.Token)
-                .ConfigureAwait(false);
-        }
-        finally
-        {
-            gate.Release();
-        }
+        using var gateLease = await _rootGates.EnterAsync(normalized, lease.Token)
+            .ConfigureAwait(false);
+        return await Task.Run(() => ScanLockedAsync(normalized, lease), lease.Token)
+            .ConfigureAwait(false);
     }
 
     private async Task<LibraryRootSnapshot> ScanLockedAsync(

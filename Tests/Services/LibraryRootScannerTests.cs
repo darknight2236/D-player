@@ -313,4 +313,119 @@ public sealed class LibraryRootScannerTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => service.ScanAsync(Root, lease));
     }
+
+    [Fact]
+    public async Task ScanAsync_AfterCompletion_ReleasesRootGate()
+    {
+        var scanner = Substitute.For<ILibraryScannerService>();
+        var cache = Substitute.For<ILibraryCache>();
+        var metadata = Substitute.For<ITrackMetadataReader>();
+        scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
+            .Returns(new LibraryScanResult(Array.Empty<string>(), false));
+        cache.LoadAsync(Root)
+            .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                Array.Empty<LibraryCacheEntry>()));
+        scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(Array.Empty<string>(), Array.Empty<string>(),
+                Array.Empty<LibraryCacheEntry>()));
+
+        var service = new LibraryRootScanner(scanner, cache, metadata);
+        using var lease = new LibraryScanLease(CancellationToken.None);
+
+        await service.ScanAsync(Root, lease);
+
+        Assert.Equal(0, service.ActiveRootGates);
+    }
+
+    [Fact]
+    public async Task ScanAsync_DifferentRoots_RunInParallel()
+    {
+        const string rootA = @"C:\A";
+        const string rootB = @"C:\B";
+        var scanner = Substitute.For<ILibraryScannerService>();
+        var cache = Substitute.For<ILibraryCache>();
+        var metadata = Substitute.For<ITrackMetadataReader>();
+        var enteredA = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseA = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var callCount = 0;
+
+        scanner.ScanFolderWithStatus(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                Interlocked.Increment(ref callCount);
+                if (string.Equals(call.ArgAt<string>(0), rootA,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    enteredA.TrySetResult();
+                    releaseA.Task.GetAwaiter().GetResult();
+                }
+                return new LibraryScanResult(Array.Empty<string>(), false);
+            });
+        cache.LoadAsync(Arg.Any<string>())
+            .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                Array.Empty<LibraryCacheEntry>()));
+        scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(Array.Empty<string>(), Array.Empty<string>(),
+                Array.Empty<LibraryCacheEntry>()));
+
+        var service = new LibraryRootScanner(scanner, cache, metadata);
+        using var leaseA = new LibraryScanLease(CancellationToken.None);
+        using var leaseB = new LibraryScanLease(CancellationToken.None);
+
+        var first = service.ScanAsync(rootA, leaseA);
+        await enteredA.Task.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        var second = service.ScanAsync(rootB, leaseB);
+
+        await second.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(2, Volatile.Read(ref callCount));
+
+        releaseA.TrySetResult();
+        await first.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ScanAsync_RevokedWhileWaiting_DoesNotLeakGate()
+    {
+        var scanner = Substitute.For<ILibraryScannerService>();
+        var cache = Substitute.For<ILibraryCache>();
+        var metadata = Substitute.For<ITrackMetadataReader>();
+        var entered = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        scanner.ScanFolderWithStatus(Root, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                entered.TrySetResult();
+                release.Task.GetAwaiter().GetResult();
+                return new LibraryScanResult(Array.Empty<string>(), false);
+            });
+        cache.LoadAsync(Root)
+            .Returns(Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(
+                Array.Empty<LibraryCacheEntry>()));
+        scanner.ComputeDiff(Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<IReadOnlyList<LibraryCacheEntry>>())
+            .Returns(new LibraryDiff(Array.Empty<string>(), Array.Empty<string>(),
+                Array.Empty<LibraryCacheEntry>()));
+
+        var service = new LibraryRootScanner(scanner, cache, metadata);
+        using var lease = new LibraryScanLease(CancellationToken.None);
+        var scan = service.ScanAsync(Root, lease);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        lease.Revoke();
+        release.TrySetResult();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scan);
+        Assert.Equal(0, service.ActiveRootGates);
+    }
 }

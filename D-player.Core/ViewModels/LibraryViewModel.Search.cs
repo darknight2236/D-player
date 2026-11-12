@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using DPlayer.Models;
 
 namespace DPlayer.ViewModels;
@@ -9,25 +10,15 @@ public sealed partial class LibraryViewModel
         Array.Empty<LibraryAlbum>(),
         Array.Empty<Track>());
 
-    private string _searchQuery = string.Empty;
     private LibrarySearchResults _searchResults = EmptySearchResults;
-    private string _searchMessage = string.Empty;
     private LibraryNavigationSnapshot? _searchReturn;
     private long _queryVersion;
     private CancellationTokenSource? _queryCts;
     private Task? _queryTask;
     private volatile bool _searchDirty;
 
-    public string SearchQuery
-    {
-        get => _searchQuery;
-        private set
-        {
-            if (_searchQuery == value) return;
-            _searchQuery = value;
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial string SearchQuery { get; private set; } = string.Empty;
 
     public LibrarySearchResults SearchResults
     {
@@ -39,16 +30,8 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    public string SearchMessage
-    {
-        get => _searchMessage;
-        private set
-        {
-            if (_searchMessage == value) return;
-            _searchMessage = value;
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial string SearchMessage { get; private set; } = string.Empty;
 
     public Task UpdateSearchAsync(string query)
     {

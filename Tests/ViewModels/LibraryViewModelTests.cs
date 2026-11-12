@@ -67,6 +67,8 @@ public sealed class LibraryViewModelTests : IAsyncDisposable
         var playlists = new PlaylistsViewModel(
             seed => new PlaylistViewModel(
                 seed, _player, _fileDialog, _metadata, _playlistFiles),
+            _player, _fileDialog, Substitute.For<ILibraryScannerService>(),
+            Substitute.For<ILibraryCache>(), _metadata, _playlistFiles,
             Substitute.For<ILibraryRootScanner>());
         _lastPlaylists = playlists;
 

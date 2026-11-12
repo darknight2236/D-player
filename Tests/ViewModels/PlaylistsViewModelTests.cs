@@ -43,9 +43,7 @@ public class PlaylistsViewModelTests
     }
 
     private PlaylistsViewModel CreateContainerVm()
-    {
-        return new PlaylistsViewModel(seed => CreatePlaylistVm(seed.Id, seed.Name), _rootScanner);
-    }
+        => CreateContainerVmWithMocks();
 
     /// <summary>Phase 18 导入用例专用：走公共 ctor，scanner / playlistFiles 可 mock。</summary>
     private PlaylistsViewModel CreateContainerVmWithMocks()
@@ -57,8 +55,15 @@ public class PlaylistsViewModelTests
     }
 
     private PlaylistsViewModel CreateContainerVmPreservingSeeds()
-        => new(seed => new PlaylistViewModel(
+        => new(
+            seed => new PlaylistViewModel(
                 seed, _player, _fileDialog, _metadataReader, _playlistFiles),
+            _player,
+            _fileDialog,
+            _scanner,
+            _cache,
+            _metadataReader,
+            _playlistFiles,
             _rootScanner);
 
     private static PlaylistImportResult ImportResult(

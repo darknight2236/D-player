@@ -70,9 +70,13 @@ public class PlaybackResumeTests : IDisposable
 
     private MainViewModel CreateMainVm()
     {
+        // 容器水化不读元数据（占位曲目已由 PlaylistViewModel 的 CreateFallback 生成）；
+        // 用独立替代物，避免与 _metadataReader 的调用次数断言（封面回读）互相干扰。
         var playlists = new PlaylistsViewModel(
             seed => new PlaylistViewModel(seed, _player, _fileDialog, _metadataReader, _playlistFiles),
-            Substitute.For<ILibraryRootScanner>());
+            _player, _fileDialog, Substitute.For<ILibraryScannerService>(),
+            Substitute.For<ILibraryCache>(), Substitute.For<ITrackMetadataReader>(),
+            _playlistFiles, Substitute.For<ILibraryRootScanner>());
         var library = new LibraryViewModel(
             _settings, _rootScanner, _cache, _metadataReader, playlists,
             _watcher, _clock);

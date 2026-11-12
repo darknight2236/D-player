@@ -115,11 +115,6 @@ public sealed partial class PlaylistsViewModel : ObservableObject
         Playlists.CollectionChanged += OnPlaylistsCollectionChanged;
     }
 
-    internal PlaylistsViewModel(
-        Func<Playlist, PlaylistViewModel> factory, ILibraryRootScanner rootScanner)
-        : this(factory, new NullPlaybackService(), new NullFileDialogService(), new NullLibraryScannerService(),
-               new NullLibraryCache(), new NullMetadataReader(), new NullPlaylistFileService(), rootScanner) { }
-
     public Task CleanupAsync()
         => _cleanup.RunAsync(CompleteCleanupAsync, onFirst: () =>
         {
@@ -834,74 +829,4 @@ public sealed partial class PlaylistsViewModel : ObservableObject
     private static Track TrackFromEntry(LibraryCacheEntry entry) => new(
         entry.FilePath, entry.Title, entry.Artist, entry.Album, entry.Genre,
         entry.Year, entry.SampleRate, null, entry.Duration, entry.TrackNumber);
-
-    // —— Null implementations for backward-compatible constructor ——
-
-    private sealed class NullFileDialogService : IFileDialogService
-    {
-        public Task<IReadOnlyList<string>> OpenFilesAsync(string filter, bool multiselect = false)
-            => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
-        public Task<string?> OpenFolderAsync() => Task.FromResult<string?>(null);
-        public Task<string?> SaveFileAsync(string filter, string defaultFileName, string defaultExtension)
-            => Task.FromResult<string?>(null);
-    }
-
-    private sealed class NullLibraryScannerService : ILibraryScannerService
-    {
-        public IReadOnlyList<string> ScanFolder(
-            string folderPath, CancellationToken ct = default) => Array.Empty<string>();
-        public LibraryScanResult ScanFolderWithStatus(
-            string folderPath, CancellationToken ct = default) =>
-            new(Array.Empty<string>(), IsUnavailable: false);
-        public Task<IReadOnlyList<Track>> ReadMetadataBatchAsync(
-            IReadOnlyList<string> paths, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<Track>>(Array.Empty<Track>());
-        public LibraryDiff ComputeDiff(IReadOnlyList<string> currentFiles, IReadOnlyList<LibraryCacheEntry> cached) =>
-            new(Array.Empty<string>(), Array.Empty<string>(), Array.Empty<LibraryCacheEntry>());
-    }
-
-    private sealed class NullLibraryCache : ILibraryCache
-    {
-        public Task<IReadOnlyList<LibraryCacheEntry>> LoadAsync(string folderPath) => Task.FromResult<IReadOnlyList<LibraryCacheEntry>>(Array.Empty<LibraryCacheEntry>());
-        public Task SaveAsync(string folderPath, IReadOnlyList<LibraryCacheEntry> entries) => Task.CompletedTask;
-    }
-
-    private sealed class NullMetadataReader : ITrackMetadataReader
-    {
-        public Task<Track> ReadAsync(string filePath) => Task.FromResult(new Track(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero, null));
-        public Track CreateFallback(string filePath) => new(filePath, System.IO.Path.GetFileName(filePath), null, null, null, null, null, null, TimeSpan.Zero, null);
-    }
-
-    private sealed class NullPlaylistFileService : IPlaylistFileService
-    {
-        public Task<PlaylistImportResult> ImportAsync(string playlistFilePath) =>
-            Task.FromResult(new PlaylistImportResult("导入的歌单", Array.Empty<string>(), 0, 0, 0));
-
-        public Task ExportAsync(string destPath, IReadOnlyList<Track> tracks) => Task.CompletedTask;
-    }
-
-    private sealed class NullPlaybackService : IPlaybackService
-    {
-        public PlayState State => PlayState.Stopped;
-        public Track? CurrentTrack => null;
-        public TimeSpan Position => TimeSpan.Zero;
-        public TimeSpan Duration => TimeSpan.Zero;
-        public float Volume { get; set; }
-        public Task LoadAsync(Track track) => Task.CompletedTask;
-        public void Play() { }
-        public void Pause() { }
-        public void Stop() { }
-        public void Unload() { }
-        public void Seek(TimeSpan position) { }
-        public event Action<PlayState>? StateChanged { add { } remove { } }
-        public event Action<TimeSpan>? PositionChanged { add { } remove { } }
-        public event Action<TimeSpan>? DurationChanged { add { } remove { } }
-        public event Action<Track?>? TrackChanged { add { } remove { } }
-        public event Action<string>? PlaybackError { add { } remove { } }
-        public event Action? TrackEnded { add { } remove { } }
-        public event Action<float[]>? SpectrumDataAvailable { add { } remove { } }
-        public SpectrumConfig SpectrumConfig { get; set; } = new();
-        public EqualizerConfig EqualizerConfig { get; set; } = new();
-        public void Dispose() { }
-    }
 }

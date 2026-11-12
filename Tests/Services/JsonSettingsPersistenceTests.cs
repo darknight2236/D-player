@@ -37,4 +37,26 @@ public sealed class JsonSettingsPersistenceTests : IDisposable
 
         Assert.Empty((await persistence.LoadAsync()).LibraryFolders);
     }
+
+    [Fact]
+    public async Task UpdateAsync_WriteFailure_KeepsOldSettings()
+    {
+        var persistence = new JsonSettingsPersistence(new DPlayerDataPaths { Root = _dir });
+        await persistence.UpdateAsync(s => s with { DefaultVolume = 0.5f });
+        var path = Path.Combine(_dir, "settings.json");
+
+        await using (var hold = new FileStream(path, FileMode.Open,
+            FileAccess.Read, FileShare.None))
+        {
+            // 见 JsonFileStoreTests：Windows 的 Move 覆盖失败是 UnauthorizedAccessException。
+            var ex = await Record.ExceptionAsync(() =>
+                persistence.UpdateAsync(s => s with { DefaultVolume = 0.2f }));
+            Assert.True(ex is IOException or UnauthorizedAccessException,
+                $"expected locked settings write to fail, got {ex?.GetType().Name ?? "no exception"}");
+        }
+
+        var text = await File.ReadAllTextAsync(path,
+            TestContext.Current.CancellationToken);
+        Assert.Contains("0.5", text);
+    }
 }

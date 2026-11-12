@@ -14,6 +14,11 @@ namespace DPlayer.Services;
 /// </summary>
 public sealed class JsonSettingsPersistence : ISettingsPersistence
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly string _path;
 
@@ -68,11 +73,8 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
 
             var next = mutator(current);
 
-            var json = JsonSerializer.Serialize(next, new JsonSerializerOptions
-            {
-                WriteIndented = true // 人类可读，方便手动调试
-            });
-            await File.WriteAllTextAsync(_path, json).ConfigureAwait(false);
+            await JsonFileStore.WriteAtomicAsync(_path, next, JsonOptions)
+                .ConfigureAwait(false);
         }
         finally
         {
@@ -86,7 +88,7 @@ public sealed class JsonSettingsPersistence : ISettingsPersistence
         if (!File.Exists(_path))
             return new AppSettings();
 
-        var json = await File.ReadAllTextAsync(_path).ConfigureAwait(false);
+        var json = await JsonFileStore.ReadAllTextAsync(_path).ConfigureAwait(false);
         return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
     }
 }

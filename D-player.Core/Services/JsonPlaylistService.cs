@@ -42,10 +42,7 @@ public sealed class JsonPlaylistService : IPlaylistService
             if (!File.Exists(_path))
                 return Seed();
 
-            string text;
-            await using (var stream = File.OpenRead(_path))
-            using (var reader = new StreamReader(stream))
-                text = await reader.ReadToEndAsync().ConfigureAwait(false);
+            var text = await JsonFileStore.ReadAllTextAsync(_path).ConfigureAwait(false);
 
             int version;
             try
@@ -100,10 +97,8 @@ public sealed class JsonPlaylistService : IPlaylistService
             // 原子写: 先写到 .tmp, 再 Move 覆盖。否则进程在 File.Create 之后/写完之前
             // 被杀, queue.json 会被截断为空, 下次 LoadAsync.JsonDocument.Parse 失败,
             // 用户全部歌单丢失。
-            var tmp = _path + ".tmp";
-            await using (var stream = File.Create(tmp))
-                await JsonSerializer.SerializeAsync(stream, snapshot, JsonOptions).ConfigureAwait(false);
-            File.Move(tmp, _path, overwrite: true);
+            await JsonFileStore.WriteAtomicAsync(_path, snapshot, JsonOptions)
+                .ConfigureAwait(false);
         }
         finally
         {
@@ -157,10 +152,8 @@ public sealed class JsonPlaylistService : IPlaylistService
         try
         {
             // 迁移阶段也走原子写, 与 SaveAsync 路径一致。
-            var tmp = _path + ".tmp";
-            await using (var stream = File.Create(tmp))
-                await JsonSerializer.SerializeAsync(stream, v2, JsonOptions).ConfigureAwait(false);
-            File.Move(tmp, _path, overwrite: true);
+            await JsonFileStore.WriteAtomicAsync(_path, v2, JsonOptions)
+                .ConfigureAwait(false);
         }
         catch { /* swallow — 内存仍是 v2, 下次启动重迁 */ }
 

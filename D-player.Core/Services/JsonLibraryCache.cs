@@ -42,10 +42,7 @@ public sealed class JsonLibraryCache : ILibraryCache
             if (!File.Exists(_path))
                 return Array.Empty<LibraryCacheEntry>();
 
-            string text;
-            await using (var stream = File.OpenRead(_path))
-            using (var reader = new StreamReader(stream))
-                text = await reader.ReadToEndAsync().ConfigureAwait(false);
+            var text = await JsonFileStore.ReadAllTextAsync(_path).ConfigureAwait(false);
 
             Dictionary<string, List<LibraryCacheEntry>>? cache;
             try
@@ -85,10 +82,7 @@ public sealed class JsonLibraryCache : ILibraryCache
 
             if (File.Exists(_path))
             {
-                string text;
-                await using (var stream = File.OpenRead(_path))
-                using (var reader = new StreamReader(stream))
-                    text = await reader.ReadToEndAsync().ConfigureAwait(false);
+                var text = await JsonFileStore.ReadAllTextAsync(_path).ConfigureAwait(false);
 
                 try
                 {
@@ -107,11 +101,8 @@ public sealed class JsonLibraryCache : ILibraryCache
 
             cache[key] = new List<LibraryCacheEntry>(entries);
 
-            // 原子写: 先写到 .tmp, 再 Move 覆盖。
-            var tmp = _path + ".tmp";
-            await using (var stream = File.Create(tmp))
-                await JsonSerializer.SerializeAsync(stream, cache, JsonOptions).ConfigureAwait(false);
-            File.Move(tmp, _path, overwrite: true);
+            await JsonFileStore.WriteAtomicAsync(_path, cache, JsonOptions)
+                .ConfigureAwait(false);
         }
         finally
         {

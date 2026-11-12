@@ -138,7 +138,7 @@
 | `PlaylistsViewModel.cs:110-113,847-913`、`PlaylistsViewModelTests.cs:47,60` | 删除 internal 兼容构造器与 6 个私有 Null* 服务；两个测试辅助方法改用 NSubstitute；公开 8 参构造器不变 |
 | `LibraryGrouping.cs:32-55`、`LibraryScannerService.cs:104-154` | 手写去重/建桶/字典差集换成 `DistinctBy`/集合表达式/字典样板；先到者胜、后写覆盖、枚举顺序逐字保留，现有分组/差分测试断言不改 |
 | `LibraryViewModel.Search.cs:21-51` | 编译探针通过后，三个手写 INPC 属性改 Toolkit 8.4.2 partial property；保留 private setter 与相等性/必通知语义；探针失败则保留手写并记录偏离 |
-| 非音频 `lock` 字段（`FileSystemLibraryWatcher.cs:7`、`LibraryRefreshScheduler.cs:32`、`LibraryScanLease.cs:7`、`LibraryViewModel.cs:30-31`、`MainViewModel` `_cleanupGate`、`PlaylistsViewModel` `_folderGate`） | `object` gate → `System.Threading.Lock`；全仓无 `Monitor.Wait/Pulse`；音频 `EqualizerSampleProvider`/`NAudioPlaybackService` 与 async `SemaphoreSlim` 不改 |
+| 非音频 `lock` 字段（`FileSystemLibraryWatcher.cs:7`、`LibraryRefreshScheduler.cs:32`、`LibraryScanLease.cs:7`、`RootGateRegistry.cs:9`、`LibraryViewModel.cs:30-31`、`PlaylistsViewModel.cs:31`、`OneShotCleanup.cs:7`） | `object` gate → `System.Threading.Lock`；全仓无 `Monitor.Wait/Pulse`；音频 `EqualizerSampleProvider`/`NAudioPlaybackService` 与 async `SemaphoreSlim` 不改 |
 
 ### 3.3 模型（批次 3）
 

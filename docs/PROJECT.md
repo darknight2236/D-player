@@ -57,7 +57,7 @@
 | 运行时 | .NET 11（共享层与 WPF 壳 `net11.0-windows`；WinUI 壳 `net11.0-windows10.0.19041.0`） |
 | 共享层 | `D-player.Core` 类库（Phase 20，`net11.0-windows` 且**不开** `UseWPF`）：Models / Services / ViewModels / Configuration / Extensions；被两个 UI 壳引用，不得出现任何 WPF 类型 |
 | UI 框架 | WPF（`UseWPF=true`，主壳，完整功能）· WinUI 3 / Windows App SDK **2.6.5**（Phase 20 建壳，Phase 22 功能补齐；unpackaged + self-contained，`<Platforms>x64</Platforms>` + `<Platform>x64</Platform>`） |
-| MVVM | [CommunityToolkit.Mvvm 8.x](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
+| MVVM | [CommunityToolkit.Mvvm 8.4.2（钉死）](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) |
 | DI 容器 | `Microsoft.Extensions.DependencyInjection` 11.x |
 | 配置 | `Microsoft.Extensions.Configuration.Json` + `IOptions<AppSettings>` |
 | 音频引擎 | [NAudio 3.3.0](https://github.com/naudio/NAudio)（Phase 19 把 meta 包 `NAudio` 收窄为实际用到的两个子包：`NAudio.Core` + `NAudio.Wasapi`；2026-10-24 升到 3.3.0 后 `NAudio.Wasapi` 仍只依赖 `NAudio.Core`，而 `NAudio.Core 3.3.0` 新增传递依赖 `System.Numerics.Tensors` 9.0.0，两个壳的输出目录因此是三个 DLL。3.3.0 是 nullable 注解 + COM 包装异常类型调整 + `MediaFoundationReader` 帧对齐 seek 修复，源码级兼容） |
@@ -1146,9 +1146,9 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 
 **`dotnet restore D-player.sln` 与 `dotnet build D-player.sln` 仍然存在，但不是门禁**：`.sln` 里四个工程全在，restore 会**首次**从 nuget.org 拉 Windows App SDK（当前 2.6.5，连带 9 个子包；8.1 分钟是 2.5.1 时的实测），且 self-contained 输出目录很大。只有这两种情况才需要它：① 要构建/跑 WinUI；② 要确认 IDE 的「Build Solution」不被 WinUI 打挂（Phase 20 实测整解构建 0 警告 0 错误）。
 
-**测试栈（Phase 19 起；2026-11-11 升到 xunit.v3 4.0.3）**：`xunit.v3` 4.0.3（测试工程是**可执行程序**，`OutputType=Exe`）。runner 只有一个 —— Microsoft.Testing.Platform（MTP）；上面两条测试命令是同一个 runner 的两个入口，不是"MTP + VSTest 双 runner"。**测试总数 315（310 默认实跑 + 5 音频集成；本次未跑音频）**（逐文件分解见 §3 的 Tests 树）。
+**测试栈（Phase 19 起；2026-11-11 升到 xunit.v3 4.0.3）**：`xunit.v3` 4.0.3（测试工程是**可执行程序**，`OutputType=Exe`）。runner 只有一个 —— Microsoft.Testing.Platform（MTP）；上面两条测试命令是同一个 runner 的两个入口，不是"MTP + VSTest 双 runner"。**测试总数 315（310 默认实跑 + 5 音频集成；本次（Phase 27，2026-11-11）未跑音频）**（逐文件分解见 §3 的 Tests 树）。
 
-> **测试过滤实测（2026-11-11）**：`--filter "Category!=AudioDevice"` 实跑 **310** 通过、0 失败（Phase 26 收尾 294，Phase 27 新增 16 条）；本次未执行 5 条 `Category=AudioDevice` 真实 WASAPI 测试，因此只把默认门禁 310 记为实跑，不把 315 写成观测值。Phase 25 的历史读数（283 默认 + 5 音频 = 288）与 2026-11-02 Phase 24 的历史观察（无过滤 228 = 223 默认 + 5 音频）保留为历史；需要真实输出路径时用 `verify-gates.ps1 -Audio` 追加。
+> **测试过滤实测（2026-11-11）**：`--filter "Category!=AudioDevice"` 实跑 **310** 通过、0 失败（Phase 26 收尾 294，Phase 27 新增 16 条）；本次（Phase 27，2026-11-11）未执行 5 条 `Category=AudioDevice` 真实 WASAPI 测试，因此只把默认门禁 310 记为实跑，不把 315 写成观测值。Phase 25 的历史读数（283 默认 + 5 音频 = 288）与 2026-11-02 Phase 24 的历史观察（无过滤 228 = 223 默认 + 5 音频）保留为历史；需要真实输出路径时用 `verify-gates.ps1 -Audio` 追加。
 
 > `dotnet test` 之所以还能跑，靠仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 11 SDK 的原生 opt-in，机制不变、Phase 28 已实测有效）。csproj 现在只保留 `xunit.v3` + `NSubstitute`（2026-11-02 移除 `Microsoft.NET.Test.Sdk`、`xunit.runner.visualstudio`、`coverlet.collector` 与 `TestingPlatformDotnetTestSupport`；IDE 测试发现不再保证，需要时再加回）。**删除 `global.json` 会让 `dotnet test D-player.slnf` 失败**（Microsoft.Testing.Platform 2.x 在 .NET 11 SDK 上不再支持 VSTest 目标）。
 >

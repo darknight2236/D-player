@@ -23,7 +23,7 @@
 | 运行时 | .NET 11（Core/WPF 为 `net11.0-windows`；WinUI 为 `net11.0-windows10.0.19041.0` + x64） |
 | UI | WPF 主壳（`UseWPF=true`）· WinUI 3 / Windows App SDK 2.6.5（冻结，unpackaged + self-contained） |
 | 共享层 | `D-player.Core`：Models / Services / ViewModels / Configuration / DI，**不得出现 WPF 类型** |
-| MVVM / DI / 配置 | CommunityToolkit.Mvvm 8.x · Microsoft.Extensions.DependencyInjection 11.x · Configuration.Json + `IOptions<AppSettings>` |
+| MVVM / DI / 配置 | CommunityToolkit.Mvvm 8.4.2（钉死） · Microsoft.Extensions.DependencyInjection 11.x · Configuration.Json + `IOptions<AppSettings>` |
 | 音频 | NAudio 3.3.0（`NAudio.Core` + `NAudio.Wasapi`；`MediaFoundationReader` 解码，`WasapiPlayer` Shared 输出） |
 | 标签 / 测试 | z440.atl.core 7.19.0 · xUnit v3（MTP）+ NSubstitute；5 条真实 WASAPI 集成测试标记 `Category=AudioDevice` |
 
@@ -104,6 +104,7 @@ D-player/                    # 仓库根 = WPF 壳工程
 | 25 | **音乐库搜索与实时监听（WPF）**：三组搜索、Ctrl+F、按根 watcher、可等待清理；验收完成 2026-11-06 |
 | 26 | **音乐库 → 歌单互通（WPF）**：右键加入普通歌单、新建并加入；验收完成 2026-11-11 |
 | 27 | **多碟专辑归并（Core）**：Disc N / CD N 等碟子文件夹上提一层归并、按碟序 + 曲号排序；验收完成 2026-11-11 |
+| 28 | **升级到 .NET 11**：四工程 TFM 全抬 net11.0（Core/WPF `net11.0-windows`、WinUI `net11.0-windows10.0.19041.0`），零行为变更意图；验收完成 2026-11-12 |
 
 WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全量重构仅为未来可能（未排期、未选型）。
 
@@ -127,5 +128,5 @@ WinUI 壳保留但不再新增功能；后续开发在 Core + WPF。Avalonia 全
 - [项目架构与模块详解](docs/PROJECT.md)
 - [耦合分析与隐式契约](docs/COUPLING.md)
 - [文档地图](docs/README.md) · [历史归档](docs/archive/README.md)
-- 最近验收：[Phase 27](docs/PHASE27-ACCEPTANCE.md) · [Phase 26](docs/PHASE26-ACCEPTANCE.md) · [Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md)
+- 最近验收：[Phase 28](docs/PHASE28-ACCEPTANCE.md) · [Phase 27](docs/PHASE27-ACCEPTANCE.md) · [Phase 26](docs/PHASE26-ACCEPTANCE.md) · [Phase 25](docs/PHASE25-ACCEPTANCE.md) · [Phase 24](docs/PHASE24-ACCEPTANCE.md)
 - 历史验收与 WinUI 决策：[Phase 22](docs/PHASE22-ACCEPTANCE.md) · [Phase 21](docs/PHASE21-ACCEPTANCE.md) · [Phase 20 对比](docs/PHASE20-COMPARISON.md)

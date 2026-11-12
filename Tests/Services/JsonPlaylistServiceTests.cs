@@ -89,4 +89,34 @@ public sealed class JsonPlaylistServiceTests : IDisposable
         Assert.Empty(loaded.Playlists);
         Assert.Equal(libraryPlayback.Id, loaded.CurrentPlaylistId);
     }
+
+    [Fact]
+    public async Task LoadAsync_V1Fixture_MigratesToV3Shape()
+    {
+        Directory.CreateDirectory(_dir);
+        await File.WriteAllTextAsync(Path.Combine(_dir, "queue.json"), """
+        {
+          "SchemaVersion": 1,
+          "Items": ["C:\\Music\\a.mp3", "C:\\Music\\b.mp3"],
+          "CurrentIndex": 99,
+          "ShuffleEnabled": true,
+          "RepeatMode": "One"
+        }
+        """, TestContext.Current.CancellationToken);
+
+        var loaded = await CreateService().LoadAsync();
+
+        Assert.Equal(3, loaded.SchemaVersion);
+        var playlist = Assert.Single(loaded.Playlists);
+        Assert.Equal("默认歌单", playlist.Name);
+        Assert.Equal(2, playlist.Items.Count);
+        Assert.Equal(-1, playlist.CurrentIndex); // 越界钳制
+        Assert.True(playlist.ShuffleEnabled);
+        Assert.Equal(RepeatMode.One, playlist.RepeatMode);
+        Assert.Equal(playlist.Id, loaded.CurrentPlaylistId);
+
+        var persisted = await File.ReadAllTextAsync(
+            Path.Combine(_dir, "queue.json"), TestContext.Current.CancellationToken);
+        Assert.Contains("\"SchemaVersion\": 3", persisted);
+    }
 }

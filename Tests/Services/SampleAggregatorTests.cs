@@ -106,7 +106,7 @@ public sealed class SampleAggregatorTests
         secondChunk.CopyTo(data, FftSize);
 
         var source = new BufferSource(data);
-        var aggregator = Create(source);
+        using var aggregator = Create(source);
         var events = new List<float[]>();
         using var ready = new ManualResetEventSlim();
         aggregator.SpectrumDataReady += bars =>
@@ -135,7 +135,7 @@ public sealed class SampleAggregatorTests
         for (int i = 0; i < FftSize; i++)
             data[i] = 0.3f * MathF.Sin(2 * MathF.PI * 1000 * i / SampleRate);
 
-        var aggregator = Create(new BufferSource(data));
+        using var aggregator = Create(new BufferSource(data));
         float[]? bars = null;
         using var ready = new ManualResetEventSlim();
         aggregator.SpectrumDataReady += b => { bars = b; ready.Set(); };
@@ -157,7 +157,7 @@ public sealed class SampleAggregatorTests
             data[i] = 0.2f * MathF.Sin(2 * MathF.PI * 250 * i / SampleRate)
                     + 0.1f * MathF.Sin(2 * MathF.PI * 3000 * i / SampleRate);
 
-        var aggregator = Create(new BufferSource(data));
+        using var aggregator = Create(new BufferSource(data));
         float[]? bars = null;
         using var ready = new ManualResetEventSlim();
         aggregator.SpectrumDataReady += b => { bars = b; ready.Set(); };
@@ -173,7 +173,7 @@ public sealed class SampleAggregatorTests
     [Fact]
     public void Silence_NoNaN_AllZero()
     {
-        var aggregator = Create(new BufferSource(new float[FftSize]));
+        using var aggregator = Create(new BufferSource(new float[FftSize]));
         float[]? bars = null;
         using var ready = new ManualResetEventSlim();
         aggregator.SpectrumDataReady += b => { bars = b; ready.Set(); };
@@ -190,7 +190,7 @@ public sealed class SampleAggregatorTests
     {
         var data = new float[FftSize];
         for (int i = 0; i < data.Length; i++) data[i] = i % 7 * 0.1f;
-        var aggregator = new SampleAggregator(
+        using var aggregator = new SampleAggregator(
             new BufferSource((float[])data.Clone()),
             new SpectrumConfig { FftSize = FftSize, BarCount = BarCount })
         {
@@ -225,7 +225,7 @@ public sealed class SampleAggregatorTests
         for (int i = 0; i < data.Length; i++)
             data[i] = 0.3f * MathF.Sin(2 * MathF.PI * 1000 * i / SampleRate);
 
-        var aggregator = Create(new BufferSource(data));
+        using var aggregator = Create(new BufferSource(data));
         var events = new List<float[]>();
         using var ready = new ManualResetEventSlim();
         aggregator.SpectrumDataReady += bars =>
@@ -258,5 +258,54 @@ public sealed class SampleAggregatorTests
         // 第一帧快照在后续帧处理完成后必须仍是订阅者写入的全零内容：
         // 若聚合器复用同一输出缓冲，后续帧会把它重写成新的非零柱
         Assert.All(snapshots[0], x => Assert.Equal(0f, x));
+    }
+
+    [Fact]
+    public void Dispose_StopsThread_NoEventsAfterDispose()
+    {
+        var data = new float[FftSize * 2];
+        Array.Fill(data, 0.2f);
+        using var aggregator = Create(new BufferSource(data));
+        int events = 0;
+        using var firstFrame = new ManualResetEventSlim();
+        aggregator.SpectrumDataReady += _ =>
+        {
+            Interlocked.Increment(ref events);
+            firstFrame.Set();
+        };
+
+        ReadAll(aggregator, FftSize);
+        Assert.True(firstFrame.Wait(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken), "FFT 线程未产出首帧");
+        aggregator.Dispose();
+        int afterDispose = Volatile.Read(ref events);
+        Thread.Sleep(100);
+        ReadAll(aggregator, FftSize);
+
+        Assert.Equal(afterDispose, Volatile.Read(ref events));
+    }
+
+    [Fact]
+    public void EnabledToggle_SkipsStaleFrames()
+    {
+        var data = new float[FftSize * 2];
+        // 前半静音，后半 1 kHz 正弦（直流信号在 20 Hz 起的频谱柱上没有能量，
+        // 无法区分"算到了新样本"与"只算到静音"）。
+        for (int i = FftSize; i < data.Length; i++)
+            data[i] = 0.8f * MathF.Sin(2 * MathF.PI * 1000 * (i - FftSize) / SampleRate);
+        using var aggregator = Create(new BufferSource(data));
+        aggregator.Enabled = false;
+
+        ReadAll(aggregator, FftSize); // 禁用期间读掉静音段
+        aggregator.Enabled = true;
+
+        float[]? bars = null;
+        using var ready = new ManualResetEventSlim();
+        aggregator.SpectrumDataReady += b => { bars = b; ready.Set(); };
+        ReadAll(aggregator, FftSize); // 启用后读响段
+        Assert.True(ready.Wait(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken), "启用后频谱帧超时");
+
+        Assert.NotNull(bars);
+        Assert.Contains(bars, x => x > 0f);
+        Assert.All(bars, x => Assert.False(float.IsNaN(x)));
     }
 }

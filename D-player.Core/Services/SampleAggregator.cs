@@ -6,26 +6,51 @@ namespace DPlayer.Services;
 
 /// <summary>
 /// 音频频谱分析器 —— 插入 NAudio 播放链中截取 PCM 数据，执行 FFT 计算频谱。
+/// 音频线程只做混音与写环形缓冲（producer）；FFT 与事件发布在后台分析线程（consumer）。
 /// 实现 ISampleProvider 接口，作为透明中间件不修改音频流。
 /// </summary>
-public sealed class SampleAggregator : ISampleProvider
+public sealed class SampleAggregator : ISampleProvider, IDisposable
 {
     private readonly ISampleProvider _source;
-    private readonly float[] _rawBuffer;
-    private readonly Complex[] _fftBuffer;
-    private readonly float[] _spectrumData;
+    private readonly int _fftSize;
+    private readonly int _barCount;
+    private readonly int _channels;
+    private readonly int _hop;
     private readonly float[] _window;
     private readonly int[] _barStartBins;
     private readonly int[] _barEndBins;
-    private readonly int _fftSize;
-    private readonly int _barCount;
-    private int _bufferPosition;
+    private readonly float[] _ring;
+    private readonly int _ringMask;
+    private readonly float[] _frame;
+    private readonly Complex[] _fftBuffer;
+    private readonly float[] _spectrumData;
+    private readonly AutoResetEvent _frameSignal = new(false);
+    private readonly Thread _analysisThread;
+    private long _writeIndex;
+    private long _lastSignaledEnd;
+    private long _lastFrameEnd;
+    private long _enabledAtWrite;
+    private volatile bool _enabled = true;
+    private volatile bool _stop;
+    private int _disposed;
 
-    /// <summary>频谱数据可用事件（在音频线程触发，订阅者需自行处理线程封送）</summary>
+    /// <summary>频谱数据可用事件（在 FFT 分析线程触发，订阅者需自行处理线程封送）</summary>
     public event Action<float[]>? SpectrumDataReady;
 
     /// <summary>是否启用频谱分析</summary>
-    public bool Enabled { get; set; } = true;
+    public bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            if (_enabled == value) return;
+            _enabled = value;
+            // 重新启用时对齐到当前写位置：不补算禁用期间的历史样本。
+            // consumer 在取帧前检查该门槛，保证第一帧只来自重新启用后的样本。
+            if (value)
+                Volatile.Write(ref _enabledAtWrite, Volatile.Read(ref _writeIndex));
+        }
+    }
 
     public SampleAggregator(ISampleProvider source, SpectrumConfig config)
     {
@@ -36,7 +61,12 @@ public sealed class SampleAggregator : ISampleProvider
             throw new ArgumentOutOfRangeException(nameof(config), "FftSize must be a power of two in [256, 65536].");
         if (_barCount <= 0)
             throw new ArgumentOutOfRangeException(nameof(config), "BarCount must be positive.");
-        _rawBuffer = new float[_fftSize];
+
+        _channels = Math.Max(1, source.WaveFormat.Channels);
+        _hop = _fftSize / 2;
+        _ring = new float[_fftSize * 4];
+        _ringMask = _ring.Length - 1;
+        _frame = new float[_fftSize];
         _fftBuffer = new Complex[_fftSize];
         _spectrumData = new float[_barCount];
 
@@ -63,42 +93,53 @@ public sealed class SampleAggregator : ISampleProvider
             _barStartBins[bar] = Math.Max(1, (int)(f0 / sampleRate * _fftSize));
             _barEndBins[bar] = Math.Min(binCount, (int)(f1 / sampleRate * _fftSize) + 1);
         }
+
+        _analysisThread = new Thread(AnalysisLoop)
+        {
+            IsBackground = true,
+            Name = "DPlayer.SpectrumFft",
+            Priority = ThreadPriority.BelowNormal
+        };
+        _analysisThread.Start();
     }
 
     public WaveFormat WaveFormat => _source.WaveFormat;
 
     public int Read(Span<float> buffer)
     {
+        // Dispose 后音频线程可能仍持旧引用调用 Read：直接返回 0，不触碰已释放信号量。
+        if (_stop) return 0;
+
         // 1. 从源读取 PCM 数据（NAudio 3 起 ISampleProvider 只有 Span 重载）
         int read = _source.Read(buffer);
-        if (!Enabled || read <= 0) return read;
+        if (!_enabled || read <= 0) return read;
 
-        int channels = Math.Max(1, _source.WaveFormat.Channels);
-        int frames = read / channels;
+        int frames = read / _channels;
+        long write = _writeIndex;
 
-        // 2. 填充原始样本环形历史（FFT 工作缓冲在 ProcessFrame 内单独使用）
+        // 2. 混音为单声道并写入 SPSC 环形缓冲（音频线程不做 FFT、不分配、不取锁、不等待）
         for (int frame = 0; frame < frames; frame++)
         {
-            int i = frame * channels;
-            float sample = channels switch
+            int i = frame * _channels;
+            float sample = _channels switch
             {
                 1 => buffer[i],
                 2 => (buffer[i] + buffer[i + 1]) * 0.5f,
-                _ => Mix(buffer.Slice(i, channels), channels)
+                _ => Mix(buffer.Slice(i, _channels), _channels)
             };
-
-            _rawBuffer[_bufferPosition++] = sample;
-            if (_bufferPosition >= _fftSize)
-            {
-                ProcessFrame();
-
-                // 50% 重叠：直接保留原始样本的后半段，而非上一次 FFT 输出
-                Array.Copy(_rawBuffer, _fftSize / 2, _rawBuffer, 0, _fftSize / 2);
-                _bufferPosition = _fftSize / 2;
-            }
+            _ring[(int)(write & _ringMask)] = sample;
+            write++;
         }
 
-        // 3. 原始 PCM 数据原样传递
+        // release：环形缓冲写入必须先于写索引对 consumer 可见
+        Volatile.Write(ref _writeIndex, write);
+
+        // 每跨过一个 hop 唤醒一次 consumer（AutoResetEvent 不累积，落后时自然丢帧）
+        if (write - _lastSignaledEnd >= _hop)
+        {
+            _lastSignaledEnd = write;
+            try { _frameSignal.Set(); } catch (ObjectDisposedException) { }
+        }
         return read;
     }
 
@@ -109,24 +150,60 @@ public sealed class SampleAggregator : ISampleProvider
         return sum / channels;
     }
 
-    private void ProcessFrame()
+    private void AnalysisLoop()
     {
-        // 1. 复制原始样本到 FFT 工作缓冲并应用汉宁窗
-        //    （不污染重叠历史；在 FFT 前统一加窗，避免重叠时窗口错位）
-        for (int j = 0; j < _fftSize; j++)
+        while (!_stop)
         {
-            _fftBuffer[j].X = _rawBuffer[j] * _window[j];
-            _fftBuffer[j].Y = 0;
+            // 100ms 超时仅用于周期性检查停止标志
+            _frameSignal.WaitOne(100);
+            if (_stop) break;
+            if (!_enabled) continue;
+
+            long write = Volatile.Read(ref _writeIndex);
+            long enabledAt = Volatile.Read(ref _enabledAtWrite);
+
+            // hop 前进 FftSize/2：正常追赶时逐帧处理，保持 50% 重叠语义；
+            // 重新启用后的第一帧不得早于 _enabledAtWrite。
+            long frameEnd = Math.Max(_lastFrameEnd + _hop, _fftSize);
+            if (frameEnd < enabledAt + _fftSize) frameEnd = enabledAt + _fftSize;
+            if (frameEnd > write) continue;
+
+            // 消费者落后超过环形缓冲可容纳的历史：丢帧不排队，直接跳到最新窗口。
+            if (write - frameEnd > _ring.Length - _fftSize)
+                frameEnd = write;
+
+            while (frameEnd <= write && !_stop)
+            {
+                _lastFrameEnd = frameEnd;
+
+                // 帧 = 环形缓冲中截至 frameEnd 的最后 FftSize 个真实时域样本
+                long start = frameEnd - _fftSize;
+                for (int j = 0; j < _fftSize; j++)
+                    _frame[j] = _ring[(int)((start + j) & _ringMask)];
+
+                // 加窗只作用于 FFT 工作缓冲，不污染原始样本
+                for (int j = 0; j < _fftSize; j++)
+                {
+                    _fftBuffer[j].X = _frame[j] * _window[j];
+                    _fftBuffer[j].Y = 0;
+                }
+
+                FastFourierTransform.FFT(true, (int)Math.Log2(_fftSize), _fftBuffer);
+                ExtractSpectrumData();
+
+                try
+                {
+                    // 每帧新建快照：订阅者不能篡改共享缓冲，也不影响下一帧
+                    SpectrumDataReady?.Invoke(_spectrumData.ToArray());
+                }
+                catch
+                {
+                    // 单帧订阅者异常不得杀死 FFT 线程。
+                }
+
+                frameEnd += _hop;
+            }
         }
-
-        // 2. 执行 FFT
-        FastFourierTransform.FFT(true, (int)Math.Log2(_fftSize), _fftBuffer);
-
-        // 3. 提取幅度并映射到频谱柱
-        ExtractSpectrumData();
-
-        // 4. 触发事件（复制数组，避免共享可变缓冲区被订阅者篡改）
-        SpectrumDataReady?.Invoke(_spectrumData.ToArray());
     }
 
     /// <summary>
@@ -164,5 +241,14 @@ public sealed class SampleAggregator : ISampleProvider
             // 应用 gamma 曲线增强对比度
             _spectrumData[bar] = MathF.Pow(normalized, 0.8f);
         }
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _stop = true;
+        _frameSignal.Set();
+        _analysisThread.Join(TimeSpan.FromSeconds(2));
+        _frameSignal.Dispose();
     }
 }

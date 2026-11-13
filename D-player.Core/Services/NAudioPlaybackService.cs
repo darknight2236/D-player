@@ -382,10 +382,11 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// <summary>释放当前播放链；切歌前与 Dispose 都会调用。顺序：解订阅 → 停止 → 释放。</summary>
     private void DisposePlayback()
     {
-        // Phase 13: 清理 SampleAggregator
+        // Phase 13: 清理 SampleAggregator（先解订阅再 Dispose，停止后台 FFT 线程）
         if (_sampleAggregator != null)
         {
             _sampleAggregator.SpectrumDataReady -= OnSpectrumDataReady;
+            _sampleAggregator.Dispose();
             _sampleAggregator = null;
         }
 

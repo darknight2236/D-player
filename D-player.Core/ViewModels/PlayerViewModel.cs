@@ -156,8 +156,10 @@ public partial class PlayerViewModel : ObservableObject
         if (!SpectrumEnabled) return;
 
         // rawData 已由 SampleAggregator 完成 FFT → 对数分桶 → 32 bars 映射，
-        // 这里只需应用灵敏度增益 + 指数平滑即可，无需二次 MapToBars。
-        var data = rawData.ToArray();
+        // 且每帧已是新快照（分析线程内 ToArray 复制），这里直接就地施加增益 + 指数平滑，
+        // 无需二次 MapToBars，也无需再复制一次。
+        if (rawData.Length != _smoothedSpectrum.Length) return;
+        float[] data = rawData;
 
         // 应用灵敏度增益
         float sensitivity = Math.Clamp((float)SpectrumSensitivity, 0.5f, 2.0f);

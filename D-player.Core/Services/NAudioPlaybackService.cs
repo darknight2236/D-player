@@ -382,6 +382,15 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// <summary>释放当前播放链；切歌前与 Dispose 都会调用。顺序：解订阅 → 停止 → 释放。</summary>
     private void DisposePlayback()
     {
+        // 拆链意图必须先于任何可能让输出类看到「流结束」的动作发布。
+        // SampleAggregator.Dispose 会置 _stop，使并发中的音频线程 Read 立刻返回 0（EOF）；
+        // WasapiPlayer 随后按"数据读完"上报 PlaybackStopped，而此刻 PlaybackStopped 尚未解订阅、
+        // _stopRequested 也还是 false（可见窗口 = FFT 线程 Join，通常亚毫秒、上限 2s）。
+        // 若播放头正停在曲尾 200ms 容差内，这次拆链会被误判为自然播完 → TrackEnded 多推进一首。
+        // 因此先标记意图，再拆聚合器。
+        if (_wavePlayer != null)
+            _stopRequested = true;
+
         // Phase 13: 清理 SampleAggregator（先解订阅再 Dispose，停止后台 FFT 线程）
         if (_sampleAggregator != null)
         {

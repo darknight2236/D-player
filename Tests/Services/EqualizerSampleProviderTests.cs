@@ -28,6 +28,30 @@ public class EqualizerSampleProviderTests
         }
     }
 
+    private sealed class EndlessSineProvider : ISampleProvider
+    {
+        private readonly double _step;
+        private double _phase;
+
+        public EndlessSineProvider(int sampleRate = 44100)
+        {
+            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
+            _step = 2 * Math.PI * 1000 / sampleRate;
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int Read(Span<float> buffer)
+        {
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                buffer[i] = (float)(0.3 * Math.Sin(_phase));
+                _phase += _step;
+            }
+            return buffer.Length;
+        }
+    }
+
     private static float[] Sine(float freq, int n, int sr = 44100, float amp = 0.3f)
     {
         var d = new float[n];
@@ -154,5 +178,81 @@ public class EqualizerSampleProviderTests
 
         // 16k 段被旁路 → 9kHz 幅度不应因该段被显著抬升（输入幅度 0.3）
         Assert.All(buf[4096..], x => Assert.True(Math.Abs(x) <= 0.35f));
+    }
+
+    [Fact]
+    public void Update_AppliedAtBufferBoundary_PreservesState()
+    {
+        const int n = 4096;
+        var data = Sine(1000, n * 2);
+        var eq = new EqualizerSampleProvider(
+            new FakeSampleProvider((float[])data.Clone()),
+            new EqualizerConfig { Enabled = true });
+
+        var first = new float[n];
+        eq.Read(first);
+
+        var gains = new double[EqualizerPresets.BandCount];
+        gains[5] = 12;
+        eq.Update(EqualizerConfig.Create(true, 0, gains, "Custom"));
+
+        var second = new float[n];
+        eq.Read(second);
+
+        Assert.All(second, x => Assert.False(float.IsNaN(x)));
+        Assert.Contains(second, x => Math.Abs(x) > 0.05f);
+    }
+
+    [Fact]
+    public void PendingConfig_WhileDisabled_EnablesOnNextRead()
+    {
+        var data = Sine(1000, 2048);
+        var eq = new EqualizerSampleProvider(
+            new FakeSampleProvider((float[])data.Clone()),
+            new EqualizerConfig { Enabled = false });
+        var gains = new double[EqualizerPresets.BandCount];
+        gains[5] = 12;
+        eq.Update(EqualizerConfig.Create(true, 0, gains, "Custom"));
+
+        var buffer = new float[data.Length];
+        eq.Read(buffer);
+
+        Assert.Contains(buffer, x => Math.Abs(x) > 0.05f);
+    }
+
+    [Fact]
+    public async Task Update_ConcurrentWithRead_NoExceptions_FiniteOutput()
+    {
+        const int n = 8192;
+        var eq = new EqualizerSampleProvider(
+            new EndlessSineProvider(),
+            new EqualizerConfig { Enabled = true });
+        var buffer = new float[n];
+        var stop = new ManualResetEventSlim();
+        Exception? failure = null;
+
+        var reader = Task.Run(() =>
+        {
+            try
+            {
+                while (!stop.IsSet)
+                {
+                    eq.Read(buffer);
+                    Assert.All(buffer, x => Assert.False(float.IsNaN(x) || float.IsInfinity(x)));
+                }
+            }
+            catch (Exception ex) { failure = ex; }
+        }, TestContext.Current.CancellationToken);
+
+        var gains = new double[EqualizerPresets.BandCount];
+        for (int i = 0; i < 200; i++)
+        {
+            gains[5] = (i % 24) - 12;
+            eq.Update(EqualizerConfig.Create(true, 0, gains, "Custom"));
+        }
+
+        stop.Set();
+        await reader.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
     }
 }

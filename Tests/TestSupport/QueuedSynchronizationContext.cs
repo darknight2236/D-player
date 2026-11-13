@@ -29,6 +29,14 @@ internal sealed class QueuedSynchronizationContext : SynchronizationContext, IDi
         callback(state);
     }
 
+    public bool TryRunNext()
+    {
+        if (!_queue.Reader.TryRead(out var item)) return false;
+        Interlocked.Decrement(ref _pending);
+        item.Callback(item.State);
+        return true;
+    }
+
     public async Task WaitForPendingAsync(int count, CancellationToken ct)
     {
         while (Volatile.Read(ref _pending) < count)

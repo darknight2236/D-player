@@ -7,8 +7,8 @@ namespace DPlayer.Services;
 /// <summary>
 /// 基于 NAudio 的播放服务实现。
 ///
-/// 播放链路：MediaFoundationReader → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiPlayer(Shared)
-///   - MediaFoundationReader：调用 Windows Media Foundation 原生解码 MP3/WMA/FLAC/AAC/WAV
+/// 播放链路：MediaFoundationAudioSource(MediaFoundationReader) → EqualizerSampleProvider → SampleAggregator → VolumeSampleProvider → WasapiPlayer(Shared)
+///   - MediaFoundationReader（经 MediaFoundationAudioSource 适配）：调用 Windows Media Foundation 原生解码 MP3/WMA/FLAC/AAC/WAV
 ///   - EqualizerSampleProvider：10 段图形均衡器（Phase 14），置于 SampleAggregator 之前 → 频谱反映 EQ 后信号
 ///   - SampleAggregator     ：透明截取 PCM 数据执行 FFT 频谱分析（Phase 13）
 ///   - VolumeSampleProvider ：在样本层做线性音量缩放
@@ -20,8 +20,10 @@ namespace DPlayer.Services;
 public sealed class NAudioPlaybackService : IPlaybackService
 {
     private readonly SynchronizationContext _syncContext;
+    private readonly IAudioSourceFactory _sourceFactory;
+    private readonly IAudioOutputFactory _outputFactory;
     private IWavePlayer? _wavePlayer;
-    private MediaFoundationReader? _reader;
+    private IAudioSource? _source;
     private VolumeSampleProvider? _volumeProvider;
     private Track? _currentTrack;
     private PlayState _state = PlayState.Stopped;
@@ -69,8 +71,8 @@ public sealed class NAudioPlaybackService : IPlaybackService
 
     public PlayState State => _state;
     public Track? CurrentTrack => _currentTrack;
-    public TimeSpan Position => _reader?.CurrentTime ?? TimeSpan.Zero;
-    public TimeSpan Duration => _reader?.TotalTime ?? TimeSpan.Zero;
+    public TimeSpan Position => _source?.CurrentTime ?? TimeSpan.Zero;
+    public TimeSpan Duration => _source?.TotalTime ?? TimeSpan.Zero;
 
     public float Volume
     {
@@ -118,10 +120,23 @@ public sealed class NAudioPlaybackService : IPlaybackService
     }
 
     public NAudioPlaybackService()
+        : this(
+            new MediaFoundationAudioSourceFactory(),
+            new StubAudioOutputFactory(),
+            // App.OnStartup 在 UI 线程解析本服务，因此 Current 一定非空；
+            // 容错给一个新 SyncContext，避免单元测试场景 NRE。
+            SynchronizationContext.Current ?? new SynchronizationContext())
     {
-        // App.OnStartup 在 UI 线程解析本服务，因此 Current 一定非空；
-        // 容错给一个新 SyncContext，避免单元测试场景 NRE。
-        _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
+    }
+
+    internal NAudioPlaybackService(
+        IAudioSourceFactory sourceFactory,
+        IAudioOutputFactory outputFactory,
+        SynchronizationContext syncContext)
+    {
+        _sourceFactory = sourceFactory ?? throw new ArgumentNullException(nameof(sourceFactory));
+        _outputFactory = outputFactory ?? throw new ArgumentNullException(nameof(outputFactory));
+        _syncContext = syncContext ?? throw new ArgumentNullException(nameof(syncContext));
     }
 
     /// <summary>
@@ -138,11 +153,11 @@ public sealed class NAudioPlaybackService : IPlaybackService
 
                 try
                 {
-                    _reader = new MediaFoundationReader(track.FilePath);
+                    _source = _sourceFactory.Create(track.FilePath);
 
                     // Phase 13/14: ToSample → EqualizerSampleProvider → SampleAggregator
                     // EQ 置于 SampleAggregator 之前 → 频谱可视化反映 EQ 处理后的信号
-                    var sampleProvider = _reader.ToSampleProvider();
+                    var sampleProvider = _source.ToSampleProvider();
                     _equalizer = new EqualizerSampleProvider(sampleProvider, _equalizerConfig);
                     _sampleAggregator = new SampleAggregator(_equalizer, _spectrumConfig);
                     _sampleAggregator.SpectrumDataReady += OnSpectrumDataReady;
@@ -151,14 +166,9 @@ public sealed class NAudioPlaybackService : IPlaybackService
                     {
                         Volume = _volume
                     };
-                    // NAudio 3 的输出入口：builder → WasapiPlayer（WasapiOut 已降级为 legacy placeholder）。
-                    // WithEventSync 对齐原 WasapiOut(Shared, 100) 里 useEventSync=true 的语义；
-                    // WasapiPlayer 没有公开构造函数，只能经 builder 建立，之后仍按 IWavePlayer 使用。
-                    _wavePlayer = new WasapiPlayerBuilder()
-                        .WithSharedMode()
-                        .WithEventSync()
-                        .WithLatency(100)
-                        .Build();
+                    // NAudio 3 的输出入口由工厂决定（默认 StubAudioOutputFactory →
+                    // WasapiPlayerBuilder → WasapiPlayer）；测试可注入假输出。
+                    _wavePlayer = _outputFactory.CreateOutput();
                     _wavePlayer.Init(_volumeProvider);
 
                     _wavePlayer.PlaybackStopped += OnPlaybackStopped;
@@ -166,15 +176,15 @@ public sealed class NAudioPlaybackService : IPlaybackService
                     // 用解码器实测值回填 Track；调用方传入的 Duration 通常为 Zero
                     _currentTrack = track with
                     {
-                        Duration = _reader.TotalTime,
-                        SampleRate = _reader.WaveFormat.SampleRate
+                        Duration = _source.TotalTime,
+                        SampleRate = _source.WaveFormat.SampleRate
                     };
 
                     // 先归零 Position，再广播新 Duration —— 否则切换到时长更短的曲目时，
                     // VM 的旧 Position（如上一首播完的 4:05）会和新 Duration（3:20）短暂并存，
                     // 进度条出现"4:05 / 3:20"的越界显示，直到下一帧 PollPositionAsync 才纠正。
                     RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
-                    RaiseOnUIThread(DurationChanged, _reader.TotalTime);
+                    RaiseOnUIThread(DurationChanged, _source.TotalTime);
                     RaiseOnUIThread(TrackChanged, _currentTrack);
                 }
                 catch (Exception ex)
@@ -216,8 +226,8 @@ public sealed class NAudioPlaybackService : IPlaybackService
             _stopRequested = true; // 必须在调用输出类的停止之前置位：回调可能在其内部同步发生
             _wavePlayer.Stop();
             // 同时将播放头归零，下次 Play 从头开始
-            if (_reader != null)
-                _reader.CurrentTime = TimeSpan.Zero;
+            if (_source != null)
+                _source.CurrentTime = TimeSpan.Zero;
             SetState(PlayState.Stopped);
         }
     }
@@ -227,10 +237,10 @@ public sealed class NAudioPlaybackService : IPlaybackService
         TimeSpan clamped;
         lock (_chainGate)
         {
-            if (_reader == null) return;
-            _reader.CurrentTime = position;
+            if (_source == null) return;
+            _source.CurrentTime = position;
             // Clamp 到 [0, TotalTime]：解码器对 seek 到尾部允许越界几十毫秒。
-            clamped = ClampToDuration(_reader.CurrentTime);
+            clamped = ClampToDuration(_source.CurrentTime);
         }
 
         // 主动广播一次新位置：暂停态下 PollPositionAsync 已退出，否则 VM.Position 不刷新，
@@ -293,19 +303,19 @@ public sealed class NAudioPlaybackService : IPlaybackService
         // 自然播完判定：播放头距 TotalTime 不超过容差，且时长大于 0（避免空 reader 误判）。
         // 本方法由播放线程回调，不能取 _chainGate —— 持锁方可能正阻塞在输出类的
         // Stop()/Dispose() 上等待播放线程退出（后者文档明确 blocking），取锁会立即死锁。
-        // 因此这里只做防御性读取：reader 可能正被并发的 DisposePlayback 释放，在音频线程抛出即崩进程。
+        // 因此这里只做防御性读取：源可能正被并发的 DisposePlayback 释放，在音频线程抛出即崩进程。
         bool naturalEnd = false;
-        var reader = _reader;
-        if (reader != null)
+        var source = _source;
+        if (source != null)
         {
             try
             {
-                naturalEnd = reader.TotalTime > TimeSpan.Zero
-                    && (reader.TotalTime - reader.CurrentTime) <= NaturalEndTolerance;
+                naturalEnd = source.TotalTime > TimeSpan.Zero
+                    && (source.TotalTime - source.CurrentTime) <= NaturalEndTolerance;
             }
             catch
             {
-                // reader 已被并发释放 → 按"非自然结束"处理
+                // 源已被并发释放 → 按"非自然结束"处理
             }
         }
 
@@ -340,7 +350,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
             if (now - _lastPositionEvent >= PositionThrottle)
             {
                 _lastPositionEvent = now;
-                var pos = ClampToDuration(_reader?.CurrentTime ?? TimeSpan.Zero);
+                var pos = ClampToDuration(_source?.CurrentTime ?? TimeSpan.Zero);
                 RaiseOnUIThread(PositionChanged, pos);
             }
         }
@@ -349,7 +359,7 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// <summary>把 Position 截断到 [0, TotalTime]，防止解码器尾部浮点越界（如 245.012s 上报到时长 245.000s 的曲）。</summary>
     private TimeSpan ClampToDuration(TimeSpan pos)
     {
-        var total = _reader?.TotalTime ?? TimeSpan.Zero;
+        var total = _source?.TotalTime ?? TimeSpan.Zero;
         if (pos < TimeSpan.Zero) return TimeSpan.Zero;
         if (total > TimeSpan.Zero && pos > total) return total;
         return pos;
@@ -391,10 +401,10 @@ public sealed class NAudioPlaybackService : IPlaybackService
             _wavePlayer = null;
         }
         _volumeProvider = null;
-        if (_reader != null)
+        if (_source != null)
         {
-            _reader.Dispose();
-            _reader = null;
+            _source.Dispose();
+            _source = null;
         }
     }
 

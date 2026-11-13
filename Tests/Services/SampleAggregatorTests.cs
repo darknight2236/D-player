@@ -195,7 +195,11 @@ public sealed class SampleAggregatorTests
     [Fact]
     public void SubscriberMutation_DoesNotAffectNextFrame()
     {
-        var data = new float[FftSize + FftSize / 2];
+        // 3 帧（50% hop → 在 8192 / 12288 / 16384 个样本处触发）。三帧才能同时发现：
+        //  - 单缓冲复用：三帧交付同一数组引用（NotSame 失败，且快照 0 被后续帧重写）；
+        //  - 双缓冲交替复用：快照 0 与快照 2 同引用且被重新填充（NotSame / 全零断言失败）。
+        const int frameCount = 3;
+        var data = new float[FftSize * 2];
         // 必须使用有频域能量的信号：直流信号在 bar 起始 bin（>=3）上无能量
         for (int i = 0; i < data.Length; i++)
             data[i] = 0.3f * MathF.Sin(2 * MathF.PI * 1000 * i / SampleRate);
@@ -208,17 +212,30 @@ public sealed class SampleAggregatorTests
             lock (events)
             {
                 events.Add(bars);
-                // 只篡改第一帧快照：验证订阅者改动不会污染下一帧的内部状态
+                // 只篡改第一帧快照：验证订阅者改动不会污染后续帧，且该快照之后不再被重写
                 if (events.Count == 1) Array.Fill(bars, 0f);
-                if (events.Count >= 2) ready.Set();
+                if (events.Count >= frameCount) ready.Set();
             }
         };
 
         ReadAll(aggregator, data.Length);
-        Assert.True(ready.Wait(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken), "两帧频谱超时");
+        Assert.True(ready.Wait(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken), "三帧频谱超时");
 
-        float[] second;
-        lock (events) second = events[1];
-        Assert.Contains(second, x => x > 0f);
+        float[][] snapshots;
+        lock (events) snapshots = events.GetRange(0, frameCount).ToArray();
+        Assert.Equal(frameCount, snapshots.Length);
+
+        // 每帧必须交付独立快照：复用/池化输出缓冲（含交替双缓冲）都会在此暴露
+        for (int i = 0; i < snapshots.Length; i++)
+            for (int j = i + 1; j < snapshots.Length; j++)
+                Assert.NotSame(snapshots[i], snapshots[j]);
+
+        // 订阅者篡改第一帧后，后续帧仍应包含频域能量（原测试意图）
+        Assert.Contains(snapshots[1], x => x > 0f);
+        Assert.Contains(snapshots[2], x => x > 0f);
+
+        // 第一帧快照在后续帧处理完成后必须仍是订阅者写入的全零内容：
+        // 若聚合器复用同一输出缓冲，后续帧会把它重写成新的非零柱
+        Assert.All(snapshots[0], x => Assert.Equal(0f, x));
     }
 }

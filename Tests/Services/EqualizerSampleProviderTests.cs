@@ -73,17 +73,37 @@ public class EqualizerSampleProviderTests
         }
     }
 
-    /// <summary>整块逐样本与参考滤波组比对，最大绝对偏差须 &lt; 1e-4（防浮点实现差异）。</summary>
+    /// <summary>
+    /// 整块逐样本与参考滤波组比对：任一样本（expected 或 actual）非有限即失败，
+    /// 其余样本最大绝对偏差须 &lt; 1e-4（防浮点实现差异）。
+    /// </summary>
     private static void AssertMatchesReference(float[] expected, float[] actual)
     {
         Assert.Equal(expected.Length, actual.Length);
         int worstIndex = 0;
         float worstDiff = 0f;
+        int nonFiniteIndex = -1;
         for (int i = 0; i < expected.Length; i++)
         {
-            float diff = Math.Abs(expected[i] - actual[i]);
+            float e = expected[i];
+            float a = actual[i];
+            float diff = Math.Abs(e - a);
+            // NaN/Inf 参与的比较恒为 false（NaN > worstDiff 永远不成立），只看 diff 会让
+            // 整块 NaN 被当成 0 偏差而“通过”。非有限样本必须单独记录并直接判失败。
+            if (!float.IsFinite(e) || !float.IsFinite(a) || !float.IsFinite(diff))
+            {
+                if (nonFiniteIndex < 0) nonFiniteIndex = i;
+                continue;
+            }
             if (diff > worstDiff) { worstDiff = diff; worstIndex = i; }
         }
+
+        if (nonFiniteIndex >= 0)
+        {
+            Assert.Fail(
+                $"输出含非有限样本: sample {nonFiniteIndex} (expected={expected[nonFiniteIndex]:G9}, actual={actual[nonFiniteIndex]:G9})");
+        }
+
         Assert.True(worstDiff < 1e-4f,
             $"输出偏离参考滤波组: maxAbsDiff={worstDiff:G9} @ sample {worstIndex} (expected={expected[worstIndex]:G9}, actual={actual[worstIndex]:G9})");
     }
@@ -241,7 +261,8 @@ public class EqualizerSampleProviderTests
         eq.Update(EqualizerConfig.Create(true, 0, gains, "Custom"));
 
         // 参考组对全部 10 段换系数（与 ApplyConfig 相同顺序/参数，0dB 段也重算），再处理第二块。
-        // 频段顺序、增益、preamp、以及“第二块才生效”任何一处错了都会超出 1e-4 容差。
+        // 频段顺序、增益、以及“第二块才生效”任何一处错了都会超出 1e-4 容差。
+        // 两个配置的 preamp 都是 0 dB，本用例不覆盖 preamp（由 PreampGain_SixDb_ScalesRmsByAboutTwo 覆盖）。
         for (int b = 0; b < reference.Length; b++)
             reference[b].SetPeakingEq(44100f, (float)EqualizerPresets.CenterFrequencies[b], EqualizerPresets.Q, (float)gains[b]);
 

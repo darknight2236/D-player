@@ -56,6 +56,20 @@
         <EmbeddedResource Remove="D-player.WinUI/**" />
     </ItemGroup>
 
+    <!--
+      tools/ 也是仓库根的兄弟目录（Phase 30 的 AudioBench 所在）：WPF 临时工程会 glob 到
+      tools/AudioBench 的源（top-level statements 会与 App.Main 抢入口）与 obj 下的生成物
+      （AssemblyInfo 重复），因此做与上面几组一致的显式排除。工具工程本身不进 .slnf。
+    -->
+    <ItemGroup>
+        <Compile Remove="tools/**" />
+        <Page Remove="tools/**" />
+        <ApplicationDefinition Remove="tools/**" />
+        <Resource Remove="tools/**" />
+        <None Remove="tools/**" />
+        <EmbeddedResource Remove="tools/**" />
+    </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="11.0.0" />

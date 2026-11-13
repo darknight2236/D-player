@@ -1,3 +1,4 @@
+using NAudio.Dsp;
 using NAudio.Wave;
 using DPlayer.Models;
 using DPlayer.Services;
@@ -57,6 +58,34 @@ public class EqualizerSampleProviderTests
         var d = new float[n];
         for (int i = 0; i < n; i++) d[i] = amp * MathF.Sin(2 * MathF.PI * freq * i / sr);
         return d;
+    }
+
+    /// <summary>
+    /// 参考实现：与 provider 相同的段级联顺序（每段依次处理整块区间，等价于逐样本按段顺序级联），
+    /// 直接在调用方提供的数组上就地变换。
+    /// </summary>
+    private static void ApplyReferenceFilters(BiQuadFilter[] filters, float[] data, int offset, int count)
+    {
+        foreach (var filter in filters)
+        {
+            for (int i = offset; i < offset + count; i++)
+                data[i] = filter.Transform(data[i]);
+        }
+    }
+
+    /// <summary>整块逐样本与参考滤波组比对，最大绝对偏差须 &lt; 1e-4（防浮点实现差异）。</summary>
+    private static void AssertMatchesReference(float[] expected, float[] actual)
+    {
+        Assert.Equal(expected.Length, actual.Length);
+        int worstIndex = 0;
+        float worstDiff = 0f;
+        for (int i = 0; i < expected.Length; i++)
+        {
+            float diff = Math.Abs(expected[i] - actual[i]);
+            if (diff > worstDiff) { worstDiff = diff; worstIndex = i; }
+        }
+        Assert.True(worstDiff < 1e-4f,
+            $"输出偏离参考滤波组: maxAbsDiff={worstDiff:G9} @ sample {worstIndex} (expected={expected[worstIndex]:G9}, actual={actual[worstIndex]:G9})");
     }
 
     [Fact]
@@ -181,26 +210,47 @@ public class EqualizerSampleProviderTests
     }
 
     [Fact]
-    public void Update_AppliedAtBufferBoundary_PreservesState()
+    public void Update_AppliedAtBufferBoundary_MatchesReferenceFilterBank()
     {
         const int n = 4096;
         var data = Sine(1000, n * 2);
+
+        // 测试侧参考滤波组：10 段各一个 PeakingEQ，flat（0dB）起步，与 provider 构造期状态一致。
+        // 注意 NAudio 3.3.0 的 SetPeakingEq 经 SetCoefficients 会清零 x1/x2/y1/y2（它有独立的
+        // ResetState；Update* 保留状态的变体只存在于 low/high/band-pass/notch）。因此本 oracle
+        // 精确验证的是“配置在 buffer 边界整段换系数”，而不是跨边界状态连续性——后者用此 API
+        // 无法实现，provider 当前行为同样是重置双二阶状态（见 task-8 fix report）。
+        var reference = new BiQuadFilter[EqualizerPresets.BandCount];
+        for (int b = 0; b < reference.Length; b++)
+            reference[b] = BiQuadFilter.PeakingEQ(44100f, (float)EqualizerPresets.CenterFrequencies[b], EqualizerPresets.Q, 0f);
+
+        // 参考组先处理第一块：既得到第一块的期望值，也把组内状态推进到样本 n 处。
+        var expectedFirst = data[..n].ToArray();
+        ApplyReferenceFilters(reference, expectedFirst, 0, n);
+
         var eq = new EqualizerSampleProvider(
             new FakeSampleProvider((float[])data.Clone()),
             new EqualizerConfig { Enabled = true });
 
         var first = new float[n];
         eq.Read(first);
+        AssertMatchesReference(expectedFirst, first); // Update 之前的块必须仍是 flat：配置只在边界生效
 
         var gains = new double[EqualizerPresets.BandCount];
         gains[5] = 12;
         eq.Update(EqualizerConfig.Create(true, 0, gains, "Custom"));
 
+        // 参考组对全部 10 段换系数（与 ApplyConfig 相同顺序/参数，0dB 段也重算），再处理第二块。
+        // 频段顺序、增益、preamp、以及“第二块才生效”任何一处错了都会超出 1e-4 容差。
+        for (int b = 0; b < reference.Length; b++)
+            reference[b].SetPeakingEq(44100f, (float)EqualizerPresets.CenterFrequencies[b], EqualizerPresets.Q, (float)gains[b]);
+
+        var expectedSecond = data[n..].ToArray();
+        ApplyReferenceFilters(reference, expectedSecond, 0, n);
+
         var second = new float[n];
         eq.Read(second);
-
-        Assert.All(second, x => Assert.False(float.IsNaN(x)));
-        Assert.Contains(second, x => Math.Abs(x) > 0.05f);
+        AssertMatchesReference(expectedSecond, second);
     }
 
     [Fact]
@@ -217,7 +267,18 @@ public class EqualizerSampleProviderTests
         var buffer = new float[data.Length];
         eq.Read(buffer);
 
-        Assert.Contains(buffer, x => Math.Abs(x) > 0.05f);
+        // 若 pending 配置被丢弃、或在 _enabled 判断之后才应用、或仍保持禁用，输出就是原样透传：
+        // 逐位相等且 RMS 比为 1。下面两个断言都只有“本块内真的启用了 +12dB 提升”才能满足。
+        Assert.False(buffer.AsSpan().SequenceEqual(data), "pending 配置未在本块生效：输出与原样透传逐位相同");
+
+        double Rms(ReadOnlySpan<float> b)
+        {
+            double s = 0;
+            for (int i = 256; i < b.Length; i++) s += b[i] * b[i]; // 跳过滤波器建立期
+            return Math.Sqrt(s / (b.Length - 256));
+        }
+        double ratio = Rms(buffer) / Rms(data);
+        Assert.InRange(ratio, 3.0, 4.5); // 1kHz 段 +12dB ≈ ×3.98（10^(12/20)）；透传时为 1
     }
 
     [Fact]

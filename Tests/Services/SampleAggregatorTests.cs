@@ -150,6 +150,27 @@ public sealed class SampleAggregatorTests
     }
 
     [Fact]
+    public void PrecomputedTables_MatchReferenceBars()
+    {
+        var data = new float[FftSize];
+        for (int i = 0; i < FftSize; i++)
+            data[i] = 0.2f * MathF.Sin(2 * MathF.PI * 250 * i / SampleRate)
+                    + 0.1f * MathF.Sin(2 * MathF.PI * 3000 * i / SampleRate);
+
+        var aggregator = Create(new BufferSource(data));
+        float[]? bars = null;
+        using var ready = new ManualResetEventSlim();
+        aggregator.SpectrumDataReady += b => { bars = b; ready.Set(); };
+        ReadAll(aggregator, FftSize);
+        Assert.True(ready.Wait(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken), "频谱帧超时");
+
+        Assert.NotNull(bars);
+        var expected = ReferenceBars(data);
+        for (int i = 0; i < BarCount; i++)
+            Assert.Equal(expected[i], bars[i], 5);
+    }
+
+    [Fact]
     public void Silence_NoNaN_AllZero()
     {
         var aggregator = Create(new BufferSource(new float[FftSize]));

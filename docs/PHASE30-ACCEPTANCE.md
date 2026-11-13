@@ -1,9 +1,9 @@
-# Phase 30 验收记录（音频实时路径性能重写，core 部分）
+# Phase 30 验收记录（音频实时路径性能重写，core + GUI 验收完成，2026-11-13）
 
 - 日期：2026-11-13
 - 分支：`phase30-audio-realtime`（起点 `master` / `b92d3d6`）
 - 基线：`docs/PHASE30-AUDIO-BASELINE.md` / `.json`（测得于 `e46579e`，产物提交于 `06cd9db`）
-- 本阶段提交区间：`master..a231649`（22 条，首个提交 `e8678a9`、末提交 `a231649`：设计稿 / 基线与目标 / 工具 / 产品 / 测试；逐条见 `git log master..phase30-audio-realtime`）
+- 本阶段提交区间：`master..a231649`（22 条，首个提交 `e8678a9`、末提交 `a231649`：设计稿 / 基线与目标 / 工具 / 产品 / 测试；逐条见 `git log master..a231649`，端点固定，分支上后续 docs 提交另计）
 - 本轮验收测量点：**`a231649`（干净已提交工作树，无代码改动）**；本文档自身的提交另计
 - 设计：[2026-11-13-d-player-phase30-audio-realtime-design.md](./superpowers/specs/2026-11-13-d-player-phase30-audio-realtime-design.md)
 - 范围：音频实时路径（频谱 / EQ / 播放链 / 位置轮询）+ `tools/AudioBench`；WinUI 壳与 WPF 视图零改动
@@ -84,7 +84,7 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 | full-chain thread alloc | 17,824 B/run | 40 / 40 | 降到 harness 地板 |
 | aggregator CPU（口径已变，producer Read） | 3.111 ms/audio-s | 0.533 / 0.506 | 不可与基线相减，见 §2.1 |
 | aggregator p99 | 0.2531 ms | 0.0091 / 0.0076 | FFT 已不在音频线程 |
-| eq-flat CPU | 6.251 ms/audio-s | 0.180 / 0.203 | 0 dB 频段跳过 + 场景接近旁路；改写后读数贴近 harness 地板（eq-off 0.018/0.019），**Δ 含冷启动噪声，只作量级参考，不作精确降幅** |
+| eq-flat CPU | 6.251 ms/audio-s | 0.180 / 0.203 | 0 dB 频段跳过 + 场景接近旁路；改写后为稳定残差 **≈0.18–0.20 ms/音频秒**（约为 eq-off 地板 0.018/0.019 的 10 倍），仍远低于 ≤3.94 ms 目标；**基线首场景的冷启动噪声只影响 Δ 的精确性，Δ 只作量级参考，不改变改写后残差读数** |
 | eq-bass-boost CPU | 4.740 ms/audio-s | 3.164 / 3.041 | −33.2% / −35.8% |
 | eq-off CPU（未改写路径） | 0.016 | 0.018 / 0.019 | 噪声量级，harness 地板 |
 
@@ -161,6 +161,8 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 
 走查结束后应用已关闭（含刷新中关闭场景），三份 JSON 由备份副本覆盖，SHA-256 与走查前完全一致；最终未留下运行中的进程。
 
+合成库 `%TEMP%\phase30-synthetic-library`、备份 `%TEMP%\phase30-data-backup` 与截图 `%TEMP%\phase30-gui-shots` 均保留在仓库外 `%TEMP%` 作为证据供复核，**未提交入库**；用户数据已按字节还原（上表），产品 / 测试代码零改动，临时测试数据不进仓库。
+
 ### 6.2 库扫描读数
 
 加入合成根并保存后：**21 位艺术家 · 30 张专辑 · 232 首**。232 = `D:\Music` 227 条 + 合成库 5 条；合成 WAV 无标签，归入 **未知艺术家 4 张专辑 · 5 首**（专辑一 2 首、专辑二 Disc 1/2 各 1 首、专辑三 1 首），与缓存中新写入的 5 条 `phase30-synthetic-library` 路径一致。
@@ -169,11 +171,11 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 
 | # | 检查项 | 结果 | 观测证据 |
 |---|---|---|---|
-| 1 | 播放/暂停；进度推进；暂停保持 | **PASS** | 播放中 0:11 → 0:13（SeekBar 0.5955 → 0.6830，1.3 s）；暂停后 1.1 s 两次读数均为 0.24754（0:04），完全不动 |
+| 1 | 播放/暂停；进度推进；暂停保持 | **PASS** | 播放中 0:11 → 0:13（SeekBar 0.5955 → 0.6830，20 s 轨道约 1.7 s）；暂停后 1.1 s 两次读数均为 0.24754（0:04），完全不动 |
 | 2 | 暂停态单击进度条跳转 | **PASS** | 0:04（0.2475）在 x=650 单击 → 0:12（0.6251），位置即刻跳变 |
 | 3 | 上一首 / 下一首 | **PASS** | 第一碟 → 远方 → 第一碟，切歌后从 0:00 起播（自动进入播放态） |
 | 4 | 自然播完自动推进 | **PASS** | 手动跳至 0.862（≈17.2 s）后 3.5 s 内进入下一首 远方 0:01 播放；另观察到 晨光 → 第二碟、第二碟 → 第一碟 两次自然切换 |
-| 5 | 曲尾停止不误推进 | **N/A（GUI 无 Stop 控件）** | WPF 壳只有播放/暂停（`PlayerViewModel.PlayPause` → `Pause`/`Play`），`Stop` 仅由服务层在卸载/关闭时调用；该语义由确定性测试 `Stop_WhenPlayheadAtEnd_DoesNotRaiseTrackEnded` 覆盖（§3），GUI 无对应按钮可点 |
+| 5 | 曲尾停止不误推进 | **N/A（GUI 无 Stop 控件）** | WPF 壳只有播放/暂停（`PlayerViewModel.PlayPause` → `Pause`/`Play`），无 Stop 控件；`Stop()` 的调用点都在服务 / VM 层——卸载 / 关闭、播放索引越界、连续 3 次装载失败、删除正在播放的歌单——GUI 点不到这条路径；该语义由确定性测试 `Stop_WhenPlayheadAtEnd_DoesNotRaiseTrackEnded` 覆盖（§3） |
 | 6 | 频谱可见、播放时更新、暂停冻结 | **PASS（限定）** | 频谱条在右栏底部可见；暂停后 1.2 s 两帧 180×100 区域 **0/18000** 像素变化；合成 WAV 为 439 Hz 恒定单音，同曲内两帧本就相同（0 像素变化），故以 EQ 实时预览改变实际音频验证更新：两帧 **382/18000** 像素变化、出现第二条谱线。切歌后频谱继续显示 |
 | 7 | EQ 启用、1k +8、保存落盘 | **PASS** | 对话框 1k 段 +8（预设转 Custom）；保存后 `settings.json`：`EqualizerEnabled=true`、`EqualizerBands=[0,0,0,0,0,8,0,0,0,0]`（索引 5 = 1k）、`EqualizerPreamp=0` |
 | 8 | 取消不落盘 | **PASS** | 重开 EQ，250 Hz 段调到 +10 后点“取消”；`settings.json` 仍为 `[0,0,0,0,0,8,0,0,0,0]`，+10 未写入 |
@@ -183,7 +185,7 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 
 ### 6.4 截图
 
-目录：`%TEMP%\phase30-gui-shots\`
+目录：`%TEMP%\phase30-gui-shots\`（30 个文件）
 
 - `01-settings-dialog.png`、`02-folder-picker.png`、`03-settings-with-synthetic-root.png`、`04-main-after-add-root.png`
 - `05-library-artists-view.png`、`06-library-search-歌手甲.png`、`07-library-after-rescan.png`、`08-artist-detail-unknown.png`、`09-artist-albums.png`、`10-album-tracks.png`
@@ -192,10 +194,13 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 - `20-eq-dialog.png`、`21-eq-1k-set.png`、`21-eq-1k-click134.png`、`22-eq-1k-plus8.png`、`23-eq-enabled-live-A.png`、`24-eq-pre12-live-B.png`、`25-eq-cancel-change-250.png`
 - `26-before-close-paused.png`、`27-restarted-restored.png`
 
+- `21-eq-1k-set.png` 与 `20-eq-dialog.png` **逐字节相同**（SHA-256 一致），不是独立证据；1k +8 的证据以 `21-eq-1k-click134.png` / `22-eq-1k-plus8.png` 为准。
+
 ### 6.5 GUI 侧已知边界
 
 - **“无爆音”不是 GUI 通过判据**：自动化环境无法做人工听感；EQ 参数变更瞬间的复位型瞬态见 §7。GUI 只核对功能与落盘行为。
-- **WPF 壳无 Stop 按钮**：曲尾停止语义只在服务层由确定性测试覆盖，GUI 走查不能替代该测试。
+- **WPF 壳无 Stop 按钮**：`Stop()` 的调用点都在服务 / VM 层（卸载 / 关闭、播放索引越界、连续 3 次装载失败、删除正在播放的歌单），GUI 无对应控件；曲尾停止语义只在服务层由确定性测试覆盖，GUI 走查不能替代该测试。
+- **进度条拖动未单独走查**：设计 §10.4 的关键路径要求覆盖“进度单击与拖动”，本次只实测了暂停态单击跳转（§6.3 第 2 项）；拖动未单独取证，覆盖缺口如实记录，由后续 GUI 走查补齐。
 - **合成 WAV 是恒定 439 Hz 单音**：单曲内频谱帧本来就相同；“频谱随音频更新”以 EQ 实时预览造成的真实音频变化为证据（§6.3 第 6 项）。
 - 走查期间合成根曾写入 `settings.json` 并触发库扫描；结束前已按字节还原，用户实际设置未改变。
 

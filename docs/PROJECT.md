@@ -8,7 +8,7 @@
 
 ## 1. 项目简介
 
-**当前范围**：Phase 30 已交付音频实时路径性能重写（频谱 FFT 离音频线程 + 重叠帧用真实时域样本、EQ 无锁配置下发 + 单位增益频段跳过、`PlaybackChain` 装载/回调重构、`PeriodicTimer` 位置轮询；`tools/AudioBench` 可复现基线；core 验收完成 2026-11-13，GUI 走查待 Task 13b）；Phase 29 已交付非音频路径现代化（RootGates 回收、壳侧树查找 helper 合并、JsonFileStore/JSON 源生成、union/closed 模型、OneShotCleanup 与生命周期释放；验收完成 2026-11-12）；Phase 28 已交付升级到 .NET 11（四工程 TFM 抬 net11.0、`CommunityToolkit.Mvvm` 钉 8.4.2；零行为变更意图）；Phase 27 已交付多碟专辑归并（Disc N / CD N 等碟子文件夹上提一层作专辑边界，曲目按碟序 + 曲号排序）；Phase 26 已交付 Core + WPF 主壳的库 → 歌单互通（库内右键把单曲 / 专辑加入普通歌单，或新建歌单并加入；文件夹歌单不可选）；上一阶段 Phase 25 交付音乐库搜索与实时监听（三组搜索、按根 watcher、共享根扫描事务、可等待清理）；Phase 24 交付音乐库视图与隐藏库播放队列。WinUI 壳自 2026-11-02 冻结，不启动 watcher，只由门禁 3 编译。验收见 [PHASE30-ACCEPTANCE.md](./PHASE30-ACCEPTANCE.md)（当前）/ [PHASE29-ACCEPTANCE.md](./PHASE29-ACCEPTANCE.md) / [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md) / [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) / [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) / [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) / [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md)。
+**当前范围**：Phase 30 已交付音频实时路径性能重写（频谱 FFT 离音频线程 + 重叠帧用真实时域样本、EQ 无锁配置下发 + 单位增益频段跳过、`PlaybackChain` 装载/回调重构、`PeriodicTimer` 位置轮询；`tools/AudioBench` 可复现基线；core + GUI 验收完成 2026-11-13，含 Task 13b GUI 走查、数据已按字节还原）；Phase 29 已交付非音频路径现代化（RootGates 回收、壳侧树查找 helper 合并、JsonFileStore/JSON 源生成、union/closed 模型、OneShotCleanup 与生命周期释放；验收完成 2026-11-12）；Phase 28 已交付升级到 .NET 11（四工程 TFM 抬 net11.0、`CommunityToolkit.Mvvm` 钉 8.4.2；零行为变更意图）；Phase 27 已交付多碟专辑归并（Disc N / CD N 等碟子文件夹上提一层作专辑边界，曲目按碟序 + 曲号排序）；Phase 26 已交付 Core + WPF 主壳的库 → 歌单互通（库内右键把单曲 / 专辑加入普通歌单，或新建歌单并加入；文件夹歌单不可选）；上一阶段 Phase 25 交付音乐库搜索与实时监听（三组搜索、按根 watcher、共享根扫描事务、可等待清理）；Phase 24 交付音乐库视图与隐藏库播放队列。WinUI 壳自 2026-11-02 冻结，不启动 watcher，只由门禁 3 编译。验收见 [PHASE30-ACCEPTANCE.md](./PHASE30-ACCEPTANCE.md)（当前）/ [PHASE29-ACCEPTANCE.md](./PHASE29-ACCEPTANCE.md) / [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md) / [PHASE27-ACCEPTANCE.md](./PHASE27-ACCEPTANCE.md) / [PHASE26-ACCEPTANCE.md](./PHASE26-ACCEPTANCE.md) / [PHASE25-ACCEPTANCE.md](./PHASE25-ACCEPTANCE.md) / [PHASE24-ACCEPTANCE.md](./PHASE24-ACCEPTANCE.md)。
 
 **D-player** 是一款面向 Windows 桌面的本地音乐播放器，灵感来源于 foobar2000 / Winamp。Phase 1–19 在 WPF 单壳内完成播放、队列、歌单、扫描、设置、UI/EQ 与依赖迁移；Phase 20–23 抽出 WPF-free 的 `D-player.Core` 并完成 WinUI 第二壳（后于 2026-11-02 冻结）；Phase 24–26 回归 Core + WPF，交付音乐库视图、搜索与实时监听以及库 → 歌单互通；Phase 27 交付多碟专辑归并，Phase 28 把四个工程抬到 net11.0，Phase 29 完成非音频路径现代化，Phase 30 完成音频实时路径性能重写。逐阶段一览见 [README 的开发阶段](../README.md#开发阶段)；当前状态与验收链接见页首。
 
@@ -1235,7 +1235,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - PROJECT.md（本文）— 架构、模块、数据流
 - [COUPLING.md](./COUPLING.md) — 耦合分析与隐式契约
 - [README.md](./README.md) — 文档地图
-- [PHASE30-ACCEPTANCE.md](./PHASE30-ACCEPTANCE.md) — Phase 30 音频实时路径性能重写验收（当前；core 部分完成，GUI 走查待 Task 13b）
+- [PHASE30-ACCEPTANCE.md](./PHASE30-ACCEPTANCE.md) — Phase 30 音频实时路径性能重写验收（当前；core + GUI 验收完成 2026-11-13）
 - [PHASE30-AUDIO-BASELINE.md](./PHASE30-AUDIO-BASELINE.md) / [PHASE30-AUDIO-AFTER.md](./PHASE30-AUDIO-AFTER.md) — Phase 30 改写前/后 AudioBench 读数（含 `-RUN2` 复跑）
 - [PHASE29-ACCEPTANCE.md](./PHASE29-ACCEPTANCE.md) — Phase 29 非音频路径现代化验收（上一阶段）
 - [PHASE28-ACCEPTANCE.md](./PHASE28-ACCEPTANCE.md) — Phase 28 升级到 .NET 11 验收（上一阶段）

@@ -273,4 +273,87 @@ public sealed class NAudioPlaybackServiceDeterministicTests
         Assert.Equal(1, source.DisposeCount);
         Assert.Contains("Dispose", output.Log);
     }
+
+    [Fact]
+    public async Task Load_DuringLoad_PlayIsNoOp()
+    {
+        using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var entered = new ManualResetEventSlim();
+        var release = new ManualResetEventSlim();
+        var source = new FakeAudioSource(TimeSpan.FromSeconds(2));
+        var output = new FakeWavePlayer(release, entered);
+        using var sync = new QueuedSynchronizationContext();
+        using var service = new NAudioPlaybackService(
+            new FakeAudioSourceFactory(_ => source),
+            new FakeAudioOutputFactory(() => output),
+            sync);
+
+        var load = service.LoadAsync(TrackFor("a.wav"));
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(2), ct.Token));
+
+        // 断言 Play 在装载阻塞于 Init 时仍即时返回：超时即视为失败
+        // （Task.WaitAsync 取代 Task.Wait 以通过 xUnit1031 分析器；语义等价）。
+        var play = Task.Run(() => service.Play(), ct.Token);
+        await play.WaitAsync(TimeSpan.FromMilliseconds(200), ct.Token);
+        Assert.Equal(PlayState.Stopped, service.State);
+
+        release.Set();
+        await load.WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
+        Assert.Equal(PlayState.Stopped, service.State);
+    }
+
+    [Fact]
+    public async Task Load_BlocksInInit_UnloadCancelsInstall()
+    {
+        using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var entered = new ManualResetEventSlim();
+        var release = new ManualResetEventSlim();
+        var source = new FakeAudioSource(TimeSpan.FromSeconds(2));
+        var output = new FakeWavePlayer(release, entered);
+        using var sync = new QueuedSynchronizationContext();
+        using var service = new NAudioPlaybackService(
+            new FakeAudioSourceFactory(_ => source),
+            new FakeAudioOutputFactory(() => output),
+            sync);
+
+        var load = service.LoadAsync(TrackFor("a.wav"));
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(2), ct.Token));
+
+        // Unload 在装载阻塞于 Init 时也必须即时返回（超时即失败）。
+        var unload = Task.Run(() => service.Unload(), ct.Token);
+        await unload.WaitAsync(TimeSpan.FromMilliseconds(200), ct.Token);
+
+        release.Set();
+        await load.WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
+        Assert.Null(service.CurrentTrack);
+        Assert.Equal(1, source.DisposeCount);
+    }
+
+    [Fact]
+    public async Task Load_WhileOldChainPlaying_OldIsDetachedBeforeBuild()
+    {
+        using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var sources = new Queue<FakeAudioSource>(new[]
+        {
+            new FakeAudioSource(TimeSpan.FromSeconds(1)),
+            new FakeAudioSource(TimeSpan.FromSeconds(2))
+        });
+        var firstOutput = new FakeWavePlayer();
+        var secondOutput = new FakeWavePlayer();
+        var outputs = new Queue<FakeWavePlayer>(new[] { firstOutput, secondOutput });
+        using var sync = new QueuedSynchronizationContext();
+        using var service = new NAudioPlaybackService(
+            new FakeAudioSourceFactory(_ => sources.Dequeue()),
+            new FakeAudioOutputFactory(() => outputs.Dequeue()),
+            sync);
+
+        await service.LoadAsync(TrackFor("one.wav")).WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
+        service.Play();
+        await service.LoadAsync(TrackFor("two.wav")).WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
+
+        Assert.Contains("Stop", firstOutput.Log);
+        Assert.Contains("Dispose", firstOutput.Log);
+        Assert.Contains("Init", secondOutput.Log);
+        Assert.Equal(2, service.Duration.TotalSeconds, 3);
+    }
 }

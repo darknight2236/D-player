@@ -14,53 +14,54 @@ namespace DPlayer.Services;
 ///   - VolumeSampleProvider ：在样本层做线性音量缩放
 ///   - WasapiPlayer         ：共享模式 + 事件同步输出，100ms 缓冲（低延迟与稳定性的折中）
 ///
-/// 线程模型：构造时捕获 UI 线程 SynchronizationContext，
-///          所有事件通过 _syncContext.Post 派发，VM 可直接绑定属性。
+/// 线程模型（Phase 30）：整条播放链封装为 <see cref="PlaybackChain"/> 快照，_current 指向当前链；
+/// 装载（打开解码器、初始化输出）、拆除旧链都在 _chainGate 之外完成，闸门内只交换引用与配置快照。
+/// 装载期间传输命令看到 _current == null，按"无链"语义立即 no-op，不再阻塞 UI 线程。
+/// 构造时捕获 UI 线程 SynchronizationContext，所有事件通过 _syncContext.Post 派发，VM 可直接绑定属性。
 /// </summary>
 public sealed class NAudioPlaybackService : IPlaybackService
 {
     private readonly SynchronizationContext _syncContext;
     private readonly IAudioSourceFactory _sourceFactory;
     private readonly IAudioOutputFactory _outputFactory;
-    private IWavePlayer? _wavePlayer;
-    private IAudioSource? _source;
-    private VolumeSampleProvider? _volumeProvider;
-    private Track? _currentTrack;
-    private PlayState _state = PlayState.Stopped;
-    private float _volume = 0.8f;
 
     /// <summary>
-    /// 播放链生命周期闸门：把"重建/拆除整条播放链"这件事串行化。
-    /// LoadAsync 在线程池上重建链，而 Unload/Dispose/传输命令可能来自 UI 线程；
-    /// 没有串行化时，后一次重建会释放前一次正在使用或正在构建的链（reader / provider /
-    /// wavePlayer 三个共享字段被交错读写），异常从链内部抛出并冒到 async void 事件处理器
-    /// —— 表现为"播完一首歌后进程崩溃"。这与 NAudio 内部是否防护无关：NAudio 3 的
-    /// guarded dispose 只保证它自己的对象不被双重释放，管不到我们的共享字段。
+    /// 链发布闸门：只保护 _current 引用与随链配置快照的交接，持锁时间是几次字段读写。
+    /// 打开解码器 / 初始化输出 / 拆除旧链等重量级操作**不得**在锁内执行——否则 UI 线程的
+    /// Play/Pause/Stop/Seek/Unload 会被设备初始化阻塞（Phase 30 之前的实测行为：装载中按
+    /// Play 会卡住 UI 线程直到 Init 返回）。装载由独立的 _loadGate 串行化。
     ///
     /// 纪律：持锁期间不得 await；不得阻塞等待 UI 线程（事件一律 Post 异步派发）；
     /// 播放线程回调 OnPlaybackStopped **不能**取此锁——持锁方可能正阻塞在输出类的
     /// Stop()/Dispose() 上等待播放线程退出（3.1.0 文档只把 Dispose 标为 blocking），取锁即死锁。
+    /// 因此 OnPlaybackStopped 只用 Volatile.Read 判定链代际。
     /// </summary>
     private readonly object _chainGate = new();
 
     /// <summary>
-    /// 「本次停止是我们主动发起的」标记：Stop() / DisposePlayback() 在调用输出类的停止方法前
-    /// 置位，Play() 开始新的播放会话时清零。
-    ///
-    /// 为什么需要它："用户按停止"与"曲目自然播完"都只表现为一次 PlaybackStopped——输出类不会
-    /// 告诉我们是谁发起的，而仅凭"播放头距 TotalTime 在容差内"无法区分（曲尾 200ms 内按停止
-    /// 会被误判为播完，向 VM 发出 TrackEnded 并自动推进下一首）。这个不确定性不随实现变化：
-    /// 无论回调是同步还是经 SynchronizationContext 异步派发、无论位置是否已被归零，两条路径
-    /// 的信号都相同，所以意图必须由发起方显式标记。
+    /// 装载闸门：串行化 LoadAsync，保证同一时刻只有一次装载在构建/安装链。
+    /// 与 _chainGate 分离的原因：装载可能阻塞数百毫秒（打开 reader、Init 输出），
+    /// 而传输命令与 Unload 必须保持即时返回；两者共用一把锁会把"装载中"变成"UI 冻结"。
     /// </summary>
-    private volatile bool _stopRequested;
+    private readonly SemaphoreSlim _loadGate = new(1, 1);
 
-    // Phase 13: 频谱分析
-    private SampleAggregator? _sampleAggregator;
+    /// <summary>当前播放链；null 表示无链（未装载、装载中、卸载后或已释放）。</summary>
+    private PlaybackChain? _current;
+
+    /// <summary>装载取消代际：Unload/Dispose 递增；装载完成时若代际已变，则丢弃新链不安装。</summary>
+    private long _loadCancelVersion;
+
+    /// <summary>播放会话代际：每次 Play 递增，轮询循环发现代际变化即退出，避免旧循环叠加。</summary>
+    private long _playSession;
+
+    private volatile bool _disposed;
+    private volatile PlayState _state = PlayState.Stopped;
+    private float _volume = 0.8f;
+
+    // Phase 13: 频谱配置（建链快照 + 当前链 Enabled 实时下发）
     private SpectrumConfig _spectrumConfig = new();
 
-    // Phase 14: 均衡器
-    private EqualizerSampleProvider? _equalizer;
+    // Phase 14: 均衡器配置（建链快照 + 当前链无锁 Update 实时下发）
     private EqualizerConfig _equalizerConfig = new();
 
     // 位置事件节流：33ms ≈ 30Hz，刚好覆盖 60Hz 屏的"每两帧一次"，再高对感知无帮助
@@ -70,18 +71,34 @@ public sealed class NAudioPlaybackService : IPlaybackService
     private DateTime _lastPositionEvent = DateTime.MinValue;
 
     public PlayState State => _state;
-    public Track? CurrentTrack => _currentTrack;
-    public TimeSpan Position => _source?.CurrentTime ?? TimeSpan.Zero;
-    public TimeSpan Duration => _source?.TotalTime ?? TimeSpan.Zero;
+    public Track? CurrentTrack => Volatile.Read(ref _current)?.Track;
+    public TimeSpan Duration => Volatile.Read(ref _current)?.Track.Duration ?? TimeSpan.Zero;
+
+    public TimeSpan Position
+    {
+        get
+        {
+            var chain = Volatile.Read(ref _current);
+            if (chain == null) return TimeSpan.Zero;
+            // 源可能正被并发拆除（Unload 在锁外 Dispose 旧链）→ 已释放按零处理
+            try { return ClampToDuration(chain.Source.CurrentTime, chain.Track.Duration); }
+            catch (ObjectDisposedException) { return TimeSpan.Zero; }
+        }
+    }
 
     public float Volume
     {
         get => _volume;
         set
         {
-            _volume = Math.Clamp(value, 0f, 1f);
-            if (_volumeProvider != null)
-                _volumeProvider.Volume = _volume;
+            var clamped = Math.Clamp(value, 0f, 1f);
+            lock (_chainGate)
+            {
+                _volume = clamped;
+                var chain = _current;
+                if (chain != null)
+                    chain.Volume.Volume = clamped;
+            }
         }
     }
 
@@ -100,10 +117,13 @@ public sealed class NAudioPlaybackService : IPlaybackService
         get => _spectrumConfig;
         set
         {
-            _spectrumConfig = value;
-            if (_sampleAggregator != null)
+            lock (_chainGate)
             {
-                _sampleAggregator.Enabled = value.Enabled;
+                _spectrumConfig = value;
+                // 运行时只支持 Enabled（FftSize/BarCount 是建链参数，见 Phase 30 设计 §8）
+                var chain = _current;
+                if (chain != null)
+                    chain.Aggregator.Enabled = value.Enabled;
             }
         }
     }
@@ -114,8 +134,12 @@ public sealed class NAudioPlaybackService : IPlaybackService
         get => _equalizerConfig;
         set
         {
-            _equalizerConfig = value;
-            _equalizer?.Update(value);
+            lock (_chainGate)
+            {
+                _equalizerConfig = value;
+                // EQ 走无锁发布（Phase 30 Task 8）：音频线程在下一个 Read 取走配置
+                _current?.Equalizer.Update(value);
+            }
         }
     }
 
@@ -140,80 +164,103 @@ public sealed class NAudioPlaybackService : IPlaybackService
     }
 
     /// <summary>
-    /// 加载一首曲目：销毁旧播放链 → 新建解码器/音量/输出 → 回填 Duration 与 SampleRate。
-    /// 重量级操作放在 Task.Run 上避免阻塞 UI。
+    /// 加载一首曲目：先在闸门内摘下旧链，再在线程池上拆除旧链并新建解码器/音量/输出，
+    /// 最后回到闸门安装新链（期间若发生 Unload/Dispose 则丢弃新链）。
+    /// 装载重活不持 <see cref="_chainGate"/>，因此装载期间的传输命令立即 no-op 而非阻塞。
     /// </summary>
     public async Task LoadAsync(Track track)
     {
-        await Task.Run(() =>
+        ArgumentNullException.ThrowIfNull(track);
+        if (_disposed) throw new ObjectDisposedException(nameof(NAudioPlaybackService));
+
+        await _loadGate.WaitAsync().ConfigureAwait(false);
+        try
         {
+            if (_disposed) throw new ObjectDisposedException(nameof(NAudioPlaybackService));
+
+            PlaybackChain? old;
+            long cancelVersion;
+            float volume;
+            EqualizerConfig eqConfig;
+            SpectrumConfig spectrumConfig;
+
             lock (_chainGate)
             {
-                DisposePlayback();
-
-                try
-                {
-                    _source = _sourceFactory.Create(track.FilePath);
-
-                    // Phase 13/14: ToSample → EqualizerSampleProvider → SampleAggregator
-                    // EQ 置于 SampleAggregator 之前 → 频谱可视化反映 EQ 处理后的信号
-                    var sampleProvider = _source.ToSampleProvider();
-                    _equalizer = new EqualizerSampleProvider(sampleProvider, _equalizerConfig);
-                    _sampleAggregator = new SampleAggregator(_equalizer, _spectrumConfig);
-                    _sampleAggregator.SpectrumDataReady += OnSpectrumDataReady;
-
-                    _volumeProvider = new VolumeSampleProvider(_sampleAggregator)
-                    {
-                        Volume = _volume
-                    };
-                    // NAudio 3 的输出入口由工厂决定（默认 StubAudioOutputFactory →
-                    // WasapiPlayerBuilder → WasapiPlayer）；测试可注入假输出。
-                    _wavePlayer = _outputFactory.CreateOutput();
-                    _wavePlayer.Init(_volumeProvider);
-
-                    _wavePlayer.PlaybackStopped += OnPlaybackStopped;
-
-                    // 用解码器实测值回填 Track；调用方传入的 Duration 通常为 Zero
-                    _currentTrack = track with
-                    {
-                        Duration = _source.TotalTime,
-                        SampleRate = _source.WaveFormat.SampleRate
-                    };
-
-                    // 先归零 Position，再广播新 Duration —— 否则切换到时长更短的曲目时，
-                    // VM 的旧 Position（如上一首播完的 4:05）会和新 Duration（3:20）短暂并存，
-                    // 进度条出现"4:05 / 3:20"的越界显示，直到下一帧 PollPositionAsync 才纠正。
-                    RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
-                    RaiseOnUIThread(DurationChanged, _source.TotalTime);
-                    RaiseOnUIThread(TrackChanged, _currentTrack);
-                }
-                catch (Exception ex)
-                {
-                    RaiseOnUIThread(PlaybackError, ex.Message);
-                    throw;
-                }
+                old = _current;
+                _current = null;
+                if (old != null) old.StopRequested = true; // 拆除同样是我们发起的停止，别让它冒充"自然播完"
+                cancelVersion = _loadCancelVersion;
+                volume = _volume;
+                eqConfig = _equalizerConfig;
+                spectrumConfig = _spectrumConfig;
+                SetState(PlayState.Stopped);
             }
-        });
+
+            // 旧链拆除与新链构建都在锁外、线程池上：设备 Stop/Dispose 可能阻塞数百毫秒。
+            PlaybackChain chain;
+            try
+            {
+                chain = await Task.Run(() =>
+                {
+                    old?.Dispose();
+                    return BuildChain(track, volume, eqConfig, spectrumConfig);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                RaiseOnUIThread(PlaybackError, ex.Message);
+                throw;
+            }
+
+            bool install;
+            lock (_chainGate)
+            {
+                // 装载期间 Unload/Dispose 会递增代际：新链已过时，绝不安装。
+                install = !_disposed && cancelVersion == _loadCancelVersion;
+                if (install) _current = chain;
+            }
+
+            if (!install)
+            {
+                chain.Dispose();
+                return;
+            }
+
+            // 先归零 Position，再广播新 Duration —— 否则切换到时长更短的曲目时，
+            // VM 的旧 Position（如上一首播完的 4:05）会和新 Duration（3:20）短暂并存，
+            // 进度条出现"4:05 / 3:20"的越界显示，直到下一帧位置轮询才纠正。
+            RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
+            RaiseOnUIThread(DurationChanged, chain.Track.Duration);
+            RaiseOnUIThread(TrackChanged, chain.Track);
+        }
+        finally
+        {
+            _loadGate.Release();
+        }
     }
 
     public void Play()
     {
+        long session;
         lock (_chainGate)
         {
-            if (_wavePlayer == null) return;
-            _stopRequested = false; // 新的播放会话开始：此后的曲尾停止才是"自然播完"
-            _wavePlayer.Play();
+            var chain = _current;
+            if (chain == null) return; // 无链（含装载中）：按设计立即 no-op
+            chain.StopRequested = false; // 新的播放会话开始：此后的曲尾停止才是"自然播完"
+            chain.Output.Play();
+            session = ++_playSession;
             SetState(PlayState.Playing);
         }
-        _ = PollPositionAsync(); // fire-and-forget：循环在 PlaybackState!=Playing 时自然退出
+        _ = PollPositionAsync(session); // fire-and-forget：会话代际/无链/非 Playing 时自然退出
     }
 
     public void Pause()
     {
         lock (_chainGate)
         {
-            if (_wavePlayer == null) return;
-            _wavePlayer.Pause();
+            var chain = _current;
+            if (chain == null) return;
+            chain.Output.Pause();
             SetState(PlayState.Paused);
         }
     }
@@ -222,12 +269,12 @@ public sealed class NAudioPlaybackService : IPlaybackService
     {
         lock (_chainGate)
         {
-            if (_wavePlayer == null) return;
-            _stopRequested = true; // 必须在调用输出类的停止之前置位：回调可能在其内部同步发生
-            _wavePlayer.Stop();
+            var chain = _current;
+            if (chain == null) return;
+            chain.StopRequested = true; // 必须在调用输出类的停止之前置位：回调可能在其内部同步发生
+            chain.Output.Stop();
             // 同时将播放头归零，下次 Play 从头开始
-            if (_source != null)
-                _source.CurrentTime = TimeSpan.Zero;
+            try { chain.Source.CurrentTime = TimeSpan.Zero; } catch (ObjectDisposedException) { }
             SetState(PlayState.Stopped);
         }
     }
@@ -237,33 +284,40 @@ public sealed class NAudioPlaybackService : IPlaybackService
         TimeSpan clamped;
         lock (_chainGate)
         {
-            if (_source == null) return;
-            _source.CurrentTime = position;
+            var chain = _current;
+            if (chain == null) return;
+            chain.Source.CurrentTime = position;
             // Clamp 到 [0, TotalTime]：解码器对 seek 到尾部允许越界几十毫秒。
-            clamped = ClampToDuration(_source.CurrentTime);
+            clamped = ClampToDuration(chain.Source.CurrentTime, chain.Track.Duration);
         }
 
-        // 主动广播一次新位置：暂停态下 PollPositionAsync 已退出，否则 VM.Position 不刷新，
+        // 主动广播一次新位置：暂停态下轮询已退出，否则 VM.Position 不刷新，
         // 进度条会停留在旧位置直到用户按 Play 才被轮询拽回（用户视角看起来像"没跳转"）。
         RaiseOnUIThread(PositionChanged, clamped);
     }
 
     /// <summary>
-    /// 卸载当前曲：释放底层 reader/wavePlayer，清掉 _currentTrack，
-    /// 并广播 TrackChanged(null) / DurationChanged(Zero) 让 VM 清屏（标题/封面/时长归零）。
-    /// 下次 Play() 会因 _wavePlayer == null 直接 no-op。
+    /// 卸载当前曲：在闸门内摘下链并递增装载取消代际（装载中的新链随后会被丢弃），
+    /// 锁外释放底层 reader/wavePlayer，并广播 TrackChanged(null) / DurationChanged(Zero)
+    /// 让 VM 清屏（标题/封面/时长归零）。下次 Play() 会因无链直接 no-op。
+    /// 装载进行中调用本方法会立即返回（不等待装载完成），并阻止该次装载安装新链。
     /// </summary>
     public void Unload()
     {
+        PlaybackChain? old;
         lock (_chainGate)
         {
-            DisposePlayback();
-            _currentTrack = null;
+            old = _current;
+            _current = null;
+            _loadCancelVersion++;
+            if (old != null) old.StopRequested = true;
+            SetState(PlayState.Stopped);
         }
+
+        old?.Dispose();
         RaiseOnUIThread(TrackChanged, (Track?)null);
         RaiseOnUIThread(DurationChanged, TimeSpan.Zero);
         RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
-        SetState(PlayState.Stopped);
     }
 
     private void SetState(PlayState newState)
@@ -276,14 +330,21 @@ public sealed class NAudioPlaybackService : IPlaybackService
     /// <summary>
     /// NAudio 在以下情况触发 PlaybackStopped：
     /// (1) 播放到曲尾  (2) 用户调用 Stop()  (3) 设备出错
-    /// 区分逻辑:
-    ///   - 有异常 → 上报 PlaybackError + Stopped 状态
-    ///   - 无异常 + 播放位置接近 TotalTime (200ms 容差) → 自然播完 → 触发 TrackEnded
-    ///     (注：归零发生在输出类 Stop() 之后，回调时播放头可能仍停在曲尾，故须由 _stopRequested 区分意图)
-    ///   - 其他 → 仅 Stopped 状态（如:从中段 Pause 后再 Stop 的边缘场景）
+    /// 区分逻辑：
+    ///   - 回调捕获链，若链已不是当前链（已切歌/卸载/释放）→ 直接忽略；
+    ///   - 有异常 → 上报 PlaybackError + Stopped 状态；
+    ///   - 链标记了 StopRequested（Stop/Unload/Dispose/切歌发起）→ 仅置 Stopped；
+    ///   - 无异常 + 播放位置接近 TotalTime (200ms 容差) → 自然播完 → 触发 TrackEnded。
+    ///     注：归零发生在输出类 Stop() 之后，回调时播放头可能仍停在曲尾，故须由 StopRequested 区分意图。
+    ///
+    /// 本方法由播放线程回调，**不能**取 _chainGate —— 持锁方可能正阻塞在输出类的
+    /// Stop()/Dispose() 上等待播放线程退出（后者文档明确 blocking），取锁会立即死锁。
+    /// 因此这里只用 Volatile.Read 判定代际，并对读取源做防御性 try/catch（源可能正被并发释放）。
     /// </summary>
-    private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
+    private void OnPlaybackStopped(PlaybackChain chain, StoppedEventArgs e)
     {
+        if (!ReferenceEquals(Volatile.Read(ref _current), chain)) return;
+
         if (e.Exception != null)
         {
             RaiseOnUIThread(PlaybackError, e.Exception.Message);
@@ -291,32 +352,25 @@ public sealed class NAudioPlaybackService : IPlaybackService
             return;
         }
 
-        // 我们主动发起的停止（Stop/DisposePlayback）也会走到这里，且可能在播放头接近曲尾时发生；
-        // 停止意图由发起方显式标记（见 _stopRequested）——少了这一步，用户在曲尾 200ms 内按停止
-        // 会被误判为"自然播完"，停止之后又自动推进下一首。
-        if (_stopRequested)
+        // 我们主动发起的停止（Stop/Unload/Dispose/切歌）也会走到这里，且可能在播放头接近曲尾时发生；
+        // 停止意图由发起方显式标记（见 PlaybackChain.StopRequested）——少了这一步，用户在曲尾
+        // 200ms 内按停止会被误判为"自然播完"，停止之后又自动推进下一首。
+        if (chain.StopRequested)
         {
             SetState(PlayState.Stopped);
             return;
         }
 
         // 自然播完判定：播放头距 TotalTime 不超过容差，且时长大于 0（避免空 reader 误判）。
-        // 本方法由播放线程回调，不能取 _chainGate —— 持锁方可能正阻塞在输出类的
-        // Stop()/Dispose() 上等待播放线程退出（后者文档明确 blocking），取锁会立即死锁。
-        // 因此这里只做防御性读取：源可能正被并发的 DisposePlayback 释放，在音频线程抛出即崩进程。
         bool naturalEnd = false;
-        var source = _source;
-        if (source != null)
+        try
         {
-            try
-            {
-                naturalEnd = source.TotalTime > TimeSpan.Zero
-                    && (source.TotalTime - source.CurrentTime) <= NaturalEndTolerance;
-            }
-            catch
-            {
-                // 源已被并发释放 → 按"非自然结束"处理
-            }
+            naturalEnd = chain.Track.Duration > TimeSpan.Zero
+                && (chain.Track.Duration - chain.Source.CurrentTime) <= NaturalEndTolerance;
+        }
+        catch
+        {
+            // 源已被并发释放 → 按"非自然结束"处理
         }
 
         if (naturalEnd)
@@ -329,37 +383,42 @@ public sealed class NAudioPlaybackService : IPlaybackService
     }
 
     /// <summary>
-    /// 频谱数据回调（在音频线程触发）→ 封送到 UI 线程触发 SpectrumDataAvailable 事件。
+    /// 后台轮询循环（Task 10 临时版）：每 ~33ms 上报一次 Position。
+    /// Task 11 会把 Task.Delay 换成 PeriodicTimer 并删除 DateTime 节流；本版保留节流以维持现状。
+    /// 退出条件：播放会话代际变化（新 Play）、链已摘除（切歌/Unload/Dispose）或状态不再 Playing。
     /// </summary>
-    private void OnSpectrumDataReady(float[] data)
+    private async Task PollPositionAsync(long session)
     {
-        RaiseOnUIThread(SpectrumDataAvailable, data);
-    }
-
-    /// <summary>
-    /// 后台轮询循环：每 ~33ms 上报一次 Position；
-    /// 通过 PlaybackState != Playing 自动退出（Pause/Stop 都会让其下一轮终止）。
-    /// </summary>
-    private async Task PollPositionAsync()
-    {
-        while (_wavePlayer?.PlaybackState == PlaybackState.Playing)
+        while (true)
         {
-            await Task.Delay(33); // ~30Hz
+            await Task.Delay(33).ConfigureAwait(false); // ~30Hz
+
+            var chain = Volatile.Read(ref _current);
+            if (session != Volatile.Read(ref _playSession) || chain == null || _state != PlayState.Playing)
+                return;
 
             var now = DateTime.UtcNow;
-            if (now - _lastPositionEvent >= PositionThrottle)
+            if (now - _lastPositionEvent < PositionThrottle)
+                continue;
+            _lastPositionEvent = now;
+
+            TimeSpan position;
+            try
             {
-                _lastPositionEvent = now;
-                var pos = ClampToDuration(_source?.CurrentTime ?? TimeSpan.Zero);
-                RaiseOnUIThread(PositionChanged, pos);
+                position = ClampToDuration(chain.Source.CurrentTime, chain.Track.Duration);
             }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            RaiseOnUIThread(PositionChanged, position);
         }
     }
 
-    /// <summary>把 Position 截断到 [0, TotalTime]，防止解码器尾部浮点越界（如 245.012s 上报到时长 245.000s 的曲）。</summary>
-    private TimeSpan ClampToDuration(TimeSpan pos)
+    /// <summary>把位置截断到 [0, TotalTime]，防止解码器尾部浮点越界（如 245.012s 上报到时长 245.000s 的曲）。</summary>
+    private static TimeSpan ClampToDuration(TimeSpan pos, TimeSpan total)
     {
-        var total = _source?.TotalTime ?? TimeSpan.Zero;
         if (pos < TimeSpan.Zero) return TimeSpan.Zero;
         if (total > TimeSpan.Zero && pos > total) return total;
         return pos;
@@ -379,50 +438,124 @@ public sealed class NAudioPlaybackService : IPlaybackService
         _syncContext.Post(_ => handler(), null);
     }
 
-    /// <summary>释放当前播放链；切歌前与 Dispose 都会调用。顺序：解订阅 → 停止 → 释放。</summary>
-    private void DisposePlayback()
+    /// <summary>
+    /// 在线程池上构建一条完整播放链（Source → Equalizer → Aggregator → Volume → Output）。
+    /// 任何一步失败都必须释放已创建的资源后重抛：调用方依赖"失败不泄漏"。
+    /// </summary>
+    private PlaybackChain BuildChain(
+        Track track, float volume, EqualizerConfig eqConfig, SpectrumConfig spectrumConfig)
     {
-        // 拆链意图必须先于任何可能让输出类看到「流结束」的动作发布。
-        // SampleAggregator.Dispose 会置 _stop，使并发中的音频线程 Read 立刻返回 0（EOF）；
-        // WasapiPlayer 随后按"数据读完"上报 PlaybackStopped，而此刻 PlaybackStopped 尚未解订阅、
-        // _stopRequested 也还是 false（可见窗口 = FFT 线程 Join，通常亚毫秒、上限 2s）。
-        // 若播放头正停在曲尾 200ms 容差内，这次拆链会被误判为自然播完 → TrackEnded 多推进一首。
-        // 因此先标记意图，再拆聚合器。
-        if (_wavePlayer != null)
-            _stopRequested = true;
+        IAudioSource? source = null;
+        SampleAggregator? aggregator = null;
+        IWavePlayer? output = null;
+        PlaybackChain? chain = null;
 
-        // Phase 13: 清理 SampleAggregator（先解订阅再 Dispose，停止后台 FFT 线程）
-        if (_sampleAggregator != null)
+        try
         {
-            _sampleAggregator.SpectrumDataReady -= OnSpectrumDataReady;
-            _sampleAggregator.Dispose();
-            _sampleAggregator = null;
+            source = _sourceFactory.Create(track.FilePath);
+
+            // Phase 13/14: ToSample → EqualizerSampleProvider → SampleAggregator
+            // EQ 置于 SampleAggregator 之前 → 频谱可视化反映 EQ 处理后的信号
+            var equalizer = new EqualizerSampleProvider(source.ToSampleProvider(), eqConfig);
+            aggregator = new SampleAggregator(equalizer, spectrumConfig);
+            var volumeProvider = new VolumeSampleProvider(aggregator) { Volume = volume };
+            // NAudio 3 的输出入口由工厂决定（默认 StubAudioOutputFactory →
+            // WasapiPlayerBuilder → WasapiPlayer）；测试可注入假输出。
+            output = _outputFactory.CreateOutput();
+            output.Init(volumeProvider);
+
+            // 用解码器实测值回填 Track；调用方传入的 Duration 通常为 Zero
+            var actualTrack = track with
+            {
+                Duration = source.TotalTime,
+                SampleRate = source.WaveFormat.SampleRate
+            };
+
+            chain = new PlaybackChain
+            {
+                Source = source,
+                Equalizer = equalizer,
+                Aggregator = aggregator,
+                Volume = volumeProvider,
+                Output = output,
+                Track = actualTrack
+            };
+
+            // 频谱回调在音频线程触发：只有当前链才向 UI 派发（旧链的残余帧直接丢弃）
+            chain.SpectrumHandler = data =>
+            {
+                if (ReferenceEquals(Volatile.Read(ref _current), chain))
+                    RaiseOnUIThread(SpectrumDataAvailable, data);
+            };
+            chain.StoppedHandler = (_, e) => OnPlaybackStopped(chain, e);
+
+            aggregator.SpectrumDataReady += chain.SpectrumHandler;
+            output.PlaybackStopped += chain.StoppedHandler;
+            return chain;
         }
-
-        // Phase 14: 清理 EqualizerSampleProvider（无事件订阅，仅置空引用，随播放链释放）
-        _equalizer = null;
-
-        if (_wavePlayer != null)
+        catch
         {
-            _stopRequested = true; // 拆链同样是我们发起的停止，别让它冒充"自然播完"
-            _wavePlayer.PlaybackStopped -= OnPlaybackStopped;
-            _wavePlayer.Stop();
-            _wavePlayer.Dispose();
-            _wavePlayer = null;
+            if (chain != null)
+            {
+                chain.Dispose();
+            }
+            else
+            {
+                try { output?.Dispose(); } catch { }
+                try { aggregator?.Dispose(); } catch { }
+                try { source?.Dispose(); } catch { }
+            }
+            throw;
         }
-        _volumeProvider = null;
-        if (_source != null)
+    }
+
+    /// <summary>
+    /// 一条播放链的完整快照。对象一旦安装即为只读（配置通过各自的 provider 实时下发），
+    /// 拆除时按"解订阅 → 停止输出 → 释放聚合器（join FFT 线程）→ 释放解码器"的顺序执行。
+    /// 输出类的 Stop/Dispose 可能阻塞等待播放线程退出，因此绝不能在 _chainGate 内调用 Dispose。
+    /// </summary>
+    private sealed class PlaybackChain : IDisposable
+    {
+        private int _disposed;
+
+        public required IAudioSource Source { get; init; }
+        public required EqualizerSampleProvider Equalizer { get; init; }
+        public required SampleAggregator Aggregator { get; init; }
+        public required VolumeSampleProvider Volume { get; init; }
+        public required IWavePlayer Output { get; init; }
+        public required Track Track { get; init; }
+        public volatile bool StopRequested;
+        public Action<float[]>? SpectrumHandler;
+        public EventHandler<StoppedEventArgs>? StoppedHandler;
+
+        public void Dispose()
         {
-            _source.Dispose();
-            _source = null;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+            // 先解订阅：输出类 Stop() 会让仍订阅的回调看到"流结束"，
+            // 拆链意图必须已由持有者置位（StopRequested）且回调侧按当前链判定。
+            if (SpectrumHandler != null) Aggregator.SpectrumDataReady -= SpectrumHandler;
+            if (StoppedHandler != null) Output.PlaybackStopped -= StoppedHandler;
+
+            try { Output.Stop(); } catch { }
+            try { Output.Dispose(); } catch { }
+            try { Aggregator.Dispose(); } catch { }
+            try { Source.Dispose(); } catch { }
         }
     }
 
     public void Dispose()
     {
+        PlaybackChain? old;
         lock (_chainGate)
         {
-            DisposePlayback();
+            if (_disposed) return;
+            _disposed = true;
+            _loadCancelVersion++;
+            old = _current;
+            _current = null;
+            if (old != null) old.StopRequested = true;
         }
+        old?.Dispose();
     }
 }

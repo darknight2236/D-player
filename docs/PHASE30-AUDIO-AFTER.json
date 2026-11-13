@@ -1,0 +1,99 @@
+{
+  "commit": "a231649",
+  "os": "Microsoft Windows NT 10.0.26300.0",
+  "runtime": "11.0.0",
+  "processor": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD",
+  "timestampUtc": "2026-11-13T12:19:29.8931278Z",
+  "results": [
+    {
+      "Name": "eq-off",
+      "SampleRate": 48000,
+      "Channels": 2,
+      "BufferFrames": 480,
+      "Seconds": 10,
+      "Runs": 5,
+      "Measurement": {
+        "P50Ms": 0.0001,
+        "P95Ms": 0.0002,
+        "P99Ms": 0.0003,
+        "MaxMs": 0.0057,
+        "CpuMsPerAudioSecond": 0.01791,
+        "AllocatedBytesPerRun": 40,
+        "ProcessAllocatedBytesPerRun": 40,
+        "Reads": 5000
+      }
+    },
+    {
+      "Name": "eq-flat",
+      "SampleRate": 48000,
+      "Channels": 2,
+      "BufferFrames": 480,
+      "Seconds": 10,
+      "Runs": 5,
+      "Measurement": {
+        "P50Ms": 0.0001,
+        "P95Ms": 0.0002,
+        "P99Ms": 0.0002,
+        "MaxMs": 0.0081,
+        "CpuMsPerAudioSecond": 0.180072,
+        "AllocatedBytesPerRun": 40,
+        "ProcessAllocatedBytesPerRun": 40,
+        "Reads": 5000
+      }
+    },
+    {
+      "Name": "eq-bass-boost",
+      "SampleRate": 48000,
+      "Channels": 2,
+      "BufferFrames": 480,
+      "Seconds": 10,
+      "Runs": 5,
+      "Measurement": {
+        "P50Ms": 0.0376,
+        "P95Ms": 0.0451,
+        "P99Ms": 0.0572,
+        "MaxMs": 0.5063,
+        "CpuMsPerAudioSecond": 3.1637140000000006,
+        "AllocatedBytesPerRun": 40,
+        "ProcessAllocatedBytesPerRun": 40,
+        "Reads": 5000
+      }
+    },
+    {
+      "Name": "aggregator",
+      "SampleRate": 48000,
+      "Channels": 2,
+      "BufferFrames": 480,
+      "Seconds": 10,
+      "Runs": 5,
+      "Measurement": {
+        "P50Ms": 0.0049,
+        "P95Ms": 0.008,
+        "P99Ms": 0.0091,
+        "MaxMs": 0.0956,
+        "CpuMsPerAudioSecond": 0.5333979999999999,
+        "AllocatedBytesPerRun": 40,
+        "ProcessAllocatedBytesPerRun": 4113,
+        "Reads": 5000
+      }
+    },
+    {
+      "Name": "full-chain",
+      "SampleRate": 48000,
+      "Channels": 2,
+      "BufferFrames": 480,
+      "Seconds": 10,
+      "Runs": 5,
+      "Measurement": {
+        "P50Ms": 0.0195,
+        "P95Ms": 0.028205000000000018,
+        "P99Ms": 0.0312,
+        "MaxMs": 0.1639,
+        "CpuMsPerAudioSecond": 2.031122,
+        "AllocatedBytesPerRun": 40,
+        "ProcessAllocatedBytesPerRun": 16942,
+        "Reads": 5000
+      }
+    }
+  ]
+}

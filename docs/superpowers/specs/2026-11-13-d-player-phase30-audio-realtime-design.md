@@ -24,7 +24,7 @@ Phase 28 把四个工程抬到 net11.0，Phase 29 完成非音频路径现代化
 - **G2 确定性安全网**：用内部工厂 + 假 `IAudioSource`/`IWavePlayer` + 门闩替代 sleep 窗口，覆盖播放链生命周期、停止语义、自然播完、旧链迟到回调。
 - **G3 频谱缺陷**：先以红测试固定"重叠帧必须使用真实时域样本"，再修复 `SampleAggregator` 的缓冲复用错误。
 - **G4 音频线程结构目标**：音频回调内不执行 FFT、不取 EQ 锁、稳态零托管分配；FFT 在独立后台线程按 50% hop 计算。
-- **G5 EQ 无锁下发**：`Update` 只发布不可变配置引用，音频线程在 `Read` 开头取走并就地更新系数；保留"缓冲边界生效、滤波状态不重置"的现有语义。
+- **G5 EQ 无锁下发**：`Update` 只发布不可变配置引用，音频线程在 `Read` 开头取走并就地更新系数；保留"配置在缓冲边界生效"的现有语义（**2026-11-13 校正：原稿同句写的"滤波状态不重置"不成立** —— NAudio 3.3.0 `SetPeakingEq` 会清零 `x1/x2/y1/y2`，见 §4.2/§7.3/§11 校正）。
 - **G6 播放链**：抽出 `PlaybackChain`，重活（打开 reader、初始化输出）在 `_chainGate` 外完成；旧链 stop/dispose 在锁外完成；`OnPlaybackStopped` 继续不取链闸门。
 - **G7 轮询**：`PeriodicTimer` + 播放会话代际替代 `Task.Delay(33)` 外套 `DateTime` 节流，杜绝重复轮询循环。
 - **G8 验收**：`-Full -Audio`、5 条真实音频、ComputerUse GUI 走查、独立复核、数据 SHA-256 还原、改写前后 AudioBench 对照。
@@ -111,7 +111,8 @@ _bufferPosition = halfSize;
 
 - `_chainGate` 仍串行化链安装/拆除/传输命令；持锁期间不得 `await`。
 - `OnPlaybackStopped` 不取 `_chainGate`；自然播完与用户停止由每链 `StopRequested` 显式区分；200 ms 容差保留。
-- EQ 插入点仍在 `SampleAggregator` 之前；每声道独立滤波器；`SetPeakingEq` 就地重算、不重建滤波器、不清状态；Nyquist 旁路保留。
+- EQ 插入点仍在 `SampleAggregator` 之前；每声道独立滤波器；`SetPeakingEq` 就地重算、不重建滤波器对象；Nyquist 旁路保留。
+  - **2026-11-13 校正（原文为"不清状态"，已证伪）**：NAudio 3.3.0 的 `BiQuadFilter.SetPeakingEq` 会把延迟线 `x1/x2/y1/y2` **清零**（独立探针：喂直流使状态为 0.5，调用 `SetPeakingEq` 后读回 0）。Phase 30 保留的语义是"配置在缓冲边界生效"，**不包含**跨缓冲的滤波状态保持；这是 Phase 14 起就存在的既有行为，不是本阶段引入的回归。状态保持/交叉淡化是后续候选，不在本阶段范围（非目标：不改自定义 DSP 公式）。
 - 频谱事件仍经 `SynchronizationContext.Post` 封送到 UI 线程后才能到 VM。
 - `IPlaybackService` 公开成员/事件不变；`NAudioPlaybackService` 公开无参构造不变。
 - 引用身份回找继续用 `ReferenceEqualityComparer`（本阶段不触碰播放队列）。
@@ -266,8 +267,9 @@ internal NAudioPlaybackService(
 - 删除音频 `Read` 中的 `lock (_lock)`。
 - UI 线程 `Update(config)`：仅 `Volatile.Write(ref _pendingConfig, config)`（不可变 record，最后一次写入胜出）。
 - 音频线程每次 `Read` 开头：`var cfg = Interlocked.Exchange(ref _pendingConfig, null); if (cfg != null) ApplyConfig(cfg);` 然后处理样本。
-- `ApplyConfig` 在音频线程执行：更新 `_enabled`/`_preampGain`，对每个声道/频段沿用现有逻辑——已存在则 `SetPeakingEq` 就地重算，不存在则新建，Nyquist 旁路置空；滤波状态不重置。构造时直接应用初始配置，不走 pending。
+- `ApplyConfig` 在音频线程执行：更新 `_enabled`/`_preampGain`，对每个声道/频段沿用现有逻辑——已存在则 `SetPeakingEq` 就地重算，不存在则新建，Nyquist 旁路置空。构造时直接应用初始配置，不走 pending。
 - 这保留了旧实现靠整缓冲锁达到的"只在缓冲边界生效"语义；UI 不再能阻塞音频线程。
+- **2026-11-13 校正**：`SetPeakingEq` 在 NAudio 3.3.0 会清零 `x1/x2/y1/y2`，因此"滤波状态不重置"这句**不成立**（Phase 14 起的既有行为）。本阶段的等价性测试是对**参考滤波器组**逐样本比对（每帧重算系数即复位状态），不是"状态连续"断言；要把 EQ 拖动做成无爆音，需要状态保持/交叉淡化，属后续候选。
 
 **循环重排**
 
@@ -279,7 +281,7 @@ internal NAudioPlaybackService(
 **测试**
 
 - 现有 7 条 EQ 测试全部保留，输出必须与旧实现等价。
-- 新增 `Update_AppliedAtBufferBoundary_PreservesState`：在缓冲中间发布配置，断言只在下一次 `Read` 生效，且滤波器状态连续。
+- 新增 `Update_AppliedAtBufferBoundary_MatchesReferenceFilterBank`（**2026-11-13 校正：原稿名为 `Update_AppliedAtBufferBoundary_PreservesState`，"状态连续"断言建立在 `SetPeakingEq` 保持状态这一错误前提上**）：在缓冲中间发布配置，断言只在下一次 `Read` 生效，且输出与"每帧用当前配置重算系数的参考滤波器组"逐样本一致（含非有限值拒绝比较）。
 - 新增 `Update_ConcurrentWithRead_NoExceptions_FiniteOutput`：双线程门闩编排，断言无异常、无 NaN/Inf。
 - 新增 `PendingConfig_WhileDisabled_EnablesOnNextRead`。
 
@@ -399,7 +401,8 @@ while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
 ### 10.4 GUI 走查（ComputerUse + 主代理复核）
 
 - 合成库 + 中文路径 + GBK 歌单，沿用 Phase 29 的备份/SHA-256 还原规范。
-- 关键路径：播放/暂停、进度单击与拖动、上一首/下一首、自然播完自动推进、频谱可见且随播放变化、EQ 启用/调段/保存/取消（无爆音）、切歌后频谱继续、关闭落盘/重启续播、关闭中刷新。
+- 关键路径：播放/暂停、进度单击与拖动、上一首/下一首、自然播完自动推进、频谱可见且随播放变化、EQ 启用/调段/保存/取消（**人工听感检查；不要期待"拖动过程无爆音"**）、切歌后频谱继续、关闭落盘/重启续播、关闭中刷新。
+- **2026-11-13 校正**：原稿把"拖动过程无爆音"写成预期，但 `SetPeakingEq` 会清零滤波状态（见 §4.2/§7.3 校正），EQ 拖动在换系数时可能出现复位型爆音。Phase 30 不修这条（属后续候选），GUI 只记录人工听感（有/无、可复现与否），**不作为本阶段验收的通过条件**；也不能因为听到爆音就判定 Phase 30 回归。
 - 频谱正确性以 DSP 测试为主；GUI 只验"可见、不崩、随音频变化"，不做像素级频率断言。
 
 ### 10.5 验收文档
@@ -428,6 +431,8 @@ while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
   - 频谱视觉正确性由 DSP 测试钉住；GUI 不做像素级断言。
   - WinUI 运行时行为不覆盖。
   - `StubAudioOutputFactory` 名称保留历史含义；改名不在本阶段。
+  - **EQ 滤波状态不跨配置更新保持（2026-11-13 校正）**：NAudio 3.3.0 的 `SetPeakingEq` 清零 `x1/x2/y1/y2`（独立探针 0.5 → 0），Phase 14 起的"不清状态"注释与设计描述均为误记。Phase 30 保留"缓冲边界应用"与"不重建滤波器对象"，但**不保留**跨缓冲滤波状态；拖动 EQ 时的复位型爆音属既有行为，状态保持/交叉淡化列为后续候选，不在 Phase 30 范围（本阶段非目标：不改自定义 DSP 公式）。对应测试是 `Update_AppliedAtBufferBoundary_MatchesReferenceFilterBank`（对参考滤波器组逐样本比对），不是"状态连续"断言。
+  - 音频线程零分配是"零**产品**分配"：AudioBench 的 `thread alloc` 地板恒为 40 B/run（`eq-off` 旁路、全部场景与基线都一致），不计入验收口径；`process alloc` 另含 FFT 分析线程的每帧 32-float 快照。
 
 ## 12. 待确认项
 

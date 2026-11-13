@@ -13,7 +13,9 @@ namespace DPlayer.Services;
 /// 线程模型（Phase 30）：UI 线程 <see cref="Update"/> 只发布不可变 <see cref="EqualizerConfig"/>
 /// 引用（Volatile.Write，不触碰滤波器）；音频线程在 <see cref="Read"/> 开头
 /// Interlocked.Exchange 取走待应用配置并就地应用，因而不在音频线程上加锁。
-/// 配置在 buffer 边界生效；SetPeakingEq 就地重算系数，保留 x1/x2/y1/y2 状态（拖动不爆音）。
+/// 配置在 buffer 边界生效：<c>SetPeakingEq</c> 在块边界更新系数。NAudio 3.3.0 在更新系数时
+/// 会重置滤波器状态（x1/x2/y1/y2），因此不声称跨边界的状态连续性；保留状态的滤波器或
+/// 交叉淡化属于后续候选改进。
 /// </summary>
 public sealed class EqualizerSampleProvider : ISampleProvider
 {
@@ -63,7 +65,8 @@ public sealed class EqualizerSampleProvider : ISampleProvider
 
     /// <summary>
     /// 运行时更新配置：只发布不可变配置引用（无锁、不触碰滤波器/状态）。
-    /// 音频线程在下一个 Read 开头取走并就地应用（保留滤波状态）。
+    /// 音频线程在下一个 Read 开头取走并就地应用；<c>SetPeakingEq</c> 在块边界换系数，
+    /// 且 NAudio 3.3.0 此时会重置滤波器状态（不保证跨块状态连续）。
     /// 同一 buffer 间隔内的多次 Update 会合并，最后一次生效。
     /// </summary>
     public void Update(EqualizerConfig config)
@@ -73,8 +76,9 @@ public sealed class EqualizerSampleProvider : ISampleProvider
     }
 
     /// <summary>
-    /// 在构造或音频线程 Read 开头应用配置：就地重算系数（保留滤波状态，避免爆音），
-    /// 并重建每声道有效滤波器数组（中心频率 ≥ 奈奎斯特的频段旁路，PeakingEQ 此时不稳定）。
+    /// 在构造或音频线程 Read 开头应用配置：就地重算系数（<c>SetPeakingEq</c> 在块边界换系数；
+    /// NAudio 3.3.0 会重置滤波器状态，不保证跨块连续），并重建每声道有效滤波器数组
+    /// （中心频率 ≥ 奈奎斯特的频段旁路，PeakingEQ 此时不稳定）。
     /// </summary>
     private void ApplyConfig(EqualizerConfig config)
     {
@@ -116,17 +120,70 @@ public sealed class EqualizerSampleProvider : ISampleProvider
         }
     }
 
-    /// <summary>只读已应用状态（音频线程独占写；Process 在 Read 内同步调用）。</summary>
+    /// <summary>
+    /// 只读已应用状态（音频线程独占写；Process 在 Read 内同步调用）。
+    /// 按声道数分派到专用循环：热路径无逐样本取模、无逐段空判断。
+    /// </summary>
     private void Process(Span<float> buffer, int read)
+    {
+        if (_channels == 1)
+        {
+            ProcessMono(buffer, read, _activeFilters[0], _activeCounts[0]);
+        }
+        else if (_channels == 2)
+        {
+            ProcessStereo(buffer, read);
+        }
+        else
+        {
+            ProcessMultiChannel(buffer, read);
+        }
+    }
+
+    private void ProcessMono(Span<float> buffer, int read, BiQuadFilter[] filters, int count)
     {
         for (int i = 0; i < read; i++)
         {
-            int c = _channels > 1 ? i % _channels : 0; // 交织样本 → 声道索引
-            int count = _activeCounts[c];
-            var filters = _activeFilters[c];
             float sample = buffer[i] * _preampGain;
             for (int b = 0; b < count; b++) sample = filters[b].Transform(sample);
             buffer[i] = sample;
+        }
+    }
+
+    private void ProcessStereo(Span<float> buffer, int read)
+    {
+        var left = _activeFilters[0];
+        var right = _activeFilters[1];
+        int leftCount = _activeCounts[0];
+        int rightCount = _activeCounts[1];
+        int frames = read / 2;
+
+        for (int frame = 0; frame < frames; frame++)
+        {
+            int i = frame * 2;
+            float l = buffer[i] * _preampGain;
+            float r = buffer[i + 1] * _preampGain;
+            for (int b = 0; b < leftCount; b++) l = left[b].Transform(l);
+            for (int b = 0; b < rightCount; b++) r = right[b].Transform(r);
+            buffer[i] = l;
+            buffer[i + 1] = r;
+        }
+    }
+
+    private void ProcessMultiChannel(Span<float> buffer, int read)
+    {
+        int frames = read / _channels;
+        for (int frame = 0; frame < frames; frame++)
+        {
+            int i = frame * _channels;
+            for (int c = 0; c < _channels; c++)
+            {
+                float sample = buffer[i + c] * _preampGain;
+                int count = _activeCounts[c];
+                var filters = _activeFilters[c];
+                for (int b = 0; b < count; b++) sample = filters[b].Transform(sample);
+                buffer[i + c] = sample;
+            }
         }
     }
 }

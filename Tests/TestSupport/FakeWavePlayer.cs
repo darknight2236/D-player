@@ -10,6 +10,9 @@ internal sealed class FakeWavePlayer : IWavePlayer
     private readonly ManualResetEventSlim? _initGate;
     private readonly ManualResetEventSlim? _initEntered;
     private EventHandler<StoppedEventArgs>? _playbackStopped;
+    // 最后一个曾订阅过的 handler：解订阅不移除这份引用，供测试模拟"播放线程上
+    // 仍在途的回调"（真实 WASAPI 下 Stop/Dispose 与回调可能并发）。
+    private EventHandler<StoppedEventArgs>? _lastKnownPlaybackStopped;
 
     public FakeWavePlayer(ManualResetEventSlim? initGate = null, ManualResetEventSlim? initEntered = null)
     {
@@ -26,8 +29,18 @@ internal sealed class FakeWavePlayer : IWavePlayer
 
     public event EventHandler<StoppedEventArgs>? PlaybackStopped
     {
-        add { Log.Add("Subscribe"); _playbackStopped += value; }
-        remove { Log.Add("Unsubscribe"); _playbackStopped -= value; }
+        add
+        {
+            Log.Add("Subscribe");
+            _playbackStopped += value;
+            _lastKnownPlaybackStopped = value;
+        }
+        remove
+        {
+            Log.Add("Unsubscribe");
+            _playbackStopped -= value;
+            // 刻意保留 _lastKnownPlaybackStopped：解订阅后仍可复现晚到的在途回调
+        }
     }
 
     public void Init(IWaveProvider waveProvider)
@@ -59,6 +72,13 @@ internal sealed class FakeWavePlayer : IWavePlayer
 
     public void RaiseStopped(Exception? exception = null)
         => _playbackStopped?.Invoke(this, new StoppedEventArgs(exception!));
+
+    /// <summary>
+    /// 向"最后一个曾订阅过的 handler"投递 PlaybackStopped，即使它已被解订阅。
+    /// 用来模拟播放线程上晚到的在途回调（服务侧必须靠当前链身份判定丢弃它）。
+    /// </summary>
+    public void RaiseStoppedToLastKnownHandler(Exception? exception = null)
+        => _lastKnownPlaybackStopped?.Invoke(this, new StoppedEventArgs(exception!));
 
     public void Dispose() => Log.Add("Dispose");
 }

@@ -172,15 +172,23 @@ public sealed class NAudioPlaybackServiceDeterministicTests
             new FakeAudioOutputFactory(() => outputs.Dequeue()),
             sync);
         int ended = 0;
+        var errors = new List<string>();
         service.TrackEnded += () => Interlocked.Increment(ref ended);
+        service.PlaybackError += message => errors.Add(message);
 
         await service.LoadAsync(TrackFor("one.wav")).WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
         service.Play();
         await service.LoadAsync(TrackFor("two.wav")).WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
-        firstOutput.RaiseStopped();
+
+        // 旧输出在切链时已被解订阅；RaiseStopped() 走的是当前订阅表，等于什么都没发生。
+        // 真实 WASAPI 下播放线程上可能仍有一次在途回调，故向"最后已知 handler"投递异常，
+        // 只有当前链身份判定能挡住它（去掉判定即会多报一条 PlaybackError）。
+        firstOutput.RaiseStoppedToLastKnownHandler(new InvalidOperationException("stale chain"));
         DrainQueued(sync);
 
+        Assert.Empty(errors);
         Assert.Equal(0, ended);
+        Assert.Equal(2, service.Duration.TotalSeconds, 3);
     }
 
     [Fact]
@@ -358,7 +366,8 @@ public sealed class NAudioPlaybackServiceDeterministicTests
     }
 
     /// <summary>
-    /// 轮询 smoke（行为钉，不是竞态证据）：Play 后位置事件必须出现，Pause 后必须停止。
+    /// 轮询 smoke（行为钉，不是竞态证据）：以装载事件结算后的位置计数为基线，
+    /// Play 后必须出现新的位置事件（证明确实启动了轮询），Pause 后必须停止增长。
     /// 固定等待 100–150 ms 只是给轮询循环 3–4 个 33 ms tick 的观察窗口，允许 ±1 tick 调度抖动。
     /// </summary>
     [Fact]
@@ -376,10 +385,16 @@ public sealed class NAudioPlaybackServiceDeterministicTests
         service.PositionChanged += _ => Interlocked.Increment(ref positions);
 
         await service.LoadAsync(TrackFor("a.wav")).WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
+
+        // 装载自己会 Post 一次 PositionChanged(Zero)：先把已排队事件结算成基线，
+        // 否则"Play 之前就有 1 次位置事件"会让下面的断言恒真（轮询没启动也能过）。
+        DrainQueued(sync);
+        int baseline = Volatile.Read(ref positions);
+
         service.Play();
         await Task.Delay(150, ct.Token);
         DrainQueued(sync);
-        Assert.True(Volatile.Read(ref positions) >= 1);
+        Assert.True(Volatile.Read(ref positions) > baseline);
 
         service.Pause();
         await Task.Delay(100, ct.Token);

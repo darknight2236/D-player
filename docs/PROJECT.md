@@ -73,7 +73,7 @@
 D-player/                        # 仓库根 = WPF 壳工程目录（D-player.csproj 就在根上）
 ├── App.xaml(.cs)                # WPF 壳入口：UI 线程建 DI 容器（AddDPlayerCore + 本壳的 Win32FileDialogService）、跑 LegacyDataMigration、加载主窗口
 ├── AssemblyInfo.cs              # ThemeInfo（资源字典位置）
-├── D-player.csproj              # WPF 壳工程；ProjectReference 到 D-player.Core；三组兄弟目录的 glob 排除集（见 §9）
+├── D-player.csproj              # WPF 壳工程；ProjectReference 到 D-player.Core；四组兄弟目录（Tests / D-player.Core / D-player.WinUI / tools）的 glob 排除集（见 §9）
 ├── D-player.sln                 # 四个工程全在里面（IDE 用）—— **不是门禁**
 ├── D-player.slnf                # 门禁筛选器：D-player.Core + D-player.csproj + Tests（WinUI 刻意不进）
 ├── appsettings.json             # 启动默认配置（构建时复制到输出目录；WinUI 壳链接同一份，不复制第二份真相）
@@ -124,8 +124,8 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │   │   ├── AtlMetadataReader.cs    # 基于 z440.atl.core 的实现 (Phase 3)
 │   │   ├── IAudioDeviceManager.cs   # 预留：设备枚举/切换
 │   │   ├── StubAudioDeviceManager.cs# 占位实现，返回空集
-│   │   ├── IAudioOutputFactory.cs   # 预留：输出后端工厂
-│   │   ├── StubAudioOutputFactory.cs# 占位实现，固定返回 WASAPI Shared
+│   │   ├── IAudioOutputFactory.cs   # 输出后端工厂（Phase 30 起由 NAudioPlaybackService 每链消费）
+│   │   ├── StubAudioOutputFactory.cs# 生产默认输出工厂（占位命名；固定返回 WASAPI Shared，Phase 19 经 WasapiPlayerBuilder 构建）
 │   │   └── PlaylistFiles/           # 播放列表文件读写门面模块 (Phase 18)
 │   │       ├── PlaylistFileFormats.cs  # 后缀白名单 (.m3u/.m3u8/.pls) + IsPlaylistFile + 对话框过滤器字符串（后缀集合唯一来源）
 │   │       ├── PlaylistFileEncoding.cs # 字节 → 文本：BOM 判定 → 严格 UTF-8 试解码 → GBK(936) 回退；静态构造函数注册 CodePages provider
@@ -361,7 +361,7 @@ VM/Service 这一整棵树**两壳共用同一份代码**，谁都不许往 Core
 | `ILibraryWatcher` | **Singleton** (Phase 25) | 惰性 `FileSystemWatcher`；构造/DI 解析不访问文件系统，只在显式 `StartMonitoringAsync` 后订阅 |
 | `TimeProvider` | **Singleton** (Phase 25) | 调度器的可测试时钟；生产注册 `TimeProvider.System` |
 | `IAudioDeviceManager` | Singleton（Stub） | 预留 |
-| `IAudioOutputFactory` | Transient（Stub） | 预留；语义上由 `IPlaybackService` 创建即释放 —— 但**当前并无这条接线**：`NAudioPlaybackService` 在 `LoadAsync` 内直接经 `WasapiPlayerBuilder` 自建输出、不经此工厂，故该工厂注册后无任何消费方（见 §5.2 与 COUPLING.md §4） |
+| `IAudioOutputFactory` | Transient（Stub） | 生产默认实现 `StubAudioOutputFactory`（固定返回 WASAPI Shared）。**工厂已由 `NAudioPlaybackService` 的公开构造函数取默认值 `new StubAudioOutputFactory()` 消费**（每建一条链调用一次 `CreateOutput()`），但**这条 DI 注册本身仍无人解析**：容器构造 `NAudioPlaybackService` 走公开 ctor，不会注入容器里的 Transient 注册（见 §5.2 与 COUPLING.md §4） |
 | `PlayerViewModel` | **Transient** (Phase 3) | Transport 子 VM；DI 中**必须先于** `PlaylistViewModel` 注册；Phase 13 订阅 `SpectrumDataAvailable`；Phase 14 仅持有 `EqualizerEnabled` observable（供 PlayerBar 🎚 按钮高亮） |
 | `PlaylistViewModel` | **Transient**（经 `Func<Playlist, PlaylistViewModel>` 工厂） (Phase 3/6) | 队列子 VM；由 `PlaylistsViewModel` 用工厂按需创建，seed 为动态参数 |
 | `PlaylistsViewModel` | **Singleton** (Phase 6) | 多歌单容器；WPF 壳的 View code-behind 经 `App.GetService<PlaylistsViewModel>()` 取用（双击跨歌单播放），WinUI 壳则经 `MainViewModel.Playlists` 拿到同一个实例 —— 两种取法都要求它必须单例。Phase 24 起还私有持有隐藏的库播放队列（不加入 `Playlists` 集合） |
@@ -386,7 +386,7 @@ VM/Service 这一整棵树**两壳共用同一份代码**，谁都不许往 Core
 
 6. **窗口可见性自愈**：`MainWindow.EnsureVisible()` 检查恢复的位置是否在虚拟屏内（防止外接屏拔掉后窗口飘到屏外），不在则回退到主屏居中。
 
-7. **面向接口 + 占位实现**：`IAudioDeviceManager` / `IAudioOutputFactory` 已注册 Stub，便于后续替换为真实多设备/Exclusive/ASIO 实现而不动 VM。
+7. **面向接口 + 占位实现**：`IAudioDeviceManager` 已注册 Stub、`IAudioOutputFactory` 注册了 Stub 且同时是生产默认输出实现（由 `NAudioPlaybackService` 公开 ctor 取默认值消费），便于后续替换为真实多设备/Exclusive/ASIO 实现而不动 VM。
 
 8. **Strict VM Facade（Phase 3/6/24）**：`MainViewModel` 作为子 VM 容器，暴露 `Player` + `Playlists` + `Library` + `IsLibraryViewActive` + `InitializeAsync` + `CleanupAsync`，集中 debounce save 与关闭排空。`PlayerViewModel`（transport）与 `PlaylistViewModel`（队列）**互不持引用**，仅通过 `IPlaybackService` Singleton 间接协作（PlayerVM 订阅 transport 事件；PlaylistVM 单独订阅 `TrackEnded` 推进队列）。PlaylistVM 通过 `Container` 属性代理读取 PlaylistsVM 的全局 Shuffle/Repeat 状态。View 跨域命令（如 PlayerBar 上的 ⏮/⏭ 调用 PlaylistVM，🔀/🔁 调用 PlaylistsVM）通过 `{Binding DataContext.Playlists.<sub>.<cmd>, RelativeSource={RelativeSource AncestorType=Window}}` 跨级绑定到 MainWindow 的 DataContext 解决。
 
@@ -438,7 +438,7 @@ VM/Service 这一整棵树**两壳共用同一份代码**，谁都不许往 Core
 
 32. **WinUI 的 Mica 依赖"根背景 Transparent"这条约定（Phase 20）**：`Window.SystemBackdrop = new MicaBackdrop()` 挂上后，材质只在**没有不透明背景刷**的表面后面可见；根 `Grid` 必须是 `Background="Transparent"`，否则整片材质被页面底色盖住，肉眼与截图都像"材质没生效"。并且 `DWMWA_SYSTEMBACKDROP_TYPE` 对组合器挂载的 backdrop **不是有效探针**（本项目实测恒为 0）—— 判据只能是"透明表面后的像素是否随窗外内容变化"。实测数据与三行对照已写进 `D-player.WinUI/MainWindow.xaml` 顶部注释。
 
-33. **仓库根的兄弟目录必须进根工程的 glob 排除集（Phase 20）**：`D-player.csproj` 在仓库根，SDK 默认 `**/*.cs` / `**/*.xaml` 会把 `D-player.Core/**`、`D-player.WinUI/**`（以及原有的 `Tests/**`）扫进 WPF 程序集，出现重复类型或不存在 `Microsoft.UI.Xaml` 导致的 MC3074/CS0234。每加一个仓库根级别的兄弟工程，就要给它补一组 `Compile/Page/ApplicationDefinition/Resource/None/EmbeddedResource Remove`。
+33. **仓库根的兄弟目录必须进根工程的 glob 排除集（Phase 20）**：`D-player.csproj` 在仓库根，SDK 默认 `**/*.cs` / `**/*.xaml` 会把 `D-player.Core/**`、`D-player.WinUI/**`、`tools/**`（以及原有的 `Tests/**`）扫进 WPF 程序集，出现重复类型或不存在 `Microsoft.UI.Xaml` 导致的 MC3074/CS0234。每加一个仓库根级别的兄弟工程或工具目录，就要给它补一组 `Compile/Page/ApplicationDefinition/Resource/None/EmbeddedResource Remove`。
 
 34. **TrackEnded 的推进权属于当前播放歌单，播放归属随实际出声歌单同步（2026-10-24，Phase 22 后修复）**：`IPlaybackService` 是全局单例，所有 `PlaylistViewModel` 都在 ctor 订阅 `TrackEnded`；`HandleTrackEnded` 入口必须以 `IsActivePlaylist` 守卫，否则曲目自然播完时所有歌单都会各自推进并调用全局 `LoadAsync/Play`，最后完成者抢走播放（Phase 22 冒烟实见非查看歌单 "1" 抢播）。同时 `PlayTrackAtAsync` 在开始播放前把 `Container.CurrentPlaylistId` 指向本歌单 —— 上一首/下一首已改绑 `CurrentPlaylist`（见第 35 条），但双击与"无已加载曲目时的首播"（`ViewedPlaylist.PlayCurrentCommand`）仍可从非当前歌单直达播放；不同步指针会让守卫在下次自然播完时推进旧歌单。启动断点续播同理，`FindPlaylistTrackByPath` 找到曲目所属歌单后同步指针。回归：`PlaylistViewModelTests.TrackEnded_WhenPlaylistIsInactive_DoesNotAdvanceOrPlay`、`PlaylistsViewModelTests.TrackEnded_RepeatOne_WhenPlaylistIsInactive_DoesNotReplay`、`PlaylistsViewModelTests.PlayTrackAt_FromViewedNonPlayingPlaylist_ClaimsCurrentPlaylistId`、`PlaybackResumeTests.InitializeAsync_RestoredTrackInAnotherPlaylist_ClaimsCurrentPlaylistId`。
 
@@ -464,15 +464,15 @@ VM/Service 这一整棵树**两壳共用同一份代码**，谁都不许往 Core
 
 | 成员 | 说明 |
 |------|------|
-| `LoadAsync(Track)` | 在 `Task.Run` 上：销毁旧播放链 → 新建 `MediaFoundationReader` → `ToSampleProvider` → **`EqualizerSampleProvider`（Phase 14 均衡器中间件）** → **`SampleAggregator`（Phase 13 频谱中间件）** → `VolumeSampleProvider` → `WasapiPlayer`（Phase 19：`new WasapiPlayerBuilder().WithSharedMode().WithEventSync().WithLatency(100).Build()`，与迁移前的 `WasapiOut(Shared, 100ms)` 语义等价；`WasapiPlayer` 无公开构造函数，只能经 builder 建立，之后仍按 `IWavePlayer` 使用）；触发 `DurationChanged` / `TrackChanged` · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
+| `LoadAsync(Track)` | **Phase 30 两阶段装载**（`_loadGate` 串行化，重活不持 `_chainGate`）：① 闸门内摘下旧链（置 `StopRequested`、记下 `_loadCancelVersion` 与音量/频谱/EQ 快照、`SetState(Stopped)`）；② 线程池 `Task.Run` 上拆除旧链并新建 `MediaFoundationReader` → `ToSampleProvider` → **`EqualizerSampleProvider`（Phase 14 均衡器中间件）** → **`SampleAggregator`（Phase 13 频谱中间件）** → `VolumeSampleProvider` → `WasapiPlayer`（Phase 19：`new WasapiPlayerBuilder().WithSharedMode().WithEventSync().WithLatency(100).Build()`，与迁移前的 `WasapiOut(Shared, 100ms)` 语义等价；`WasapiPlayer` 无公开构造函数，只能经 builder 建立，之后仍按 `IWavePlayer` 使用）；③ 回到闸门校验代际与 `_disposed` 后安装 `_current`，并按当前字段重放音量 / 频谱开关 / EQ（覆盖装载窗口内的实时改动）；装载期间 Unload/Dispose 递增代际，过时链直接释放。安装成功后**一次封送** PositionChanged(Zero) → DurationChanged → TrackChanged，并在 UI 线程复核当前链身份后才整组派发 · Phase 3：在 DurationChanged 之前先广播 PositionChanged(Zero)，防止切到时长更短的曲时旧 Position 与新 Duration 并存（"4:05 / 3:20" glitch） |
 | `Play / Pause / Stop` | 委派给 `IWavePlayer`；`Stop` 同时将 `CurrentTime` 归零（保留底层资源，再 `Play()` 会重播同一首） |
 | `Unload()` | **完全释放**底层 reader/wavePlayer，清掉 `_currentTrack`；之后 `Play()` 是 no-op。**Phase 3：同时广播 `TrackChanged(null) + DurationChanged(Zero) + PositionChanged(Zero)`** 让 VM 清屏（标题/封面/时长/进度全归零）。`PlaylistViewModel.UnloadCurrentTrack` 在清空队列/删当前曲时调用 |
 | `Seek(TimeSpan)` | 写 `reader.CurrentTime` 后**主动广播 PositionChanged**（Phase 3：暂停态下 PollPositionAsync 已退出，否则进度条不刷新，看上去像"没跳转"）；通过 `ClampToDuration` 截到 [0, TotalTime] |
 | `Volume { get; set; }` | `Math.Clamp(0..1)`；运行时写入 `VolumeSampleProvider.Volume` |
-| `PollPositionAsync` | 仅在 `PlaybackState==Playing` 时循环；每 33ms 派发一次 `PositionChanged` · Phase 3：经 `ClampToDuration` 截断，避免解码器尾部浮点越界 · Phase 30：`PeriodicTimer(33 ms)` + `_playSession` 代际，暂停/停止/切歌后最多一个 tick 退出，无双层节流 |
+| `PollPositionAsync` | `Play()` 时以 `PeriodicTimer(33 ms)` 启动（fire-and-forget）；每 tick 检查播放会话代际（`_playSession`）、当前链与 `_state == Playing`，暂停/停止/切歌/卸载后最多一个 tick 退出；`PlaybackState` 不再是循环条件 · Phase 3：经 `ClampToDuration` 截断，避免解码器尾部浮点越界 |
 | `OnPlaybackStopped` | 区分 (1) 异常 → `PlaybackError`；(2) 自然播完（距 `TotalTime` ≤ 200ms） → `TrackEnded`；(3) 用户 `Stop` → 仅 `Stopped`。Phase 30：先 `ReferenceEquals(Volatile.Read(ref _current), chain)` 判当前链，再判 `chain.StopRequested`；全程不取 `_chainGate` |
 | `SpectrumConfig { get; set; }` | Phase 13：运行时可更新；setter 把 `Enabled` 传播到 in-flight `SampleAggregator`（禁用后分析线程不再取帧，不空耗 CPU） |
-| `EqualizerConfig { get; set; }` | Phase 14：运行时可更新；setter 存字段 + `_equalizer?.Update(value)` 把配置实时下发到在链 EQ provider（语义对齐 `SpectrumConfig`；链未建时仅存字段待建链拾取） |
+| `EqualizerConfig { get; set; }` | Phase 14：运行时可更新；setter 存字段 + `_current?.Equalizer.Update(value)` 把配置实时下发到在链 EQ provider（语义对齐 `SpectrumConfig`；链未建时仅存字段，装载安装时按当前字段重放） |
 | `SpectrumDataAvailable` 事件 | Phase 13：`SampleAggregator.SpectrumDataReady`（Phase 30 起在后台分析线程 `DPlayer.SpectrumFft`，此前为音频线程）→ `OnSpectrumDataReady` 经 `_syncContext.Post` 封送到 UI 线程再广播 |
 | `Dispose()` | Phase 30：在 `_chainGate` 内摘下链、递增 `_loadCancelVersion`，**锁外**执行 `PlaybackChain.Dispose()`（解订阅频谱 → 解订阅 `PlaybackStopped` → 停/释放输出 → `SampleAggregator.Dispose()` join FFT 线程 → 释放源）；`Unload` 形状相同并额外广播 `TrackChanged(null)`/`Duration=0`/`Position=0`/Stopped |
 
@@ -1000,16 +1000,16 @@ TrackInfoView → SpectrumView.SpectrumData (DP) → OnSpectrumDataChanged 算 _
 ```
 启动：PlayerViewModel.Initialize → LoadEqualizerSettings(settings)
   → 先设 EqualizerEnabled observable（构造期 _isInitializing=true，OnEqualizerEnabledChanged 不写盘）
-  → _player.EqualizerConfig = EqualizerConfig.Create(Enabled/Preamp/Bands/Preset)（存字段，待首次 LoadAsync 拾取）
+  → _player.EqualizerConfig = EqualizerConfig.Create(Enabled/Preamp/Bands/Preset)（存字段；在链则即时下发，装载窗口内待安装时重放）
 
 播放：PlaylistViewModel.PlayTrackAtAsync → IPlaybackService.LoadAsync(track)
-  → PlaybackChain 构建（Phase 30：持 _loadGate 串行化装载，不持 _chainGate）：ToSampleProvider → new EqualizerSampleProvider(sampleProvider, _equalizerConfig)
-    → new SampleAggregator(_equalizer, _spectrumConfig) → VolumeSampleProvider → WasapiPlayer
+  → PlaybackChain 构建（Phase 30：_loadGate 串行化装载；建链在两道闸门外，安装只取 _chainGate 交换引用并重放实时配置）：ToSampleProvider → new EqualizerSampleProvider(sampleProvider, _equalizerConfig)
+    → new SampleAggregator(equalizer, _spectrumConfig) → VolumeSampleProvider → WasapiPlayer
   （EQ 在 SampleAggregator 之前 → 频谱反映 EQ 后信号）
 
 拖动/预设（实时）：EqualizerDialog.BandSlider_ValueChanged / PresetCombo_SelectionChanged / Enable_Changed
   → PushToService(preset)：_playbackService.EqualizerConfig = EqualizerConfig.Create(...)
-  → setter：存字段 + _equalizer?.Update(value)（Phase 30：只 Volatile.Write 一份不可变 config，不加锁）
+  → setter：存字段 + _current?.Equalizer.Update(value)（Phase 30：只 Volatile.Write 一份不可变 config，不加锁）
   → 音频线程下一个 Read 开头 Interlocked.Exchange 取走，在缓冲边界对每声道每段 existing.SetPeakingEq(...) 就地重算系数
   → 下一个 Read 缓冲区即听感生效（且频谱同步反映；链未建时仅存字段待建链拾取）
   → 注意：SetPeakingEq 会清零 x1/x2/y1/y2（NAudio 3.3.0），换系数瞬间有复位型爆音风险，见 PHASE30-ACCEPTANCE.md §7
@@ -1162,7 +1162,7 @@ dotnet run   --project D-player.WinUI/D-player.WinUI.csproj -c Debug
 
 > `dotnet test` 之所以还能跑，靠仓库根 `global.json` 的 `{"test":{"runner":"Microsoft.Testing.Platform"}}`（.NET 11 SDK 的原生 opt-in，机制不变、Phase 28 已实测有效）。csproj 现在只保留 `xunit.v3` + `NSubstitute`（2026-11-02 移除 `Microsoft.NET.Test.Sdk`、`xunit.runner.visualstudio`、`coverlet.collector` 与 `TestingPlatformDotnetTestSupport`；IDE 测试发现不再保证，需要时再加回）。**删除 `global.json` 会让 `dotnet test D-player.slnf` 失败**（Microsoft.Testing.Platform 2.x 在 .NET 11 SDK 上不再支持 VSTest 目标）。
 >
-> **两条测试命令都不要加 `--nologo`**：MTP 不识别该参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际输出是"运行了零个测试"+ 退出码 5）。`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
+> **两条测试命令都不要加 `--nologo`**：MTP 不识别该参数，加上后一条测试都不会跑，摘要却打印 `成功: 0`（易被当成全绿；实际输出是"运行了零个测试"+ 退出码 8）。`--filter "FullyQualifiedName~X"` 照常可用。`--nologo` 只能用在 `dotnet build` 上。
 
 音频集成测试（`NAudioPlaybackService*Tests`）真实占用 WASAPI 设备，并行度结论见 §9。
 
@@ -1219,7 +1219,7 @@ dotnet publish D-player.csproj -c Release -r win-x64 \
 - **GBK 解码不得搬出 `PlaylistFileEncoding`（Phase 18）**：CodePages provider 在该类型的**静态构造函数**里注册，`Encoding.GetEncoding(936)` 只出现在该类内部，"注册永远早于解码"是类型不变量而非启动顺序约定（`App.xaml.cs` 无需改动）。把 GBK 解码搬到别的类型就等于把注册时机重新变成一条口头约定（COUPLING §5）。
 - **GBK 编码探测存在可接受的误判（Phase 18）**：严格 UTF-8 试解码成功即认定 UTF-8；极少数 GBK 字节序列恰好是合法 UTF-8 时会被误判并产生乱码路径——后果是这些条目落入"文件缺失"计数，用户能从导入报告里看出来，不会静默错乱。
 - **Core 必须 WPF-free（Phase 20）**：`D-player.Core/` 下不得出现 `System.Windows.*` / `PresentationFramework` / `ICollectionView` / `CollectionViewSource`，否则第二壳被拖回 WPF。可 grep 自检（四个类型名一个都不能少，命令与上面这条规则同口径）：`grep -rn "System.Windows\|PresentationFramework\|ICollectionView\|CollectionViewSource" D-player.Core --include=*.cs | grep -v "/obj/\|/bin/"` → **应无命中，2026-10-07 实跑确实零命中**。注意 `BitmapImage` **不在这个自检的模式里**：Core 有三行注释提到它（`Models/Track.cs:13`、`ViewModels/PlayerViewModel.cs:18`/`:47`，说的是 WPF 壳侧 converter 的行为），那是散文不是类型引用，加进模式只会让自检长期"命中注释"而失去意义。
-- **仓库根的兄弟目录必须进 `D-player.csproj` 的 glob 排除集（Phase 20）**：WPF SDK 会生成 `*_wpftmp.csproj` 并从仓库根重新 glob `**/*.cs` / `**/*.xaml`；`Tests/**`、`D-player.Core/**`、`D-player.WinUI/**` 三组各有一份 `Compile/Page/ApplicationDefinition/Resource/None/EmbeddedResource Remove`。漏掉的后果分别是重复编译进主程序集（AssemblyInfo 重复、xunit 引用缺失）与 `MC3074`/`CS0234`（WPF 侧不存在 `Microsoft.UI.Xaml`）。新增仓库根级工程时必须同步补一组，并**重跑门禁**确认隔离仍然成立。
+- **仓库根的兄弟目录必须进 `D-player.csproj` 的 glob 排除集（Phase 20）**：WPF SDK 会生成 `*_wpftmp.csproj` 并从仓库根重新 glob `**/*.cs` / `**/*.xaml`；`Tests/**`、`D-player.Core/**`、`D-player.WinUI/**`、`tools/**` 四组各有一份 `Compile/Page/ApplicationDefinition/Resource/None/EmbeddedResource Remove`。漏掉的后果分别是重复编译进主程序集（AssemblyInfo 重复、xunit 引用缺失）与 `MC3074`/`CS0234`（WPF 侧不存在 `Microsoft.UI.Xaml`）。新增仓库根级工程或工具目录时必须同步补一组，并**重跑门禁**确认隔离仍然成立。
 - **WinUI 不进 `D-player.slnf`，构建由门禁 3（`-Full`）覆盖（Phase 20 的设计决策，Phase 22 升为门禁 3）**：`D-player.slnf` 只含 Core + WPF + Tests，所以门禁 1/2 不编译 WinUI；`powershell -File tools/verify-gates.ps1 -Full` 的门禁 3 会构建 WinUI 单工程（0 警告 0 错误），每个 Phase 22 任务与任何 Core 公开面/WinUI 改动都必须跑。它仍不覆盖 WinUI 的**行为**（左栏逻辑、关闭落盘、XAML 运行时模板挂接没有自动回归），那部分靠真机手测与验收清单。`Tests/Extensions/AddDPlayerCoreTests.cs` 钉住 Core 的 DI 图，但**钉不住 WinUI 壳忘记注册自己的 `IFileDialogService`** —— 那种缺失要到第一次构造歌单才炸。要再收紧，就得把 WinUI 放进 `.slnf`，那会带来 restore/构建成本（见 §8.2），仍是一条要单独拍板的决策。
 - **WinUI 的 Mica 可见性依赖"根 Grid 背景必须是 `Transparent`"这条约定（Phase 20）**：材质挂在窗口上，但只在没有不透明背景刷的表面后面可见。以后任何人往根 Grid 或某个铺满的容器上加不透明背景刷，材质就"看起来消失"。护栏写在 `D-player.WinUI/MainWindow.xaml` 顶部注释（含三行像素对照）。反向陷阱：`DWMWA_SYSTEMBACKDROP_TYPE` 对组合器挂载的 backdrop **不是判据**（本项目实测恒为 0），基于它的自动化断言必然得出错结论 —— 实施过程中就真的被它误导过一次，把已生效的 Mica 判成了"未挂载"。
 - **两壳不得共用数据目录（Phase 20）**：三个持久化服务的 `SemaphoreSlim` 只在单进程内生效，跨进程无协调；`D-player` 与 `D-player-winui` 必须分开。`LegacyDataMigration` 的 UmaPlayer 迁移**只属 WPF 壳**（跑两遍会把同一份旧数据搬进两个目录，此后两边互相看不见）。

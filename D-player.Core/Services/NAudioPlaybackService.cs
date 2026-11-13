@@ -205,7 +205,17 @@ public sealed class NAudioPlaybackService : IPlaybackService
             }
             catch (Exception ex)
             {
-                RaiseOnUIThread(PlaybackError, ex.Message);
+                // 装载期间 Unload/Dispose 已经取消了这次装载（或服务已释放）：
+                // 这条错误不属于任何仍在进行的装载，报给 UI 只会让已被清屏/换了新曲的
+                // 界面弹出一条过期错误。封送前与 UI 线程上各核对一次代际。
+                if (!_disposed && cancelVersion == Volatile.Read(ref _loadCancelVersion))
+                {
+                    _syncContext.Post(_ =>
+                    {
+                        if (_disposed || cancelVersion != Volatile.Read(ref _loadCancelVersion)) return;
+                        PlaybackError?.Invoke(ex.Message);
+                    }, null);
+                }
                 throw;
             }
 
@@ -214,7 +224,18 @@ public sealed class NAudioPlaybackService : IPlaybackService
             {
                 // 装载期间 Unload/Dispose 会递增代际：新链已过时，绝不安装。
                 install = !_disposed && cancelVersion == _loadCancelVersion;
-                if (install) _current = chain;
+                if (install)
+                {
+                    _current = chain;
+
+                    // 装载期间 _current 为 null，配置 setter 的实时下发无处可去（只写了字段），
+                    // 而 BuildChain 用的是装载开始时的快照。安装瞬间按当前字段重放一次，
+                    // 否则装载窗口内改动的音量/频谱开关/EQ 会被旧快照覆盖（M1）。
+                    // 三个下发都是无锁/非阻塞写，满足"持 _chainGate 期间不得 await/阻塞"。
+                    chain.Volume.Volume = _volume;
+                    chain.Aggregator.Enabled = _spectrumConfig.Enabled;
+                    chain.Equalizer.Update(_equalizerConfig);
+                }
             }
 
             if (!install)
@@ -226,9 +247,17 @@ public sealed class NAudioPlaybackService : IPlaybackService
             // 先归零 Position，再广播新 Duration —— 否则切换到时长更短的曲目时，
             // VM 的旧 Position（如上一首播完的 4:05）会和新 Duration（3:20）短暂并存，
             // 进度条出现"4:05 / 3:20"的越界显示，直到下一帧位置轮询才纠正。
-            RaiseOnUIThread(PositionChanged, TimeSpan.Zero);
-            RaiseOnUIThread(DurationChanged, chain.Track.Duration);
-            RaiseOnUIThread(TrackChanged, chain.Track);
+            //
+            // 三条事件合成一次封送，并在 UI 线程上重新核对链身份：装完链到 UI 真正执行
+            // 之间可能发生 Unload/Dispose，逐个 Post 会在 TrackChanged(null) 之后又报回
+            // 旧 Track/Duration（M2）。身份不符即整组丢弃。
+            _syncContext.Post(_ =>
+            {
+                if (!ReferenceEquals(Volatile.Read(ref _current), chain)) return;
+                PositionChanged?.Invoke(TimeSpan.Zero);
+                DurationChanged?.Invoke(chain.Track.Duration);
+                TrackChanged?.Invoke(chain.Track);
+            }, null);
         }
         finally
         {

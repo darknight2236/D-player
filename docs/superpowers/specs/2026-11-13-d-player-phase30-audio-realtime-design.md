@@ -312,7 +312,6 @@ internal NAudioPlaybackService(
 - §6.3 全部确定性测试。
 - `Load_WhileOldChainPlaying_OldIsDetachedBeforeBuild`：假输出记录 Stop 与假源工厂门闩顺序。
 - `Load_DuringLoad_PlayIsNoOp`：明示装载期传输语义。
-- `OldChainDispose_DoesNotBlockNewChainTransport`：旧链 `Dispose` 卡在门闩时，新链仍可 Play/Pause。
 - 现有真实设备 5 条保留，必要时只适配新的私有链结构，不改断言语义。
 
 ### 7.5 位置轮询

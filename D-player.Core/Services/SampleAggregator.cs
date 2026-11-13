@@ -11,6 +11,7 @@ namespace DPlayer.Services;
 public sealed class SampleAggregator : ISampleProvider
 {
     private readonly ISampleProvider _source;
+    private readonly float[] _rawBuffer;
     private readonly Complex[] _fftBuffer;
     private readonly float[] _spectrumData;
     private readonly int _fftSize;
@@ -25,9 +26,14 @@ public sealed class SampleAggregator : ISampleProvider
 
     public SampleAggregator(ISampleProvider source, SpectrumConfig config)
     {
-        _source = source;
+        _source = source ?? throw new ArgumentNullException(nameof(source));
         _fftSize = config.FftSize;
         _barCount = config.BarCount;
+        if (_fftSize < 256 || _fftSize > 65536 || (_fftSize & (_fftSize - 1)) != 0)
+            throw new ArgumentOutOfRangeException(nameof(config), "FftSize must be a power of two in [256, 65536].");
+        if (_barCount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(config), "BarCount must be positive.");
+        _rawBuffer = new float[_fftSize];
         _fftBuffer = new Complex[_fftSize];
         _spectrumData = new float[_barCount];
     }
@@ -38,53 +44,65 @@ public sealed class SampleAggregator : ISampleProvider
     {
         // 1. 从源读取 PCM 数据（NAudio 3 起 ISampleProvider 只有 Span 重载）
         int read = _source.Read(buffer);
+        if (!Enabled || read <= 0) return read;
 
-        if (Enabled && read > 0)
+        int channels = Math.Max(1, _source.WaveFormat.Channels);
+        int frames = read / channels;
+
+        // 2. 填充原始样本环形历史（FFT 工作缓冲在 ProcessFrame 内单独使用）
+        for (int frame = 0; frame < frames; frame++)
         {
-            int channels = _source.WaveFormat.Channels;
-
-            // 2. 填充 FFT 缓冲区（立体声先混音为单声道再做 FFT）
-            for (int i = 0; i < read; i += channels)
+            int i = frame * channels;
+            float sample = channels switch
             {
-                // 多声道混音为单声道
-                float sample = 0;
-                for (int ch = 0; ch < channels; ch++)
-                    sample += buffer[i + ch];
-                sample /= channels;
+                1 => buffer[i],
+                2 => (buffer[i] + buffer[i + 1]) * 0.5f,
+                _ => Mix(buffer.Slice(i, channels), channels)
+            };
 
-                // 先写入原始样本，FFT 前再统一加窗
-                _fftBuffer[_bufferPosition].X = sample;
-                _fftBuffer[_bufferPosition].Y = 0;
-                _bufferPosition++;
+            _rawBuffer[_bufferPosition++] = sample;
+            if (_bufferPosition >= _fftSize)
+            {
+                ProcessFrame();
 
-                if (_bufferPosition >= _fftSize)
-                {
-                    // 3. 应用汉宁窗（在 FFT 前统一加窗，避免重叠时窗口错位）
-                    for (int j = 0; j < _fftSize; j++)
-                    {
-                        float windowFactor = (float)(0.5 * (1 - Math.Cos(2 * Math.PI * j / (_fftSize - 1))));
-                        _fftBuffer[j].X *= windowFactor;
-                    }
-
-                    // 4. 执行 FFT
-                    FastFourierTransform.FFT(true, (int)Math.Log2(_fftSize), _fftBuffer);
-
-                    // 5. 提取幅度并映射到频谱柱
-                    ExtractSpectrumData();
-
-                    // 6. 触发事件（复制数组，避免共享可变缓冲区被订阅者篡改）
-                    SpectrumDataReady?.Invoke(_spectrumData.ToArray());
-
-                    // 50% 重叠：保留后半段数据，提高更新率
-                    int halfSize = _fftSize / 2;
-                    Array.Copy(_fftBuffer, halfSize, _fftBuffer, 0, halfSize);
-                    _bufferPosition = halfSize;
-                }
+                // 50% 重叠：直接保留原始样本的后半段，而非上一次 FFT 输出
+                Array.Copy(_rawBuffer, _fftSize / 2, _rawBuffer, 0, _fftSize / 2);
+                _bufferPosition = _fftSize / 2;
             }
         }
 
-        // 6. 原始 PCM 数据原样传递
+        // 3. 原始 PCM 数据原样传递
         return read;
+    }
+
+    private static float Mix(ReadOnlySpan<float> samples, int channels)
+    {
+        float sum = 0;
+        for (int c = 0; c < channels; c++) sum += samples[c];
+        return sum / channels;
+    }
+
+    private void ProcessFrame()
+    {
+        // 1. 将原始样本复制到 FFT 工作缓冲（不污染重叠历史）
+        for (int j = 0; j < _fftSize; j++)
+        {
+            _fftBuffer[j].X = _rawBuffer[j];
+            _fftBuffer[j].Y = 0;
+        }
+
+        // 2. 应用汉宁窗（在 FFT 前统一加窗，避免重叠时窗口错位）
+        for (int j = 0; j < _fftSize; j++)
+            _fftBuffer[j].X *= (float)(0.5 * (1 - Math.Cos(2 * Math.PI * j / (_fftSize - 1))));
+
+        // 3. 执行 FFT
+        FastFourierTransform.FFT(true, (int)Math.Log2(_fftSize), _fftBuffer);
+
+        // 4. 提取幅度并映射到频谱柱
+        ExtractSpectrumData();
+
+        // 5. 触发事件（复制数组，避免共享可变缓冲区被订阅者篡改）
+        SpectrumDataReady?.Invoke(_spectrumData.ToArray());
     }
 
     /// <summary>

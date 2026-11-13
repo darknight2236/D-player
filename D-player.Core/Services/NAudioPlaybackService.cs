@@ -64,11 +64,8 @@ public sealed class NAudioPlaybackService : IPlaybackService
     // Phase 14: 均衡器配置（建链快照 + 当前链无锁 Update 实时下发）
     private EqualizerConfig _equalizerConfig = new();
 
-    // 位置事件节流：33ms ≈ 30Hz，刚好覆盖 60Hz 屏的"每两帧一次"，再高对感知无帮助
-    private static readonly TimeSpan PositionThrottle = TimeSpan.FromMilliseconds(33);
     /// <summary>「自然播完」判定容差：播放头距 TotalTime 在此范围内视为正常播完，区别于用户 Stop。</summary>
     private static readonly TimeSpan NaturalEndTolerance = TimeSpan.FromMilliseconds(200);
-    private DateTime _lastPositionEvent = DateTime.MinValue;
 
     public PlayState State => _state;
     public Track? CurrentTrack => Volatile.Read(ref _current)?.Track;
@@ -383,36 +380,38 @@ public sealed class NAudioPlaybackService : IPlaybackService
     }
 
     /// <summary>
-    /// 后台轮询循环（Task 10 临时版）：每 ~33ms 上报一次 Position。
-    /// Task 11 会把 Task.Delay 换成 PeriodicTimer 并删除 DateTime 节流；本版保留节流以维持现状。
-    /// 退出条件：播放会话代际变化（新 Play）、链已摘除（切歌/Unload/Dispose）或状态不再 Playing。
+    /// 后台轮询循环：PeriodicTimer 以 33ms（≈30Hz，覆盖 60Hz 屏"每两帧一次"）上报 Position。
+    /// 定时器按会话创建、随循环结束释放，因此无需额外的 DateTime 节流——周期即节流。
+    /// 退出条件（每 tick 检查一次）：播放会话代际变化（新 Play）、链已摘除（切歌/Unload/Dispose）
+    /// 或状态不再 Playing（Pause/Stop）。fire-and-forget 调用方不等待本任务。
     /// </summary>
     private async Task PollPositionAsync(long session)
     {
-        while (true)
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(33));
+        try
         {
-            await Task.Delay(33).ConfigureAwait(false); // ~30Hz
-
-            var chain = Volatile.Read(ref _current);
-            if (session != Volatile.Read(ref _playSession) || chain == null || _state != PlayState.Playing)
-                return;
-
-            var now = DateTime.UtcNow;
-            if (now - _lastPositionEvent < PositionThrottle)
-                continue;
-            _lastPositionEvent = now;
-
-            TimeSpan position;
-            try
+            while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                position = ClampToDuration(chain.Source.CurrentTime, chain.Track.Duration);
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
+                var chain = Volatile.Read(ref _current);
+                if (session != Volatile.Read(ref _playSession) || chain is null || _state != PlayState.Playing)
+                    break;
 
-            RaiseOnUIThread(PositionChanged, position);
+                TimeSpan position;
+                try
+                {
+                    position = ClampToDuration(chain.Source.CurrentTime, chain.Track.Duration);
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+
+                RaiseOnUIThread(PositionChanged, position);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // 服务/轮询定时器已释放
         }
     }
 

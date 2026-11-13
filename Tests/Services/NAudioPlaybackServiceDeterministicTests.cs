@@ -356,4 +356,37 @@ public sealed class NAudioPlaybackServiceDeterministicTests
         Assert.Contains("Init", secondOutput.Log);
         Assert.Equal(2, service.Duration.TotalSeconds, 3);
     }
+
+    /// <summary>
+    /// 轮询 smoke（行为钉，不是竞态证据）：Play 后位置事件必须出现，Pause 后必须停止。
+    /// 固定等待 100–150 ms 只是给轮询循环 3–4 个 33 ms tick 的观察窗口，允许 ±1 tick 调度抖动。
+    /// </summary>
+    [Fact]
+    public async Task Play_PostsPositions_AndPauseStopsPolling()
+    {
+        using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var source = new FakeAudioSource(TimeSpan.FromSeconds(10)) { CurrentTime = TimeSpan.FromSeconds(1) };
+        var output = new FakeWavePlayer();
+        using var sync = new QueuedSynchronizationContext();
+        using var service = new NAudioPlaybackService(
+            new FakeAudioSourceFactory(_ => source),
+            new FakeAudioOutputFactory(() => output),
+            sync);
+        int positions = 0;
+        service.PositionChanged += _ => Interlocked.Increment(ref positions);
+
+        await service.LoadAsync(TrackFor("a.wav")).WaitAsync(TimeSpan.FromSeconds(2), ct.Token);
+        service.Play();
+        await Task.Delay(150, ct.Token);
+        DrainQueued(sync);
+        Assert.True(Volatile.Read(ref positions) >= 1);
+
+        service.Pause();
+        await Task.Delay(100, ct.Token);
+        DrainQueued(sync);
+        int afterPause = Volatile.Read(ref positions);
+        await Task.Delay(150, ct.Token);
+        DrainQueued(sync);
+        Assert.Equal(afterPause, Volatile.Read(ref positions));
+    }
 }

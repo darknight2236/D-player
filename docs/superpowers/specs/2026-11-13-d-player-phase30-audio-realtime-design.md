@@ -152,7 +152,7 @@ before/after 对比口径：**音频线程 `Read` 成本是主对照**；改写�
 
 ### 5.4 流程与目标确认
 
-1. 在 `master` / `b92d3d6` 上跑基线并提交两份产物。
+1. 在阶段30分支的批次 0 提交上跑基线（该提交只新增 AudioBench/测试缝，音频 provider 代码与 `master` / `b92d3d6` 一致），提交两份产物。
 2. 把音频线程 CPU/音频秒、p99、分配读数回报用户，确认降幅/预算，写入本文 §10.2。
 3. 每个重写批次后用同一命令复跑；最终验收用 before/after 对照，不以单次读数下结论。
 
@@ -289,8 +289,8 @@ internal NAudioPlaybackService(
 - `_current` 为当前链引用；传输命令在 `_chainGate` 内读取当前链，回调侧用 `Volatile.Read(ref _current)` 判断代际，不取链闸门。
 - `LoadAsync` 流程：
   1. 入口检查 `_disposed`（已释放则抛 `ObjectDisposedException`）；`await _loadGate.WaitAsync()`（异步装载闸门，串行化装载）；取得闸门后再检查一次 `_disposed`，已释放则释放闸门并抛 `ObjectDisposedException`；
-  2. 在 `_chainGate` 内摘下当前链（`_current=null`，置 `StopRequested`，`SetState(Stopped)`），记录 `_loadCancelVersion`，释放锁；
-  3. `await Task.Run(() => { old?.Dispose(); return BuildChain(track); })`——旧链拆除与新链构建都在锁外、线程池上；`BuildChain` 内部分构建失败时必须释放已创建的 source/output/aggregator；
+  2. 在 `_chainGate` 内摘下当前链（`_current=null`，置 `StopRequested`，`SetState(Stopped)`），记录 `_loadCancelVersion`，并捕获 Volume/EQ/SpectrumConfig 配置快照，释放锁；
+  3. `await Task.Run(() => { old?.Dispose(); return BuildChain(track, configSnapshot); })`——旧链拆除与新链构建都在锁外、线程池上；`BuildChain` 内部分构建失败时必须释放已创建的 source/output/aggregator；
   4. 在 `_chainGate` 内检查 `_disposed` 与 `_loadCancelVersion`：若已 Dispose 或期间发生 Unload/Dispose，则不安装，锁外 dispose 新链并返回；否则安装新链、释放锁，通过 UI 线程依次广播 `Position=0`、`Duration`、`TrackChanged`；
   5. 构建失败：广播 `PlaybackError` 并抛出；`_current` 保持 null，状态 Stopped（与现状一致）。
 - 装载期间传输命令看到 `_current=null`，按无链语义 no-op；现有调用方都是 `await LoadAsync(...)` 后再 `Play()`，不受影响。这是明示的行为变化（旧实现会让 UI 线程阻塞到装载结束）。

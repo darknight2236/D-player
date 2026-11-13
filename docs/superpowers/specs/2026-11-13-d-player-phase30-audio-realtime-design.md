@@ -196,7 +196,7 @@ internal NAudioPlaybackService(
 
 | 测试 | 钉住的行为 |
 |---|---|
-| `Load_BlocksInInit_UnloadWaitsThenCompletes` | 装载串行化；Unload 不撕裂正在构建的链 |
+| `Load_BlocksInInit_UnloadCancelsInstall` | 装载期 Unload 立即返回；新链不安装并被释放 |
 | `TwoOverlappingLoads_Serialized_LastChainWins` | 装载闸门；首个链被完整拆除 |
 | `Stop_RaisesPlaybackStoppedSynchronously_DoesNotDeadlock` | `OnPlaybackStopped` 不取链闸门 |
 | `Stop_WhenPlayheadAtEnd_DoesNotRaiseTrackEnded` | 停止意图标记（假源可精确摆位） |

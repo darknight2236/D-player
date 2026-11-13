@@ -9,6 +9,9 @@ namespace DPlayer.Services;
 /// （位于 ToSampleProvider 与 SampleAggregator 之间 → 频谱反映 EQ 后信号）。
 ///
 /// 每声道独立一组 BiQuadFilter（峰值 EQ），避免立体声共享滤波状态导致串扰。
+/// 0 dB 频段被视为恒等、排除出 active 级联（不参与热路径）；在 NAudio 3.3.0 的
+/// <c>SetPeakingEq</c> 重置状态语义下，这与完整 10 段级联的输出等价（浮点容差内）。
+/// 当启用但所有频段均为 0 dB 且 preamp 为 0 dB 时，<see cref="Read"/> 直接返回源数据（零处理成本）。
 ///
 /// 线程模型（Phase 30）：UI 线程 <see cref="Update"/> 只发布不可变 <see cref="EqualizerConfig"/>
 /// 引用（Volatile.Write，不触碰滤波器）；音频线程在 <see cref="Read"/> 开头
@@ -30,6 +33,8 @@ public sealed class EqualizerSampleProvider : ISampleProvider
     private EqualizerConfig? _pendingConfig;
     private float _preampGain = 1f;
     private bool _enabled;
+    // 是否至少有一个声道存在非 0 dB 有效段。音频线程独占：仅构造期/Read 开头的 ApplyConfig 写。
+    private bool _hasActiveFilters;
 
     public EqualizerSampleProvider(ISampleProvider source, EqualizerConfig config)
     {
@@ -59,6 +64,10 @@ public sealed class EqualizerSampleProvider : ISampleProvider
         int read = _source.Read(buffer); // NAudio 3 起 ISampleProvider 只有 Span 重载
         if (!_enabled || read <= 0) return read; // 透明旁路（零处理成本）
 
+        // 启用但无 active 滤波器（全 0 dB）且 preamp 为 0 dB：恒等快速路径，零处理成本。
+        // preamp ≠ 1 时仍需 Process 应用增益；_hasActiveFilters 只在本方法开头被 ApplyConfig 写。
+        if (!_hasActiveFilters && _preampGain == 1f) return read;
+
         Process(buffer, read);
         return read;
     }
@@ -77,8 +86,9 @@ public sealed class EqualizerSampleProvider : ISampleProvider
 
     /// <summary>
     /// 在构造或音频线程 Read 开头应用配置：就地重算系数（<c>SetPeakingEq</c> 在块边界换系数；
-    /// NAudio 3.3.0 会重置滤波器状态，不保证跨块连续），并重建每声道有效滤波器数组
-    /// （中心频率 ≥ 奈奎斯特的频段旁路，PeakingEQ 此时不稳定）。
+    /// NAudio 3.3.0 会重置滤波器状态，不保证跨块连续），并重建每声道有效滤波器数组：
+    /// 中心频率 ≥ 奈奎斯特的频段旁路（PeakingEQ 此时不稳定）；0 dB 频段视为恒等、排除出
+    /// active 级联（NAudio 3.3.0 更新系数会重置状态，故与完整 10 段级联的输出在浮点容差内等价）。
     /// </summary>
     private void ApplyConfig(EqualizerConfig config)
     {
@@ -108,15 +118,18 @@ public sealed class EqualizerSampleProvider : ISampleProvider
             }
         }
 
+        _hasActiveFilters = false;
         for (int c = 0; c < _channels; c++)
         {
             int count = 0;
             for (int b = 0; b < EqualizerPresets.BandCount; b++)
             {
-                if (_filters[c][b] is { } filter)
+                float gainDb = (float)config.BandGainsDb[b];
+                if (gainDb != 0f && _filters[c][b] is { } filter)
                     _activeFilters[c][count++] = filter;
             }
             _activeCounts[c] = count;
+            if (count > 0) _hasActiveFilters = true;
         }
     }
 

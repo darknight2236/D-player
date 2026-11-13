@@ -123,6 +123,19 @@ public class EqualizerSampleProviderTests
     }
 
     [Fact]
+    public void FlatEnabled_IsExactPassthrough()
+    {
+        var data = new[] { 0.1f, -0.2f, 0.3f, -0.4f, 0.5f, -0.6f, 0.7f, -0.8f };
+        var eq = new EqualizerSampleProvider(
+            new FakeSampleProvider((float[])data.Clone()),
+            new EqualizerConfig { Enabled = true });
+        var buffer = new float[data.Length];
+        int read = eq.Read(buffer);
+        Assert.Equal(data.Length, read);
+        Assert.Equal(data, buffer); // 0 dB 频段全体恒等 → 逐位透传（快速路径的等价性钉子）
+    }
+
+    [Fact]
     public void FlatEnabled_IsUnity_ForDcSignal()
     {
         var data = new float[8];

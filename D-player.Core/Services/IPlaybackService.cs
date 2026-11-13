@@ -56,7 +56,9 @@ public interface IPlaybackService : IDisposable
     event Action? TrackEnded;
 
     /// <summary>
-    /// 频谱数据可用事件（每帧 FFT 计算后触发，已在 UI 线程）
+    /// 频谱数据可用事件（每帧 FFT 计算后触发，已在 UI 线程）。
+    /// 载荷是每帧一份的快照：唯一订阅方 PlayerViewModel 会就地乘灵敏度后交给视图，
+    /// 属于消费式使用 —— 订阅方不得缓存该数组或假定其跨帧不变。
     /// </summary>
     event Action<float[]>? SpectrumDataAvailable;
 

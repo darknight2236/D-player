@@ -2,7 +2,7 @@
 
 > 一个轻量级、本地优先的 Windows 音乐播放器（.NET 11 + NAudio，WPF / WinUI 两套壳；共享层 `D-player.Core` 是 WPF-free 的）。
 >
-> 文档日期：2026-11-13 · 分支：`phase30-audio-realtime` · 当前阶段：**Phase 30 音频实时路径性能重写（实现完成 / core 验收完成；GUI 走查待 Task 13b）**。音频线程 full-chain 7.885 → 2.031/2.028 ms/音频秒（−74%）、p99 0.337 → 0.031/0.033 ms、音频线程稳态零产品分配；WinUI 壳与 WPF 视图零改动。**2026-11-02 路线决策：WinUI 壳开发搁置（Phase 23 是最后一个 WinUI 功能阶段），后续回归 Core + WPF；Avalonia 重构仅保留为未来可能（未排期）。** 测试 **368 = 363 默认 + 5 真实音频**（Phase 30 新增 26 条默认测试）。WinUI 只由 `verify-gates.ps1 -Full` 门禁 3 编译，行为仍需真机验收。最近验收见 [Phase 30](./PHASE30-ACCEPTANCE.md)；上一阶段见 [Phase 29](./PHASE29-ACCEPTANCE.md)；历史验收见 [Phase 28](./PHASE28-ACCEPTANCE.md) / [Phase 27](./PHASE27-ACCEPTANCE.md) / [Phase 26](./PHASE26-ACCEPTANCE.md) / [Phase 25](./PHASE25-ACCEPTANCE.md) / [24](./PHASE24-ACCEPTANCE.md) / [23](./PHASE23-ACCEPTANCE.md) / [22](./PHASE22-ACCEPTANCE.md) / [21](./PHASE21-ACCEPTANCE.md) / [20 对比](./PHASE20-COMPARISON.md)；历史结论不回改。**项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
+> 文档日期：2026-11-13 · 分支：`phase30-audio-realtime` · 当前阶段：**Phase 30 音频实时路径性能重写（实现完成 / core 验收完成 / GUI 走查完成——Task 13b 2026-11-13，数据已按字节还原）**。音频线程 full-chain 7.885 → 2.031/2.028 ms/音频秒（−74%）、p99 0.337 → 0.031/0.033 ms、音频线程稳态零产品分配；WinUI 壳与 WPF 视图零改动。**2026-11-02 路线决策：WinUI 壳开发搁置（Phase 23 是最后一个 WinUI 功能阶段），后续回归 Core + WPF；Avalonia 重构仅保留为未来可能（未排期）。** 测试 **368 = 363 默认 + 5 真实音频**（Phase 30 新增 26 条默认测试）。WinUI 只由 `verify-gates.ps1 -Full` 门禁 3 编译，行为仍需真机验收。最近验收见 [Phase 30](./PHASE30-ACCEPTANCE.md)；上一阶段见 [Phase 29](./PHASE29-ACCEPTANCE.md)；历史验收见 [Phase 28](./PHASE28-ACCEPTANCE.md) / [Phase 27](./PHASE27-ACCEPTANCE.md) / [Phase 26](./PHASE26-ACCEPTANCE.md) / [Phase 25](./PHASE25-ACCEPTANCE.md) / [24](./PHASE24-ACCEPTANCE.md) / [23](./PHASE23-ACCEPTANCE.md) / [22](./PHASE22-ACCEPTANCE.md) / [21](./PHASE21-ACCEPTANCE.md) / [20 对比](./PHASE20-COMPARISON.md)；历史结论不回改。**项目名：D-player（原 UmaPlayer；C# 命名空间 DPlayer）**
 
 ---
 
@@ -211,7 +211,7 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │       ├── WinUiAppPaths.cs          # D-player-winui 数据目录与 logs 子目录常量
 │       └── AppLog.cs                 # app.log 追加 + 1 MiB 轮转到 app.log.1；IO 失败静默
 │
-├── Tests/                       # xUnit v3 测试项目 (Phase 6+，共 **368** 个测试 = 363 默认 + 5 真实 WASAPI；下列逐文件括号计数以 2026-11-12 Phase 29 终审修复后为准，Phase 29 新增 27 条、Phase 30 新增 26 条默认测试；Phase 20 起只引用 D-player.Core，不引用任何 UI 壳)
+├── Tests/                       # xUnit v3 测试项目 (Phase 6+，共 **368** 个测试 = 363 默认 + 5 真实 WASAPI；下列逐文件括号计数按 `[Fact]`/`[InlineData]` 实测口径，以 2026-11-13 Phase 30 验收后为准，Phase 29 新增 27 条、Phase 30 新增 26 条默认测试；Phase 20 起只引用 D-player.Core，不引用任何 UI 壳)
 │   ├── D-player.Tests.csproj   # 测试项目文件 (xUnit v3 + NSubstitute；CLI/MTP 路径，无 Coverlet/Test.Sdk/runner.visualstudio；OutputType=Exe)
 │   ├── Configuration/
 │   │   └── DPlayerDataPathsTests.cs      # 数据目录组合 + 两个壳各自注入的目录名钉桩 (2) (Phase 20)
@@ -233,12 +233,14 @@ D-player/                        # 仓库根 = WPF 壳工程目录（D-player.cs
 │   │   ├── JsonContractParityTests.cs    # QueueState / AppSettings / 缓存字典反射 vs 源生成全量输出对照 (3) (Phase 29)
 │   │   ├── DisposalTests.cs              # Json 服务与 watcher 双 Dispose 不抛 (2) (Phase 29)
 │   │   ├── LibraryPathNormalizerTests.cs # 库根目录规范化/去尾分隔符/大小写不敏感去重 (4) (Phase 24)
-│   │   ├── EqualizerSampleProviderTests.cs # 均衡器中间件（立体声独立 + Nyquist 旁路）(7) (Phase 14)
+│   │   ├── EqualizerSampleProviderTests.cs # 均衡器中间件（立体声独立 + Nyquist 旁路 + Phase 30 的 0 dB 旁路/缓冲边界生效/禁用期 pending/并发读）(11) (Phase 14/30)
 │   │   ├── NAudioPlaybackServiceConcurrencyTests.cs # 播放链并发/播完回归（真实占用 WASAPI 设备）(3) (Phase 18 后修复 / Phase 19)
+│   │   ├── NAudioPlaybackServiceDeterministicTests.cs # 确定性播放链生命周期（假音源/假输出，无音频设备；Phase 30 新增）(14) (Phase 30)
 │   │   ├── NAudioPlaybackServiceStopSemanticsTests.cs # 曲尾停止语义回归（真实占用 WASAPI 设备）(2) (Phase 18 后修复 / Phase 19)
 │   │   ├── PlaylistFileEncodingTests.cs  # 编码探测（BOM / 严格 UTF-8 / GBK 回退 / 空输入）(6) (Phase 18)
 │   │   ├── PlaylistFileParserTests.cs    # 后缀判定 + M3U/PLS 解析 (16) (Phase 18)
 │   │   ├── PlaylistFileServiceTests.cs   # 导入管道（归一化/过滤计数/不抛）+ 导出与往返 (20) (Phase 18)
+│   │   ├── SampleAggregatorTests.cs      # 频谱聚合器（时域重叠/已知正弦分桶/预计算表/静音/禁用旁路/订阅隔离/Dispose/启用切换；Phase 30 新增）(8) (Phase 30)
 │   │   └── TestAudio.cs                  # 音频测试的公共夹具（非测试类，不计数）
 │   └── ViewModels/
 │       ├── PlaybackResumeTests.cs         # 断点续播（落盘时机 + 启动恢复 + 缺文件提示 + 归属同步；Phase 24 库队列恢复；Phase 25 搜索态关闭持久化非搜索导航 + 默认不启动 watcher + 清理幂等；2026-11-08 库视图恢复清 ViewedPlaylist；Phase 29 +1）(24) (2026-10-06/24/25；2026-11-08 +1；Phase 29 +1)

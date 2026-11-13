@@ -3,11 +3,11 @@
 - 日期：2026-11-13
 - 分支：`phase30-audio-realtime`（起点 `master` / `b92d3d6`）
 - 基线：`docs/PHASE30-AUDIO-BASELINE.md` / `.json`（测得于 `e46579e`，产物提交于 `06cd9db`）
-- 本阶段提交区间：`e8678a9..a231649`（22 条：设计稿 / 基线与目标 / 工具 / 产品 / 测试；逐条见 `git log master..phase30-audio-realtime`）
+- 本阶段提交区间：`master..a231649`（22 条，首个提交 `e8678a9`、末提交 `a231649`：设计稿 / 基线与目标 / 工具 / 产品 / 测试；逐条见 `git log master..phase30-audio-realtime`）
 - 本轮验收测量点：**`a231649`（干净已提交工作树，无代码改动）**；本文档自身的提交另计
 - 设计：[2026-11-13-d-player-phase30-audio-realtime-design.md](./superpowers/specs/2026-11-13-d-player-phase30-audio-realtime-design.md)
 - 范围：音频实时路径（频谱 / EQ / 播放链 / 位置轮询）+ `tools/AudioBench`；WinUI 壳与 WPF 视图零改动
-- **本文档是 core 验收（门禁 / 基线 / 独立核对 / 文档）。GUI 走查由 Task 13b 单独执行，见 §6「GUI pending (Task 13b)」。**
+- **本文档覆盖 core 验收（门禁 / 基线 / 独立核对 / 文档）+ Task 13b GUI 走查（§6）。GUI 于 2026-11-13 在 `bin/Debug/net11.0-windows/D-player.exe` 上与合成库实测。**
 
 ## 1. 门禁读数
 
@@ -84,7 +84,7 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 | full-chain thread alloc | 17,824 B/run | 40 / 40 | 降到 harness 地板 |
 | aggregator CPU（口径已变，producer Read） | 3.111 ms/audio-s | 0.533 / 0.506 | 不可与基线相减，见 §2.1 |
 | aggregator p99 | 0.2531 ms | 0.0091 / 0.0076 | FFT 已不在音频线程 |
-| eq-flat CPU | 6.251 ms/audio-s | 0.180 / 0.203 | 0 dB 频段跳过 + 场景接近旁路 |
+| eq-flat CPU | 6.251 ms/audio-s | 0.180 / 0.203 | 0 dB 频段跳过 + 场景接近旁路；改写后读数贴近 harness 地板（eq-off 0.018/0.019），**Δ 含冷启动噪声，只作量级参考，不作精确降幅** |
 | eq-bass-boost CPU | 4.740 ms/audio-s | 3.164 / 3.041 | −33.2% / −35.8% |
 | eq-off CPU（未改写路径） | 0.016 | 0.018 / 0.019 | 噪声量级，harness 地板 |
 
@@ -131,10 +131,11 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 | 抑制项 | `grep -rn "#pragma warning disable\|NoWarn" D-player.Core D-player.csproj D-player.WinUI Tests --include=*.cs --include=*.csproj --exclude-dir=obj --exclude-dir=bin` | **零命中**（exit 1） |
 | 耦合审计 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/coupling-audit/Invoke-CouplingAudit.ps1` | **0 cycles / 0 violations**；`tools/AudioBench` 不在审计源集合内，无需 Phase 29 式的口径说明 |
 | 发布 | `dotnet publish D-player.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true` | 成功；`bin/Release/net11.0-windows/win-x64/publish/D-player.exe` **3,226,706 bytes**（2026-11-13 20:20:25），publish 目录 4 个文件 |
-| 输出目录 | `bin/Debug/net11.0-windows/D-player.exe` | **73,728 bytes**（2026-11-13 20:19:42，门禁 1 产物）；`bin/Debug/net10.0-windows/` 仍有旧二进制（10 月的 `D-player.exe`/`UmaPlayer.exe`），GUI 必须启动 net11 路径 |
+| 输出目录 | `bin/Debug/net11.0-windows/D-player.exe` | **73,728 bytes**（2026-11-13 20:19:42，门禁 1 产物）；`bin/Debug/net10.0-windows/` 仍有旧二进制（`D-player.exe` 2026-11-12 00:43、`UmaPlayer.exe` 2026-06-25 16:07），GUI 必须启动 net11 路径 |
+| Rider 红线 | Phase 28/29 既有定性（IDE 侧误报、非编译错误） | **无新诊断**：本轮未收到用户侧新报告，代理读不到 IDE 诊断面板；维持既有定性，未为 IDE 诊断改产品代码、未加 `pragma`/`NoWarn` |
 
 - 耦合审计附加读数（非门禁）：`NAudioPlaybackService.cs` 560 行（Phase 29 时 549 行以下，未进 >600 行观察名单）；M6 未消费服务只剩 `IAudioDeviceManager`（`IAudioOutputFactory` 已由 `NAudioPlaybackService` 生产消费，从 Phase 29 的"预注册未消费"名单中移除）。
-- 产品面改动范围（`git diff --stat master..HEAD`）：Core 音频 6 个文件 + `D-player.csproj`（glob 排除 `tools/**`）+ 3 个测试文件/3 个测试支撑文件 + `tools/AudioBench` + 设计/基线文档。**`Views/**`、WinUI、`D-player.slnf`、`verify-gates.ps1`、`global.json` 零改动。**
+- 产品面改动范围（`git diff --stat master..HEAD`）：Core 音频 **8 个文件**（`EqualizerSampleProvider` / `IAudioOutputFactory` / `IAudioSource` / `MediaFoundationAudioSource` / `NAudioPlaybackService` / `SampleAggregator` / `StubAudioOutputFactory` / `PlayerViewModel`）+ `D-player.csproj`（glob 排除 `tools/**`）+ 3 个测试文件/3 个测试支撑文件 + `tools/AudioBench` + 设计/基线文档。**`Views/**`、WinUI、`D-player.slnf`、`verify-gates.ps1`、`global.json` 零改动。**
 
 ## 5. 行为与契约变化（复核用速查）
 
@@ -146,19 +147,57 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 | 位置轮询 | `PeriodicTimer(33 ms)` + `_playSession` 代际替代 `Task.Delay(33)` + `DateTime` 双节流；暂停/停止/切歌后最多一个 tick 退出 |
 | 语义变化 | 装载期间的传输命令从"UI 线程阻塞到装载结束"变为 **no-op**（调用方都 `await LoadAsync` 后再 `Play`） |
 
-## 6. GUI pending（Task 13b）
+## 6. GUI 走查（Task 13b，2026-11-13）
 
-**本 core 验收**不包含 GUI 走查，以下由 Task 13b（ComputerUse + 主代理复核）执行并回填本节：
+**结论：通过（1 项 N/A、1 项限定通过）**。执行方式：Computer Use（UIA 语义 + 截图）驱动 `bin/Debug/net11.0-windows/D-player.exe`（73,728 bytes，2026-11-13 20:19:42）；走查前无 D-player 进程、桌面未锁屏。合成库 `C:\Users\darknight2236\AppData\Local\Temp\phase30-synthetic-library`（5 个 20 s / 44.1 kHz 单声道 WAV、中文多碟目录、GBK `中文歌单.m3u`）经 设置（齿轮）→ 添加文件夹 → 选择文件夹 加入并保存。
 
-- [ ] 走查前备份 `%LOCALAPPDATA%\D-player` 的 `settings.json` / `queue.json` / `library-cache.json` 到 `%TEMP%\phase30-data-backup`，记录 SHA-256。
-- [ ] 合成库（5 个 20 秒 WAV、中文路径、多碟目录、GBK `中文歌单.m3u`）启动 `bin/Debug/net11.0-windows/D-player.exe`（注意 §4 的 net10 旧目录陷阱）。
-- [ ] 播放/暂停、进度单击与拖动、上一首/下一首、自然播完自动推进、曲尾 200 ms 内停止不误推进。
-- [ ] 频谱可见、播放时变化、暂停后停止更新、切歌后继续。
-- [ ] EQ 启用、1k 段 +8 dB、保存落盘、取消不落盘、拖动过程人工听感（无爆音）。
-- [ ] 关闭落盘/重启续播；关闭中刷新不挂起。
-- [ ] 结束后按字节还原三份 JSON，SHA-256 与备份完全一致；删除合成库/备份/临时脚本。
+### 6.1 数据保护与还原
 
-**结论位置**：GUI 未完成前，Phase 30 的验收状态为 **core 完成 / GUI 待 Task 13b**；若 GUI 发现缺陷，以回填记录为准。
+| 文件（`%LOCALAPPDATA%\D-player`） | 走查前 SHA-256（备份于 `%TEMP%\phase30-data-backup`） | 走查后（按字节还原）SHA-256 | 结果 |
+|---|---|---|---|
+| settings.json | `8ff849ca447f205841f5824b44f517de53a877ceaa80ead9c341c6e6e33ac236` | 同左 | 一致 |
+| queue.json | `810ea1bbb61b7d1374e36d7f5ddc7ce40d30dcd663bb3f8648460165e2f3b9c2` | 同左 | 一致 |
+| library-cache.json | `4758ea35a977cabc12211e21537434ee9b37a8af6209b4ec00dc0a6564c60bcf` | 同左 | 一致 |
+
+走查结束后应用已关闭（含刷新中关闭场景），三份 JSON 由备份副本覆盖，SHA-256 与走查前完全一致；最终未留下运行中的进程。
+
+### 6.2 库扫描读数
+
+加入合成根并保存后：**21 位艺术家 · 30 张专辑 · 232 首**。232 = `D:\Music` 227 条 + 合成库 5 条；合成 WAV 无标签，归入 **未知艺术家 4 张专辑 · 5 首**（专辑一 2 首、专辑二 Disc 1/2 各 1 首、专辑三 1 首），与缓存中新写入的 5 条 `phase30-synthetic-library` 路径一致。
+
+### 6.3 逐项结果
+
+| # | 检查项 | 结果 | 观测证据 |
+|---|---|---|---|
+| 1 | 播放/暂停；进度推进；暂停保持 | **PASS** | 播放中 0:11 → 0:13（SeekBar 0.5955 → 0.6830，1.3 s）；暂停后 1.1 s 两次读数均为 0.24754（0:04），完全不动 |
+| 2 | 暂停态单击进度条跳转 | **PASS** | 0:04（0.2475）在 x=650 单击 → 0:12（0.6251），位置即刻跳变 |
+| 3 | 上一首 / 下一首 | **PASS** | 第一碟 → 远方 → 第一碟，切歌后从 0:00 起播（自动进入播放态） |
+| 4 | 自然播完自动推进 | **PASS** | 手动跳至 0.862（≈17.2 s）后 3.5 s 内进入下一首 远方 0:01 播放；另观察到 晨光 → 第二碟、第二碟 → 第一碟 两次自然切换 |
+| 5 | 曲尾停止不误推进 | **N/A（GUI 无 Stop 控件）** | WPF 壳只有播放/暂停（`PlayerViewModel.PlayPause` → `Pause`/`Play`），`Stop` 仅由服务层在卸载/关闭时调用；该语义由确定性测试 `Stop_WhenPlayheadAtEnd_DoesNotRaiseTrackEnded` 覆盖（§3），GUI 无对应按钮可点 |
+| 6 | 频谱可见、播放时更新、暂停冻结 | **PASS（限定）** | 频谱条在右栏底部可见；暂停后 1.2 s 两帧 180×100 区域 **0/18000** 像素变化；合成 WAV 为 439 Hz 恒定单音，同曲内两帧本就相同（0 像素变化），故以 EQ 实时预览改变实际音频验证更新：两帧 **382/18000** 像素变化、出现第二条谱线。切歌后频谱继续显示 |
+| 7 | EQ 启用、1k +8、保存落盘 | **PASS** | 对话框 1k 段 +8（预设转 Custom）；保存后 `settings.json`：`EqualizerEnabled=true`、`EqualizerBands=[0,0,0,0,0,8,0,0,0,0]`（索引 5 = 1k）、`EqualizerPreamp=0` |
+| 8 | 取消不落盘 | **PASS** | 重开 EQ，250 Hz 段调到 +10 后点“取消”；`settings.json` 仍为 `[0,0,0,0,0,8,0,0,0,0]`，+10 未写入 |
+| 9 | 关闭落盘 / 重启续播 | **PASS** | 暂停在 夜雨 0:09（0.4574 ≈ 9.15 s）后关闭：`LastPlayedPath=…\02 - 夜雨.wav`、`LastPlayedPositionSeconds=9.1678911`、`queue.json` 含 5 条合成路径；重启后恢复同一首 0:09（0.4584）且保持暂停，库视图页（ArtistDetail）一并恢复 |
+| 10 | 刷新中关闭不挂起 | **PASS** | 点击库面板刷新后 250 ms 关闭；窗口约 **1.0 s** 内消失（≤2.5 s），进程退出无残留 |
+| 11 | 数据还原 | **PASS** | 见 §6.1，三份 JSON SHA-256 与走查前一致 |
+
+### 6.4 截图
+
+目录：`%TEMP%\phase30-gui-shots\`
+
+- `01-settings-dialog.png`、`02-folder-picker.png`、`03-settings-with-synthetic-root.png`、`04-main-after-add-root.png`
+- `05-library-artists-view.png`、`06-library-search-歌手甲.png`、`07-library-after-rescan.png`、`08-artist-detail-unknown.png`、`09-artist-albums.png`、`10-album-tracks.png`
+- `11-play-all-start.png`、`12-playing-晨光.png`、`13-paused-第二碟.png`、`14-seek-paused.png`、`15-next-track.png`、`16-prev-track.png`、`17-auto-advance.png`
+- `18a-spectrum-playing-t0.png`、`18b-spectrum-playing-t1.png`、`19a-spectrum-paused-t0.png`、`19b-spectrum-paused-t1.png`
+- `20-eq-dialog.png`、`21-eq-1k-set.png`、`21-eq-1k-click134.png`、`22-eq-1k-plus8.png`、`23-eq-enabled-live-A.png`、`24-eq-pre12-live-B.png`、`25-eq-cancel-change-250.png`
+- `26-before-close-paused.png`、`27-restarted-restored.png`
+
+### 6.5 GUI 侧已知边界
+
+- **“无爆音”不是 GUI 通过判据**：自动化环境无法做人工听感；EQ 参数变更瞬间的复位型瞬态见 §7。GUI 只核对功能与落盘行为。
+- **WPF 壳无 Stop 按钮**：曲尾停止语义只在服务层由确定性测试覆盖，GUI 走查不能替代该测试。
+- **合成 WAV 是恒定 439 Hz 单音**：单曲内频谱帧本来就相同；“频谱随音频更新”以 EQ 实时预览造成的真实音频变化为证据（§6.3 第 6 项）。
+- 走查期间合成根曾写入 `settings.json` 并触发库扫描；结束前已按字节还原，用户实际设置未改变。
 
 ## 7. 已知边界
 
@@ -166,7 +205,7 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 - **无 underrun/回调抖动计数器**：真实 WASAPI 设备下的欠载、回调延迟没有任何自动读数；性能以合成链（AudioBench）+ GUI 走查为准。
 - **AudioBench 是合成链 + 墙面时钟**：`CPU ms/audio-s` 是读循环的 `Stopwatch` 墙钟（含每次 `Read` 的计时开销），只用于同机相对对照，不是进程 CPU 时间；40 B/run 是 harness 地板。
 - **FFT 帧率/每帧成本来自临时探针**（§2.3），非仓库内指标；探针已删除，复现需按同口径重写。
-- **EQ 听感只做人工走查**，不做客观音质断言；**`SetPeakingEq` 在 NAudio 3.3.0 会清零 x1/x2/y1/y2**（独立探针 0.5 → 0），Phase 30 保留"缓冲边界生效"但**不保留跨缓冲滤波状态**；拖 EQ 仍有复位型爆音风险，状态保持/交叉淡化是后续候选（非本阶段范围），详见设计稿 §4.2/§7.3/§10.4/§11 的修正。
+- **EQ 听感**：**GUI 清单不得把“无爆音”作为通过判据**。已核实 NAudio 3.3.0 的 `SetPeakingEq` 每次调用会重置滤波器状态（x1/x2/y1/y2 归零；独立探针 0.5 → 0），因此参数变更瞬间存在复位型瞬态（可闻的“爆音/咔哒”）风险。Phase 30 只承诺“缓冲边界生效”，**不承诺跨缓冲滤波状态连续**，也没有实现交叉淡化；参数变更时的瞬态记为已知限制而非本阶段失败。状态保持 / 交叉淡化的峰值滤波器是后续候选（非本阶段范围），详见设计稿 §4.2/§7.3/§10.4/§11 的修正。
 - **装载期传输命令 no-op** 是明示行为变化；GUI 走查需覆盖切歌/双击的装载窗口。
 - **预存在且未扩大**：in-flight `PlaybackStopped` 在"摘下当前链"与"置 `StopRequested`"之间的极窄窗口仍可能读到非空链，表现为偶发自动推进；只影响自动推进，不影响数据，属后续独立修复。
 - **`FftSize`/`BarCount` 运行时修改仍被忽略**（构造时校验，与 Phase 13 现状一致）。
@@ -176,5 +215,5 @@ dotnet run -c Release --project tools/AudioBench/AudioBench.csproj -- --seconds 
 
 - Phase 30 的音频实时路径重写**达成设计 §10.2 的全部量化目标**：音频线程 full-chain **7.885 → 2.031/2.028 ms/音频秒（−74%）**，p99 **0.337 → 0.031/0.033 ms**，音频线程稳态分配降到 harness 地板 40 B/run（产品分配 0），FFT 分析线程 **11.60 帧/音频秒、每帧 ≤0.34 ms**。
 - `verify-gates.ps1 -Full -Audio` 三关全过（0/0、363 + 5、0/0），末行 `all requested steps passed.`；Core WPF-free、抑制项、耦合审计、发布与输出目录核对全部通过；26 条新增默认测试全部落在门禁内，无 sleep 竞态窗口。
-- **GUI 走查（Task 13b）待执行**，数据 SHA-256 还原结果待回填 §6；在此之前验收状态为 core 完成。
+- **GUI 走查（Task 13b）已完成**（2026-11-13，net11 Debug 产物 + 合成库）：播放/暂停/单击跳转/上下一首/自然播完自动推进/频谱/EQ 落盘与取消/关闭重启恢复/刷新中关闭均通过；“曲尾停止”在 WPF 壳无对应控件，由确定性测试 `Stop_WhenPlayheadAtEnd_DoesNotRaiseTrackEnded` 覆盖。走查后三份 JSON 已按字节还原，SHA-256 与走查前完全一致（§6）。
 - **未推送**：分支停留在 `phase30-audio-realtime` 本地，推送等用户明确指示。
